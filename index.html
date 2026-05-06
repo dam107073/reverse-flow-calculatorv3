@@ -135,6 +135,13 @@
       transition: transform 0.06s ease, background 0.15s ease, color 0.15s ease;
     }
 
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      background: #e2e8f0;
+      color: #64748b;
+    }
+
     button:active { transform: scale(0.98); }
 
     button.active {
@@ -197,7 +204,7 @@
 
     .result-details {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       border-top: 1px solid var(--border);
     }
 
@@ -473,6 +480,8 @@
           state[id] = wholeNumber(e.target.value);
           e.target.value = state[id];
           saveState();
+          enforceValidNozzlePressure();
+          renderPressureButtons();
           calculateAndRender();
         });
       });
@@ -481,6 +490,8 @@
         state.hoseSize = e.target.value;
         saveState();
         syncCoefficientUi();
+        enforceValidNozzlePressure();
+        renderPressureButtons();
         calculateAndRender();
       });
 
@@ -496,6 +507,8 @@
       els.smoothboreTip.addEventListener("change", e => {
         state.smoothboreTip = e.target.value;
         saveState();
+        enforceValidNozzlePressure();
+        renderPressureButtons();
         calculateAndRender();
       });
 
@@ -544,18 +557,67 @@
 
     function renderPressureButtons() {
       const pressures = NOZZLE_PRESSURES[state.nozzleType];
-      els.pressureButtons.innerHTML = pressures.map(pressure => (
-        `<button type="button" data-pressure="${pressure}" class="${state.nozzlePressure === String(pressure) ? "active" : ""}">${pressure} psi</button>`
-      )).join("");
+      els.pressureButtons.innerHTML = pressures.map(pressure => {
+        const availability = getNozzlePressureAvailability(pressure);
+        const isActive = state.nozzlePressure === String(pressure);
+        return `<button type="button" data-pressure="${pressure}" class="${isActive ? "active" : ""}" ${availability.available ? "" : "disabled"} title="${availability.reason || ""}">${pressure} psi</button>`;
+      }).join("");
 
       els.pressureButtons.querySelectorAll("button").forEach(button => {
         button.addEventListener("click", () => {
+          if (button.disabled) return;
           state.nozzlePressure = button.dataset.pressure;
           saveState();
           renderPressureButtons();
           calculateAndRender();
         });
       });
+    }
+
+    function enforceValidNozzlePressure() {
+      if (state.nozzleType !== "smoothbore") return;
+      const pressures = NOZZLE_PRESSURES[state.nozzleType];
+      const selectedAvailability = getNozzlePressureAvailability(Number(state.nozzlePressure));
+      if (selectedAvailability.available) return;
+
+      const firstAvailable = pressures.find(pressure => getNozzlePressureAvailability(pressure).available);
+      state.nozzlePressure = firstAvailable ? String(firstAvailable) : "";
+      saveState();
+    }
+
+    function getNozzlePressureAvailability(pressure) {
+      if (state.nozzleType !== "smoothbore") {
+        return { available: true };
+      }
+
+      const pdp = numberOrNull(state.pdp);
+      const hoseLength = numberOrNull(state.hoseLength);
+      const applianceLoss = numberOrNull(state.applianceLoss) ?? 0;
+      const selectedHose = getSelectedHose();
+      const coefficient = state.useCustomCoefficient
+        ? numberOrNull(state.customCoefficient)
+        : selectedHose.coefficient;
+      const tip = getSelectedSmoothboreTip();
+
+      if (pdp === null || hoseLength === null || coefficient === null || !tip || hoseLength <= 0 || coefficient <= 0) {
+        return { available: true };
+      }
+
+      const gpm = smoothboreGpm(tip.diameter, pressure);
+      const q = gpm / 100;
+      const lengthHundreds = hoseLength / 100;
+      const requiredFrictionLoss = coefficient * q * q * lengthHundreds;
+      const requiredPdp = pressure + requiredFrictionLoss + applianceLoss;
+
+      if (pdp + 0.0001 >= requiredPdp) {
+        return { available: true, requiredPdp };
+      }
+
+      return {
+        available: false,
+        requiredPdp,
+        reason: `Requires about ${Math.ceil(requiredPdp)} psi PDP for this hose setup.`,
+      };
     }
 
     function calculateAndRender() {
@@ -576,6 +638,15 @@
       if (pdp === null || hoseLength === null || nozzlePressure === null || coefficient === null) {
         renderWarnings(warnings);
         return;
+      }
+
+      if (state.nozzleType === "smoothbore") {
+        const availability = getNozzlePressureAvailability(nozzlePressure);
+        if (!availability.available) {
+          warnings.push(`Selected smoothbore nozzle pressure requires about ${Math.ceil(availability.requiredPdp)} psi PDP for this hose setup.`);
+          renderWarnings(warnings);
+          return;
+        }
       }
 
       if (hoseLength <= 0) {
@@ -631,10 +702,18 @@
 
     function getNozzleDisplay() {
       if (state.nozzleType === "smoothbore") {
-        const tip = SMOOTHBORE_TIPS.find(item => item.id === state.smoothboreTip);
-        return `${tip ? tip.label : state.smoothboreTip} SB @ ${state.nozzlePressure} psi`;
+        const tip = getSelectedSmoothboreTip();
+        return `${tip ? tip.label : state.smoothboreTip} SB @ ${state.nozzlePressure || "—"} psi`;
       }
       return `Fog @ ${state.nozzlePressure} psi`;
+    }
+
+    function getSelectedSmoothboreTip() {
+      return SMOOTHBORE_TIPS.find(item => item.id === state.smoothboreTip);
+    }
+
+    function smoothboreGpm(diameter, nozzlePressure) {
+      return 29.7 * diameter * diameter * Math.sqrt(nozzlePressure);
     }
 
     function renderWarnings(warnings) {
