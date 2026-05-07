@@ -368,7 +368,7 @@
         <div id="smoothboreTipField" class="field full" hidden>
           <label for="smoothboreTip">Smoothbore Tip Size</label>
           <select id="smoothboreTip"></select>
-          <p class="helper">Used for scenario clarity and displayed in the result.</p>
+          <p class="helper">Used for scenario clarity and displayed in the result. In Reverse Flow mode, nozzle pressure defaults to the highest mathematically reachable value.</p>
         </div>
 
         <div class="field">
@@ -710,12 +710,18 @@
     function enforceValidNozzlePressure() {
       if (state.mode === "requiredPdp") return;
       if (state.nozzleType !== "smoothbore") return;
-      const pressures = NOZZLE_PRESSURES[state.nozzleType];
-      const selectedAvailability = getNozzlePressureAvailability(Number(state.nozzlePressure));
-      if (selectedAvailability.available) return;
 
-      const firstAvailable = pressures.find(pressure => getNozzlePressureAvailability(pressure).available);
-      state.nozzlePressure = firstAvailable ? String(firstAvailable) : "";
+      const pressures = NOZZLE_PRESSURES[state.nozzleType];
+      const availablePressures = pressures.filter(pressure => getNozzlePressureAvailability(pressure).available);
+
+      if (!availablePressures.length) {
+        state.nozzlePressure = "";
+        saveState();
+        return;
+      }
+
+      const highestAvailablePressure = Math.max(...availablePressures);
+      state.nozzlePressure = String(highestAvailablePressure);
       saveState();
     }
 
