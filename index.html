@@ -799,16 +799,7 @@
         return;
       }
 
-      if (state.nozzleType === "smoothbore") {
-        const availability = getNozzlePressureAvailability(nozzlePressure);
-        if (!availability.available) {
-          warnings.push(`Selected smoothbore nozzle pressure requires about ${Math.ceil(availability.requiredPdp)} psi PDP for this hose setup (±10 psi tolerance applied).`);
-          renderWarnings(warnings);
-          return;
-        }
-      }
-
-      if (hoseLength <= 0) {
+            if (hoseLength <= 0) {
         warnings.push("Hose length must be greater than 0 feet.");
         renderWarnings(warnings);
         return;
@@ -834,7 +825,9 @@
       }
 
       const frictionLossPer100 = totalFrictionLoss / (hoseLength / 100);
-      const calculatedGpm = Math.sqrt(frictionLossPer100 / coefficient) * 100;
+      const calculatedGpm = state.nozzleType === "smoothbore"
+        ? smoothboreGpm(getSelectedSmoothboreTip().diameter, nozzlePressure)
+        : Math.sqrt(frictionLossPer100 / coefficient) * 100;
       const roundedGpm = roundToNearestFive(calculatedGpm);
 
       if (roundedGpm > selectedHose.maxReferenceFlow) {
