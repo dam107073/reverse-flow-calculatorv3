@@ -415,7 +415,7 @@
       <div class="badge">💧 Training Calculator</div>
       <h1>Reverse Flow Calculator</h1>
       <p class="subtitle">
-        A hydraulic training and reference calculator for estimating fire flow, nozzle pressure, friction loss, and required pump discharge pressure based on hose configuration and nozzle setup.
+        A hydraulic training and reference calculator for estimating fire flow, nozzle pressure, friction loss, and required pump discharge pressure based on hose configuration and nozzle setup. The only calculator that can calculate GPM and Nozzle Pressure based on PDP.
       </p>
     </header>
 
@@ -427,7 +427,7 @@
             <button id="reverseModeButton" type="button">Reverse Flow</button>
             <button id="pdpModeButton" type="button">Required PDP</button>
           </div>
-          <p class="helper" id="modeHelper">Reverse Flow: enter PDP to estimate GPM.</p>
+          <p class="helper" id="modeHelper">Reverse Flow: enter PDP to estimate GPM and Nozzle Pressure.</p>
         </div>
         <div class="field">
           <label for="pdp" id="pdpLabel">Pump Discharge Pressure</label>
@@ -554,8 +554,8 @@
     ];
 
     const NOZZLE_PRESSURES = {
-      fog: [55, 100],
-      smoothbore: [40, 50, 60],
+      fog: [50, 55, 100],
+      smoothbore: [40, 50, 60, 80],
     };
 
     const SMOOTHBORE_TIPS = [
