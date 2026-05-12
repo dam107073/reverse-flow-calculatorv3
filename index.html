@@ -415,7 +415,7 @@
       <div class="badge">💧 Training Calculator</div>
       <h1>Reverse Flow Calculator</h1>
       <p class="subtitle">
- The only calculator that can calculate GPM and Nozzle Pressure based on PDP. 
+ The only calculator that can calculate GPM and Nozzle Pressure backwards from PDP. 
       </p>
     </header>
 
@@ -424,10 +424,10 @@
         <div class="field full">
           <label>Calculator Mode</label>
           <div class="mode-buttons">
-            <button id="reverseModeButton" type="button">Reverse Flow</button>
+            <button id="reverseModeButton" type="button">Reverse Flow Mode</button>
             <button id="pdpModeButton" type="button">Required PDP Mode</button>
           </div>
-          <p class="helper" id="modeHelper">Reverse Flow Mode: Enter PDP to estimate GPM and Nozzle Pressure.</p>
+          <p class="helper" id="modeHelper">Reverse Flow Mode: Enter PDP to estimate GPM and Nozzle Pressure based on hose and nozzle characteristics.</p>
         </div>
         <div class="field">
           <label for="pdp" id="pdpLabel">Pump Discharge Pressure</label>
@@ -534,8 +534,8 @@
     <section class="card">
       <details class="about">
         <summary>About / How to Use</summary>
-        <p><strong>Reverse Flow</strong> estimates GPM by working backward from PDP, nozzle pressure, hose length, and hose coefficient.</p>
-        <p><strong>Required PDP</strong> calculates the pump discharge pressure needed to achieve a target GPM.</p>
+        <p><strong>Reverse Flow Mode</strong> estimates GPM by working backward from PDP, nozzle pressure, hose length, and hose coefficient.</p>
+        <p><strong>Required PDP Mode</strong> calculates the pump discharge pressure needed to achieve a target GPM.</p>
         <p>For smoothbore calculations, select the tip size manually. Smoothbore nozzle pressures that cannot be reached with the entered PDP and hose setup are disabled in Reverse Flow mode.</p>
         <p>This calculator is intended for training and reference. Always follow local pump charts, equipment testing, department policy, and instructor guidance.</p>
       </details>
@@ -575,10 +575,10 @@
       pdp: "",
       targetGpm: "",
       hoseLength: "",
-      hoseSize: "1.75",
-      nozzleType: "fog",
-      nozzlePressure: "100",
-      smoothboreTip: "15/16",
+      hoseSize: "",
+      nozzleType: "",
+      nozzlePressure: "",
+      smoothboreTip: "",
       applianceLoss: "0",
       useCustomCoefficient: false,
       customCoefficient: "",
