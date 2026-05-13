@@ -590,6 +590,8 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
     ];
 
     const STORAGE_KEY = "reverse-flow-calculator-v3";
+    const PRESETS_KEY = "reverse-flow-calculator-presets-v1";
+    
 
     const DEFAULT_STATE = {
       mode: "reverse",
@@ -1068,6 +1070,18 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
     function roundToNearestFive(value) {
       return Math.round(value / 5) * 5;
     }
+    function loadPresets() {
+  try {
+    const saved = localStorage.getItem(PRESETS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePresets(presets) {
+  localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+}
   </script>
 </body>
 </html>
