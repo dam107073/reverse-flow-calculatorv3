@@ -446,6 +446,7 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
     <option value="">No saved setup selected</option>
   </select>
   <p class="helper">Select a saved hose/nozzle setup to quickly fill the calculator.</p>
+          <button id="savePresetButton" class="small-button" type="button">Save Current Setup</button>
 </div>
         <div class="field full">
           <label>Calculator Mode</label>
@@ -618,6 +619,7 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
 
     const els = {
       presetSelect: document.getElementById("presetSelect"),
+      savePresetButton: document.getElementById("savePresetButton"),
       reverseModeButton: document.getElementById("reverseModeButton"),
       pdpModeButton: document.getElementById("pdpModeButton"),
       modeHelper: document.getElementById("modeHelper"),
@@ -689,7 +691,10 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
       els.presetSelect.addEventListener("change", e => {
   applyPreset(e.target.value);
 });
+      els.savePresetButton.addEventListener("click", saveCurrentSetupAsPreset);
+      
       els.reverseModeButton.addEventListener("click", () => setMode("reverse"));
+      
       els.pdpModeButton.addEventListener("click", () => setMode("requiredPdp"));
 
       ["pdp", "hoseLength", "applianceLoss", "customCoefficient"].forEach(id => {
@@ -817,6 +822,34 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
       `<option value="${preset.id}">${preset.name}</option>`
     )).join("")}
   `;
+}
+    function saveCurrentSetupAsPreset() {
+  const name = prompt("Enter a name for this setup:");
+
+  if (!name || !name.trim()) return;
+
+  const presets = loadPresets();
+
+  const newPreset = {
+    id: `preset-${Date.now()}`,
+    name: name.trim(),
+    hoseLength: state.hoseLength || "",
+    hoseSize: state.hoseSize || "",
+    nozzleType: state.nozzleType || "",
+    nozzlePressure: state.nozzlePressure || "",
+    smoothboreTip: state.smoothboreTip || "",
+    applianceLoss: state.applianceLoss || "0",
+    useCustomCoefficient: state.useCustomCoefficient || false,
+    customCoefficient: state.customCoefficient || ""
+  };
+
+  presets.push(newPreset);
+  savePresets(presets);
+
+  renderPresetOptions();
+  els.presetSelect.value = newPreset.id;
+
+  alert(`Saved setup: ${newPreset.name}`);
 }
 
     function renderPressureButtons() {
