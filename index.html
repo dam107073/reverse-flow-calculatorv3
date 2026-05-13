@@ -57,6 +57,15 @@
       font-size: 14px;
       font-weight: 600;
     }
+    .badge-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .beta {
+      background: #ea580c;
+      color: cyan;
+    }
 
     h1 {
       font-size: clamp(32px, 6vw, 48px);
@@ -414,7 +423,10 @@
 <body>
   <main>
     <header>
-      <div class="badge">💧 Training Calculator</div>
+      <div class="badge-row">"
+        <div class="badge"> Training Calculator</div>
+        <div class="badge beta">PRO BETA</div>
+        
       <h1>Reverse Flow Calculator</h1>
       <p class="subtitle">
 The only calculator that can calculate GPM and Nozzle Pressure backwards from PDP. 
