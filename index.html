@@ -436,7 +436,7 @@
         
       <h1>Reverse Flow</h1>
       <p class="subtitle">
-All-in-one Hydraulic APP for the fire service.
+All-in-One Hydraulic Application for the fire service.
       </p>
     </header>
 
@@ -574,7 +574,7 @@ All-in-one Hydraulic APP for the fire service.
       </details>
     </section>
 
-    <p class="version-footer">Reverse Flow Calculator v3.4</p>
+    <p class="version-footer" id="versionfooter"></p>
   </main>
 
   <script>
@@ -657,6 +657,9 @@ All-in-one Hydraulic APP for the fire service.
       resetButton: document.getElementById("resetButton"),
       deletePresetButton: document.getElementById("deletePresetButton"),
     };
+
+    document.getElementById("versionFooter").textContent =
+  `Reverse Flow Calculator v${APP_VERSION}`;
 
     init();
 
