@@ -542,6 +542,10 @@ All-in-One Hydraulic Application for the fire service.
           <strong id="nozzleDisplay">—</strong>
         </div>
         <div class="detail">
+  <p>Reaction</p>
+  <strong id="nozzleReaction">—</strong>
+</div>
+        <div class="detail">
           <p>Setup</p>
           <strong id="setupDisplay">—</strong>
         </div>
@@ -567,9 +571,9 @@ All-in-One Hydraulic Application for the fire service.
     <section class="card">
       <details class="about">
         <summary>About / How to Use</summary>
-        <p><strong>Reverse Flow Mode</strong> estimates GPM by working backward from PDP, nozzle pressure, hose length, and hose coefficient.</p>
-        <p><strong>Required PDP Mode</strong> calculates the pump discharge pressure needed to achieve a target GPM.</p>
-        <p>For smoothbore calculations, select the tip size manually. Smoothbore nozzle pressures that cannot be reached with the entered PDP and hose setup are disabled in Reverse Flow mode.</p>
+        <p><strong>Reverse Flow Mode</strong> Estimates GPM by working backwards using PDP, Nozzle Pressure, and Friction Loss.</p>
+        <p><strong>Required PDP Mode</strong> Calculates the pump discharge pressure needed to achieve a target GPM.</p>
+        <p>For smoothbore calculations, select the tip size manually when in PDP mode. Smoothbore nozzle pressures will be calculated automatically in Reverse Flow mode.</p>
         <p>This calculator is intended for training and reference. Always follow local pump charts, equipment testing, department policy, and instructor guidance.</p>
       </details>
     </section>
@@ -589,7 +593,7 @@ All-in-One Hydraulic Application for the fire service.
     ];
 
     const NOZZLE_PRESSURES = {
-      fog: [50, 55, 100],
+      fog: [50, 55, 75, 100],
       smoothbore: [40, 50, 60, 80],
     };
 
@@ -656,6 +660,7 @@ All-in-One Hydraulic Application for the fire service.
       warningsCard: document.getElementById("warningsCard"),
       resetButton: document.getElementById("resetButton"),
       deletePresetButton: document.getElementById("deletePresetButton"),
+      nozzleReaction: document.getElementById("nozzleReaction"),
     };
 
     document.getElementById("versionFooter").textContent =
@@ -1110,13 +1115,14 @@ if (existingPreset) {
       renderWarnings(warnings);
     }
 
-    function setResult(rounded, calculated, total, per100, nozzle, setup) {
+    function setResult(rounded, calculated, total, per100, nozzle, setup, reaction = "-") {
       els.roundedGpm.textContent = rounded;
       els.calculatedGpm.textContent = calculated;
       els.totalFl.textContent = total;
       els.flPer100.textContent = per100;
       els.nozzleDisplay.textContent = nozzle;
       els.setupDisplay.textContent = setup;
+      els.nozzleReaction.textContent = reaction;
     }
 
     function getSetupDisplay() {
@@ -1142,6 +1148,24 @@ if (existingPreset) {
     function smoothboreGpm(diameter, nozzlePressure) {
       return 29.7 * diameter * diameter * Math.sqrt(nozzlePressure);
     }
+    function calculateNozzleReaction(calculatedGpm, nozzlePressure) {
+  if (state.nozzleType === "smoothbore") {
+    const tip = getSelectedSmoothboreTip();
+    if (!tip || nozzlePressure === null) return "—";
+
+    const reaction = 1.57 * tip.diameter * tip.diameter * nozzlePressure;
+    return `${Math.round(reaction)} lb`;
+  }
+
+  if (state.nozzleType === "fog") {
+    if (!calculatedGpm || nozzlePressure === null) return "—";
+
+    const reaction = 0.0505 * calculatedGpm * Math.sqrt(nozzlePressure);
+    return `${Math.round(reaction)} lb`;
+  }
+
+  return "—";
+}
 
     function renderWarnings(warnings) {
       if (!warnings.length) {
