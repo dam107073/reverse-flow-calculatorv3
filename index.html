@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Reverse Flow">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reverse Flow Calculator</title>
+  <title>Reverse Flow</title>
   <style>
     :root {
       --bg: #f1f5f9;
@@ -434,9 +434,9 @@
       </div>
       
         
-      <h1>Reverse Flow Calculator</h1>
+      <h1>Reverse Flow</h1>
       <p class="subtitle">
-The only calculator that can calculate GPM and Nozzle Pressure backwards from PDP. 
+All-in-One Hydraulic Application for the fire service.
       </p>
     </header>
 
@@ -481,6 +481,12 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
           </select>
         </div>
 
+        <div id="smoothboreTipField" class="field full" hidden>
+          <label for="smoothboreTip">Smoothbore Tip Size</label>
+          <select id="smoothboreTip"></select>
+          <p class="helper">Used for scenario clarity and displayed in the result. In Reverse Flow mode, nozzle pressure defaults to the highest mathematically reachable value.</p>
+        </div>
+        
         <div class="field full">
           <label id="nozzlePressureLabel">Nozzle Pressure</label>
           <div id="pressureButtons" class="pressure-buttons"></div>
@@ -491,11 +497,7 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
           <div id="disabledPressureExplanations" class="disabled-explanations" hidden></div>
         </div>
 
-        <div id="smoothboreTipField" class="field full" hidden>
-          <label for="smoothboreTip">Smoothbore Tip Size</label>
-          <select id="smoothboreTip"></select>
-          <p class="helper">Used for scenario clarity and displayed in the result. In Reverse Flow mode, nozzle pressure defaults to the highest mathematically reachable value.</p>
-        </div>
+        
 
         <div class="field">
           <label for="applianceLoss">Appliance / Elevation Loss</label>
@@ -572,12 +574,12 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
       </details>
     </section>
 
-    <p class="version-footer">Reverse Flow Calculator v3.3</p>
+    <p class="version-footer" id="versionFooter"></p>
   </main>
 
   <script>
-    const APP_VERSION = "3.2.0";
-    console.log('Reverse Flow Calculator v${APP_VERSION}');
+    const APP_VERSION = "3.3.1";
+    console.log(`Reverse Flow Calculator v${APP_VERSION}`);
     const HOSE_OPTIONS = [
       { id: "1.75", label: '1.75"', coefficient: 15.5, maxReferenceFlow: 250, chartName: '1 3/4" / 1.75"' },
       { id: "1.88", label: '1.88"', coefficient: 8, maxReferenceFlow: 250, chartName: '1.88" FDNY' },
@@ -655,6 +657,9 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
       resetButton: document.getElementById("resetButton"),
       deletePresetButton: document.getElementById("deletePresetButton"),
     };
+
+    document.getElementById("versionFooter").textContent =
+  `Reverse Flow Calculator v${APP_VERSION}`;
 
     init();
 
@@ -836,6 +841,34 @@ The only calculator that can calculate GPM and Nozzle Pressure backwards from PD
   if (!name || !name.trim()) return;
 
   const presets = loadPresets();
+
+      const existingPreset = presets.find(
+  preset => preset.name.toLowerCase() === name.trim().toLowerCase()
+);
+
+if (existingPreset) {
+  const overwrite = confirm(
+    `A preset named "${existingPreset.name}" already exists. Overwrite it?`
+  );
+
+  if (!overwrite) return;
+
+  existingPreset.hoseLength = state.hoseLength || "";
+  existingPreset.hoseSize = state.hoseSize || "";
+  existingPreset.nozzleType = state.nozzleType || "";
+  existingPreset.nozzlePressure = state.nozzlePressure || "";
+  existingPreset.smoothboreTip = state.smoothboreTip || "";
+  existingPreset.applianceLoss = state.applianceLoss || "0";
+  existingPreset.useCustomCoefficient = state.useCustomCoefficient || false;
+  existingPreset.customCoefficient = state.customCoefficient || "";
+
+  savePresets(presets);
+  renderPresetOptions();
+  els.presetSelect.value = existingPreset.id;
+
+  alert(`Updated preset: ${existingPreset.name}`);
+  return;
+}
 
   const newPreset = {
     id: `preset-${Date.now()}`,
