@@ -1120,21 +1120,21 @@ if (existingPreset) {
       const frictionLossPer100 = coefficient * q * q;
       const requiredPdp = nozzlePressure + totalFrictionLoss + applianceLoss;
       const roundedRequiredPdp = Math.round(requiredPdp);
+      const nozzleReaction = calculateNozzleReaction(targetGpm, nozzlePressure);
 
       if (targetGpm > selectedHose.maxReferenceFlow) {
         warnings.push(`Target flow exceeds the pump-chart reference range for ${selectedHose.chartName} hose.`);
       }
 
-      setResult(
-        roundedRequiredPdp,
-        `${Math.round(targetGpm)} GPM`,
-        `${Math.round(totalFrictionLoss)} psi`,
-        `${Math.round(frictionLossPer100)} psi`,
-        getNozzleDisplay(),
-        getSetupDisplay()
-      );
-      renderWarnings(warnings);
-    }
+setResult(
+  roundedRequiredPdp,
+  `${Math.round(targetGpm)} GPM`,
+  `${Math.round(totalFrictionLoss)} psi`,
+  `${Math.round(frictionLossPer100)} psi`,
+  getNozzleDisplay(),
+  getSetupDisplay(),
+  nozzleReaction
+);
 
     function setResult(rounded, calculated, total, per100, nozzle, setup, reaction = "-") {
       els.roundedGpm.textContent = rounded;
