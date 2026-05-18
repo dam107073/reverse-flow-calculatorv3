@@ -510,11 +510,14 @@ All-in-One Hydraulic Application for the fire service.
             <label for="customCoefficient">Custom Coefficient</label>
             <button id="coefficientToggle" class="small-button" type="button">Off</button>
           </div>
-          <input id="customCoefficient" inputmode="numeric" placeholder="Default coefficient" disabled />
-          <p id="coefficientHelper" class="helper"></p>
-        </div>
-      </div>
-    </section>
+  <input
+  id="customCoefficient"
+  type="number"
+  step="any"
+  inputmode="decimal"
+  placeholder="Default coefficient"
+  disabled
+/>
 
     <section class="card">
       <div class="result-top">
@@ -1188,8 +1191,16 @@ if (existingPreset) {
     }
 
     function wholeNumber(value) {
-      return String(value).replace(/[^0-9]/g, "");
-    }
+  value = String(value).replace(/[^0-9.]/g, "");
+
+  const parts = value.split(".");
+
+  if (parts.length > 2) {
+    value = parts[0] + "." + parts.slice(1).join("");
+  }
+
+  return value;
+}
 
     function numberOrNull(value) {
       if (value === "" || value === null || value === undefined) return null;
