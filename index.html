@@ -637,6 +637,13 @@
       { id: "5", label: '5"', coefficient: 0.08, maxReferenceFlow: 2000, chartName: '5"' },
     ];
 
+    const RELAY_HOSE_OPTIONS = [
+      { id: "3", label: '3"', coefficient: 0.8, maxReferenceFlow: 900, chartName: '3"' },
+      { id: "dual3", label: 'Dual 3"', coefficient: 0.4, maxReferenceFlow: 1500, chartName: 'Dual 3"' },
+      { id: "4", label: '4"', coefficient: 0.2, maxReferenceFlow: 1200, chartName: '4"' },
+      { id: "5", label: '5"', coefficient: 0.08, maxReferenceFlow: 2000, chartName: '5"' },
+    ];
+
     const NOZZLE_PRESSURES = {
       fog: [50, 55, 75, 100],
       smoothbore: [40, 50, 60, 80],
@@ -766,11 +773,15 @@
     // ========================================
     // UI POPULATION
     // ========================================
-    function populateHoseOptions() {
-      els.hoseSize.innerHTML = HOSE_OPTIONS.map(hose => (
-        `<option value="${hose.id}">${hose.label} — C ${hose.coefficient}</option>`
-      )).join("");
-    }
+  function populateHoseOptions() {
+  const hoseOptions = isRelayMode()
+    ? RELAY_HOSE_OPTIONS
+    : HOSE_OPTIONS;
+
+  els.hoseSize.innerHTML = hoseOptions.map(hose => (
+    `<option value="${hose.id}">${hose.label} — C ${hose.coefficient}</option>`
+  )).join("");
+}
 
     function populateSmoothboreTips() {
       els.smoothboreTip.innerHTML = SMOOTHBORE_TIPS.map(tip => (
@@ -1025,11 +1036,14 @@
     }
 
     function setMode(mode) {
-      state.mode = mode;
-      saveState();
-      syncModeUi();
-      renderPressureButtons();
-      calculateAndRender();
+    state.mode = mode;
+
+    populateHoseOptions();
+
+    saveState();
+    syncModeUi();
+    renderPressureButtons();
+    calculateAndRender();
     }
 
     function resetCalculator() {
