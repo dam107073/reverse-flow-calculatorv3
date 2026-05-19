@@ -975,11 +975,13 @@ els.nozzleTypeLabel.textContent = isRelayMode()
     <option value="30">30 psi</option>
     <option value="40">40 psi</option>
   `;
+  els.nozzleType.value = state.nozzleType;
 } else {
   els.nozzleType.innerHTML = `
     <option value="fog">Fog</option>
     <option value="smoothbore">Smoothbore</option>
   `;
+  els.nozzleType.value = state.nozzleType;
 }
 
 els.nozzlePressureLabel.closest(".field").style.display = isRelayMode() ? "none" : "";
