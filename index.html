@@ -1510,8 +1510,16 @@ function calculateRelayPdp({
     // SELECTORS / MODE HELPERS
     // ========================================
     function getSelectedHose() {
-      return HOSE_OPTIONS.find(hose => hose.id === state.hoseSize) || HOSE_OPTIONS[0];
-    }
+
+  const hoseOptions = isRelayMode()
+    ? RELAY_HOSE_OPTIONS
+    : HOSE_OPTIONS;
+
+  return (
+    hoseOptions.find(hose => hose.id === state.hoseSize) ||
+    hoseOptions[0]
+  );
+}
 
     function getSelectedSmoothboreTip() {
       return SMOOTHBORE_TIPS.find(item => item.id === state.smoothboreTip);
