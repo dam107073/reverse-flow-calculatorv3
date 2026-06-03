@@ -1929,26 +1929,23 @@ Select a hydraulic calculation mode.
   <div>✓ ALL FUTURE FEATURES</div>
 </div>
 
-<div class="beta-access-section">
+<button
+  type="button"
+  id="buyProButton"
+>
+  Buy Reverse Flow Pro
+</button>
 
-  <input
-    type="text"
-    id="betaAccessCode"
-    placeholder="Tester Access Code"
-  />
-
-  <button
-    type="button"
-    id="betaUnlockButton"
-  >
-    Unlock Tester Access
-  </button>
-
-</div>
+<button
+  type="button"
+  id="restorePurchaseButton"
+>
+  Restore Purchase
+</button>
 
     <div class="pro-modal-footer">
-  <strong>One-time purchase.</strong>
-  No subscription. Lifetime access to all future PRO features.
+  <strong>Reverse Flow Pro requires App Store purchase.</strong>
+  In-app purchase support is being added for this release.
 </div>
 
   </div>
@@ -1965,7 +1962,7 @@ Select a hydraulic calculation mode.
     display:inline-flex;
     align-items:center;
     white-space:nowrap;
-    padding:6px 12px;
+    padding: 6px 12px;
     border-radius:999px;
     font-size:11px;
     letter-spacing:0.08em;
@@ -2018,6 +2015,9 @@ Select a hydraulic calculation mode.
 const APP_VERSION = "1.0";
     const BUILD_DATE = "2026-05-30";
 
+    const REVERSE_FLOW_PRO_PRODUCT_ID =
+  "reverse_flow_pro_lifetime";
+
 const STORAGE_KEY = "reverse-flow-calculator-v3";
 const PRESETS_KEY = "reverse-flow-calculator-presets-v1";
 const HOSE_COEFFS_KEY = "reverse-flow-hose-coefficients-v1";
@@ -2029,7 +2029,6 @@ const HOSE_COEFFS_KEY = "reverse-flow-hose-coefficients-v1";
 const ACCESS_LEVELS = {
   BASIC: "basic",
   PRO: "pro",
-  PRO_COMPED: "pro_comped"
 };
 
 // Beta testers default to PRO access for now
@@ -2037,15 +2036,19 @@ const ACCESS_LEVEL_STORAGE_KEY =
   "reverse-flow-access-level";
 
 let userAccessLevel =
-  localStorage.getItem(ACCESS_LEVEL_STORAGE_KEY) ||
-  ACCESS_LEVELS.BASIC;
+  localStorage.getItem(ACCESS_LEVEL_STORAGE_KEY) === ACCESS_LEVELS.PRO
+    ? ACCESS_LEVELS.PRO
+    : ACCESS_LEVELS.BASIC;
+
+  localStorage.setItem(
+  ACCESS_LEVEL_STORAGE_KEY,
+  userAccessLevel
+);
 
 function isProUser() {
-  return (
-    userAccessLevel === ACCESS_LEVELS.PRO ||
-    userAccessLevel === ACCESS_LEVELS.PRO_COMPED
-  );
+  return userAccessLevel === ACCESS_LEVELS.PRO;
 }
+
 function setAccessLevel(level) {
   userAccessLevel = level;
 
@@ -2061,46 +2064,8 @@ function setAccessLevel(level) {
 
   updateAccessBadge();
 }
-function enableProAccess() {
-  setAccessLevel(ACCESS_LEVELS.PRO);
-}
 
-function disableProAccess() {
-  setAccessLevel(ACCESS_LEVELS.BASIC);
-}
 
-const BETA_ACCESS_CODE = ["RF", "BETA", "2026"].join("-");
-
-function unlockBetaAccess() {
-
-  const enteredCode =
-    document
-      .getElementById("betaAccessCode")
-      .value
-      .trim();
-
-  if (enteredCode === BETA_ACCESS_CODE) {
-
-    setAccessLevel(
-      ACCESS_LEVELS.PRO_COMPED
-    );
-
-    alert(
-      "Tester access unlocked."
-    );
-
-    document
-      .getElementById("proModal")
-      .hidden = true;
-
-  } else {
-
-    alert(
-      "Invalid access code."
-    );
-
-  }
-}
 
 // ========================================
 // FEATURE DEFINITIONS
@@ -2437,6 +2402,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       splitLayButton: document.getElementById("splitLayButton"),
       proModal: document.getElementById("proModal"),
       closeProModal: document.getElementById("closeProModal"),
+      buyProButton: document.getElementById("buyProButton"),
+      restorePurchaseButton: document.getElementById("restorePurchaseButton"),
       reverseFormula: document.getElementById("reverseFormula"),
       requiredPdpFormula: document.getElementById("requiredPdpFormula"),
       relayFormula: document.getElementById("relayFormula"),
@@ -2448,6 +2415,65 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
     // ========================================
     // INITIALIZATION
     // ========================================
+
+   document.addEventListener("deviceready", () => {
+  console.log("Device ready fired.");
+
+  if (!window.CdvPurchase) {
+    console.warn("CdvPurchase is NOT available.");
+    return;
+  }
+
+  console.log("CdvPurchase is available.");
+
+  initializeReverseFlowStore();
+});
+
+function initializeReverseFlowStore() {
+  const store = window.CdvPurchase.store;
+  const ProductType = window.CdvPurchase.ProductType;
+  const Platform = window.CdvPurchase.Platform;
+
+  store.register([
+    {
+      id: REVERSE_FLOW_PRO_PRODUCT_ID,
+      type: ProductType.NON_CONSUMABLE,
+      platform: Platform.APPLE_APPSTORE
+    }
+  ]);
+
+  store.when()
+    .approved(transaction => {
+      console.log("Purchase approved:", transaction);
+
+      transaction.verify();
+    })
+    .verified(receipt => {
+      console.log("Purchase verified:", receipt);
+
+      setAccessLevel(ACCESS_LEVELS.PRO);
+
+      alert("Reverse Flow Pro unlocked.");
+
+      if (els.proModal) {
+        els.proModal.hidden = true;
+      }
+
+      receipt.finish();
+    })
+    .unverified(unverifiedReceipt => {
+      console.warn("Purchase could not be verified:", unverifiedReceipt);
+    });
+
+  store.error(error => {
+    console.warn("Store error:", error);
+  });
+
+  store.initialize([
+    Platform.APPLE_APPSTORE
+  ]);
+}
+
     init();
 
     function init() {
@@ -2477,11 +2503,6 @@ function updateAccessBadge() {
   const badge = document.getElementById("accessBadge");
 
   if (!badge) return;
-
-  if (userAccessLevel === ACCESS_LEVELS.PRO_COMPED) {
-    badge.textContent = "PRO";
-    return;
-  }
 
   if (userAccessLevel === ACCESS_LEVELS.PRO) {
     badge.textContent = "PRO";
@@ -3514,12 +3535,76 @@ els.splitLayButton.addEventListener("click", () => {
 
 });
 
-document
-  .getElementById("betaUnlockButton")
-  ?.addEventListener("click", unlockBetaAccess);
 
 function openProModal() {
   els.proModal.hidden = false;
+}
+
+els.buyProButton?.addEventListener("click", () => {
+  purchaseReverseFlowPro();
+});
+
+els.restorePurchaseButton?.addEventListener("click", () => {
+  restoreReverseFlowPurchases();
+});
+
+
+
+function getAppleStore() {
+  if (!window.CdvPurchase) {
+    alert("In-App Purchases are not available on this device.");
+    return null;
+  }
+
+  return window.CdvPurchase.store;
+}
+
+async function purchaseReverseFlowPro() {
+  const store = getAppleStore();
+  if (!store) return;
+
+  const product =
+    store.get(
+      REVERSE_FLOW_PRO_PRODUCT_ID,
+      window.CdvPurchase.Platform.APPLE_APPSTORE
+    );
+
+  if (!product) {
+    alert("Reverse Flow Pro is not available yet. Please try again in a moment.");
+    return;
+  }
+
+  const offer = product.getOffer();
+
+  if (!offer) {
+    alert("Reverse Flow Pro purchase offer is not available yet.");
+    return;
+  }
+
+  try {
+    const error = await offer.order();
+
+    if (error) {
+      console.warn("Purchase error:", error);
+      alert(error.message || "The purchase could not be completed.");
+    }
+  } catch (error) {
+    console.error("Purchase failed:", error);
+    alert("The purchase could not be completed.");
+  }
+}
+
+async function restoreReverseFlowPurchases() {
+  const store = getAppleStore();
+  if (!store) return;
+
+  try {
+    await store.restorePurchases();
+    alert("Purchase restore requested. If a valid purchase is found, Reverse Flow Pro will unlock automatically.");
+  } catch (error) {
+    console.error("Restore failed:", error);
+    alert("Purchases could not be restored.");
+  }
 }
 
 els.closeProModal.addEventListener("click", () => {
