@@ -171,6 +171,28 @@ button:active:not(:disabled) {
   text-align: center;
 }
 
+    .web-pro-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: min(920px, calc(100% - 32px));
+      margin: 16px auto 0;
+      padding: 10px 14px;
+      border: 1px solid rgba(234, 88, 12, 0.22);
+      border-radius: 14px;
+      background: rgba(255, 247, 237, 0.92);
+      color: #9a3412;
+      font-size: 14px;
+      font-weight: 750;
+      line-height: 1.35;
+      text-align: center;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+    }
+
+    .web-pro-banner[hidden] {
+      display: none;
+    }
+
     /* ---------- Cards / Forms ---------- */
     .card {
       background: var(--card);
@@ -1041,6 +1063,12 @@ body.pro-user .mode-card-pro {
         color: #020617;
       }
 
+      .web-pro-banner {
+        background: rgba(69, 26, 3, 0.62);
+        border-color: rgba(251, 146, 60, 0.34);
+        color: #fed7aa;
+      }
+
       label { color: #cbd5e1; }
 
       input,
@@ -1179,6 +1207,10 @@ select {
       </div>
     </div>
   </header>
+
+  <div id="webProBanner" class="web-pro-banner" hidden>
+    To unlock Pro features, download Reverse Flow from the App Store or Google Play.
+  </div>
 
   <main>
 
@@ -2487,6 +2519,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       closeProModal: document.getElementById("closeProModal"),
       buyProButton: document.getElementById("buyProButton"),
       restorePurchaseButton: document.getElementById("restorePurchaseButton"),
+      webProBanner: document.getElementById("webProBanner"),
       reverseFormula: document.getElementById("reverseFormula"),
       requiredPdpFormula: document.getElementById("requiredPdpFormula"),
       relayFormula: document.getElementById("relayFormula"),
@@ -2626,6 +2659,25 @@ function initializeReverseFlowStore() {
 
     init();
 
+    function isNativeCapacitorApp() {
+      try {
+        return Boolean(
+          window.Capacitor &&
+          typeof window.Capacitor.isNativePlatform === "function" &&
+          window.Capacitor.isNativePlatform()
+        );
+      } catch (error) {
+        console.warn("Unable to determine Capacitor platform:", error);
+        return false;
+      }
+    }
+
+    function updateWebProBannerVisibility() {
+      if (!els.webProBanner) return;
+
+      els.webProBanner.hidden = isNativeCapacitorApp();
+    }
+
     function init() {
 
   els.versionFooter.textContent =
@@ -2636,6 +2688,7 @@ function initializeReverseFlowStore() {
   els.buyProButton.textContent = "Loading purchase...";
 }
   
+  updateWebProBannerVisibility();
   updateAccessBadge();
   populateHoseOptions();
   populateSmoothboreTips();
