@@ -1540,7 +1540,11 @@ function syncReverseSupplyUi() {
   const enabled = !!state.reverseSupplyEnabled;
 
   els.reverseSupplyToggle.textContent =
-    enabled ? "On" : "Off";
+    "Add Supply Section";
+  els.reverseSupplyToggle.setAttribute(
+    "aria-pressed",
+    enabled ? "true" : "false"
+  );
 
   els.reverseSupplyToggle.classList.toggle(
     "active",
