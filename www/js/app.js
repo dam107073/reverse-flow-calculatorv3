@@ -20,6 +20,10 @@
 
       smoothboreTip: "",
       applianceLoss: "0",
+      reverseSupplyEnabled: false,
+      reverseSupplyLength: "",
+      reverseSupplyHoseSize: "3",
+      reverseSupplyAppliance: "gateValve",
       splitLay: {
         dualSupply: false,
   sectionCount: "2",
@@ -148,9 +152,23 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       setupDisplay: document.getElementById("setupDisplay"),
       warningsCard: document.getElementById("warningsCard"),
       splitDualSupplyToggle: document.getElementById("splitDualSupplyToggle"),
-      splitResultsCard: document.getElementById("splitResultsCard"),
-      splitAttack1PressureTag:
-        document.getElementById("splitAttack1PressureTag"),
+      reverseSupplyToggle:
+        document.getElementById("reverseSupplyToggle"),
+
+      reverseSupplySection:
+        document.getElementById("reverseSupplySection"),
+
+      reverseSupplyLength:
+        document.getElementById("reverseSupplyLength"),
+
+      reverseSupplyHose:
+        document.getElementById("reverseSupplyHose"),
+
+      reverseSupplyAppliance:
+        document.getElementById("reverseSupplyAppliance"),
+            splitResultsCard: document.getElementById("splitResultsCard"),
+            splitAttack1PressureTag:
+              document.getElementById("splitAttack1PressureTag"),
 
       splitAttack2PressureTag:
         document.getElementById("splitAttack2PressureTag"),
@@ -609,6 +627,9 @@ logStoreEvent("initialize-start", {
   populateSmoothboreTips();
   renderPresetOptions();
   syncInputsFromState();
+
+  syncReverseSupplyUi();
+
   renderPressureButtons();
   calculateAndRender();
   bindEvents();
@@ -711,6 +732,9 @@ function populateHoseOptions() {
 const splitSupply2Hose =
   document.getElementById("splitSupply2Hose");
 
+  const reverseSupplyHose =
+  document.getElementById("reverseSupplyHose");
+
 const splitAttack1Hose =
   document.getElementById("splitAttack1Hose");
 
@@ -720,6 +744,15 @@ const splitAttack2Hose =
 const supplyOptions = HOSE_OPTIONS.filter(hose =>
   ["2", "2.25", "2.5", "3", "4", "5"].includes(hose.id)
 );
+
+if (reverseSupplyHose) {
+  reverseSupplyHose.innerHTML = supplyOptions.map(hose => (
+    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  )).join("");
+
+  reverseSupplyHose.value =
+    state.reverseSupplyHoseSize || "3";
+}
 
 const attackOptions = HOSE_OPTIONS.filter(hose =>
   ["1", "1.5", "1.75", "1.88", "2", "2.25", "2.5"].includes(hose.id)
@@ -1045,6 +1078,20 @@ if (usingCustomPressure) {
 
   els.hoseLength.value = state.hoseLength;
   els.hoseSize.value = state.hoseSize;
+    if (els.reverseSupplyLength) {
+    els.reverseSupplyLength.value =
+      state.reverseSupplyLength || "";
+  }
+
+  if (els.reverseSupplyHose) {
+    els.reverseSupplyHose.value =
+      state.reverseSupplyHoseSize || "3";
+  }
+
+  if (els.reverseSupplyAppliance) {
+    els.reverseSupplyAppliance.value =
+      state.reverseSupplyAppliance || "gateValve";
+  }
   els.nozzleType.value = state.nozzleType;
 
   els.relayResidualPressure.value =
@@ -1063,6 +1110,7 @@ if (usingCustomPressure) {
   els.applianceLoss.value = state.applianceLoss;
   els.customCoefficient.value = state.customCoefficient;
 
+  syncReverseSupplyUi();
   syncCoefficientUi();
   syncSmoothboreUi();
   syncModeUi();
@@ -1395,10 +1443,18 @@ function syncSplitLayUi() {
   els.splitDualSupplyToggle.checked = state.splitLay.dualSupply;
 }
 
-if (state.splitLay.dualSupply && els.splitAppliance1) {
-  state.splitLay.appliance1 = "siamese";
-  els.splitAppliance1.value = "siamese";
+  if (els.splitAppliance1) {
+
+  if (state.splitLay.dualSupply) {
+    state.splitLay.appliance1 = "siamese";
+    els.splitAppliance1.value = "siamese";
+    els.splitAppliance1.disabled = true;
+  } else {
+    els.splitAppliance1.disabled = false;
+  }
+
 }
+
 
   const supply2Section = document.getElementById("splitSupply2Section");
   const attack2Section = document.getElementById("splitAttack2Section");
@@ -1455,6 +1511,26 @@ if (els.splitAttack2ResultSection) {
 
   syncSplitNozzleUi("1");
   syncSplitNozzleUi("2");
+}
+
+function syncReverseSupplyUi() {
+  if (!els.reverseSupplyToggle || !els.reverseSupplySection) {
+    return;
+  }
+
+  const enabled = !!state.reverseSupplyEnabled;
+
+  els.reverseSupplyToggle.textContent =
+    enabled ? "On" : "Off";
+
+  els.reverseSupplyToggle.classList.toggle(
+    "active",
+    enabled
+  );
+
+  els.reverseSupplySection.hidden = !enabled;
+  els.reverseSupplySection.style.display =
+    enabled ? "grid" : "none";
 }
 
 function syncSplitNozzleUi(lineNumber) {
@@ -1863,9 +1939,19 @@ document.addEventListener("keydown", event => {
   }
 });
 
-      ["pdp", "hoseLength", "applianceLoss"].forEach(id => {
-        els[id].addEventListener("input", e => handleWholeNumberInput(id, e.target));
+      ["pdp", "hoseLength", "applianceLoss", "reverseSupplyLength"].forEach(id => {
+        els[id]?.addEventListener("input", e => handleWholeNumberInput(id, e.target));
       });
+
+      els.reverseSupplyHose?.addEventListener("change", e => {
+  state.reverseSupplyHoseSize = e.target.value;
+  updateCalculator();
+});
+
+els.reverseSupplyAppliance?.addEventListener("change", e => {
+  state.reverseSupplyAppliance = e.target.value;
+  updateCalculator();
+});
 
       els.customCoefficient.addEventListener("input", e => {
   state.customCoefficient = decimalNumber(e.target.value);
@@ -1995,16 +2081,25 @@ els.splitDualSupplyToggle?.addEventListener("change", () => {
   state.splitLay.dualSupply =
     els.splitDualSupplyToggle.checked;
 
-  if (
-    state.splitLay.dualSupply &&
-    els.splitAppliance1
-  ) {
+  if (state.splitLay.dualSupply) {
     state.splitLay.appliance1 = "siamese";
-    els.splitAppliance1.value = "siamese";
   }
 
   saveState();
+  syncSplitLayInputsFromState();
+  syncSplitLayUi();
   calculateAndRender();
+});
+
+els.reverseSupplyToggle?.addEventListener("click", () => {
+
+  state.reverseSupplyEnabled =
+    !state.reverseSupplyEnabled;
+
+  saveState();
+  syncReverseSupplyUi();
+  calculateAndRender();
+
 });
 
 document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
@@ -2335,6 +2430,12 @@ function resetCalculator() {
     const element = document.getElementById(id);
     if (element) element.value = value;
   });
+
+  const splitAppliance1 = document.getElementById("splitAppliance1");
+
+if (splitAppliance1) {
+  splitAppliance1.disabled = !!state.splitLay.dualSupply;
+}
 
   if (els.splitDualSupplyToggle) {
     els.splitDualSupplyToggle.checked = !!state.splitLay.dualSupply;

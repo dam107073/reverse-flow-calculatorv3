@@ -130,7 +130,7 @@ Select a hydraulic calculation mode.
   </label>
 </div>
       <p class="helper">
-        Dual supply uses matching hose size and matching length.
+        Dual supply assumes two matching supply lines feeding a Siamese connection.
       </p>
     </div>
 
@@ -343,6 +343,51 @@ Select a hydraulic calculation mode.
           <label for="hoseSize">Hose Size</label>
           <select id="hoseSize"></select>
         </div>
+
+        <div class="field full" id="reverseSupplyToggleField">
+  <label>Add Supply Section</label>
+<button
+  id="reverseSupplyToggle"
+  type="button"
+  class="toggle-button"
+>
+  Off
+</button>
+  <p class="helper">
+    Adds one supply section before the attack line. Supply section is single-line only.
+  </p>
+</div>
+
+<div
+  class="split-lay-grid section-card supply-card"
+  id="reverseSupplySection"
+  hidden
+>
+  <div class="field full">
+    <strong>Supply Section</strong>
+    <p class="helper">
+      Configure the supply hose feeding the attack section.
+    </p>
+  </div>
+
+  <div class="field">
+    <label>Supply Length</label>
+    <input id="reverseSupplyLength" inputmode="numeric" placeholder="Feet" />
+  </div>
+
+  <div class="field">
+    <label>Supply Hose</label>
+    <select id="reverseSupplyHose"></select>
+  </div>
+
+  <div class="field full">
+    <label>Supply Appliance</label>
+    <select id="reverseSupplyAppliance">
+      <option value="gateValve">Gate Valve / Nozzle Shutoff</option>
+      <option value="reducer">Reducer</option>
+    </select>
+  </div>
+</div>
 
         <div class="field" id="relayResidualField" hidden>
   <label for="relayResidualPressure">Receiving Engine Residual</label>
