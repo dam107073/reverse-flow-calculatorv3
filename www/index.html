@@ -5,8 +5,10 @@
        PWA / APP METADATA
   ========================================= -->
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />  <meta name="theme-color" content="#020617" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+/>  <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Reverse Flow" />
   <meta name="application-name" content="Reverse Flow: Fireground Hydraulics" />
@@ -145,15 +147,15 @@ Select a hydraulic calculation mode.
         <label>Supply 1 Length</label>
 <div class="input-with-button">
   <input
-    id="supply1length"
-    inputmode="numeric"
-    placeholder="Feet"
-  />
+  id="splitSupplyLength"
+  inputmode="numeric"
+  placeholder="Feet"
+/>
 
   <button
     type="button"
     class="inline-add-button"
-    onclick="addFiftyFeet('supply1length')"
+    onclick="addFiftyFeet('splitSupplylength')"
   >
     +50
   </button>
@@ -191,15 +193,15 @@ Select a hydraulic calculation mode.
         <label>Supply 2 Length</label>
 <div class="input-with-button">
   <input
-    id="supply2length"
-    inputmode="numeric"
-    placeholder="Feet"
-  />
+  id="splitSupply2Length"
+  inputmode="numeric"
+  placeholder="Feet"
+/>
 
   <button
     type="button"
     class="inline-add-button"
-    onclick="addFiftyFeet('supply2length')"
+    onclick="addFiftyFeet('splitSupply2length')"
   >
     +50
   </button>
