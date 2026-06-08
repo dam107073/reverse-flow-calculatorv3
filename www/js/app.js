@@ -2651,30 +2651,128 @@ calculateReverseFlow({ ...inputs, warnings });
   return;
 }
 
+const reverseSupplyEnabled =
+  !!state.reverseSupplyEnabled;
+
+const supplyLength =
+  reverseSupplyEnabled
+    ? numberOrNull(state.reverseSupplyLength)
+    : 0;
+
+const supplyHose =
+  reverseSupplyEnabled
+    ? HOSE_OPTIONS.find(hose =>
+        hose.id === state.reverseSupplyHoseSize
+      )
+    : null;
+
+if (reverseSupplyEnabled) {
+  if (supplyLength === null || supplyLength <= 0 || !supplyHose) {
+    warnings.push("Enter a valid Reverse Flow supply section length and hose size.");
+    renderWarnings(warnings);
+    return;
+  }
+}
+
+const attackLoad =
+  coefficient * (hoseLength / 100);
+
+const supplyLoad =
+  reverseSupplyEnabled && supplyHose
+    ? getActiveHoseCoefficient(supplyHose.id) * (supplyLength / 100)
+    : 0;
+
+const totalFrictionLoad =
+  attackLoad + supplyLoad;
+
+function solveReverseFlowGpm(supplyApplianceLoss) {
+  const totalFrictionLoss =
+    pdp -
+    nozzlePressure -
+    applianceLoss -
+    masterStreamLoss -
+    supplyApplianceLoss;
+
+  if (totalFrictionLoss <= 0 || totalFrictionLoad <= 0) {
+    return {
+      totalFrictionLoss,
+      frictionLossPer100: null,
+      calculatedGpm: null
+    };
+  }
+
+  const calculatedGpm =
+    isSmoothbore()
+      ? smoothboreGpm(
+          getSelectedSmoothboreTip().diameter,
+          nozzlePressure
+        )
+      : Math.sqrt(totalFrictionLoss / totalFrictionLoad) * 100;
+
+  return {
+    totalFrictionLoss,
+    frictionLossPer100:
+      totalFrictionLoss / (hoseLength / 100),
+    calculatedGpm
+  };
+}
+
+let supplyApplianceLoss = 0;
+let reverseSolve = solveReverseFlowGpm(supplyApplianceLoss);
+
+if (
+  reverseSupplyEnabled &&
+  reverseSolve.calculatedGpm !== null &&
+  reverseSolve.calculatedGpm > 350
+) {
+  supplyApplianceLoss = 10;
+  reverseSolve = solveReverseFlowGpm(supplyApplianceLoss);
+}
+
+if (
+  reverseSolve.calculatedGpm === null ||
+  reverseSolve.totalFrictionLoss < 0
+) {
+  warnings.push("Total friction loss is negative after subtracting nozzle pressure, appliance/elevation loss, master stream loss, and supply appliance loss.");
+
+  setResult(
+    "—",
+    "—",
+    `${Math.round(reverseSolve.totalFrictionLoss)} psi`,
+    "—",
+    getNozzleDisplay(),
+    getSetupDisplay(),
+    "—"
+  );
+
+  renderWarnings(warnings);
+  return;
+}
+
 const totalFrictionLoss =
-  pdp -
-  nozzlePressure -
-  applianceLoss -
-  masterStreamLoss;
-      if (totalFrictionLoss < 0) {
-        warnings.push("Total friction loss is negative after subtracting nozzle pressure and appliance/elevation loss.");
-        setResult("—", "—", `${Math.round(totalFrictionLoss)} psi`, "—", getNozzleDisplay(), getSetupDisplay());
-        renderWarnings(warnings);
-        return;
-      }
+  reverseSolve.totalFrictionLoss;
 
-      const frictionLossPer100 = totalFrictionLoss / (hoseLength / 100);
-      const calculatedGpm = isSmoothbore()
-        ? smoothboreGpm(getSelectedSmoothboreTip().diameter, nozzlePressure)
-        : Math.sqrt(frictionLossPer100 / coefficient) * 100;
-      const roundedGpm = roundToNearestFive(calculatedGpm);
-      const nozzleReaction = calculateNozzleReaction(calculatedGpm, nozzlePressure);
+const frictionLossPer100 =
+  reverseSolve.frictionLossPer100;
 
-      if (roundedGpm > selectedHose.maxReferenceFlow) {
-        warnings.push(`Rounded flow is above the normal reference range for ${selectedHose.chartName} hose. Confirm with department-approved flow testing or local operating guidance.`);
-      }
+const calculatedGpm =
+  reverseSolve.calculatedGpm;
 
-      setResult(
+const roundedGpm =
+  roundToNearestFive(calculatedGpm);
+
+const nozzleReaction =
+  calculateNozzleReaction(calculatedGpm, nozzlePressure);
+
+if (roundedGpm > selectedHose.maxReferenceFlow) {
+  warnings.push(`Rounded flow is above the normal reference range for ${selectedHose.chartName} hose. Confirm with department-approved flow testing or local operating guidance.`);
+}
+
+if (reverseSupplyEnabled && supplyApplianceLoss > 0) {
+  warnings.push("Estimated supply appliance loss applied: 10 psi at flows >350 GPM.");
+}
+
+setResult(
   roundedGpm,
   `${Math.round(calculatedGpm)} GPM`,
   `${totalFrictionLoss.toFixed(1)} psi`,
@@ -2684,9 +2782,10 @@ const totalFrictionLoss =
   nozzleReaction
 );
 
-      renderWarnings(warnings);
-    }
+renderWarnings(warnings);
 
+    }
+    
     function calculateAchievableSmoothborePressure() {
       if (!isReverseSmoothbore()) return null;
 
