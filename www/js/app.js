@@ -1390,9 +1390,14 @@ function syncSplitLayUi() {
   enforceSplitLayRestrictions();
 
   if (!isSplitLayMode()) return;
+
   if (els.splitDualSupplyToggle) {
-  els.splitDualSupplyToggle.checked =
-    state.splitLay.dualSupply;
+  els.splitDualSupplyToggle.checked = state.splitLay.dualSupply;
+}
+
+if (state.splitLay.dualSupply && els.splitAppliance1) {
+  state.splitLay.appliance1 = "siamese";
+  els.splitAppliance1.value = "siamese";
 }
 
   const supply2Section = document.getElementById("splitSupply2Section");
@@ -1989,6 +1994,14 @@ els.masterStreamLoss.addEventListener("input", e => {
 els.splitDualSupplyToggle?.addEventListener("change", () => {
   state.splitLay.dualSupply =
     els.splitDualSupplyToggle.checked;
+
+  if (
+    state.splitLay.dualSupply &&
+    els.splitAppliance1
+  ) {
+    state.splitLay.appliance1 = "siamese";
+    els.splitAppliance1.value = "siamese";
+  }
 
   saveState();
   calculateAndRender();
