@@ -152,6 +152,10 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       setupDisplay: document.getElementById("setupDisplay"),
       warningsCard: document.getElementById("warningsCard"),
       splitDualSupplyToggle: document.getElementById("splitDualSupplyToggle"),
+
+      reverseSupplyToggleField:
+        document.getElementById("reverseSupplyToggleField"),
+
       reverseSupplyToggle:
         document.getElementById("reverseSupplyToggle"),
 
@@ -1292,6 +1296,19 @@ if (!isSplitLayMode()) {
 
 if (els.standardResultsCard) {
   els.standardResultsCard.hidden = isSplitLayMode();
+}
+if (els.standardResultsCard) {
+  els.standardResultsCard.hidden = isSplitLayMode();
+}
+
+if (els.reverseSupplyToggleField) {
+  els.reverseSupplyToggleField.style.display =
+    isReverseMode() ? "" : "none";
+}
+
+if (!isReverseMode()) {
+  state.reverseSupplyEnabled = false;
+  syncReverseSupplyUi();
 }
 
 syncSplitLayUi();
