@@ -2503,9 +2503,8 @@ Select a hydraulic calculation mode.
   Restore Purchase
 	</button>
 	
-	    <div class="pro-modal-footer">
-	  <strong>Reverse Flow Pro requires App Store purchase.</strong>
-	  If you already purchased Pro, use Restore Purchase.
+	  <div class="pro-modal-footer">
+      <strong>Reverse Flow Pro requires purchase through the App Store or Google Play.</strong>	  If you already purchased Pro, use Restore Purchase.
 	</div>
 
   </div>
@@ -2571,6 +2570,25 @@ const PRESETS_KEY = "reverse-flow-calculator-presets-v1";
 const HOSE_COEFFS_KEY = "reverse-flow-hose-coefficients-v1";
 const PRO_ENTITLEMENT_STORAGE_KEY =
   "reverse-flow-pro-entitlement-v1";
+
+  function getReverseFlowPurchasePlatform() {
+  if (!window.CdvPurchase || !window.Capacitor) {
+    return null;
+  }
+
+  const platform = window.CdvPurchase.Platform;
+  const capacitorPlatform = window.Capacitor.getPlatform?.();
+
+  if (capacitorPlatform === "android") {
+    return platform.GOOGLE_PLAY;
+  }
+
+  if (capacitorPlatform === "ios") {
+    return platform.APPLE_APPSTORE;
+  }
+
+  return null;
+}
 
 // ========================================
 // ACCESS CONTROL
@@ -3198,11 +3216,25 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    };
 	  }
 	
-	  logStoreEvent("initialize-start", {
-	    hasStore: Boolean(store),
-	    productType: ProductType.NON_CONSUMABLE,
-	    platform: Platform.APPLE_APPSTORE
-	  });
+	  const purchasePlatform = getReverseFlowPurchasePlatform();
+
+if (!purchasePlatform) {
+  logStoreEvent("initialize-aborted", {
+    reason: "unsupported or non-native platform"
+  });
+
+  setBuyProButtonState("web", {
+    reason: "unsupported or non-native platform"
+  });
+
+  return;
+}
+
+logStoreEvent("initialize-start", {
+  hasStore: Boolean(store),
+  productType: ProductType.NON_CONSUMABLE,
+  platform: purchasePlatform
+});
 	
 	  setBuyProButtonState("loading", {
 	    reason: "store initialization started"
@@ -3223,7 +3255,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    registration: {
 	      id: REVERSE_FLOW_PRO_PRODUCT_ID,
 	      type: ProductType.NON_CONSUMABLE,
-	      platform: Platform.APPLE_APPSTORE
+	      platform: purchasePlatform
 	    }
 	  });
 	
@@ -3231,7 +3263,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    {
 	      id: REVERSE_FLOW_PRO_PRODUCT_ID,
 	      type: ProductType.NON_CONSUMABLE,
-      platform: Platform.APPLE_APPSTORE
+      platform: purchasePlatform
     }
   ]);
 
@@ -3375,8 +3407,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  });
 	
 	  const initializeResult = store.initialize([
-	    Platform.APPLE_APPSTORE
-	  ]);
+      purchasePlatform
+    ]);
 	
 	  if (initializeResult && typeof initializeResult.then === "function") {
 	    initializeResult
@@ -4476,9 +4508,16 @@ els.restorePurchaseButton?.addEventListener("click", () => {
 
 
 
-function getAppleStore() {
+function getReverseFlowStore() {
   if (!window.CdvPurchase) {
     alert("In-App Purchases are not available on this device.");
+    return null;
+  }
+
+  const purchasePlatform = getReverseFlowPurchasePlatform();
+
+  if (!purchasePlatform) {
+    alert("Purchases are only available in the mobile app.");
     return null;
   }
 
@@ -4494,7 +4533,7 @@ async function purchaseReverseFlowPro() {
     buttonText: els.buyProButton?.textContent
   });
 
-	  const store = getAppleStore();
+	  const store = getReverseFlowStore();
 	  if (!store) return;
 	
 	  if (!reverseFlowProProductReady) {
@@ -4507,11 +4546,18 @@ async function purchaseReverseFlowPro() {
 	  return;
 	}
 	
-	  const product =
-    store.get(
-      REVERSE_FLOW_PRO_PRODUCT_ID,
-      window.CdvPurchase.Platform.APPLE_APPSTORE
-	    );
+	  const purchasePlatform = getReverseFlowPurchasePlatform();
+
+if (!purchasePlatform) {
+  alert("Purchases are only available in the mobile app.");
+  return;
+}
+
+const product =
+  store.get(
+    REVERSE_FLOW_PRO_PRODUCT_ID,
+    purchasePlatform
+  );
 	
 	  if (!product) {
 	    console.warn("[Reverse Flow IAP]", {
@@ -4588,7 +4634,7 @@ async function purchaseReverseFlowPro() {
     buttonText: els.restorePurchaseButton?.textContent
   });
 
-	  const store = getAppleStore();
+	  const store = getReverseFlowStore();
 	  if (!store) return;
 	
 	  try {
