@@ -1,0 +1,79 @@
+
+    /* ---------- Warnings / Footer ---------- */
+    .warnings {
+  background: var(--warning-bg);
+  border-left: 6px solid var(--warning-border);
+  border-top-color: var(--border);
+  border-right-color: var(--border);
+  border-bottom-color: var(--border);
+  color: var(--warning-text);
+  padding: 14px 16px;
+  margin-top: -8px;
+}
+
+    .warning-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-weight: 700;
+      font-size: 14px;
+      margin: 8px 0;
+    }
+
+    .footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+    .reset-button {
+      width: auto;
+      padding: 0 18px;
+      background: white;
+    }
+
+    .formula {
+      padding: 20px;
+      color: var(--muted);
+      font-size: 14px;
+      background: var(--surface);
+    }
+
+    .formula-divider {
+      margin: 20px 0;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    .formula strong { color: var(--ink); }
+
+    details.about {
+      padding: 20px;
+      color: var(--muted);
+      font-size: 14px;
+      background: var(--surface);
+    }
+
+    details.about summary {
+      cursor: pointer;
+      color: var(--ink);
+      font-weight: 800;
+      font-size: 16px;
+      margin-bottom: 0;
+    }
+
+    details.about[open] summary {
+      margin-bottom: 10px;
+    }
+
+    .version-footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 0 0;
+  line-height: 1.5;
+}
+

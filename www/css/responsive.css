@@ -1,0 +1,338 @@
+    /* ---------- Dark Mode ---------- */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --card: #0f172a;
+        --surface: #111827;
+        --surface-strong: #1e293b;
+        --ink: #f8fafc;
+        --muted: #94a3b8;
+        --border: #243244;
+        --border-strong: #334155;
+        --accent: #fb923c;
+        --accent-glow: 0 0 0 1px rgba(251, 146, 60, 0.12), 0 0 18px rgba(251, 146, 60, 0.18);
+        --panel-glow: 0 18px 44px rgba(0, 0, 0, 0.32), 0 0 26px rgba(251, 146, 60, 0.12);
+        --warning-bg: #451a03;
+        --warning-border: #f97316;
+        --warning-text: #fed7aa;
+        --button: #f8fafc;
+        --button-text: #020617;
+        --button-muted: #111827;
+      }
+
+      .badge {
+        background: #f8fafc;
+        color: #020617;
+      }
+
+      body {
+        background:
+          radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.1), transparent 30%),
+          linear-gradient(135deg, #020617 0%, #0b1220 55%, #020617 100%);
+      }
+
+      body::before {
+        background-image:
+          linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+      }
+
+      .card {
+        background:
+          linear-gradient(180deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92)),
+          var(--card);
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.04) inset,
+          0 14px 34px rgba(0, 0, 0, 0.28);
+      }
+
+      .form-grid,
+      .section-card,
+      .pump-chart-card,
+      .split-result-section {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.94), rgba(15,23,42,0.88));
+      }
+
+      .web-pro-banner {
+        background: rgba(69, 26, 3, 0.62);
+        border-color: rgba(251, 146, 60, 0.34);
+        color: #fed7aa;
+      }
+
+      label { color: #cbd5e1; }
+
+      input,
+      select {
+        background:
+          linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.98)),
+          linear-gradient(90deg, rgba(251,146,60,0.07), transparent 44%);
+        border-color: #334155;
+        color: #f8fafc;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.045),
+          inset 0 -1px 0 rgba(148,163,184,0.08),
+          0 2px 8px rgba(0, 0, 0, 0.18);
+      }
+
+      input:focus,
+      select:focus {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
+          linear-gradient(90deg, rgba(251,146,60,0.12), transparent 48%);
+        border-color: #fb923c;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 3px 0 0 rgba(251,146,60,0.52),
+          0 0 0 3px rgba(251, 146, 60, 0.15),
+          0 8px 18px rgba(0, 0, 0, 0.28);
+      }
+
+      input::placeholder { color: #64748b; }
+
+      button {
+        border-color: rgba(148, 163, 184, 0.26);
+        background:
+          linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
+        color: #f8fafc;
+      }
+
+      #modeButtons button,
+      .pressure-buttons button {
+        background:
+          linear-gradient(180deg, #172033, #111827);
+        border-color: rgba(148, 163, 184, 0.28);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.04),
+          0 2px 8px rgba(0,0,0,0.18);
+      }
+
+      #modeButtons button.active,
+      .pressure-buttons button.active {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
+          linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
+        color: #f8fafc;
+        border-color: #fb923c;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 0 -3px 0 rgba(251,146,60,0.68),
+          0 0 0 3px rgba(251, 146, 60, 0.15),
+          0 8px 18px rgba(0, 0, 0, 0.28);
+      }
+
+      button.active {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
+          linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
+        color: #f8fafc;
+        border-color: #fb923c;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 0 -3px 0 rgba(251,146,60,0.68),
+          0 0 0 3px rgba(251, 146, 60, 0.15),
+          0 8px 18px rgba(0, 0, 0, 0.28);
+      }
+
+      #splitSectionButtons button.active,
+      #splitAttackLineButtons button.active,
+      #pumpChartButtons button.active,
+      body.pro-user .mode-card-pro.active {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
+          linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
+        color: #f8fafc;
+        border-color: rgba(251,146,60,0.62);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 0 -3px 0 rgba(251,146,60,0.72),
+          0 0 0 3px rgba(251, 146, 60, 0.14),
+          0 8px 18px rgba(0, 0, 0, 0.26);
+      }
+
+      button:disabled {
+        background: #1e293b;
+        color: #64748b;
+      }
+
+      .toggle-row,
+      .disabled-note,
+      .calculated-pressure-card {
+        background: #020617;
+        border-color: #334155;
+      }
+
+      .detail {
+        background:
+          linear-gradient(180deg, rgba(15,23,42,0.98), rgba(17,24,39,0.9));
+      }
+
+      .split-result-section {
+        background: #0f172a;
+      }
+
+      .result-details {
+        background: #020617;
+      }
+
+      #pumpChartModal .pro-modal-content {
+        background:
+          linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.96)),
+          #0f172a;
+        border-color: #334155;
+        border-top-color: var(--accent);
+        box-shadow:
+          0 1px 0 rgba(255,255,255,0.05) inset,
+          0 22px 60px rgba(0,0,0,0.52),
+          0 0 28px rgba(251, 146, 60, 0.12);
+      }
+
+      #pumpChartModal .pump-chart-card {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.96), rgba(15,23,42,0.92));
+        border-color: rgba(148, 163, 184, 0.26);
+        color: #f8fafc !important;
+        -webkit-text-fill-color: #f8fafc !important;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 8px 20px rgba(0,0,0,0.24);
+      }
+
+      #pumpChartModal .pump-chart-card-header,
+      #pumpChartModal .pump-chart-card-actions {
+        border-color: rgba(148, 163, 184, 0.18);
+      }
+
+      #pumpChartModal .pump-chart-card div,
+      #pumpChartModal .pump-chart-card strong {
+        color: #f8fafc !important;
+        -webkit-text-fill-color: #f8fafc !important;
+      }
+
+      #pumpChartModal .pump-chart-card-title,
+      #pumpChartModal .pump-chart-card-result {
+        color: #f8fafc !important;
+        -webkit-text-fill-color: #f8fafc !important;
+      }
+
+      #pumpChartModal .pump-chart-card-summary {
+        color: #cbd5e1 !important;
+        -webkit-text-fill-color: #cbd5e1 !important;
+      }
+
+      #pumpChartModal .pump-chart-card .pump-chart-card-badge {
+        background: #f8fafc;
+        color: #020617 !important;
+        -webkit-text-fill-color: #020617 !important;
+      }
+
+      .pump-chart-card-actions .small-button {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
+          linear-gradient(90deg, rgba(251,146,60,0.11), transparent 48%);
+        border-color: rgba(251,146,60,0.48);
+        color: #f8fafc;
+        -webkit-text-fill-color: #f8fafc;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 0 -2px 0 rgba(251,146,60,0.52),
+          0 0 0 2px rgba(251, 146, 60, 0.10),
+          0 8px 18px rgba(0, 0, 0, 0.26);
+      }
+
+      .pump-chart-card-actions .small-button[onclick^="deletePumpChartPreset"] {
+        background:
+          linear-gradient(180deg, rgba(69,26,3,0.92), rgba(42,18,5,0.94)),
+          linear-gradient(90deg, rgba(251,146,60,0.18), transparent 50%);
+        border-color: rgba(251,146,60,0.72);
+        color: #fed7aa;
+        -webkit-text-fill-color: #fed7aa;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 0 -2px 0 rgba(251,146,60,0.68),
+          0 0 0 2px rgba(251, 146, 60, 0.13),
+          0 8px 18px rgba(0, 0, 0, 0.28);
+      }
+
+      .calculated-pressure-card strong,
+      .formula strong,
+      details.about summary {
+        color: #f8fafc;
+      }
+
+      .reset-button { background: #111827; }
+    }
+
+  /* ---------- Mobile ---------- */
+@media (max-width: 720px) {
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .detail {
+    flex-basis: 50%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .detail:last-child {
+    border-bottom: none;
+  }
+
+}
+
+@media (max-width: 520px) {
+
+  .footer-actions {
+    flex-direction: column;
+  }
+
+  .reset-button {
+    width: 100%;
+  }
+
+  .detail {
+    flex-basis: 100%;
+  }
+
+  .pressure-buttons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pressure-buttons button[data-pressure="custom"] {
+  grid-column: 1 / -1;
+}
+
+  input,
+select {
+  height: 54px;
+  font-size: 17px;
+}
+
+}
+
+@media screen and (orientation: landscape) and (max-height: 520px) {
+
+  main {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mode-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
