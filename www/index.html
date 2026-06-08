@@ -335,9 +335,24 @@ Select a hydraulic calculation mode.
         </div>
 
         <div class="field">
-          <label for="hoseLength">Hose Length</label>
-          <input id="hoseLength" inputmode="numeric" placeholder="Feet" />
-        </div>
+  <label for="hoseLength">Hose Length</label>
+
+  <div class="input-with-button">
+    <input
+      id="hoseLength"
+      inputmode="numeric"
+      placeholder="Feet"
+    />
+
+    <button
+      type="button"
+      class="inline-add-button"
+      onclick="addFiftyFeet('hoseLength')"
+    >
+      +50
+    </button>
+  </div>
+</div>
 
         <div class="field">
           <label for="hoseSize">Hose Size</label>

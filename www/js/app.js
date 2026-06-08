@@ -803,7 +803,7 @@ if (splitAttack2Hose) {
   const tips = isMasterStream()
     ? SMOOTHBORE_TIPS.filter(tip =>
         tip.diameter >= 1.25 &&
-        tip.diameter <= 2
+        tip.diameter <= 3
       )
     : SMOOTHBORE_TIPS.filter(tip =>
         tip.diameter >= 0.75 &&
@@ -2638,6 +2638,16 @@ if (isRequiredPdpMode()) {
 
 calculateReverseFlow({ ...inputs, warnings });
     }
+
+    function addFiftyFeet(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  const currentValue = Number(input.value) || 0;
+  input.value = currentValue + 50;
+
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
 
     function getCalculationInputs() {
       const selectedHose = getSelectedHose();

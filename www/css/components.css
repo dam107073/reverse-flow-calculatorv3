@@ -14,6 +14,53 @@
       gap: 8px;
     }
 
+    .input-with-button {
+  position: relative;
+}
+
+.input-with-button input {
+  width: 100%;
+  padding-right: 82px;
+}
+
+.inline-add-button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+
+  width: 54px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+
+  border-radius: 6px;
+
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+
+  border: 1px solid var(--border);
+
+  font-size: 12px;
+  font-weight: 800;
+
+  box-shadow: none;
+  transition: none;
+
+  cursor: pointer;
+}
+
+.inline-add-button:hover,
+.inline-add-button:focus,
+.inline-add-button:active {
+  background: rgba(255,255,255,0.10);
+  color: var(--ink);
+
+  transform: translateY(-50%) !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
     .full { grid-column: 1 / -1; }
 
     .helper {

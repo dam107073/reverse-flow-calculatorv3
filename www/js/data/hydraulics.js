@@ -101,4 +101,8 @@ function isModifiedHoseCoefficient(hoseId) {
       { id: '1-1/2', label: '1 1/2"', diameter: 1.5 },
       { id: '1-3/4', label: '1 3/4"', diameter: 1.75 },
       { id: '2', label: '2"', diameter: 2 },
-    ];
+      { id: '2-1/4', label: '2 1/4"', diameter: 2.25 },
+      { id: '2-1/2', label: '2 1/2"', diameter: 2.5 },
+      { id: '2-3/4', label: '2 3/4"', diameter: 2.75 },
+      { id: '3', label: '3"', diameter: 3 },
+          ];
