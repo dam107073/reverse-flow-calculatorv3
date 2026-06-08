@@ -1244,7 +1244,9 @@ document.querySelector('label[for="applianceLoss"]').textContent =
   els.totalFlLabel.textContent = "Total FL";
 
   els.flPer100Label.textContent =
-    isSplitLayMode()
+  isSplitLayMode()
+    ? "FL Breakdown"
+    : state.reverseSupplyEnabled
       ? "FL Breakdown"
       : "FL / 100'";
 
@@ -2242,6 +2244,9 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   const leavingSplitLay =
     state.mode === "splitLay" && mode !== "splitLay";
 
+    const leavingReverseFlow =
+  state.mode === "reverse" && mode !== "reverse";
+
   state.mode = mode;
   state.customNozzlePressure = "";
   clearCustomCoefficient();
@@ -2253,6 +2258,10 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
 
     resetSplitLayResultCard();
   }
+
+  if (leavingReverseFlow) {
+  resetReverseSupplyInputs();
+}
 
   // ========================================
   // RELAY MODE DEFAULTS
@@ -2394,6 +2403,18 @@ function resetCalculator() {
 
     applianceLoss: state.applianceLoss || "0",
 
+    reverseSupplyEnabled:
+  state.reverseSupplyEnabled || false,
+
+    reverseSupplyLength:
+      state.reverseSupplyLength || "",
+
+    reverseSupplyHoseSize:
+      state.reverseSupplyHoseSize || "3",
+
+    reverseSupplyAppliance:
+      state.reverseSupplyAppliance || "gateValve",
+
     useCustomCoefficient:
       state.useCustomCoefficient || false,
 
@@ -2490,6 +2511,18 @@ function applyPreset(presetId) {
     applianceLoss:
       preset.applianceLoss || "0",
 
+    reverseSupplyEnabled:
+      preset.reverseSupplyEnabled || false,
+
+    reverseSupplyLength:
+      preset.reverseSupplyLength || "",
+
+    reverseSupplyHoseSize:
+      preset.reverseSupplyHoseSize || "3",
+
+    reverseSupplyAppliance:
+      preset.reverseSupplyAppliance || "gateValve",
+
     useCustomCoefficient:
       preset.useCustomCoefficient || false,
 
@@ -2505,6 +2538,7 @@ function applyPreset(presetId) {
   populateHoseOptions();
   syncInputsFromState();
   syncSplitLayInputsFromState();
+  syncReverseSupplyUi();
   syncSmoothboreUi();
   syncModeUi();
   renderPressureButtons();
@@ -2789,11 +2823,28 @@ if (reverseSupplyEnabled && supplyApplianceLoss > 0) {
   warnings.push("Estimated supply appliance loss applied: 10 psi at flows >350 GPM.");
 }
 
+const attackFrictionLoss =
+  coefficient *
+  Math.pow(calculatedGpm / 100, 2) *
+  (hoseLength / 100);
+
+const supplyFrictionLoss =
+  reverseSupplyEnabled && supplyHose
+    ? getActiveHoseCoefficient(supplyHose.id) *
+      Math.pow(calculatedGpm / 100, 2) *
+      (supplyLength / 100)
+    : 0;
+
+const frictionDisplay =
+  reverseSupplyEnabled
+    ? `A ${attackFrictionLoss.toFixed(1)} / S ${supplyFrictionLoss.toFixed(1)}`
+    : `${frictionLossPer100.toFixed(1)} psi`;
+
 setResult(
   roundedGpm,
   `${Math.round(calculatedGpm)} GPM`,
   `${totalFrictionLoss.toFixed(1)} psi`,
-  `${frictionLossPer100.toFixed(1)} psi`,
+  frictionDisplay,
   getNozzleDisplay(),
   getSetupDisplay(),
   nozzleReaction
@@ -3937,6 +3988,28 @@ function clearSplitAttack2State() {
     if (element) element.value = value;
   });
 }
+
+  function resetReverseSupplyInputs() {
+  state.reverseSupplyEnabled = false;
+  state.reverseSupplyLength = "";
+  state.reverseSupplyHoseSize = "3";
+  state.reverseSupplyAppliance = "gateValve";
+
+  if (els.reverseSupplyLength) {
+    els.reverseSupplyLength.value = "";
+  }
+
+  if (els.reverseSupplyHose) {
+    els.reverseSupplyHose.value = "3";
+  }
+
+  if (els.reverseSupplyAppliance) {
+    els.reverseSupplyAppliance.value = "gateValve";
+  }
+
+  syncReverseSupplyUi();
+}
+
 function resetSplitLayInputs() {
 
   state.splitLay = {
