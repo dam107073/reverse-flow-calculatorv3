@@ -2785,40 +2785,109 @@ setResult(
 renderWarnings(warnings);
 
     }
-    
-    function calculateAchievableSmoothborePressure() {
-      if (!isReverseSmoothbore()) return null;
 
-      const pdp = numberOrNull(state.pdp);
-      const hoseLength = numberOrNull(state.hoseLength);
-      const applianceLoss = numberOrNull(state.applianceLoss) ?? 0;
-      const masterStreamLoss =
-      isMasterStream()
+    function calculateAchievableSmoothborePressure() {
+  if (!isReverseSmoothbore()) return null;
+
+  const pdp = numberOrNull(state.pdp);
+  const hoseLength = numberOrNull(state.hoseLength);
+  const applianceLoss = numberOrNull(state.applianceLoss) ?? 0;
+
+  const masterStreamLoss =
+    isMasterStream()
       ? numberOrNull(state.masterStreamLoss) ?? 25
       : 0;
-      const selectedHose = getSelectedHose();
-      const coefficient = state.useCustomCoefficient
-        ? numberOrNull(state.customCoefficient)
-        : getActiveHoseCoefficient(selectedHose.id);
-      const tip = getSelectedSmoothboreTip();
 
-      if (pdp === null || hoseLength === null || coefficient === null || !tip || hoseLength <= 0 || coefficient <= 0) {
-        return null;
-      }
+  const selectedHose = getSelectedHose();
 
-      const usablePressure =
+  const coefficient = state.useCustomCoefficient
+    ? numberOrNull(state.customCoefficient)
+    : getActiveHoseCoefficient(selectedHose.id);
+
+  const tip = getSelectedSmoothboreTip();
+
+  if (
+    pdp === null ||
+    hoseLength === null ||
+    coefficient === null ||
+    !tip ||
+    hoseLength <= 0 ||
+    coefficient <= 0
+  ) {
+    return null;
+  }
+
+  const reverseSupplyEnabled =
+    !!state.reverseSupplyEnabled;
+
+  const supplyLength =
+    reverseSupplyEnabled
+      ? numberOrNull(state.reverseSupplyLength)
+      : 0;
+
+  const supplyHose =
+    reverseSupplyEnabled
+      ? HOSE_OPTIONS.find(hose =>
+          hose.id === state.reverseSupplyHoseSize
+        )
+      : null;
+
+  if (
+    reverseSupplyEnabled &&
+    (supplyLength === null || supplyLength <= 0 || !supplyHose)
+  ) {
+    return null;
+  }
+
+  const attackLoad =
+    coefficient * (hoseLength / 100);
+
+  const supplyLoad =
+    reverseSupplyEnabled && supplyHose
+      ? getActiveHoseCoefficient(supplyHose.id) * (supplyLength / 100)
+      : 0;
+
+  const totalLoad =
+    attackLoad + supplyLoad;
+
+  if (totalLoad <= 0) return null;
+
+  const tipConstant =
+    29.7 * tip.diameter * tip.diameter / 100;
+
+  function solvePressure(supplyApplianceLoss) {
+    const usablePressure =
       pdp -
       applianceLoss -
-      masterStreamLoss;
-      if (usablePressure <= 0) return 0;
+      masterStreamLoss -
+      supplyApplianceLoss;
 
-      const lengthHundreds = hoseLength / 100;
-      const tipConstant = 29.7 * tip.diameter * tip.diameter / 100;
-      const frictionMultiplier = coefficient * tipConstant * tipConstant * lengthHundreds;
-      const achievablePressure = usablePressure / (1 + frictionMultiplier);
+    if (usablePressure <= 0) return 0;
 
-      return Math.max(0, Math.floor(achievablePressure));
-    }
+    const frictionMultiplier =
+      tipConstant *
+      tipConstant *
+      totalLoad;
+
+    return usablePressure / (1 + frictionMultiplier);
+  }
+
+  let supplyApplianceLoss = 0;
+  let achievablePressure = solvePressure(supplyApplianceLoss);
+
+  const calculatedGpm =
+    smoothboreGpm(tip.diameter, achievablePressure);
+
+  if (
+    reverseSupplyEnabled &&
+    calculatedGpm > 350
+  ) {
+    supplyApplianceLoss = 10;
+    achievablePressure = solvePressure(supplyApplianceLoss);
+  }
+
+  return Math.max(0, Math.floor(achievablePressure));
+}
 
     // ========================================
     // REQUIRED PDP CALCULATIONS
