@@ -171,12 +171,42 @@
   overflow: hidden;
 }
 
+#modeButtons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 2px;
+}
+
+#modeButtons button {
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 8px;
+
+  font-size: 13px;
+  line-height: 1.1;
+
+  border-radius: 9px;
+}
+
+#modeButtons button.active {
+  background: var(--button);
+  color: var(--button-text);
+  box-shadow:
+    inset 0 0 0 2px var(--accent),
+    var(--accent-glow);
+  z-index: 2;
+}
+
+#modeButtons button {
+  position: relative;
+}
+
 #splitSectionButtons button {
   position: relative;
 
   border: none;
   border-radius: 0;
-  min-height: 52px;
+  min-height: 48px;
 
   background: transparent;
   box-shadow: none;
@@ -186,7 +216,7 @@
 
   border: none;
   border-radius: 0;
-  min-height: 52px;
+  min-height: 48px;
 
   background: transparent;
   box-shadow: none;
@@ -239,7 +269,7 @@
 
   border: none;
   border-radius: 0;
-  min-height: 54px;
+  min-height: 48px;
 
   background: transparent;
   box-shadow: none;
@@ -263,7 +293,7 @@
 }
 
     .mode-buttons button {
-  padding: 12px 14px;
+  padding: 10px 12px;
   text-align: center;
   line-height: 1.2;
   box-shadow: var(--shadow-soft);
@@ -277,6 +307,10 @@
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.9),
     0 2px 5px rgba(17, 24, 39, 0.06);
+}
+
+.pressure-buttons button {
+  min-height: 48px;
 }
 
 #modeButtons button.active,

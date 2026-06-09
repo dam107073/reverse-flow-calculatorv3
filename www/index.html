@@ -440,22 +440,24 @@ Select a hydraulic calculation mode.
   </div>
 
   <div class="field">
-    <label>Supply Length</label>
-<div class="input-with-button">
-  <input
-    id="supplyLength"
-    inputmode="numeric"
-    placeholder="Feet"
-  />
+  <label>Supply Length</label>
 
-  <button
-    type="button"
-    class="inline-add-button"
-    onclick="addFiftyFeet('supplyLength')"
-  >
-    +50
-  </button>
-</div>  </div>
+  <div class="input-with-button">
+    <input
+      id="reverseSupplyLength"
+      inputmode="numeric"
+      placeholder="Feet"
+    />
+
+    <button
+      type="button"
+      class="inline-add-button"
+      onclick="addFiftyFeet('reverseSupplyLength')"
+    >
+      +50
+    </button>
+  </div>
+</div>
 
   <div class="field">
     <label>Supply Hose</label>
@@ -467,6 +469,7 @@ Select a hydraulic calculation mode.
     <select id="reverseSupplyAppliance">
       <option value="gateValve">Gate Valve / Nozzle Shutoff</option>
       <option value="reducer">Reducer</option>
+      <option value="gatedWye">Gated Wye</option>
     </select>
   </div>
 </div>

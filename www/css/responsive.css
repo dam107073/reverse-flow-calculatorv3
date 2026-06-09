@@ -312,6 +312,18 @@
     grid-template-columns: 1fr;
   }
 
+  #modeButtons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  #modeButtons button {
+    min-height: 42px;
+    padding: 7px 8px;
+    font-size: 13px;
+    line-height: 1.1;
+  }
+
   .detail {
     flex-basis: 50%;
     border-right: none;
@@ -349,8 +361,8 @@
 
   input,
 select {
-  height: 54px;
-  font-size: 17px;
+  height: 48px;
+  font-size: 16px;
 }
 
 }
@@ -373,5 +385,18 @@ select {
   .mode-buttons {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  #modeButtons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#modeButtons button {
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 8px;
+  font-size: 13px;
+  line-height: 1.1;
+}
 
 }
