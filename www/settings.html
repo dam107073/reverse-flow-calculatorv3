@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+  />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Reverse Flow" />
+  <meta name="application-name" content="Reverse Flow: Fireground Hydraulics" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
+  <meta name="theme-color" content="#0D0D0D">
+  <link rel="manifest" href="manifest.json?v=6" />
+
+  <title>Settings | Reverse Flow</title>
+
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/calculators.css" />
+  <link rel="stylesheet" href="css/support.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <h1 class="app-header-title">Reverse Flow</h1>
+        <p class="app-header-subtitle">
+          Fireground Hydraulics
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <div id="webProBanner" class="web-pro-banner" hidden>
+    To unlock Pro features, download Reverse Flow from the App Store or Google Play.
+  </div>
+
+  <main id="settingsPage">
+    <nav class="page-nav" aria-label="Primary">
+      <a class="reset-button nav-action-button nav-button-link" href="index.html">Calculator</a>
+      <a class="reset-button nav-action-button nav-button-link" href="tools.html">Tools</a>
+      <a class="reset-button nav-action-button nav-button-link active" href="settings.html">Settings</a>
+    </nav>
+
+    <section class="card app-view-panel">
+      <div class="form-grid">
+        <div class="field full">
+          <label>Settings</label>
+          <p class="helper">
+            Preferences, defaults, and future app configuration for Reverse Flow.
+          </p>
+        </div>
+
+        <div class="settings-tool-card">
+          <strong>Default Attack Hose</strong>
+          <p class="helper">
+            Attack hose coefficients remain visible in calculator hose selectors and can be updated from the Hose Library.
+          </p>
+        </div>
+
+        <div class="settings-tool-card">
+          <strong>Default Supply Hose</strong>
+          <p class="helper">
+            Supply hose coefficients remain visible in calculator hose selectors and can be updated from the Hose Library.
+          </p>
+        </div>
+
+        <div class="settings-tool-card">
+          <strong>Hose Coefficients</strong>
+          <p class="helper">
+            Restore all saved hose coefficients to the app defaults.
+          </p>
+          <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
+            Reset to Default Hose Coefficients
+          </button>
+        </div>
+
+        <div class="settings-tool-card muted-card">
+          <strong>Custom Hoses</strong>
+          <p class="helper">
+            Custom hose creation will live here in a future update.
+          </p>
+        </div>
+
+        <div class="settings-tool-card muted-card">
+          <strong>Future Nozzle Defaults</strong>
+          <p class="helper">
+            Future nozzle defaults will stay separate from temporary calculation overrides.
+          </p>
+        </div>
+
+        <div class="settings-tool-card muted-card">
+          <strong>Future Unit Preferences</strong>
+          <p class="helper">
+            Future unit preferences will live here without changing existing saved setup data.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div id="proModal" class="pro-modal" hidden>
+      <div class="pro-modal-content">
+        <div class="pro-modal-header">
+          <div class="badge beta">
+            REVERSE FLOW PRO
+          </div>
+
+          <button id="closeProModal" class="modal-close-button" type="button">
+            X
+          </button>
+        </div>
+
+        <p class="pro-modal-subtitle">
+          Built for complex hydraulic operations.
+        </p>
+
+        <div class="pro-feature-list">
+          <div>
+            <strong>Relay Pumping</strong>
+            <span>Long-distance water supply calculations</span>
+          </div>
+
+          <div>
+            <strong>Split Lay</strong>
+            <span>Multi-line hydraulic calculations</span>
+          </div>
+
+          <div>
+            <strong>Pump Charts</strong>
+            <span>Save department setups</span>
+          </div>
+
+          <div>
+            <strong>Hose Coefficients</strong>
+            <span>Custom defaults</span>
+          </div>
+        </div>
+
+        <div class="pro-price-card">
+          <p>Lifetime Access</p>
+          <strong>$4.99 One-Time Purchase</strong>
+          <span>Includes all future Reverse Flow Pro features.</span>
+        </div>
+
+        <button type="button" id="buyProButton">
+          Unlock Pro
+        </button>
+
+        <button type="button" id="restorePurchaseButton">
+          Restore Purchase
+        </button>
+
+        <div class="pro-modal-footer">
+          One-time purchase through the App Store or Google Play.
+          Already own Pro? Tap Restore Purchase.
+        </div>
+      </div>
+    </div>
+
+    <p class="version-footer">
+      Reverse Flow: Fireground Hydraulics © 2026
+    </p>
+
+    <p class="version-footer" id="versionFooter"></p>
+  </main>
+
+  <script src="js/constants.js"></script>
+  <script src="js/services/entitlement.js"></script>
+  <script src="js/data/hydraulics.js"></script>
+  <script src="js/app.js"></script>
+  <script type="module" src="js/analytics.js"></script>
+</body>
+</html>

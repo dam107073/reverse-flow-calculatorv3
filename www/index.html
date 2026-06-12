@@ -59,20 +59,19 @@
           <div id="pumpChartButtons">
 
   <button
-  id="savePresetButton"
-  type="button"
-  class="mode-card-pro"
->
-  Save Setup
-</button>
-
-  <button
   id="viewPumpChartButton"
   type="button"
   class="mode-card-pro"
 >
   Pump Chart
 </button>
+
+  <a
+    class="nav-button-link"
+    href="tools.html"
+  >
+    Tools
+  </a>
 
 </div>
         </div>
@@ -770,6 +769,16 @@ Select a hydraulic calculation mode.
 
   </div>
 
+  <div class="result-actions">
+    <button
+      id="savePresetButtonSplit"
+      type="button"
+      class="mode-card-pro"
+    >
+      Save to Pump Chart
+    </button>
+  </div>
+
 </section>
    <section id="standardResultsCard" class="card result-empty">
       <div class="result-top">
@@ -809,6 +818,15 @@ Select a hydraulic calculation mode.
     <strong id="setupDisplay">—</strong>
   </div>
 </div> 
+      <div class="result-actions">
+        <button
+          id="savePresetButton"
+          type="button"
+          class="mode-card-pro"
+        >
+          Save to Pump Chart
+        </button>
+      </div>
     </section>
 
     <section id="warningsCard" class="card warnings" hidden></section>
@@ -817,13 +835,13 @@ Select a hydraulic calculation mode.
      FOOTER ACTIONS
 ========================================= -->
 <div class="footer-actions">
-  <button id="settingsViewButton" class="reset-button nav-action-button" type="button">
+  <a href="settings.html" class="reset-button nav-action-button nav-button-link">
     Settings
-  </button>
+  </a>
 
-  <button id="toolsViewButton" class="reset-button nav-action-button" type="button">
+  <a href="tools.html" class="reset-button nav-action-button nav-button-link">
     Tools
-  </button>
+  </a>
 
   <button id="resetButton" class="reset-button" type="button">
     ↺ Reset
@@ -899,89 +917,6 @@ Select a hydraulic calculation mode.
   </details>
 </section>
     </div>
-
-    <section id="settingsView" class="card app-view-panel" hidden>
-      <div class="form-grid">
-        <div class="field full">
-          <label>Settings</label>
-          <p class="helper">
-            App controls and preferences for Reverse Flow.
-          </p>
-        </div>
-
-        <div class="settings-tool-card">
-          <strong>Hose Coefficients</strong>
-          <p class="helper">
-            Restore all saved hose coefficients to the app defaults.
-          </p>
-          <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
-            Reset to Default Hose Coefficients
-          </button>
-        </div>
-
-        <div class="settings-tool-card muted-card">
-          <strong>App Preferences</strong>
-          <p class="helper">
-            More app preferences will live here in a future update.
-          </p>
-        </div>
-
-        <button id="settingsBackButton" class="reset-button view-back-button" type="button">
-          Back to Calculator
-        </button>
-      </div>
-    </section>
-
-    <section id="toolsView" class="card app-view-panel" hidden>
-      <div class="form-grid">
-        <div class="field full">
-          <label>Tools</label>
-          <p class="helper">
-            Utility spaces for future fireground reference tools.
-          </p>
-        </div>
-
-        <div class="settings-tool-card hose-library-panel">
-          <strong>Hose Library</strong>
-          <p class="helper">
-            Static hose profiles, charged IDs, and friction-loss coefficients.
-          </p>
-          <div class="hose-library-filters">
-            <div class="field">
-              <label for="hoseLibraryManufacturerFilter">Manufacturer</label>
-              <select id="hoseLibraryManufacturerFilter"></select>
-            </div>
-
-            <div class="field">
-              <label for="hoseLibrarySizeFilter">Hose Size</label>
-              <select id="hoseLibrarySizeFilter"></select>
-            </div>
-
-            <div class="field">
-              <label for="hoseLibraryUseFilter">Use</label>
-              <select id="hoseLibraryUseFilter">
-                <option value="all">Supply and Attack</option>
-                <option value="supply">Supply</option>
-                <option value="attack">Attack</option>
-              </select>
-            </div>
-          </div>
-          <p id="hoseLibrarySummary" class="helper"></p>
-          <div id="hoseLibraryList" class="hose-library-list"></div>
-        </div>
-
-        <div class="settings-tool-card muted-card">
-          <strong>Field References</strong>
-          <p class="helper">
-            Coming soon: quick-reference support tools that complement the calculator.
-          </p>
-        </div>
-
-        <button id="toolsBackButton" class="reset-button view-back-button" type="button">
-          Back to Calculator
-        </button>
-      </div>
-    </section>
 
     <div id="proModal" class="pro-modal" hidden>
   <div class="pro-modal-content">

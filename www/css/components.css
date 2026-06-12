@@ -264,7 +264,8 @@
   overflow: hidden;
 }
 
-#pumpChartButtons button {
+#pumpChartButtons button,
+#pumpChartButtons .nav-button-link {
   position: relative;
 
   border: none;
@@ -275,7 +276,8 @@
   box-shadow: none;
 }
 
-#pumpChartButtons button.active {
+#pumpChartButtons button.active,
+#pumpChartButtons .nav-button-link.active {
   background: var(--button);
 
   color: var(--button-text);

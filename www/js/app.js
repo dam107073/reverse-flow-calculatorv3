@@ -66,7 +66,10 @@
     const els = {
       presetSelect: document.getElementById("presetSelect"),
       savePresetButton: document.getElementById("savePresetButton"),
+      savePresetButtonSplit: document.getElementById("savePresetButtonSplit"),
       calculatorView: document.getElementById("calculatorView"),
+      toolsPage: document.getElementById("toolsPage"),
+      settingsPage: document.getElementById("settingsPage"),
       settingsView: document.getElementById("settingsView"),
       toolsView: document.getElementById("toolsView"),
       settingsViewButton: document.getElementById("settingsViewButton"),
@@ -624,8 +627,10 @@ logStoreEvent("initialize-start", {
 
     async function init() {
 
-  els.versionFooter.textContent =
-  `Reverse Flow v${APP_VERSION}`;
+  if (els.versionFooter) {
+    els.versionFooter.textContent =
+      `Reverse Flow v${APP_VERSION}`;
+  }
 
 	  if (els.buyProButton) {
 	  updateBuyProButtonState(
@@ -641,6 +646,14 @@ logStoreEvent("initialize-start", {
   updateWebProBannerVisibility();
   updateAccessBadge();
   await loadHoseLibraryData();
+
+  if (!els.calculatorView) {
+    populateHoseLibraryFilter();
+    renderHoseLibrary();
+    bindSupportPageEvents();
+    return;
+  }
+
   populateHoseOptions();
   populateHoseLibraryFilter();
   renderHoseLibrary();
@@ -1075,11 +1088,14 @@ function applyHoseLibraryDefault(libraryId) {
   saveHoseCoefficient(libraryHose.appHoseId, libraryHose.coefficient);
   saveHoseLibrarySelection(libraryHose.appHoseId, libraryHose);
 
-  populateHoseOptions();
-  els.hoseSize.value = state.hoseSize;
+  if (els.calculatorView) {
+    populateHoseOptions();
+    els.hoseSize.value = state.hoseSize;
 
-  syncCoefficientUi();
-  updateCalculator();
+    syncCoefficientUi();
+    updateCalculator();
+  }
+
   renderHoseLibrary();
 
   alert(`${appHose.label} hose default coefficient saved as C ${libraryHose.coefficient}.`);
@@ -1922,11 +1938,73 @@ els.saveCoefficientDefaultButton.textContent =
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
+    function openProModal() {
+      if (!els.proModal) {
+        alert("Reverse Flow Pro is required for this feature.");
+        return;
+      }
+
+      els.proModal.hidden = false;
+    }
+
+    function bindSupportPageEvents() {
+      els.hoseLibraryManufacturerFilter?.addEventListener("change", renderHoseLibrary);
+      els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
+      els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
+
+      els.resetHoseCoefficientsButton?.addEventListener("click", () => {
+        if (!isProUser()) {
+          openProModal();
+          return;
+        }
+
+        const confirmed = confirm(
+          "Reset all hose coefficients back to app defaults?"
+        );
+
+        if (!confirmed) return;
+
+        resetSavedHoseCoefficients();
+        renderHoseLibrary();
+
+        alert("Hose coefficients reset to app defaults.");
+      });
+
+      els.closeProModal?.addEventListener("click", () => {
+        els.proModal.hidden = true;
+      });
+
+      els.proModal?.addEventListener("click", event => {
+        if (event.target === els.proModal) {
+          els.proModal.hidden = true;
+        }
+      });
+
+      if (typeof purchaseReverseFlowPro === "function") {
+        els.buyProButton?.addEventListener("click", () => {
+          purchaseReverseFlowPro();
+        });
+      }
+
+      if (typeof restoreReverseFlowPurchases === "function") {
+        els.restorePurchaseButton?.addEventListener("click", () => {
+          restoreReverseFlowPurchases();
+        });
+      }
+
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && els.proModal) {
+          els.proModal.hidden = true;
+        }
+      });
+    }
+
     function bindEvents() {
     if (els.presetSelect) {
   els.presetSelect.addEventListener("change", e => applyPreset(e.target.value));
 }
-  els.savePresetButton.addEventListener("click", event => {
+  [els.savePresetButton, els.savePresetButtonSplit].forEach(button => {
+    button?.addEventListener("click", event => {
   event.preventDefault();
   event.stopPropagation();
 
@@ -1937,6 +2015,7 @@ els.saveCoefficientDefaultButton.textContent =
 
   saveCurrentSetupAsPreset();
 });
+  });
       els.invertApplianceLossButton?.addEventListener("click", () => {
 
   const current =
@@ -1958,7 +2037,7 @@ els.saveCoefficientDefaultButton.textContent =
       els.hoseLibraryManufacturerFilter?.addEventListener("change", renderHoseLibrary);
       els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
       els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
-      els.resetHoseCoefficientsButton.addEventListener("click", () => {
+      els.resetHoseCoefficientsButton?.addEventListener("click", () => {
 
   if (!isProUser()) {
     openProModal();
@@ -2032,10 +2111,6 @@ els.splitLayButton.addEventListener("click", () => {
 
 });
 
-
-function openProModal() {
-  els.proModal.hidden = false;
-}
 
 els.buyProButton?.addEventListener("click", () => {
   purchaseReverseFlowPro();

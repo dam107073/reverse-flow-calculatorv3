@@ -28,6 +28,43 @@
   margin-bottom: 16px;
 }
 
+    .page-nav {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .nav-button-link {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #111827;
+      text-decoration: none;
+    }
+
+    .nav-button-link.active {
+      background: var(--button);
+      color: var(--button-text);
+      border-color: var(--button);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.04),
+        0 8px 18px rgba(17, 24, 39, 0.16),
+        var(--accent-glow);
+    }
+
+    .result-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .result-actions button {
+      min-width: 176px;
+    }
+
     .reset-button {
       width: auto;
       padding: 0 18px;
