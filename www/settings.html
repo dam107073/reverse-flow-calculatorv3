@@ -18,21 +18,50 @@
     (() => {
       try {
         const theme = localStorage.getItem("reverse-flow-theme-preference-v1");
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const resolvedTheme =
+          theme === "light" || theme === "dark"
+            ? theme
+            : prefersDark
+              ? "dark"
+              : "light";
+
         if (theme === "light" || theme === "dark") {
           document.documentElement.dataset.theme = theme;
-          document.documentElement.style.colorScheme = theme;
         }
+        document.documentElement.dataset.resolvedTheme = resolvedTheme;
+        document.documentElement.style.backgroundColor =
+          resolvedTheme === "dark" ? "#020617" : "#e7edf3";
+        document.documentElement.style.colorScheme = resolvedTheme;
       } catch (error) {}
     })();
   </script>
+  <style>
+    html {
+      min-height: 100%;
+      background: #e7edf3;
+      color: #111827;
+    }
+    html[data-resolved-theme="dark"] {
+      background: #020617;
+      color: #f8fafc;
+    }
+    body {
+      min-height: 100vh;
+      background: inherit;
+      color: inherit;
+    }
+  </style>
 
   <title>Settings | Reverse Flow</title>
 
-  <link rel="stylesheet" href="css/base.css?v=theme-4" />
-  <link rel="stylesheet" href="css/components.css?v=theme-4" />
-  <link rel="stylesheet" href="css/calculators.css?v=theme-4" />
-  <link rel="stylesheet" href="css/support.css?v=theme-4" />
-  <link rel="stylesheet" href="css/responsive.css?v=theme-4" />
+  <link rel="stylesheet" href="css/base.css?v=flash-3" />
+  <link rel="stylesheet" href="css/components.css?v=flash-3" />
+  <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
+  <link rel="stylesheet" href="css/support.css?v=flash-3" />
+  <link rel="stylesheet" href="css/responsive.css?v=flash-3" />
 </head>
 
 <body>
@@ -209,7 +238,7 @@
   <script src="js/constants.js?v=theme-1"></script>
   <script src="js/services/entitlement.js"></script>
   <script src="js/data/hydraulics.js?v=default-hoses-1"></script>
-  <script src="js/app.js?v=theme-1"></script>
+  <script src="js/app.js?v=flash-3"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>
 </html>

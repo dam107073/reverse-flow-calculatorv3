@@ -648,14 +648,25 @@ logStoreEvent("initialize-start", {
 
     function applyThemePreference(themePreference = getThemePreference()) {
       const root = document.documentElement;
+      const prefersDark =
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const resolvedTheme = themePreference === "system"
+        ? prefersDark
+          ? "dark"
+          : "light"
+        : themePreference;
 
       if (themePreference === "light" || themePreference === "dark") {
         root.dataset.theme = themePreference;
-        root.style.colorScheme = themePreference;
       } else {
         delete root.dataset.theme;
-        root.style.colorScheme = "";
       }
+
+      root.dataset.resolvedTheme = resolvedTheme;
+      root.style.backgroundColor =
+        resolvedTheme === "dark" ? "#020617" : "#e7edf3";
+      root.style.colorScheme = resolvedTheme;
     }
 
     function syncThemePreferenceControls() {
@@ -1267,6 +1278,9 @@ function renderHoseLibraryCard(hose) {
     : hose.referenceUrl
       ? `<a href="${escapeHtml(hose.referenceUrl)}" target="_blank" rel="noopener">Source</a>`
       : "Source —";
+  const coefficientText = hose.coefficient === null
+    ? "Still gathering data"
+    : `C ${formatLibraryValue(hose.coefficient)}`;
 
   return `
     <article class="hose-library-card${isSelected ? " active" : ""}">
@@ -1276,7 +1290,7 @@ function renderHoseLibraryCard(hose) {
           <p class="helper">${escapeHtml(hose.tradeSize)}${appHose ? ` maps to ${escapeHtml(appHose.label)}` : " reference only"}</p>
         </div>
         <span class="hose-library-coefficient">
-          C ${formatLibraryValue(hose.coefficient)}
+          ${escapeHtml(coefficientText)}
         </span>
       </div>
 
@@ -2228,6 +2242,167 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
       els.proModal.hidden = false;
     }
 
+    function getReverseFlowStoreForSupportPage() {
+      if (!window.CdvPurchase) {
+        alert("In-App Purchases are not available on this device.");
+        return null;
+      }
+
+      const purchasePlatform = getReverseFlowPurchasePlatform();
+
+      if (!purchasePlatform) {
+        alert("Purchases are only available in the mobile app.");
+        return null;
+      }
+
+      return window.CdvPurchase.store;
+    }
+
+    async function purchaseReverseFlowProFromSupportPage() {
+      console.info("[Reverse Flow IAP]", {
+        event: "support-page-purchase-click",
+        ready: reverseFlowProProductReady,
+        initialized: reverseFlowProStoreInitialized,
+        buttonDisabled: els.buyProButton?.disabled,
+        buttonText: els.buyProButton?.textContent
+      });
+
+      const store = getReverseFlowStoreForSupportPage();
+      if (!store) return;
+
+      if (!reverseFlowProProductReady) {
+        console.warn("[Reverse Flow IAP]", {
+          event: "support-page-purchase-denied-product-not-ready",
+          ready: reverseFlowProProductReady,
+          initialized: reverseFlowProStoreInitialized
+        });
+        alert("Reverse Flow Pro purchase is not available yet. Please try again in a moment.");
+        return;
+      }
+
+      const purchasePlatform = getReverseFlowPurchasePlatform();
+
+      if (!purchasePlatform) {
+        alert("Purchases are only available in the mobile app.");
+        return;
+      }
+
+      const product = store.get(
+        REVERSE_FLOW_PRO_PRODUCT_ID,
+        purchasePlatform
+      );
+
+      if (!product) {
+        console.warn("[Reverse Flow IAP]", {
+          event: "support-page-purchase-denied-product-missing",
+          productId: REVERSE_FLOW_PRO_PRODUCT_ID
+        });
+        alert("Reverse Flow Pro is not available yet. Please try again in a moment.");
+        return;
+      }
+
+      const offer = product.getOffer();
+
+      if (!offer) {
+        console.warn("[Reverse Flow IAP]", {
+          event: "support-page-purchase-denied-offer-missing",
+          rawProduct: product
+        });
+        alert("Reverse Flow Pro purchase offer is not available yet.");
+        return;
+      }
+
+      try {
+        updateBuyProButtonState("processing", {
+          reason: "support page purchase order started"
+        });
+
+        const error = await offer.order();
+
+        if (error) {
+          console.warn("[Reverse Flow IAP]", {
+            event: "support-page-purchase-order-error",
+            error
+          });
+          alert(error.message || "The purchase could not be completed.");
+        } else {
+          console.info("[Reverse Flow IAP]", {
+            event: "support-page-purchase-order-submitted"
+          });
+        }
+      } catch (error) {
+        console.error("[Reverse Flow IAP]", {
+          event: "support-page-purchase-order-failed",
+          error
+        });
+        alert("The purchase could not be completed.");
+      } finally {
+        if (!isProUser()) {
+          updateBuyProButtonState(
+            reverseFlowProProductReady ? "ready" : "unavailable",
+            {
+              reason: "support page purchase order finished without Pro unlock"
+            }
+          );
+        }
+      }
+    }
+
+    async function restoreReverseFlowPurchasesFromSupportPage() {
+      console.info("[Reverse Flow IAP]", {
+        event: "support-page-restore-click",
+        ready: reverseFlowProProductReady,
+        initialized: reverseFlowProStoreInitialized,
+        buttonDisabled: els.restorePurchaseButton?.disabled,
+        buttonText: els.restorePurchaseButton?.textContent
+      });
+
+      const store = getReverseFlowStoreForSupportPage();
+      if (!store) return;
+
+      try {
+        reverseFlowRestoreInProgress = true;
+        if (els.restorePurchaseButton) {
+          els.restorePurchaseButton.disabled = true;
+          els.restorePurchaseButton.textContent = "Restoring...";
+        }
+
+        await store.restorePurchases();
+        console.info("[Reverse Flow IAP]", {
+          event: "support-page-restore-request-complete",
+          isPro: isProUser()
+        });
+
+        setTimeout(() => {
+          if (!reverseFlowRestoreInProgress) return;
+          reverseFlowRestoreInProgress = false;
+          if (els.restorePurchaseButton) {
+            els.restorePurchaseButton.disabled = false;
+            els.restorePurchaseButton.textContent = "Restore Purchase";
+          }
+
+          if (!isProUser()) {
+            console.warn("[Reverse Flow IAP]", {
+              event: "support-page-restore-complete-no-pro-entitlement",
+              reason: "restore did not produce a verified lifetime product receipt"
+            });
+            alert("No valid Reverse Flow Pro purchase was found to restore.");
+          }
+        }, 5000);
+      } catch (error) {
+        reverseFlowRestoreInProgress = false;
+        if (els.restorePurchaseButton) {
+          els.restorePurchaseButton.disabled = false;
+          els.restorePurchaseButton.textContent = "Restore Purchase";
+        }
+        console.error("[Reverse Flow IAP]", {
+          event: "support-page-restore-failed",
+          error
+        });
+        alert("Purchases could not be restored.");
+      }
+    }
+
 	    function bindSupportPageEvents() {
 	      els.hoseLibraryManufacturerFilter?.addEventListener("change", renderHoseLibrary);
 	      els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
@@ -2268,17 +2443,25 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
         }
       });
 
-      if (typeof purchaseReverseFlowPro === "function") {
-        els.buyProButton?.addEventListener("click", () => {
-          purchaseReverseFlowPro();
+      els.buyProButton?.addEventListener("click", () => {
+        console.info("[Reverse Flow IAP]", {
+          event: "support-page-buy-click",
+          page: els.toolsPage ? "tools" : "settings",
+          buttonDisabled: els.buyProButton?.disabled,
+          buttonText: els.buyProButton?.textContent
         });
-      }
+        purchaseReverseFlowProFromSupportPage();
+      });
 
-      if (typeof restoreReverseFlowPurchases === "function") {
-        els.restorePurchaseButton?.addEventListener("click", () => {
-          restoreReverseFlowPurchases();
+      els.restorePurchaseButton?.addEventListener("click", () => {
+        console.info("[Reverse Flow IAP]", {
+          event: "support-page-restore-click",
+          page: els.toolsPage ? "tools" : "settings",
+          buttonDisabled: els.restorePurchaseButton?.disabled,
+          buttonText: els.restorePurchaseButton?.textContent
         });
-      }
+        restoreReverseFlowPurchasesFromSupportPage();
+      });
 
       document.addEventListener("keydown", event => {
         if (event.key === "Escape" && els.proModal) {
