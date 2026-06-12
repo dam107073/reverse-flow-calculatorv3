@@ -16,6 +16,8 @@ const APP_VERSION = "1.0.3";
 const STORAGE_KEY = "reverse-flow-calculator-v3";
 const PRESETS_KEY = "reverse-flow-calculator-presets-v1";
 const HOSE_COEFFS_KEY = "reverse-flow-hose-coefficients-v1";
+const HOSE_LIBRARY_SELECTIONS_KEY =
+  "reverse-flow-hose-library-selections-v1";
 const PRO_ENTITLEMENT_STORAGE_KEY =
   "reverse-flow-pro-entitlement-v1";
 
@@ -37,4 +39,3 @@ const PRO_ENTITLEMENT_STORAGE_KEY =
 
   return null;
 }
-

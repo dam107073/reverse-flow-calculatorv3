@@ -58,6 +58,19 @@
         background: var(--surface);
       }
 
+      .hose-library-card {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.82));
+      }
+
+      .hose-library-details span {
+        background: rgba(255,255,255,0.03);
+      }
+
+      .hose-library-details a {
+        color: #fed7aa;
+      }
+
       .web-pro-banner {
         background: rgba(69, 26, 3, 0.62);
         border-color: rgba(251, 146, 60, 0.34);
@@ -349,6 +362,18 @@
   }
 
   .reset-button {
+    width: 100%;
+  }
+
+  .hose-library-card-header {
+    flex-direction: column;
+  }
+
+  .hose-library-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .hose-library-select-button {
     width: 100%;
   }
 

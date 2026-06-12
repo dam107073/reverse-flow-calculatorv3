@@ -58,6 +58,7 @@
     };
 
     let state = getFreshLaunchState();
+    let hoseLibraryRows = [];
 
     // ========================================
     // DOM ELEMENTS
@@ -72,6 +73,11 @@
       toolsViewButton: document.getElementById("toolsViewButton"),
       settingsBackButton: document.getElementById("settingsBackButton"),
       toolsBackButton: document.getElementById("toolsBackButton"),
+      hoseLibraryManufacturerFilter: document.getElementById("hoseLibraryManufacturerFilter"),
+      hoseLibrarySizeFilter: document.getElementById("hoseLibrarySizeFilter"),
+      hoseLibraryUseFilter: document.getElementById("hoseLibraryUseFilter"),
+      hoseLibrarySummary: document.getElementById("hoseLibrarySummary"),
+      hoseLibraryList: document.getElementById("hoseLibraryList"),
       resetHoseCoefficientsButton: document.getElementById("resetHoseCoefficientsButton"),
       resetButton: document.getElementById("resetButton"),
 
@@ -616,7 +622,7 @@ logStoreEvent("initialize-start", {
       els.webProBanner.hidden = isNativeCapacitorApp();
     }
 
-    function init() {
+    async function init() {
 
   els.versionFooter.textContent =
   `Reverse Flow v${APP_VERSION}`;
@@ -634,7 +640,10 @@ logStoreEvent("initialize-start", {
   
   updateWebProBannerVisibility();
   updateAccessBadge();
+  await loadHoseLibraryData();
   populateHoseOptions();
+  populateHoseLibraryFilter();
+  renderHoseLibrary();
   populateSmoothboreTips();
   renderPresetOptions();
   syncInputsFromState();
@@ -718,8 +727,84 @@ function updateAccessBadge() {
     // ========================================
     // UI POPULATION
     // ========================================
+function loadSavedHoseLibrarySelections() {
+  try {
+    const saved = localStorage.getItem(HOSE_LIBRARY_SELECTIONS_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+function getSavedHoseLibrarySelection(hoseId) {
+  const savedSelections = loadSavedHoseLibrarySelections();
+
+  return savedSelections[hoseId] || null;
+}
+
+function saveHoseLibrarySelection(hoseId, libraryHose) {
+  const savedSelections = loadSavedHoseLibrarySelections();
+
+  savedSelections[hoseId] = {
+    id: libraryHose.id,
+    manufacturer: libraryHose.manufacturer,
+    model: libraryHose.model,
+    coefficient: libraryHose.coefficient
+  };
+
+  localStorage.setItem(
+    HOSE_LIBRARY_SELECTIONS_KEY,
+    JSON.stringify(savedSelections)
+  );
+}
+
+function clearHoseLibrarySelection(hoseId) {
+  const savedSelections = loadSavedHoseLibrarySelections();
+
+  delete savedSelections[hoseId];
+
+  localStorage.setItem(
+    HOSE_LIBRARY_SELECTIONS_KEY,
+    JSON.stringify(savedSelections)
+  );
+}
+
+async function loadHoseLibraryData() {
+  if (hoseLibraryRows.length) return;
+
+  try {
+    const response = await fetch("js/data/hose-library.js?v=3");
+
+    if (!response.ok) {
+      throw new Error(`Hose library request failed: ${response.status}`);
+    }
+
+    const rows = await response.json();
+
+    hoseLibraryRows = Array.isArray(rows) ? rows : [];
+  } catch (error) {
+    console.warn("[Reverse Flow] Hose library failed to load.", error);
+    hoseLibraryRows = [];
+  }
+}
+
+function getHoseLibraryRows() {
+  return hoseLibraryRows;
+}
+
+const SUPPLY_HOSE_IDS =
+  ["2", "2.25", "2.5", "3", "4", "5"];
+
+const ATTACK_HOSE_IDS =
+  ["1", "1.5", "1.75", "1.88", "2", "2.25", "2.5"];
+
   function hoseOptionLabel(hose) {
   const activeCoefficient = getActiveHoseCoefficient(hose.id);
+  const librarySelection = getSavedHoseLibrarySelection(hose.id);
+
+  if (librarySelection) {
+    return `${hose.label} — ${librarySelection.manufacturer} ${librarySelection.model} C ${activeCoefficient}`;
+  }
 
   const coefficientLabel = isModifiedHoseCoefficient(hose.id)
     ? `CUSTOM C ${activeCoefficient}`
@@ -753,7 +838,7 @@ const splitAttack2Hose =
   document.getElementById("splitAttack2Hose");
 
 const supplyOptions = HOSE_OPTIONS.filter(hose =>
-  ["2", "2.25", "2.5", "3", "4", "5"].includes(hose.id)
+  SUPPLY_HOSE_IDS.includes(hose.id)
 );
 
 if (reverseSupplyHose) {
@@ -766,7 +851,7 @@ if (reverseSupplyHose) {
 }
 
 const attackOptions = HOSE_OPTIONS.filter(hose =>
-  ["1", "1.5", "1.75", "1.88", "2", "2.25", "2.5"].includes(hose.id)
+  ATTACK_HOSE_IDS.includes(hose.id)
 );
 
 if (splitSupplyHose) {
@@ -804,6 +889,200 @@ if (splitAttack2Hose) {
   splitAttack2Hose.value =
     state.splitLay.attack2HoseSize;
 }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function getHoseOptionById(hoseId) {
+  return [...HOSE_OPTIONS, ...RELAY_HOSE_OPTIONS]
+    .find(hose => hose.id === hoseId);
+}
+
+function formatLibraryValue(value, suffix = "") {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  return `${value}${suffix}`;
+}
+
+function populateHoseLibraryFilter() {
+  if (!els.hoseLibrarySizeFilter || !els.hoseLibraryManufacturerFilter) return;
+
+  const hoseLibraryRows = getHoseLibraryRows();
+  const manufacturers = [
+    ...new Set(hoseLibraryRows.map(hose => hose.manufacturer).filter(Boolean))
+  ].sort((a, b) => a.localeCompare(b));
+  const tradeSizes = [
+    ...new Set(hoseLibraryRows.map(hose => hose.tradeSize).filter(Boolean))
+  ];
+
+  els.hoseLibraryManufacturerFilter.innerHTML = [
+    `<option value="all">All manufacturers</option>`,
+    ...manufacturers.map(manufacturer => (
+      `<option value="${escapeHtml(manufacturer)}">${escapeHtml(manufacturer)}</option>`
+    ))
+  ].join("");
+
+  els.hoseLibrarySizeFilter.innerHTML = [
+    `<option value="all">All hose sizes</option>`,
+    ...tradeSizes.map(size => (
+      `<option value="${escapeHtml(size)}">${escapeHtml(size)}</option>`
+    ))
+  ].join("");
+}
+
+function getHoseLibraryUseLabel(hose) {
+  if (!hose.appHoseId) return "Reference";
+
+  const isSupply = SUPPLY_HOSE_IDS.includes(hose.appHoseId);
+  const isAttack = ATTACK_HOSE_IDS.includes(hose.appHoseId);
+
+  if (isSupply && isAttack) return "Supply / Attack";
+  if (isSupply) return "Supply";
+  if (isAttack) return "Attack";
+
+  return "Reference";
+}
+
+function hoseMatchesLibraryUse(hose, selectedUse) {
+  if (selectedUse === "all") return true;
+  if (!hose.appHoseId) return false;
+
+  if (selectedUse === "supply") {
+    return SUPPLY_HOSE_IDS.includes(hose.appHoseId);
+  }
+
+  if (selectedUse === "attack") {
+    return ATTACK_HOSE_IDS.includes(hose.appHoseId);
+  }
+
+  return true;
+}
+
+function renderHoseLibrary() {
+  if (!els.hoseLibraryList || !els.hoseLibrarySummary) return;
+
+  const selectedManufacturer =
+    els.hoseLibraryManufacturerFilter?.value || "all";
+  const selectedSize = els.hoseLibrarySizeFilter?.value || "all";
+  const selectedUse = els.hoseLibraryUseFilter?.value || "all";
+  const hoseLibraryRows = getHoseLibraryRows();
+  const libraryRows = hoseLibraryRows.filter(hose => {
+    const matchesManufacturer = selectedManufacturer === "all" ||
+      hose.manufacturer === selectedManufacturer;
+    const matchesSize = selectedSize === "all" ||
+      hose.tradeSize === selectedSize;
+
+    return matchesManufacturer &&
+      matchesSize &&
+      hoseMatchesLibraryUse(hose, selectedUse);
+  });
+
+  const selectableCount = libraryRows.filter(hose =>
+    hose.appHoseId && hose.coefficient !== null
+  ).length;
+
+  els.hoseLibrarySummary.textContent =
+    `${libraryRows.length} hose profiles shown. ${selectableCount} can be set as a local default.`;
+
+  els.hoseLibraryList.innerHTML = libraryRows.map(hose => {
+    const appHose = getHoseOptionById(hose.appHoseId);
+    const selectedLibrary = hose.appHoseId
+      ? getSavedHoseLibrarySelection(hose.appHoseId)
+      : null;
+    const isSelected =
+      selectedLibrary && selectedLibrary.id === hose.id;
+    const canSelect = Boolean(appHose && hose.coefficient !== null);
+    const buttonText = isSelected
+      ? "Selected Default"
+      : canSelect
+        ? `Set as ${appHose.label} Default`
+        : "Reference Only";
+    const useLabel = getHoseLibraryUseLabel(hose);
+    const sourceLink = hose.referenceUrl
+      ? `<a href="${escapeHtml(hose.referenceUrl)}" target="_blank" rel="noopener">Source</a>`
+      : "Source —";
+
+    return `
+      <article class="hose-library-card${isSelected ? " active" : ""}">
+        <div class="hose-library-card-header">
+          <div>
+            <strong>${escapeHtml(hose.manufacturer)} ${escapeHtml(hose.model)}</strong>
+            <p class="helper">${escapeHtml(hose.tradeSize)}${appHose ? ` maps to ${escapeHtml(appHose.label)}` : " reference only"}</p>
+          </div>
+          <span class="hose-library-coefficient">
+            C ${formatLibraryValue(hose.coefficient)}
+          </span>
+        </div>
+
+        <div class="hose-library-details">
+          <span>Use: ${escapeHtml(useLabel)}</span>
+          <span>ID @50: ${formatLibraryValue(hose.chargedId50, "\"")}</span>
+          <span>ID @150: ${formatLibraryValue(hose.chargedId150, "\"")}</span>
+          <span>${sourceLink}</span>
+        </div>
+
+        <button
+          class="small-button hose-library-select-button"
+          type="button"
+          data-hose-library-id="${escapeHtml(hose.id)}"
+          ${canSelect ? "" : "disabled"}
+        >
+          ${buttonText}
+        </button>
+      </article>
+    `;
+  }).join("");
+
+  els.hoseLibraryList
+    .querySelectorAll("[data-hose-library-id]")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        applyHoseLibraryDefault(button.dataset.hoseLibraryId);
+      });
+    });
+}
+
+function applyHoseLibraryDefault(libraryId) {
+  const libraryHose = getHoseLibraryRows()
+    .find(hose => hose.id === libraryId);
+
+  if (!libraryHose || !libraryHose.appHoseId || libraryHose.coefficient === null) {
+    alert("This hose library entry does not include a selectable app coefficient.");
+    return;
+  }
+
+  if (!isProUser()) {
+    openProModal();
+    return;
+  }
+
+  const appHose = getHoseOptionById(libraryHose.appHoseId);
+  const confirmed = confirm(
+    `Set ${libraryHose.manufacturer} ${libraryHose.model} C ${libraryHose.coefficient} as the default coefficient for ${appHose.label} hose?`
+  );
+
+  if (!confirmed) return;
+
+  saveHoseCoefficient(libraryHose.appHoseId, libraryHose.coefficient);
+  saveHoseLibrarySelection(libraryHose.appHoseId, libraryHose);
+
+  populateHoseOptions();
+  els.hoseSize.value = state.hoseSize;
+
+  syncCoefficientUi();
+  updateCalculator();
+  renderHoseLibrary();
+
+  alert(`${appHose.label} hose default coefficient saved as C ${libraryHose.coefficient}.`);
 }
 
     function populateSmoothboreTips() {
@@ -1676,6 +1955,9 @@ els.saveCoefficientDefaultButton.textContent =
       els.toolsViewButton?.addEventListener("click", () => showAppView("tools"));
       els.settingsBackButton?.addEventListener("click", () => showAppView("calculator"));
       els.toolsBackButton?.addEventListener("click", () => showAppView("calculator"));
+      els.hoseLibraryManufacturerFilter?.addEventListener("change", renderHoseLibrary);
+      els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
+      els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
       els.resetHoseCoefficientsButton.addEventListener("click", () => {
 
   if (!isProUser()) {
@@ -1700,6 +1982,7 @@ els.saveCoefficientDefaultButton.textContent =
 
   syncCoefficientUi();
   updateCalculator();
+  renderHoseLibrary();
 
   alert("Hose coefficients reset to app defaults.");
 });
@@ -2025,9 +2308,10 @@ els.reverseSupplyAppliance?.addEventListener("change", e => {
   `Save C ${coefficient} as the new default coefficient for ${selectedHose.label} hose?`
 );
 
-if (!confirmed) return;
+  if (!confirmed) return;
 
   saveHoseCoefficient(selectedHose.id, coefficient);
+  clearHoseLibrarySelection(selectedHose.id);
 
   state.useCustomCoefficient = false;
   state.customCoefficient = "";
@@ -2038,6 +2322,7 @@ if (!confirmed) return;
 
   syncCoefficientUi();
   updateCalculator();
+  renderHoseLibrary();
 
   alert(`${selectedHose.label} hose default coefficient saved as C ${coefficient}.`);
 });

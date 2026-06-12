@@ -941,11 +941,33 @@ Select a hydraulic calculation mode.
           </p>
         </div>
 
-        <div class="settings-tool-card">
+        <div class="settings-tool-card hose-library-panel">
           <strong>Hose Library</strong>
           <p class="helper">
-            Coming soon: reference hose profiles, coefficients, and department notes.
+            Static hose profiles, charged IDs, and friction-loss coefficients.
           </p>
+          <div class="hose-library-filters">
+            <div class="field">
+              <label for="hoseLibraryManufacturerFilter">Manufacturer</label>
+              <select id="hoseLibraryManufacturerFilter"></select>
+            </div>
+
+            <div class="field">
+              <label for="hoseLibrarySizeFilter">Hose Size</label>
+              <select id="hoseLibrarySizeFilter"></select>
+            </div>
+
+            <div class="field">
+              <label for="hoseLibraryUseFilter">Use</label>
+              <select id="hoseLibraryUseFilter">
+                <option value="all">Supply and Attack</option>
+                <option value="supply">Supply</option>
+                <option value="attack">Attack</option>
+              </select>
+            </div>
+          </div>
+          <p id="hoseLibrarySummary" class="helper"></p>
+          <div id="hoseLibraryList" class="hose-library-list"></div>
         </div>
 
         <div class="settings-tool-card muted-card">
