@@ -14,14 +14,25 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
   <meta name="theme-color" content="#0D0D0D">
   <link rel="manifest" href="manifest.json?v=6" />
+  <script>
+    (() => {
+      try {
+        const theme = localStorage.getItem("reverse-flow-theme-preference-v1");
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        }
+      } catch (error) {}
+    })();
+  </script>
 
   <title>Settings | Reverse Flow</title>
 
-  <link rel="stylesheet" href="css/base.css" />
-  <link rel="stylesheet" href="css/components.css" />
-  <link rel="stylesheet" href="css/calculators.css" />
-  <link rel="stylesheet" href="css/support.css" />
-  <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="stylesheet" href="css/base.css?v=theme-4" />
+  <link rel="stylesheet" href="css/components.css?v=theme-4" />
+  <link rel="stylesheet" href="css/calculators.css?v=theme-4" />
+  <link rel="stylesheet" href="css/support.css?v=theme-4" />
+  <link rel="stylesheet" href="css/responsive.css?v=theme-4" />
 </head>
 
 <body>
@@ -54,6 +65,32 @@
           <p class="helper">
             Preferences, defaults, and future app configuration for Reverse Flow.
           </p>
+        </div>
+
+        <div class="settings-tool-card">
+          <strong>Appearance</strong>
+          <p class="helper">
+            Choose the app color mode for this device.
+          </p>
+          <div class="theme-choice-group" role="group" aria-label="Appearance">
+            <button class="theme-choice-button" type="button" data-theme-choice="system" aria-pressed="true">
+              System
+            </button>
+            <button class="theme-choice-button" type="button" data-theme-choice="light" aria-pressed="false">
+              Light
+            </button>
+            <button class="theme-choice-button" type="button" data-theme-choice="dark" aria-pressed="false">
+              Dark
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-tool-card default-hose-selections-panel">
+          <strong>Default Hose Selections</strong>
+          <p class="helper">
+            Catalog hose defaults selected from the Hose Library.
+          </p>
+          <div id="defaultHoseSelectionsList" class="default-hose-selections-list"></div>
         </div>
 
         <div class="settings-tool-card">
@@ -169,10 +206,10 @@
     <p class="version-footer" id="versionFooter"></p>
   </main>
 
-  <script src="js/constants.js"></script>
+  <script src="js/constants.js?v=theme-1"></script>
   <script src="js/services/entitlement.js"></script>
-  <script src="js/data/hydraulics.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/data/hydraulics.js?v=default-hoses-1"></script>
+  <script src="js/app.js?v=theme-1"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>
 </html>

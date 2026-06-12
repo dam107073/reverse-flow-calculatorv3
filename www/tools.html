@@ -14,14 +14,25 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
   <meta name="theme-color" content="#0D0D0D">
   <link rel="manifest" href="manifest.json?v=6" />
+  <script>
+    (() => {
+      try {
+        const theme = localStorage.getItem("reverse-flow-theme-preference-v1");
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        }
+      } catch (error) {}
+    })();
+  </script>
 
   <title>Tools | Reverse Flow</title>
 
-  <link rel="stylesheet" href="css/base.css" />
-  <link rel="stylesheet" href="css/components.css" />
-  <link rel="stylesheet" href="css/calculators.css" />
-  <link rel="stylesheet" href="css/support.css" />
-  <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="stylesheet" href="css/base.css?v=theme-4" />
+  <link rel="stylesheet" href="css/components.css?v=theme-4" />
+  <link rel="stylesheet" href="css/calculators.css?v=theme-4" />
+  <link rel="stylesheet" href="css/support.css?v=theme-4" />
+  <link rel="stylesheet" href="css/responsive.css?v=theme-4" />
 </head>
 
 <body>
@@ -83,6 +94,47 @@
           </div>
           <p id="hoseLibrarySummary" class="helper"></p>
           <div id="hoseLibraryList" class="hose-library-list"></div>
+        </div>
+
+        <div class="settings-tool-card custom-hose-panel">
+          <strong>Create Custom Hose</strong>
+          <p class="helper">
+            Add a department-specific hose profile to the Hose Library.
+          </p>
+          <div class="custom-hose-form">
+            <div class="field">
+              <label for="customHoseManufacturer">Manufacturer</label>
+              <input id="customHoseManufacturer" type="text" placeholder="Department / Manufacturer" />
+            </div>
+
+            <div class="field">
+              <label for="customHoseModel">Model / Name</label>
+              <input id="customHoseModel" type="text" placeholder="Custom hose name" />
+            </div>
+
+            <div class="field">
+              <label for="customHoseSize">Hose Size</label>
+              <select id="customHoseSize"></select>
+            </div>
+
+            <div class="field">
+              <label for="customHoseUse">Use</label>
+              <select id="customHoseUse">
+                <option value="both">Both</option>
+                <option value="attack">Attack</option>
+                <option value="supply">Supply</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="customHoseCoefficient">Coefficient</label>
+              <input id="customHoseCoefficient" type="text" inputmode="decimal" placeholder="C value" />
+            </div>
+
+            <button id="createCustomHoseButton" class="reset-button" type="button">
+              Add to Hose Library
+            </button>
+          </div>
         </div>
 
         <div class="settings-tool-card muted-card">
@@ -160,10 +212,10 @@
     <p class="version-footer" id="versionFooter"></p>
   </main>
 
-  <script src="js/constants.js"></script>
+  <script src="js/constants.js?v=theme-1"></script>
   <script src="js/services/entitlement.js"></script>
-  <script src="js/data/hydraulics.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/data/hydraulics.js?v=default-hoses-1"></script>
+  <script src="js/app.js?v=theme-1"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>
 </html>

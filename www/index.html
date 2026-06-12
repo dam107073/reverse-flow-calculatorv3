@@ -16,17 +16,28 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
   <meta name="theme-color" content="#0D0D0D">
   <link rel="manifest" href="manifest.json?v=6" />
+  <script>
+    (() => {
+      try {
+        const theme = localStorage.getItem("reverse-flow-theme-preference-v1");
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        }
+      } catch (error) {}
+    })();
+  </script>
 
   <title>Reverse Flow: Fireground Hydraulics</title>
 
   <!-- ========================================
        STYLES
   ========================================= -->
-  <link rel="stylesheet" href="css/base.css" />
-  <link rel="stylesheet" href="css/components.css" />
-  <link rel="stylesheet" href="css/calculators.css" />
-  <link rel="stylesheet" href="css/support.css" />
-  <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="stylesheet" href="css/base.css?v=theme-4" />
+  <link rel="stylesheet" href="css/components.css?v=theme-4" />
+  <link rel="stylesheet" href="css/calculators.css?v=theme-4" />
+  <link rel="stylesheet" href="css/support.css?v=theme-4" />
+  <link rel="stylesheet" href="css/responsive.css?v=theme-4" />
 </head>
   
   <body>
@@ -591,15 +602,6 @@ Select a hydraulic calculation mode.
           </div>
           <input id="customCoefficient" type="text" step="any" inputmode="decimal" placeholder="Default coefficient" disabled />
 
-<button
-  id="saveCoefficientDefaultButton"
-  class="small-button mode-card-pro"
-  type="button"
-  hidden
->
-  Save as Default for Selected Hose
-</button>
-
 <p id="coefficientHelper" class="helper"></p>
         </div>
       </div>
@@ -839,10 +841,6 @@ Select a hydraulic calculation mode.
     Settings
   </a>
 
-  <a href="tools.html" class="reset-button nav-action-button nav-button-link">
-    Tools
-  </a>
-
   <button id="resetButton" class="reset-button" type="button">
     ↺ Reset
   </button>
@@ -1024,10 +1022,10 @@ Select a hydraulic calculation mode.
   <!-- ========================================
        APPLICATION SCRIPT
   ========================================= -->
-  <script src="js/constants.js"></script>
+  <script src="js/constants.js?v=theme-1"></script>
   <script src="js/services/entitlement.js"></script>
-  <script src="js/data/hydraulics.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/data/hydraulics.js?v=default-hoses-1"></script>
+  <script src="js/app.js?v=theme-1"></script>
 
   <script type="module" src="js/analytics.js"></script>
 

@@ -58,9 +58,61 @@ function saveHoseCoefficient(hoseId, coefficient) {
 function resetSavedHoseCoefficients() {
   localStorage.removeItem(HOSE_COEFFS_KEY);
   localStorage.removeItem(HOSE_LIBRARY_SELECTIONS_KEY);
+  localStorage.removeItem(DEFAULT_HOSE_PROFILES_KEY);
+}
+
+function loadDefaultHoseProfiles() {
+  try {
+    const saved = localStorage.getItem(DEFAULT_HOSE_PROFILES_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+function getDefaultHoseProfile(hoseId) {
+  const profiles = loadDefaultHoseProfiles();
+
+  return profiles[hoseId] || null;
+}
+
+function saveDefaultHoseProfile(hoseId, libraryHose) {
+  const profiles = loadDefaultHoseProfiles();
+
+  profiles[hoseId] = {
+    id: libraryHose.id,
+    manufacturer: libraryHose.manufacturer,
+    model: libraryHose.model,
+    size: libraryHose.appHoseId,
+    coefficient: libraryHose.coefficient,
+    use: libraryHose.use || "",
+    custom: !!libraryHose.custom
+  };
+
+  localStorage.setItem(
+    DEFAULT_HOSE_PROFILES_KEY,
+    JSON.stringify(profiles)
+  );
+}
+
+function clearDefaultHoseProfile(hoseId) {
+  const profiles = loadDefaultHoseProfiles();
+
+  delete profiles[hoseId];
+
+  localStorage.setItem(
+    DEFAULT_HOSE_PROFILES_KEY,
+    JSON.stringify(profiles)
+  );
 }
 
 function getActiveHoseCoefficient(hoseId) {
+  const defaultProfile = getDefaultHoseProfile(hoseId);
+
+  if (defaultProfile && defaultProfile.coefficient !== null) {
+    return defaultProfile.coefficient;
+  }
+
   const savedCoefficients = loadSavedHoseCoefficients();
 
   return savedCoefficients[hoseId] ?? FACTORY_HOSE_COEFFS[hoseId];

@@ -41,13 +41,23 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, #ffffff, #f4f7fa);
       color: #111827;
+      -webkit-text-fill-color: #111827;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.2;
       text-decoration: none;
+      box-shadow: var(--shadow-soft);
     }
 
     .nav-button-link.active {
       background: var(--button);
       color: var(--button-text);
+      -webkit-text-fill-color: var(--button-text);
       border-color: var(--button);
       box-shadow:
         0 0 0 1px rgba(255,255,255,0.04),
@@ -58,11 +68,14 @@
     .result-actions {
       display: flex;
       justify-content: flex-end;
+      width: 100%;
       margin-top: 16px;
     }
 
     .result-actions button {
+      flex: 0 1 240px;
       min-width: 176px;
+      max-width: 100%;
     }
 
     .reset-button {
@@ -102,6 +115,18 @@
       margin-top: 2px;
     }
 
+    .theme-choice-group {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      max-width: 420px;
+    }
+
+    .theme-choice-button {
+      min-width: 0;
+      min-height: 44px;
+    }
+
     .muted-card {
       background: var(--surface);
       border-style: dashed;
@@ -139,6 +164,10 @@
       background:
         linear-gradient(180deg, rgba(255,255,255,0.82), rgba(248,250,252,0.66));
       box-shadow: var(--shadow-soft);
+    }
+
+    .hose-library-card strong {
+      color: var(--ink);
     }
 
     .hose-library-card.active {
@@ -194,6 +223,46 @@
 
     .hose-library-select-button:disabled {
       opacity: 0.55;
+    }
+
+    .custom-hose-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .custom-hose-form .reset-button {
+      grid-column: 1 / -1;
+      justify-self: start;
+    }
+
+    .default-hose-selections-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .default-hose-selection-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+
+    .default-hose-selection-card p {
+      margin: 4px 0 0;
+    }
+
+    .default-hose-choose-link {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      font-weight: 800;
     }
 
     .formula {
