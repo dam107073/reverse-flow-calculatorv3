@@ -46,6 +46,7 @@
   </div>
 
   <main>
+    <div id="calculatorView">
 
     <!-- ========================================
          CALCULATOR INPUTS
@@ -816,8 +817,12 @@ Select a hydraulic calculation mode.
      FOOTER ACTIONS
 ========================================= -->
 <div class="footer-actions">
-  <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
-    Reset Hose Coefficients
+  <button id="settingsViewButton" class="reset-button nav-action-button" type="button">
+    Settings
+  </button>
+
+  <button id="toolsViewButton" class="reset-button nav-action-button" type="button">
+    Tools
   </button>
 
   <button id="resetButton" class="reset-button" type="button">
@@ -893,6 +898,68 @@ Select a hydraulic calculation mode.
     <p>This application is intended for training, reference, and operational decision support. Always follow local pump charts, equipment testing, department policy, and instructor guidance.</p>
   </details>
 </section>
+    </div>
+
+    <section id="settingsView" class="card app-view-panel" hidden>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Settings</label>
+          <p class="helper">
+            App controls and preferences for Reverse Flow.
+          </p>
+        </div>
+
+        <div class="settings-tool-card">
+          <strong>Hose Coefficients</strong>
+          <p class="helper">
+            Restore all saved hose coefficients to the app defaults.
+          </p>
+          <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
+            Reset to Default Hose Coefficients
+          </button>
+        </div>
+
+        <div class="settings-tool-card muted-card">
+          <strong>App Preferences</strong>
+          <p class="helper">
+            More app preferences will live here in a future update.
+          </p>
+        </div>
+
+        <button id="settingsBackButton" class="reset-button view-back-button" type="button">
+          Back to Calculator
+        </button>
+      </div>
+    </section>
+
+    <section id="toolsView" class="card app-view-panel" hidden>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Tools</label>
+          <p class="helper">
+            Utility spaces for future fireground reference tools.
+          </p>
+        </div>
+
+        <div class="settings-tool-card">
+          <strong>Hose Library</strong>
+          <p class="helper">
+            Coming soon: reference hose profiles, coefficients, and department notes.
+          </p>
+        </div>
+
+        <div class="settings-tool-card muted-card">
+          <strong>Field References</strong>
+          <p class="helper">
+            Coming soon: quick-reference support tools that complement the calculator.
+          </p>
+        </div>
+
+        <button id="toolsBackButton" class="reset-button view-back-button" type="button">
+          Back to Calculator
+        </button>
+      </div>
+    </section>
 
     <div id="proModal" class="pro-modal" hidden>
   <div class="pro-modal-content">

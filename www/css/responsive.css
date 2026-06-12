@@ -47,10 +47,15 @@
 
       .form-grid,
       .section-card,
+      .settings-tool-card,
       .pump-chart-card,
       .split-result-section {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.94), rgba(15,23,42,0.88));
+      }
+
+      .muted-card {
+        background: var(--surface);
       }
 
       .web-pro-banner {

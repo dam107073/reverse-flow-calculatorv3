@@ -65,6 +65,13 @@
     const els = {
       presetSelect: document.getElementById("presetSelect"),
       savePresetButton: document.getElementById("savePresetButton"),
+      calculatorView: document.getElementById("calculatorView"),
+      settingsView: document.getElementById("settingsView"),
+      toolsView: document.getElementById("toolsView"),
+      settingsViewButton: document.getElementById("settingsViewButton"),
+      toolsViewButton: document.getElementById("toolsViewButton"),
+      settingsBackButton: document.getElementById("settingsBackButton"),
+      toolsBackButton: document.getElementById("toolsBackButton"),
       resetHoseCoefficientsButton: document.getElementById("resetHoseCoefficientsButton"),
       resetButton: document.getElementById("resetButton"),
 
@@ -1625,6 +1632,17 @@ els.saveCoefficientDefaultButton.textContent =
     // ========================================
     // EVENT HANDLING
     // ========================================
+    function showAppView(viewName) {
+      const isSettings = viewName === "settings";
+      const isTools = viewName === "tools";
+
+      els.calculatorView.hidden = isSettings || isTools;
+      els.settingsView.hidden = !isSettings;
+      els.toolsView.hidden = !isTools;
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
     function bindEvents() {
     if (els.presetSelect) {
   els.presetSelect.addEventListener("change", e => applyPreset(e.target.value));
@@ -1654,6 +1672,10 @@ els.saveCoefficientDefaultButton.textContent =
   calculateAndRender();
 });
       els.resetButton.addEventListener("click", resetCalculator);
+      els.settingsViewButton?.addEventListener("click", () => showAppView("settings"));
+      els.toolsViewButton?.addEventListener("click", () => showAppView("tools"));
+      els.settingsBackButton?.addEventListener("click", () => showAppView("calculator"));
+      els.toolsBackButton?.addEventListener("click", () => showAppView("calculator"));
       els.resetHoseCoefficientsButton.addEventListener("click", () => {
 
   if (!isProUser()) {

@@ -34,6 +34,47 @@
       background: white;
     }
 
+    .nav-action-button {
+      min-width: 112px;
+    }
+
+    .app-view-panel .form-grid {
+      gap: 16px;
+    }
+
+    .settings-tool-card {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.88), rgba(248,250,252,0.74));
+      box-shadow: var(--shadow-soft);
+    }
+
+    .settings-tool-card strong {
+      color: var(--ink);
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .settings-tool-card .reset-button {
+      justify-self: start;
+      margin-top: 2px;
+    }
+
+    .muted-card {
+      background: var(--surface);
+      border-style: dashed;
+    }
+
+    .view-back-button {
+      grid-column: 1 / -1;
+      justify-self: start;
+    }
+
     .formula {
       padding: 20px;
       color: var(--muted);
@@ -76,4 +117,3 @@
   padding: 10px 0 0;
   line-height: 1.5;
 }
-
