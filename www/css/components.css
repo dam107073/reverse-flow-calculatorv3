@@ -502,7 +502,52 @@ body.pro-user .mode-card-pro.active {
   border-color: var(--button);
   box-shadow: var(--accent-glow);
 }
-    .pro-modal {
+
+.pro-price-card {
+  margin: 18px 0;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.04);
+  color: #111827;
+}
+
+.pro-price-card p,
+.pro-price-card strong,
+.pro-price-card span {
+  color: #111827;
+}
+
+.pro-price-card p {
+  margin: 0;
+  opacity: .75;
+}
+
+.pro-price-card strong {
+  display: block;
+  margin: 6px 0;
+  font-size: 1.35rem;
+}
+
+.pro-price-card span {
+  display: block;
+  font-size: .9rem;
+  opacity: .75;
+}
+
+#proModal .pro-feature-list div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#proModal .pro-feature-list span {
+  font-size: .85rem;
+  opacity: .78;
+}
+
+.pro-modal {
   position: fixed;
   inset: 0;
   background: rgba(2, 6, 23, 0.72);
@@ -526,6 +571,7 @@ body.pro-user .mode-card-pro.active {
   border-top: 4px solid var(--accent);
   border-radius: 12px;
   padding: 24px;
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
   box-shadow:
     0 1px 0 rgba(255,255,255,0.85) inset,
     0 22px 60px rgba(0,0,0,0.34),
@@ -639,10 +685,12 @@ body.pro-user .mode-card-pro.active {
 .pro-modal-footer {
   color: #475569;
   font-weight: 750;
-  font-size: 14px;
+  font-size: 0.8rem;
   border-top: 1px solid var(--border);
-  margin-top: 16px;
+  margin-top: 14px;
   padding-top: 14px;
+  line-height: 1.35;
+  opacity: 0.75;
 }
 
 .pro-modal-content > button {
@@ -733,6 +781,18 @@ body.pro-user .mode-card-pro.active {
 }
 
 @media (prefers-color-scheme: dark) {
+
+  #proModal .pro-price-card {
+    border-color: rgba(148, 163, 184, 0.34);
+    background: rgba(15, 23, 42, 0.86);
+    color: #f8fafc;
+  }
+
+  #proModal .pro-price-card p,
+  #proModal .pro-price-card strong,
+  #proModal .pro-price-card span {
+    color: #f8fafc;
+  }
 
   .split-inline-toggle {
     background: rgba(255,255,255,0.02);

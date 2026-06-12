@@ -237,7 +237,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	
 	  if (state === "ready") {
 	    els.buyProButton.disabled = false;
-	    els.buyProButton.textContent = "Buy Reverse Flow Pro";
+	    els.buyProButton.textContent = "Unlock Pro";
 	  } else if (state === "loading") {
 	    els.buyProButton.disabled = true;
 	    els.buyProButton.textContent = "Loading purchase...";
