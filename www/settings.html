@@ -35,6 +35,9 @@
         document.documentElement.style.backgroundColor =
           resolvedTheme === "dark" ? "#020617" : "#e7edf3";
         document.documentElement.style.colorScheme = resolvedTheme;
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute("content", resolvedTheme === "dark" ? "#020617" : "#e7edf3");
       } catch (error) {}
     })();
   </script>

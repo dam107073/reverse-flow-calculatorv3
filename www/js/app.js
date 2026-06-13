@@ -667,6 +667,9 @@ logStoreEvent("initialize-start", {
       root.style.backgroundColor =
         resolvedTheme === "dark" ? "#020617" : "#e7edf3";
       root.style.colorScheme = resolvedTheme;
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute("content", resolvedTheme === "dark" ? "#020617" : "#e7edf3");
     }
 
     function syncThemePreferenceControls() {
