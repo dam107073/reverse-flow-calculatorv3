@@ -55,6 +55,17 @@ function saveHoseCoefficient(hoseId, coefficient) {
   );
 }
 
+function clearSavedHoseCoefficient(hoseId) {
+  const savedCoefficients = loadSavedHoseCoefficients();
+
+  delete savedCoefficients[hoseId];
+
+  localStorage.setItem(
+    HOSE_COEFFS_KEY,
+    JSON.stringify(savedCoefficients)
+  );
+}
+
 function resetSavedHoseCoefficients() {
   localStorage.removeItem(HOSE_COEFFS_KEY);
   localStorage.removeItem(HOSE_LIBRARY_SELECTIONS_KEY);

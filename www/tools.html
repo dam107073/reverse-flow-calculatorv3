@@ -12,44 +12,18 @@
   <meta name="application-name" content="Reverse Flow: Fireground Hydraulics" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
-  <meta name="theme-color" content="#0D0D0D">
   <link rel="manifest" href="manifest.json?v=6" />
-  <script>
-    (() => {
-      try {
-        const theme = localStorage.getItem("reverse-flow-theme-preference-v1");
-        const prefersDark =
-          window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches;
-        const resolvedTheme =
-          theme === "light" || theme === "dark"
-            ? theme
-            : prefersDark
-              ? "dark"
-              : "light";
-
-        if (theme === "light" || theme === "dark") {
-          document.documentElement.dataset.theme = theme;
-        }
-        document.documentElement.dataset.resolvedTheme = resolvedTheme;
-        document.documentElement.style.backgroundColor =
-          resolvedTheme === "dark" ? "#020617" : "#e7edf3";
-        document.documentElement.style.colorScheme = resolvedTheme;
-        document
-          .querySelector('meta[name="theme-color"]')
-          ?.setAttribute("content", resolvedTheme === "dark" ? "#020617" : "#e7edf3");
-      } catch (error) {}
-    })();
-  </script>
   <style>
     html {
       min-height: 100%;
       background: #e7edf3;
       color: #111827;
     }
-    html[data-resolved-theme="dark"] {
-      background: #020617;
-      color: #f8fafc;
+    @media (prefers-color-scheme: dark) {
+      html {
+        background: #020617;
+        color: #f8fafc;
+      }
     }
     body {
       min-height: 100vh;
@@ -60,11 +34,11 @@
 
   <title>Tools | Reverse Flow</title>
 
-  <link rel="stylesheet" href="css/base.css?v=flash-3" />
+  <link rel="stylesheet" href="css/base.css?v=build-6" />
   <link rel="stylesheet" href="css/components.css?v=flash-3" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=flash-3" />
-  <link rel="stylesheet" href="css/responsive.css?v=flash-3" />
+  <link rel="stylesheet" href="css/support.css?v=build-6" />
+  <link rel="stylesheet" href="css/responsive.css?v=build-6" />
 </head>
 
 <body>
@@ -244,10 +218,10 @@
     <p class="version-footer" id="versionFooter"></p>
   </main>
 
-  <script src="js/constants.js?v=theme-1"></script>
+  <script src="js/constants.js?v=build-6"></script>
   <script src="js/services/entitlement.js"></script>
-  <script src="js/data/hydraulics.js?v=default-hoses-1"></script>
-  <script src="js/app.js?v=flash-3"></script>
+  <script src="js/data/hydraulics.js?v=build-6"></script>
+  <script src="js/app.js?v=build-7"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>
 </html>

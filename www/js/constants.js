@@ -2,8 +2,8 @@
 // APP CONFIG
 // ========================================
 
-const APP_VERSION = "1.1.0";
-    const BUILD_DATE = "2026-06-12";
+const APP_VERSION = "1.1.1";
+    const BUILD_DATE = "2026-06-13";
 
     const REVERSE_FLOW_PRO_PRODUCT_ID =
 	  "reverse_flow_pro_lifetime";
@@ -20,7 +20,6 @@ const HOSE_LIBRARY_SELECTIONS_KEY =
   "reverse-flow-hose-library-selections-v1";
 const DEFAULT_HOSE_PROFILES_KEY = "reverseFlowDefaultHoseProfiles";
 const CUSTOM_HOSE_PROFILES_KEY = "reverseFlowCustomHoseProfiles";
-const THEME_PREFERENCE_KEY = "reverse-flow-theme-preference-v1";
 const PRO_ENTITLEMENT_STORAGE_KEY =
   "reverse-flow-pro-entitlement-v1";
 

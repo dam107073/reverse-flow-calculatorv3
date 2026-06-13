@@ -19,25 +19,27 @@
       --panel-glow: 0 18px 44px rgba(11, 18, 32, 0.18), 0 0 26px rgba(217, 92, 19, 0.12);
     }
 
-    html[data-resolved-theme="dark"] {
-      background: #020617;
-      color-scheme: dark;
-      --card: #0f172a;
-      --surface: #111827;
-      --surface-strong: #1e293b;
-      --ink: #f8fafc;
-      --muted: #94a3b8;
-      --border: #243244;
-      --border-strong: #334155;
-      --accent: #fb923c;
-      --warning-bg: #451a03;
-      --warning-border: #f97316;
-      --warning-text: #fed7aa;
-      --button: #f8fafc;
-      --button-text: #020617;
-      --button-muted: #111827;
-      --accent-glow: 0 0 0 1px rgba(251, 146, 60, 0.12), 0 0 18px rgba(251, 146, 60, 0.18);
-      --panel-glow: 0 18px 44px rgba(0, 0, 0, 0.32), 0 0 26px rgba(251, 146, 60, 0.12);
+    @media (prefers-color-scheme: dark) {
+      :root {
+        background: #020617;
+        color-scheme: dark;
+        --card: #0f172a;
+        --surface: #111827;
+        --surface-strong: #1e293b;
+        --ink: #f8fafc;
+        --muted: #94a3b8;
+        --border: #243244;
+        --border-strong: #334155;
+        --accent: #fb923c;
+        --warning-bg: #451a03;
+        --warning-border: #f97316;
+        --warning-text: #fed7aa;
+        --button: #f8fafc;
+        --button-text: #020617;
+        --button-muted: #111827;
+        --accent-glow: 0 0 0 1px rgba(251, 146, 60, 0.12), 0 0 18px rgba(251, 146, 60, 0.18);
+        --panel-glow: 0 18px 44px rgba(0, 0, 0, 0.32), 0 0 26px rgba(251, 146, 60, 0.12);
+      }
     }
 
     /* ---------- Base Layout ---------- */
@@ -56,10 +58,12 @@
       min-height: 100vh;
     }
 
-    html[data-resolved-theme="dark"] body {
-      background:
-        radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.1), transparent 30%),
-        linear-gradient(135deg, #020617 0%, #0b1220 55%, #020617 100%);
+    @media (prefers-color-scheme: dark) {
+      body {
+        background:
+          radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.1), transparent 30%),
+          linear-gradient(135deg, #020617 0%, #0b1220 55%, #020617 100%);
+      }
     }
 
     body::before {
@@ -75,10 +79,12 @@
       pointer-events: none;
     }
 
-    html[data-resolved-theme="dark"] body::before {
-      background-image:
-        linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+    @media (prefers-color-scheme: dark) {
+      body::before {
+        background-image:
+          linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+      }
     }
 
     main {

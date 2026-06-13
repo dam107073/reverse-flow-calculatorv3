@@ -88,7 +88,6 @@
       customHoseUse: document.getElementById("customHoseUse"),
       customHoseCoefficient: document.getElementById("customHoseCoefficient"),
       createCustomHoseButton: document.getElementById("createCustomHoseButton"),
-      themePreferenceButtons: document.querySelectorAll("[data-theme-choice]"),
       resetHoseCoefficientsButton: document.getElementById("resetHoseCoefficientsButton"),
       resetButton: document.getElementById("resetButton"),
 
@@ -632,77 +631,7 @@ logStoreEvent("initialize-start", {
       els.webProBanner.hidden = isNativeCapacitorApp();
     }
 
-    function getThemePreference() {
-      try {
-        const savedTheme = localStorage.getItem(THEME_PREFERENCE_KEY);
-
-        if (["system", "light", "dark"].includes(savedTheme)) {
-          return savedTheme;
-        }
-      } catch (error) {
-        console.warn("Unable to read theme preference:", error);
-      }
-
-      return "system";
-    }
-
-    function applyThemePreference(themePreference = getThemePreference()) {
-      const root = document.documentElement;
-      const prefersDark =
-        window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const resolvedTheme = themePreference === "system"
-        ? prefersDark
-          ? "dark"
-          : "light"
-        : themePreference;
-
-      if (themePreference === "light" || themePreference === "dark") {
-        root.dataset.theme = themePreference;
-      } else {
-        delete root.dataset.theme;
-      }
-
-      root.dataset.resolvedTheme = resolvedTheme;
-      root.style.backgroundColor =
-        resolvedTheme === "dark" ? "#020617" : "#e7edf3";
-      root.style.colorScheme = resolvedTheme;
-      document
-        .querySelector('meta[name="theme-color"]')
-        ?.setAttribute("content", resolvedTheme === "dark" ? "#020617" : "#e7edf3");
-    }
-
-    function syncThemePreferenceControls() {
-      const themePreference = getThemePreference();
-
-      els.themePreferenceButtons?.forEach(button => {
-        const isActive = button.dataset.themeChoice === themePreference;
-
-        button.classList.toggle("active", isActive);
-        button.setAttribute("aria-pressed", String(isActive));
-      });
-    }
-
-    function setThemePreference(themePreference) {
-      if (!["system", "light", "dark"].includes(themePreference)) return;
-
-      try {
-        if (themePreference === "system") {
-          localStorage.removeItem(THEME_PREFERENCE_KEY);
-        } else {
-          localStorage.setItem(THEME_PREFERENCE_KEY, themePreference);
-        }
-      } catch (error) {
-        console.warn("Unable to save theme preference:", error);
-      }
-
-      applyThemePreference(themePreference);
-      syncThemePreferenceControls();
-    }
-
     async function init() {
-
-  applyThemePreference();
 
   if (els.versionFooter) {
     els.versionFooter.textContent =
@@ -730,7 +659,6 @@ logStoreEvent("initialize-start", {
       populateCustomHoseSizeOptions();
       renderHoseLibrary();
       renderDefaultHoseSelections();
-      syncThemePreferenceControls();
       bindSupportPageEvents();
       return;
     }
@@ -741,7 +669,6 @@ logStoreEvent("initialize-start", {
   populateCustomHoseSizeOptions();
   renderHoseLibrary();
   renderDefaultHoseSelections();
-  syncThemePreferenceControls();
   populateSmoothboreTips();
   renderPresetOptions();
   syncInputsFromState();
@@ -982,6 +909,49 @@ function createCustomHoseProfile() {
   renderDefaultHoseSelections();
 
   alert(`${manufacturer} ${model} was added to the Hose Library.`);
+}
+
+function deleteCustomHoseProfile(customHoseId) {
+  const customHoses = loadCustomHoseProfiles();
+  const customHose = customHoses.find(hose => hose.id === customHoseId);
+
+  if (!customHose) {
+    alert("This custom hose could not be found.");
+    return;
+  }
+
+  const confirmed = confirm(
+    `Delete ${customHose.manufacturer} ${customHose.model} from the Hose Library?`
+  );
+
+  if (!confirmed) return;
+
+  saveCustomHoseProfiles(
+    customHoses.filter(hose => hose.id !== customHoseId)
+  );
+
+  if (customHose.appHoseId) {
+    const defaultProfile = getDefaultHoseProfile(customHose.appHoseId);
+
+    if (defaultProfile?.id === customHose.id) {
+      clearDefaultHoseProfile(customHose.appHoseId);
+      clearHoseLibrarySelection(customHose.appHoseId);
+      clearSavedHoseCoefficient(customHose.appHoseId);
+    }
+  }
+
+  if (els.calculatorView) {
+    populateHoseOptions();
+    els.hoseSize.value = state.hoseSize;
+    syncSplitLayInputsFromState();
+    calculateAndRender();
+  }
+
+  populateHoseLibraryFilter();
+  renderHoseLibrary();
+  renderDefaultHoseSelections();
+
+  alert(`${customHose.manufacturer} ${customHose.model} was deleted.`);
 }
 
 const SUPPLY_HOSE_IDS =
@@ -1304,14 +1274,25 @@ function renderHoseLibraryCard(hose) {
         <span>${sourceLink}</span>
       </div>
 
-      <button
-        class="small-button hose-library-select-button"
-        type="button"
-        data-hose-library-id="${escapeHtml(hose.id)}"
-        ${canSelect ? "" : "disabled"}
-      >
-        ${escapeHtml(buttonText)}
-      </button>
+      <div class="hose-library-card-actions">
+        <button
+          class="small-button hose-library-select-button"
+          type="button"
+          data-hose-library-id="${escapeHtml(hose.id)}"
+          ${canSelect ? "" : "disabled"}
+        >
+          ${escapeHtml(buttonText)}
+        </button>
+        ${hose.custom ? `
+          <button
+            class="small-button hose-library-delete-button"
+            type="button"
+            data-custom-hose-delete-id="${escapeHtml(hose.id)}"
+          >
+            Delete
+          </button>
+        ` : ""}
+      </div>
     </article>
   `;
 }
@@ -1360,6 +1341,14 @@ function renderHoseLibrary() {
     .forEach(button => {
       button.addEventListener("click", () => {
         applyHoseLibraryDefault(button.dataset.hoseLibraryId);
+      });
+    });
+
+  els.hoseLibraryList
+    .querySelectorAll("[data-custom-hose-delete-id]")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        deleteCustomHoseProfile(button.dataset.customHoseDeleteId);
       });
     });
 }
@@ -2411,11 +2400,6 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
 	      els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
 	      els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
 	      els.createCustomHoseButton?.addEventListener("click", createCustomHoseProfile);
-	      els.themePreferenceButtons?.forEach(button => {
-	        button.addEventListener("click", () => {
-	          setThemePreference(button.dataset.themeChoice);
-	        });
-	      });
 
 	      els.resetHoseCoefficientsButton?.addEventListener("click", () => {
         if (!isProUser()) {
@@ -2512,11 +2496,6 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
       els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
       els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
       els.createCustomHoseButton?.addEventListener("click", createCustomHoseProfile);
-      els.themePreferenceButtons?.forEach(button => {
-        button.addEventListener("click", () => {
-          setThemePreference(button.dataset.themeChoice);
-        });
-      });
       els.resetHoseCoefficientsButton?.addEventListener("click", () => {
 
   if (!isProUser()) {
@@ -3943,6 +3922,8 @@ function calculateSplitLay(warnings) {
   const sectionCount = state.splitLay.sectionCount;
   const dualSupply = state.splitLay.dualSupply;
   const attackLines = parseInt(state.splitLay.attackLines, 10) || 1;
+  const manualApplianceLoss =
+    numberOrNull(state.applianceLoss) ?? 0;
 
   const supply1Length =
     numberOrNull(state.splitLay.supplyLength);
@@ -4059,7 +4040,8 @@ const actualAttack2 =
     supply2TotalFl +
     appliance2Loss +
     supply1TotalFl +
-    appliance1Loss;
+    appliance1Loss +
+    manualApplianceLoss;
   if (totalPdp > 300) {
   warnings.push(
     "Calculated PDP exceeds 300 psi. Confirm hose/apparatus limits and department operating guidelines before using this setup."
@@ -4072,6 +4054,12 @@ const actualAttack2 =
 
   if (appliance2Loss > 0) {
     warnings.push("Estimated Appliance 2 loss applied: 10 psi at flows ≥350 GPM.");
+  }
+
+  if (manualApplianceLoss !== 0) {
+    warnings.push(
+      `Manual appliance/elevation ${manualApplianceLoss > 0 ? "loss" : "gain"} applied: ${Math.round(Math.abs(manualApplianceLoss))} psi.`
+    );
   }
 
   if (dualSupply) {
