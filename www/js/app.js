@@ -19,6 +19,7 @@
       customNozzlePressure: "",
 
       smoothboreTip: "",
+      bladeModel: "blade160",
       applianceLoss: "0",
       reverseSupplyEnabled: false,
       reverseSupplyLength: "",
@@ -45,13 +46,15 @@
   attack1NozzlePressure: "50",
   attack1Flow: "",
   attack1SmoothboreTip: "",
+  attack1BladeModel: "blade160",
 
   attack2Length: "",
   attack2HoseSize: "1.75",
   attack2NozzleType: "fog",
   attack2NozzlePressure: "50",
   attack2Flow: "",
-  attack2SmoothboreTip: ""
+  attack2SmoothboreTip: "",
+  attack2BladeModel: "blade160"
 },
       useCustomCoefficient: false,
       customCoefficient: "",
@@ -135,6 +138,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       document.getElementById("masterStreamLoss"),
       smoothboreTipField: document.getElementById("smoothboreTipField"),
       smoothboreTip: document.getElementById("smoothboreTip"),
+      bladeModelField: document.getElementById("bladeModelField"),
+      bladeModel: document.getElementById("bladeModel"),
 
       nozzlePressureLabel: document.getElementById("nozzlePressureLabel"),
       pressureButtons: document.getElementById("pressureButtons"),
@@ -1450,7 +1455,9 @@ function applyHoseLibraryDefault(libraryId) {
       ? "Split Lay Setup"
       : preset.nozzleType === "smoothbore"
         ? `${preset.smoothboreTip || "SB"} Smoothbore`
-        : `Fog @ ${preset.nozzlePressure} psi`;
+        : preset.nozzleType === "blade"
+          ? getBladeModelLabel(preset.bladeModel)
+          : `Fog @ ${preset.nozzlePressure} psi`;
 
     const typeLabel =
   preset.mode === "requiredPdp"
@@ -1478,11 +1485,15 @@ const splitSupply2 =
 const attack1Description =
   splitLay.attack1NozzleType === "smoothbore"
     ? `${splitLay.attack1SmoothboreTip || "SB"} SB`
+    : splitLay.attack1NozzleType === "blade"
+      ? getBladeModelLabel(splitLay.attack1BladeModel)
     : `${splitLay.attack1Flow || "—"} GPM Fog`;
 
 const attack2Description =
   splitLay.attack2NozzleType === "smoothbore"
     ? `${splitLay.attack2SmoothboreTip || "SB"} SB`
+    : splitLay.attack2NozzleType === "blade"
+      ? getBladeModelLabel(splitLay.attack2BladeModel)
     : `${splitLay.attack2Flow || "—"} GPM Fog`;
 
 const splitAttack1 =
@@ -1585,6 +1596,26 @@ const setupSummary =
       els.disabledPressureExplanations.hidden = true;
       els.disabledPressureExplanations.innerHTML = "";
 
+  const pressureKey =
+  isMasterStream()
+    ? "masterstream"
+    : state.nozzleType;
+
+  const pressures = getNozzlePressures()[pressureKey];
+
+  if (!pressures.some(pressure => String(pressure) === String(state.nozzlePressure))) {
+    state.nozzlePressure = isBlade()
+      ? getBladeDefaultNozzlePressure()
+      : String(pressures[0]);
+    state.customNozzlePressure = "";
+  }
+
+  syncCalculatedSmoothboreTargetFlow();
+
+  if (isRequiredPdpMode() && usesSmoothboreHydraulics()) {
+    els.pdp.value = state.targetGpm;
+  }
+
       const usingCustomPressure =
         state.nozzlePressure === "custom";
 
@@ -1604,12 +1635,6 @@ if (usingCustomPressure) {
   els.customNozzlePressure.value = "";
 }
 
-  const pressureKey =
-  isMasterStream()
-    ? "masterstream"
-    : state.nozzleType;
-
-  const pressures = getNozzlePressures()[pressureKey];
       els.pressureButtons.innerHTML = pressures.map(pressure => {
         const isActive = state.nozzlePressure === String(pressure);
         return `
@@ -1700,13 +1725,16 @@ if (usingCustomPressure) {
   els.masterStreamType.value =
     state.masterStreamType;
 
-  els.masterStreamLoss.value =
+      els.masterStreamLoss.value =
     state.masterStreamLoss;
 
   els.dualLineSupplyToggle.checked =
     state.dualLineSupply;
 
   els.smoothboreTip.value = state.smoothboreTip;
+  if (els.bladeModel) {
+    els.bladeModel.value = state.bladeModel || "blade160";
+  }
   els.applianceLoss.value = state.applianceLoss;
   els.customCoefficient.value = state.customCoefficient;
 
@@ -1717,7 +1745,7 @@ if (usingCustomPressure) {
 }
 
     function syncModeUi() {
-      const smoothboreRequiredPdp = isRequiredPdpMode() && isSmoothbore();
+      const smoothboreRequiredPdp = isRequiredPdpMode() && usesSmoothboreHydraulics();
 
       els.reverseModeButton.classList.toggle("active", isReverseMode());
       els.pdpModeButton.classList.toggle("active", isRequiredPdpMode());
@@ -1798,7 +1826,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
   : isRelayMode()
     ? "Relay Pumping: Calculate the discharge pressure needed to supply a receiving engine."
     : smoothboreRequiredPdp
-      ? "Required PDP: Smoothbore target flow is calculated from tip size and nozzle pressure."
+      ? `Required PDP: ${isBlade() ? "Blade" : "Smoothbore"} target flow is calculated from selected model and nozzle pressure.`
       : isRequiredPdpMode()
         ? "Required PDP: Enter target GPM to calculate the needed pump pressure."
         : "Reverse Flow: enter PDP to estimate GPM.";
@@ -1849,7 +1877,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
   els.nozzleDisplayLabel.textContent = "Nozzle";
 
   els.reactionLabel.textContent =
-    isRequiredPdpMode()
+    isRequiredPdpMode() && !isBlade()
       ? "Supply"
       : "Reaction";
 
@@ -1863,6 +1891,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
 els.nozzleType.innerHTML = `
   <option value="fog">Fog</option>
   <option value="smoothbore">Smoothbore</option>
+  <option value="blade">Blade</option>
   <option value="masterstream">Master Stream</option>
 `;
 
@@ -1920,6 +1949,9 @@ function syncSmoothboreUi() {
     els.smoothboreTipField.hidden = true;
     els.smoothboreTipField.style.display = "none";
 
+    els.bladeModelField.hidden = true;
+    els.bladeModelField.style.display = "none";
+
     els.masterStreamTypeField.hidden = true;
     els.masterStreamTypeField.style.display = "none";
 
@@ -1950,11 +1982,20 @@ function syncSmoothboreUi() {
   const showSmoothbore =
     isSmoothbore();
 
+  const showBlade =
+    isBlade();
+
   els.smoothboreTipField.hidden =
     !showSmoothbore;
 
   els.smoothboreTipField.style.display =
     showSmoothbore ? "" : "none";
+
+  els.bladeModelField.hidden =
+    !showBlade;
+
+  els.bladeModelField.style.display =
+    showBlade ? "" : "none";
 
   const showDualLines =
     isRequiredPdpMode() &&
@@ -1969,6 +2010,11 @@ function syncSmoothboreUi() {
   if (!showSmoothbore) {
     state.smoothboreTip = "";
     els.smoothboreTip.value = "";
+  }
+
+  if (showBlade && !BLADE_MODELS.some(model => model.id === state.bladeModel)) {
+    state.bladeModel = "blade160";
+    els.bladeModel.value = state.bladeModel;
   }
 }
 function enforceSplitLayRestrictions() {
@@ -2157,17 +2203,23 @@ function syncSplitNozzleUi(lineNumber) {
   const pressureSelect = document.getElementById(`splitAttack${lineNumber}NozzlePressure`);
   const flowField = document.getElementById(`splitAttack${lineNumber}FlowField`);
   const tipField = document.getElementById(`splitAttack${lineNumber}SmoothboreTipField`);
+  const bladeField = document.getElementById(`splitAttack${lineNumber}BladeModelField`);
 
-  if (!nozzleType || !pressureSelect || !flowField || !tipField) return;
+  if (!nozzleType || !pressureSelect || !flowField || !tipField || !bladeField) return;
 
   const isSmoothboreLine = nozzleType.value === "smoothbore";
+  const isBladeLine = nozzleType.value === "blade";
+  const usesSolidStreamOptions = isSmoothboreLine || isBladeLine;
+  const bladeKey = `attack${lineNumber}BladeModel`;
+  const selectedBladeModel = state.splitLay[bladeKey] || "blade160";
+  const solidStreamPressures = isBladeLine
+    ? getBladeNozzlePressures(selectedBladeModel)
+    : [40, 50, 60];
 
-  pressureSelect.innerHTML = isSmoothboreLine
-    ? `
-      <option value="40">40 psi</option>
-      <option value="50">50 psi</option>
-      <option value="60">60 psi</option>
-    `
+  pressureSelect.innerHTML = usesSolidStreamOptions
+    ? solidStreamPressures.map(pressure => (
+      `<option value="${pressure}">${pressure} psi</option>`
+    )).join("")
     : `
       <option value="50">50 psi</option>
       <option value="55">55 psi</option>
@@ -2178,7 +2230,9 @@ function syncSplitNozzleUi(lineNumber) {
   const pressureKey = `attack${lineNumber}NozzlePressure`;
 
   if (![...pressureSelect.options].some(option => option.value === state.splitLay[pressureKey])) {
-    state.splitLay[pressureKey] = isSmoothboreLine ? "50" : "50";
+    state.splitLay[pressureKey] = isBladeLine
+      ? getBladeDefaultNozzlePressure(selectedBladeModel)
+      : "50";
   }
 
   pressureSelect.value = state.splitLay[pressureKey];
@@ -2186,7 +2240,18 @@ function syncSplitNozzleUi(lineNumber) {
   tipField.hidden = !isSmoothboreLine;
   tipField.style.display = isSmoothboreLine ? "" : "none";
 
-  flowField.style.display = isSmoothboreLine ? "none" : "";
+  bladeField.hidden = !isBladeLine;
+  bladeField.style.display = isBladeLine ? "" : "none";
+
+  const bladeSelect = document.getElementById(`splitAttack${lineNumber}BladeModel`);
+  if (bladeSelect) {
+    if (!BLADE_MODELS.some(model => model.id === state.splitLay[bladeKey])) {
+      state.splitLay[bladeKey] = "blade160";
+    }
+    bladeSelect.value = state.splitLay[bladeKey];
+  }
+
+  flowField.style.display = usesSolidStreamOptions ? "none" : "";
 }
 
     function syncCoefficientUi() {
@@ -2862,6 +2927,14 @@ updateCalculator();
         updateCalculator();
       });
 
+      els.bladeModel.addEventListener("change", e => {
+        state.bladeModel = e.target.value;
+        syncCalculatedSmoothboreTargetFlow();
+        syncModeUi();
+        renderPressureButtons();
+        updateCalculator();
+      });
+
       els.masterStreamType.addEventListener("change", e => {
   state.masterStreamType = e.target.value;
 
@@ -2958,13 +3031,15 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   ["splitAttack1NozzlePressure", "attack1NozzlePressure"],
   ["splitAttack1Flow", "attack1Flow"],
   ["splitAttack1SmoothboreTip", "attack1SmoothboreTip"],
+  ["splitAttack1BladeModel", "attack1BladeModel"],
 
   ["splitAttack2Length", "attack2Length"],
   ["splitAttack2Hose", "attack2HoseSize"],
   ["splitAttack2NozzleType", "attack2NozzleType"],
   ["splitAttack2NozzlePressure", "attack2NozzlePressure"],
   ["splitAttack2Flow", "attack2Flow"],
-  ["splitAttack2SmoothboreTip", "attack2SmoothboreTip"]
+  ["splitAttack2SmoothboreTip", "attack2SmoothboreTip"],
+  ["splitAttack2BladeModel", "attack2BladeModel"]
 ].forEach(([elementId, stateKey]) => {
   const element = document.getElementById(elementId);
 
@@ -3000,7 +3075,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
 
   syncCalculatedSmoothboreTargetFlow();
 
-  if (isRequiredPdpMode() && isSmoothbore()) {
+  if (isRequiredPdpMode() && usesSmoothboreHydraulics()) {
     els.pdp.value = state.targetGpm;
   }
 
@@ -3085,6 +3160,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
     state.nozzlePressure = "";
 
     state.smoothboreTip = "";
+    state.bladeModel = "blade160";
 
     state.applianceLoss = "0";
   }
@@ -3106,6 +3182,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
 
   state.nozzlePressure = "55";
   state.smoothboreTip = "";
+  state.bladeModel = "blade160";
 
   state.applianceLoss = "0";
 }
@@ -3208,6 +3285,7 @@ function resetCalculator() {
     nozzleType: state.nozzleType || "",
     nozzlePressure: state.nozzlePressure || "",
     smoothboreTip: state.smoothboreTip || "",
+    bladeModel: state.bladeModel || "blade160",
 
     applianceLoss: state.applianceLoss || "0",
 
@@ -3265,13 +3343,15 @@ function resetCalculator() {
     ["splitAttack1NozzlePressure", state.splitLay.attack1NozzlePressure || "50"],
     ["splitAttack1Flow", state.splitLay.attack1Flow || ""],
     ["splitAttack1SmoothboreTip", state.splitLay.attack1SmoothboreTip || ""],
+    ["splitAttack1BladeModel", state.splitLay.attack1BladeModel || "blade160"],
 
     ["splitAttack2Length", state.splitLay.attack2Length || ""],
     ["splitAttack2Hose", state.splitLay.attack2HoseSize || "1.75"],
     ["splitAttack2NozzleType", state.splitLay.attack2NozzleType || "fog"],
     ["splitAttack2NozzlePressure", state.splitLay.attack2NozzlePressure || "50"],
     ["splitAttack2Flow", state.splitLay.attack2Flow || ""],
-    ["splitAttack2SmoothboreTip", state.splitLay.attack2SmoothboreTip || ""]
+    ["splitAttack2SmoothboreTip", state.splitLay.attack2SmoothboreTip || ""],
+    ["splitAttack2BladeModel", state.splitLay.attack2BladeModel || "blade160"]
   ].forEach(([id, value]) => {
     const element = document.getElementById(id);
     if (element) element.value = value;
@@ -3315,6 +3395,9 @@ function applyPreset(presetId) {
 
     smoothboreTip:
       preset.smoothboreTip || "",
+
+    bladeModel:
+      preset.bladeModel || "blade160",
 
     applianceLoss:
       preset.applianceLoss || "0",
@@ -3571,9 +3654,9 @@ function solveReverseFlowGpm(supplyApplianceLoss) {
   }
 
   const calculatedGpm =
-    isSmoothbore()
+    usesSmoothboreHydraulics()
       ? smoothboreGpm(
-          getSelectedSmoothboreTip().diameter,
+          getSelectedHydraulicSmoothboreModel().diameter,
           nozzlePressure
         )
       : Math.sqrt(totalFrictionLoss / totalFrictionLoad) * 100;
@@ -3690,7 +3773,7 @@ renderWarnings(warnings);
     ? numberOrNull(state.customCoefficient)
     : getActiveHoseCoefficient(selectedHose.id);
 
-  const tip = getSelectedSmoothboreTip();
+  const tip = getSelectedHydraulicSmoothboreModel();
 
   if (
     pdp === null ||
@@ -3830,7 +3913,9 @@ if (warningFlow > selectedHose.maxReferenceFlow) {
   `${frictionLossPer100.toFixed(1)} psi`,
   getNozzleDisplay(),
   getSetupDisplay(),
-  state.dualLineSupply && isMasterStream()
+  isBlade()
+    ? nozzleReaction
+    : state.dualLineSupply && isMasterStream()
     ? `Dual lines: YES
 Per line: ${Math.round(flowForFriction)} GPM`
     : "Dual lines: NO"
@@ -4104,9 +4189,9 @@ const actualAttack2 =
     ? `S ${Math.round(supply1TotalFl)} / L1 ${Math.round(actualAttack1.actualTotalFl)} / L2 ${Math.round(actualAttack2.actualTotalFl)}`
     : `S ${Math.round(supply1TotalFl)} / A ${Math.round(actualAttack1.actualTotalFl)}`,
    attackLines === 2
-  ? `L1 ${Math.round(actualAttack1.actualFlow)} GPM @ ${Math.round(actualAttack1.actualNozzlePressure)} psi
-L2 ${Math.round(actualAttack2.actualFlow)} GPM @ ${Math.round(actualAttack2.actualNozzlePressure)} psi`
-  : `${Math.round(actualAttack1.actualFlow)} GPM @ ${Math.round(actualAttack1.actualNozzlePressure)} psi`,
+  ? `L1 ${getSplitNozzleDisplay(actualAttack1)}
+L2 ${getSplitNozzleDisplay(actualAttack2)}`
+  : getSplitNozzleDisplay(actualAttack1),
     dualSupply
   ? `Dual ${supply1Hose.label} Supply`
       : `${supply1Length}' ${supply1Hose.label} Supply`,
@@ -4221,18 +4306,17 @@ function calculateSplitAttackLine(lineNumber, warnings) {
 
   let flow = 0;
 
-  if (nozzleType === "smoothbore") {
-
-    const tipId =
-      state.splitLay[`attack${lineNumber}SmoothboreTip`];
+  if (nozzleType === "smoothbore" || nozzleType === "blade") {
 
     const tip =
-      SMOOTHBORE_TIPS.find(t => t.id === tipId);
+      getSplitHydraulicSmoothboreModel(lineNumber);
 
     if (!tip) {
 
       warnings.push(
-        `Select a smoothbore tip for Attack Line ${lineNumber}.`
+        nozzleType === "blade"
+          ? `Select a Blade model for Attack Line ${lineNumber}.`
+          : `Select a smoothbore tip for Attack Line ${lineNumber}.`
       );
 
       renderWarnings(warnings);
@@ -4282,23 +4366,23 @@ function calculateSplitAttackLine(lineNumber, warnings) {
 
   let reaction = "—";
 
-  if (nozzleType === "smoothbore") {
-
-    const tipId =
-      state.splitLay[`attack${lineNumber}SmoothboreTip`];
+  if (nozzleType === "smoothbore" || nozzleType === "blade") {
 
     const tip =
-      SMOOTHBORE_TIPS.find(t => t.id === tipId);
+      getSplitHydraulicSmoothboreModel(lineNumber);
 
     if (tip) {
 
-      reaction =
-        `${Math.round(
-          1.57 *
-          tip.diameter *
-          tip.diameter *
-          nozzlePressure
-        )} lb`;
+      const reactionValue = Math.round(
+        1.57 *
+        tip.diameter *
+        tip.diameter *
+        nozzlePressure
+      );
+
+      reaction = nozzleType === "blade"
+        ? `${reactionValue} lb (solid stream)`
+        : `${reactionValue} lb`;
 
     }
 
@@ -4334,12 +4418,9 @@ function calculateSplitAttackLine(lineNumber, warnings) {
   let actualNozzlePressure = line.nozzlePressure;
   let actualFlow = line.flow;
 
-  if (line.nozzleType === "smoothbore") {
-    const tipId =
-      state.splitLay[`attack${line.lineNumber}SmoothboreTip`];
-
+  if (line.nozzleType === "smoothbore" || line.nozzleType === "blade") {
     const tip =
-      SMOOTHBORE_TIPS.find(t => t.id === tipId);
+      getSplitHydraulicSmoothboreModel(line.lineNumber);
 
     if (tip) {
       const tipConstant =
@@ -4382,7 +4463,7 @@ function calculateSplitAttackLine(lineNumber, warnings) {
     actualFlPer100 * lengthHundreds;
 
   const actualReaction =
-    line.nozzleType === "smoothbore"
+    line.nozzleType === "smoothbore" || line.nozzleType === "blade"
       ? calculateSplitSmoothboreReaction(line, actualNozzlePressure)
       : calculateSplitFogReaction(actualFlow, actualNozzlePressure);
 
@@ -4404,20 +4485,32 @@ function calculateSplitAttackLine(lineNumber, warnings) {
 }
 
 function calculateSplitSmoothboreReaction(line, nozzlePressure) {
-  const tipId =
-    state.splitLay[`attack${line.lineNumber}SmoothboreTip`];
-
   const tip =
-    SMOOTHBORE_TIPS.find(t => t.id === tipId);
+    getSplitHydraulicSmoothboreModel(line.lineNumber);
 
   if (!tip || !nozzlePressure) return "—";
 
-  return `${Math.round(
+  const reaction = Math.round(
     1.57 *
     tip.diameter *
     tip.diameter *
     nozzlePressure
-  )} lb`;
+  );
+
+  return line.nozzleType === "blade"
+    ? `${reaction} lb (solid stream)`
+    : `${reaction} lb`;
+}
+
+function getSplitNozzleDisplay(line) {
+  const flowAndPressure =
+    `${Math.round(line.actualFlow)} GPM @ ${Math.round(line.actualNozzlePressure)} psi`;
+
+  if (line.nozzleType === "blade") {
+    return `${getBladeModelLabel(state.splitLay[`attack${line.lineNumber}BladeModel`])} ${flowAndPressure}`;
+  }
+
+  return flowAndPressure;
 }
 
 
@@ -4666,6 +4759,17 @@ els.splitAttack2PressureTag.className =
         return `${tip ? tip.label : state.smoothboreTip} SB @ ${displayedPressure ?? "—"} psi`;
       }
 
+      if (isBlade()) {
+        const blade = getSelectedBladeModel();
+        const displayedPressure = isReverseMode()
+  ? calculateAchievableSmoothborePressure()
+  : state.nozzlePressure === "custom"
+    ? state.customNozzlePressure
+    : state.nozzlePressure;
+
+        return `${blade ? blade.label : "Blade 160"} @ ${displayedPressure ?? "—"} psi`;
+      }
+
       const displayPressure =
   state.nozzlePressure === "custom"
     ? state.customNozzlePressure
@@ -4678,8 +4782,8 @@ return `Fog @ ${displayPressure} psi`;
     // HYDRAULIC HELPERS
     // ========================================
     function getTargetFlowValue() {
-      if (isRequiredPdpMode() && isSmoothbore()) {
-        const tip = getSelectedSmoothboreTip();
+      if (isRequiredPdpMode() && usesSmoothboreHydraulics()) {
+        const tip = getSelectedHydraulicSmoothboreModel();
         const nozzlePressure =
   state.nozzlePressure === "custom"
     ? numberOrNull(state.customNozzlePressure)
@@ -4692,7 +4796,7 @@ return `Fog @ ${displayPressure} psi`;
     }
 
     function syncCalculatedSmoothboreTargetFlow() {
-      if (!isRequiredPdpMode() || !isSmoothbore()) return;
+      if (!isRequiredPdpMode() || !usesSmoothboreHydraulics()) return;
       state.targetGpm = getTargetFlowValue();
     }
 
@@ -4701,12 +4805,14 @@ return `Fog @ ${displayPressure} psi`;
     }
 
     function calculateNozzleReaction(calculatedGpm, nozzlePressure) {
-      if (isSmoothbore()) {
-        const tip = getSelectedSmoothboreTip();
+      if (usesSmoothboreHydraulics()) {
+        const tip = getSelectedHydraulicSmoothboreModel();
         if (!tip || nozzlePressure === null) return "—";
 
         const reaction = 1.57 * tip.diameter * tip.diameter * nozzlePressure;
-        return `${Math.round(reaction)} lb`;
+        return isBlade()
+          ? `${Math.round(reaction)} lb (solid stream)`
+          : `${Math.round(reaction)} lb`;
       }
 
       if (state.nozzleType === "fog") {
@@ -4736,6 +4842,36 @@ return `Fog @ ${displayPressure} psi`;
 
     function getSelectedSmoothboreTip() {
       return SMOOTHBORE_TIPS.find(item => item.id === state.smoothboreTip);
+    }
+
+    function getSelectedBladeModel() {
+      return BLADE_MODELS.find(item => item.id === state.bladeModel) ||
+        BLADE_MODELS[0];
+    }
+
+    function getBladeModelLabel(modelId) {
+      const blade = BLADE_MODELS.find(item => item.id === modelId);
+      return blade ? blade.label : "Blade 160";
+    }
+
+    function getSelectedHydraulicSmoothboreModel() {
+      return isBlade()
+        ? getSelectedBladeModel()
+        : getSelectedSmoothboreTip();
+    }
+
+    function getSplitBladeModel(lineNumber) {
+      return BLADE_MODELS.find(
+        item => item.id === state.splitLay[`attack${lineNumber}BladeModel`]
+      ) || BLADE_MODELS[0];
+    }
+
+    function getSplitHydraulicSmoothboreModel(lineNumber) {
+      return state.splitLay[`attack${lineNumber}NozzleType`] === "blade"
+        ? getSplitBladeModel(lineNumber)
+        : SMOOTHBORE_TIPS.find(
+            item => item.id === state.splitLay[`attack${lineNumber}SmoothboreTip`]
+          );
     }
 
     function isReverseMode() {
@@ -4769,7 +4905,15 @@ function isMasterStream() {
 }
 
     function isReverseSmoothbore() {
-      return isReverseMode() && isSmoothbore();
+      return isReverseMode() && usesSmoothboreHydraulics();
+    }
+
+    function isBlade() {
+      return state.nozzleType === "blade";
+    }
+
+    function usesSmoothboreHydraulics() {
+      return isSmoothbore() || isBlade();
     }
 
     // ========================================
@@ -4779,6 +4923,8 @@ function clearSplitAttack2State() {
   state.splitLay.attack2Length = "";
   state.splitLay.attack2Flow = "";
   state.splitLay.attack2SmoothboreTip = "";
+  state.splitLay.attack2BladeModel =
+    DEFAULT_STATE.splitLay.attack2BladeModel;
   state.splitLay.attack2NozzleType =
     DEFAULT_STATE.splitLay.attack2NozzleType;
   state.splitLay.attack2NozzlePressure =
@@ -4790,6 +4936,7 @@ function clearSplitAttack2State() {
     ["splitAttack2Length", ""],
     ["splitAttack2Flow", ""],
     ["splitAttack2SmoothboreTip", ""],
+    ["splitAttack2BladeModel", DEFAULT_STATE.splitLay.attack2BladeModel],
     ["splitAttack2NozzleType", DEFAULT_STATE.splitLay.attack2NozzleType],
     ["splitAttack2NozzlePressure", DEFAULT_STATE.splitLay.attack2NozzlePressure],
     ["splitAttack2Hose", DEFAULT_STATE.splitLay.attack2HoseSize]
@@ -4858,13 +5005,15 @@ function resetSplitLayInputs() {
     ["splitAttack1NozzlePressure", DEFAULT_STATE.splitLay.attack1NozzlePressure],
     ["splitAttack1Flow", ""],
     ["splitAttack1SmoothboreTip", DEFAULT_STATE.splitLay.attack1SmoothboreTip],
+    ["splitAttack1BladeModel", DEFAULT_STATE.splitLay.attack1BladeModel],
 
     ["splitAttack2Length", ""],
     ["splitAttack2Hose", DEFAULT_STATE.splitLay.attack2HoseSize],
     ["splitAttack2NozzleType", DEFAULT_STATE.splitLay.attack2NozzleType],
     ["splitAttack2NozzlePressure", DEFAULT_STATE.splitLay.attack2NozzlePressure],
     ["splitAttack2Flow", ""],
-    ["splitAttack2SmoothboreTip", DEFAULT_STATE.splitLay.attack2SmoothboreTip]
+    ["splitAttack2SmoothboreTip", DEFAULT_STATE.splitLay.attack2SmoothboreTip],
+    ["splitAttack2BladeModel", DEFAULT_STATE.splitLay.attack2BladeModel]
   ].forEach(([id, value]) => {
 
     const el = document.getElementById(id);

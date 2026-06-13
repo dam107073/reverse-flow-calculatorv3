@@ -470,14 +470,6 @@
     flex-basis: 100%;
   }
 
-  .pressure-buttons {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.pressure-buttons button[data-pressure="custom"] {
-  grid-column: 1 / -1;
-}
-
   input,
 select {
   height: 48px;

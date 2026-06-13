@@ -297,7 +297,13 @@
   border-right: 1px solid var(--border);
 }  
 .pressure-buttons {
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pressure-buttons button:last-child:nth-child(odd),
+.pressure-buttons button:nth-last-child(2):nth-child(odd),
+.pressure-buttons button[data-pressure="custom"] {
+  grid-column: 1 / -1;
 }
 
     .mode-buttons button {
@@ -466,10 +472,6 @@
     0 0 0 2px rgba(249,115,22,0.08),
     0 4px 12px rgba(124, 45, 18, 0.08);
 }
-
-    .pressure-buttons {
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-    }
 
     .mode-card-pro {
   position: relative;

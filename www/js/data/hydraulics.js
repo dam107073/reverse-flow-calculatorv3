@@ -149,9 +149,37 @@ function isModifiedHoseCoefficient(hoseId) {
     smoothbore: isReverseMode()
       ? [40, 50, 60,]
       : [40, 50, 60, "custom"],
+    blade: getBladeNozzlePressures(),
   };
 
 }
+
+    const BLADE_MODELS = [
+      { id: "blade20", label: "Blade 20", diameter: 0.2595, pressures: [50, 75, 100, 125, 150], defaultPressure: "100" },
+      { id: "blade45", label: "Blade 45", diameter: 0.3893, pressures: [50, 75, 100, 125, 150], defaultPressure: "100" },
+      { id: "blade95", label: "Blade 95", diameter: 0.6726, pressures: [30, 40, 50, 60, 70], defaultPressure: "50" },
+      { id: "blade160", label: "Blade 160", diameter: 0.875, pressures: [40, 50, 60, "custom"], defaultPressure: "50" },
+      { id: "blade185", label: "Blade 185", diameter: 0.9375, pressures: [40, 50, 60, "custom"], defaultPressure: "50" },
+      { id: "blade265", label: "Blade 265", diameter: 1.125, pressures: [40, 50, 60, "custom"], defaultPressure: "50" },
+    ];
+
+    function getBladeNozzlePressures(modelId = state.bladeModel) {
+      if (isReverseMode()) return [40, 50, 60,];
+
+      const model =
+        BLADE_MODELS.find(item => item.id === modelId) ||
+        BLADE_MODELS[3];
+
+      return model.pressures;
+    }
+
+    function getBladeDefaultNozzlePressure(modelId = state.bladeModel) {
+      const model =
+        BLADE_MODELS.find(item => item.id === modelId) ||
+        BLADE_MODELS[3];
+
+      return model.defaultPressure;
+    }
 
     const SMOOTHBORE_TIPS = [
       { id: '3/4', label: '3/4"', diameter: 0.75 },

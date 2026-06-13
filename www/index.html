@@ -291,6 +291,7 @@ Select a hydraulic calculation mode.
           <select id="splitAttack1NozzleType">
             <option value="fog">Fog</option>
             <option value="smoothbore">Smoothbore</option>
+            <option value="blade">Blade</option>
           </select>
         </div>
 
@@ -319,6 +320,18 @@ Select a hydraulic calculation mode.
             <option value="1-1/8">1 1/8&quot;</option>
             <option value="1-3/16">1 3/16&quot;</option>
             <option value="1-1/4">1 1/4&quot;</option>
+          </select>
+        </div>
+
+        <div class="field" id="splitAttack1BladeModelField" hidden>
+          <label>Blade Model 1</label>
+          <select id="splitAttack1BladeModel">
+            <option value="blade20">Blade 20</option>
+            <option value="blade45">Blade 45</option>
+            <option value="blade95">Blade 95</option>
+            <option value="blade160">Blade 160</option>
+            <option value="blade185">Blade 185</option>
+            <option value="blade265">Blade 265</option>
           </select>
         </div>
 
@@ -362,6 +375,7 @@ Select a hydraulic calculation mode.
           <select id="splitAttack2NozzleType">
             <option value="fog">Fog</option>
             <option value="smoothbore">Smoothbore</option>
+            <option value="blade">Blade</option>
           </select>
         </div>
 
@@ -390,6 +404,18 @@ Select a hydraulic calculation mode.
             <option value="1-1/8">1 1/8&quot;</option>
             <option value="1-3/16">1 3/16&quot;</option>
             <option value="1-1/4">1 1/4&quot;</option>
+          </select>
+        </div>
+
+        <div class="field" id="splitAttack2BladeModelField" hidden>
+          <label>Blade Model 2</label>
+          <select id="splitAttack2BladeModel">
+            <option value="blade20">Blade 20</option>
+            <option value="blade45">Blade 45</option>
+            <option value="blade95">Blade 95</option>
+            <option value="blade160">Blade 160</option>
+            <option value="blade185">Blade 185</option>
+            <option value="blade265">Blade 265</option>
           </select>
         </div>
 
@@ -506,6 +532,7 @@ Select a hydraulic calculation mode.
           <select id="nozzleType">
           <option value="fog">Fog</option>
           <option value="smoothbore">Smoothbore</option>
+          <option value="blade">Blade</option>
           <option value="masterstream">Master Stream</option>
 </select>
           <p class="helper" id="nozzleTypeHelper">
@@ -524,6 +551,18 @@ Select a hydraulic calculation mode.
           <label for="smoothboreTip">Smoothbore Tip Size</label>
           <select id="smoothboreTip"></select>
           <p class="helper">Used for scenario clarity and displayed in the result. In Reverse Flow mode, nozzle pressure defaults to the highest mathematically reachable value.</p>
+        </div>
+
+        <div id="bladeModelField" class="field full" hidden>
+          <label for="bladeModel">Blade Model</label>
+          <select id="bladeModel">
+            <option value="blade20">Blade 20</option>
+            <option value="blade45">Blade 45</option>
+            <option value="blade95">Blade 95</option>
+            <option value="blade160">Blade 160</option>
+            <option value="blade185">Blade 185</option>
+            <option value="blade265">Blade 265</option>
+          </select>
         </div>
 
         <div class="field full">
