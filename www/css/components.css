@@ -532,50 +532,6 @@ body.pro-user .mode-card-pro.active {
   box-shadow: var(--accent-glow);
 }
 
-.pro-price-card {
-  margin: 18px 0;
-  padding: 16px;
-  text-align: center;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.04);
-  color: #111827;
-}
-
-.pro-price-card p,
-.pro-price-card strong,
-.pro-price-card span {
-  color: #111827;
-}
-
-.pro-price-card p {
-  margin: 0;
-  opacity: .75;
-}
-
-.pro-price-card strong {
-  display: block;
-  margin: 6px 0;
-  font-size: 1.35rem;
-}
-
-.pro-price-card span {
-  display: block;
-  font-size: .9rem;
-  opacity: .75;
-}
-
-#proModal .pro-feature-list div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-#proModal .pro-feature-list span {
-  font-size: .85rem;
-  opacity: .78;
-}
-
 .pro-modal {
   position: fixed;
   inset: 0;
@@ -583,7 +539,7 @@ body.pro-user .mode-card-pro.active {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 14px;
   z-index: 1000;
   backdrop-filter: blur(6px);
 }
@@ -592,28 +548,44 @@ body.pro-user .mode-card-pro.active {
 }  
 
 .pro-modal-content {
-  width: min(460px, 100%);
+  width: min(500px, 100%);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94)),
     var(--card);
   border: 1px solid rgba(184, 195, 209, 0.92);
-  border-top: 4px solid var(--accent);
-  border-radius: 12px;
-  padding: 24px;
-  padding-bottom: max(28px, env(safe-area-inset-bottom));
+  border-top: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   box-shadow:
     0 1px 0 rgba(255,255,255,0.85) inset,
     0 22px 60px rgba(0,0,0,0.34),
     0 0 28px rgba(217, 92, 19, 0.12);
   position: relative;
-  max-height: calc(100vh - 40px);
+  max-height: calc(100vh - 28px);
   overflow-y: auto;
 }
 .pro-modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+}
+
+.pro-modal-header h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.18rem;
+  line-height: 1.1;
+  font-weight: 850;
+}
+
+.pro-modal-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  font-weight: 700;
 }
 
 .badge {
@@ -633,109 +605,104 @@ body.pro-user .mode-card-pro.active {
     inset 0 -2px 0 var(--accent),
     0 0 18px rgba(217, 92, 19, 0.16);
 }
+
     .modal-close-button {
-  width: 40px;
-  height: 40px;
-  min-height: 40px;
-  border-radius: 8px;
-  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 7px;
+  font-size: 16px;
   font-weight: 900;
   padding: 0;
 }
 
-.pro-modal-subtitle {
-  margin: 18px 0 20px;
-  color: var(--muted);
-  font-size: 17px;
-  line-height: 1.45;
-  font-weight: 650;
+.pro-price-card {
+  margin: 12px 0 10px;
+  padding: 9px 11px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.035);
+  color: #111827;
 }
 
-.pro-feature-list {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 22px;
+.pro-price-card strong {
+  display: block;
+  color: #111827;
+  font-size: 0.98rem;
+  line-height: 1.2;
+  font-weight: 850;
 }
 
-#proModal .pro-feature-list div {
-  padding: 14px 16px 14px 18px;
-  border: 1px solid rgba(184, 195, 209, 0.86);
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.82));
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827;
-  text-shadow: none;
-  font-weight: 800;
-  position: relative;
-  overflow: hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.78),
-    0 3px 10px rgba(17, 24, 39, 0.045);
-}
-
-#proModal .pro-feature-list div::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 6px;
-  background: var(--feature-color, var(--accent));
-  box-shadow: 0 0 18px rgba(217, 92, 19, 0.18);
-}
-
-#proModal .pro-feature-list div:nth-child(1) {
-  --feature-color: #2563eb;
-  background:
-    linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent 40%),
-    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.82));
-}
-
-#proModal .pro-feature-list div:nth-child(2) {
-  --feature-color: #d95c13;
-  background:
-    linear-gradient(90deg, rgba(217, 92, 19, 0.1), transparent 40%),
-    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.82));
-}
-
-#proModal .pro-feature-list div:nth-child(3) {
-  --feature-color: #0f766e;
-  background:
-    linear-gradient(90deg, rgba(15, 118, 110, 0.08), transparent 40%),
-    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.82));
-}
-
-#proModal .pro-feature-list div:nth-child(4) {
-  --feature-color: #7c3aed;
-  background:
-    linear-gradient(90deg, rgba(124, 58, 237, 0.08), transparent 40%),
-    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.82));
-}
-
-.pro-modal-footer {
+.pro-price-card span {
+  display: block;
+  margin-top: 2px;
   color: #475569;
+  font-size: .75rem;
   font-weight: 750;
-  font-size: 0.8rem;
-  border-top: 1px solid var(--border);
-  margin-top: 14px;
-  padding-top: 14px;
-  line-height: 1.35;
-  opacity: 0.75;
+}
+
+.pro-summary-list {
+  margin-top: 2px;
+  border-top: 1px solid rgba(184, 195, 209, 0.78);
+  border-bottom: 1px solid rgba(184, 195, 209, 0.78);
+}
+
+.pro-summary-item {
+  padding: 11px 2px;
+  color: #111827;
+}
+
+.pro-summary-item + .pro-summary-item {
+  border-top: 1px solid rgba(184, 195, 209, 0.78);
+}
+
+.pro-summary-item h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pro-summary-item p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 0.82rem;
+  line-height: 1.24;
+  font-weight: 700;
+}
+
+.pro-future-note {
+  margin: 10px 0 2px;
+  color: #475569;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  font-weight: 750;
+  text-align: center;
 }
 
 .pro-modal-content > button {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 8px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
 }
 
 #restorePurchaseButton {
-  border-color: #b8c3d1;
-  background:
-    linear-gradient(180deg, #ffffff, #f3f6f9);
-  color: #111827;
-  -webkit-text-fill-color: #111827;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.9),
-    0 2px 8px rgba(17, 24, 39, 0.05);
+  border-color: transparent;
+  background: transparent;
+  color: #475569;
+  -webkit-text-fill-color: #475569;
+  box-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 34px;
+  padding: 5px 10px;
 }
 
 #buyProButton:not(:disabled) {
@@ -746,6 +713,19 @@ body.pro-user .mode-card-pro.active {
   box-shadow:
     inset 0 -3px 0 var(--accent),
     var(--accent-glow);
+}
+
+@media (max-width: 430px) {
+  .pro-modal {
+    padding: 8px;
+  }
+
+  .pro-modal-content {
+    padding: 13px;
+    padding-bottom: max(13px, env(safe-area-inset-bottom));
+    max-height: calc(100vh - 16px);
+  }
+
 }
     @media (max-width: 720px) {
 
@@ -813,8 +793,34 @@ body.pro-user .mode-card-pro.active {
 
 @media (prefers-color-scheme: dark) {
 
+  #proModal .pro-modal-content {
+    background:
+      linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.96)),
+      #0f172a;
+    border-color: #334155;
+    border-top-color: var(--accent);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.05) inset,
+      0 22px 60px rgba(0,0,0,0.52),
+      0 0 28px rgba(251, 146, 60, 0.12);
+  }
+
+  #proModal .pro-modal-header h2,
+  #proModal .pro-summary-item h3 {
+    color: #f8fafc;
+    -webkit-text-fill-color: #f8fafc;
+  }
+
+  #proModal .pro-modal-header p,
+  #proModal .pro-summary-item p,
+  #proModal .pro-future-note {
+    color: #cbd5e1;
+    -webkit-text-fill-color: #cbd5e1;
+  }
+
   #proModal .pro-price-card {
     border-color: rgba(148, 163, 184, 0.34);
+    border-left-color: var(--accent);
     background: rgba(15, 23, 42, 0.86);
     color: #f8fafc;
   }
@@ -826,13 +832,24 @@ body.pro-user .mode-card-pro.active {
     -webkit-text-fill-color: #f8fafc;
   }
 
-  #proModal #buyProButton,
-  #proModal #restorePurchaseButton {
+  #proModal .pro-summary-list,
+  #proModal .pro-summary-item + .pro-summary-item {
+    border-color: rgba(148, 163, 184, 0.2);
+  }
+
+  #proModal #buyProButton {
     background:
       linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
     border-color: rgba(148, 163, 184, 0.34);
     color: #f8fafc;
     -webkit-text-fill-color: #f8fafc;
+  }
+
+  #proModal #restorePurchaseButton {
+    background: transparent;
+    border-color: transparent;
+    color: #cbd5e1;
+    -webkit-text-fill-color: #cbd5e1;
   }
 
   #proModal #buyProButton:disabled,
