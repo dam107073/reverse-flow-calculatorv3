@@ -115,6 +115,51 @@
       margin-top: 2px;
     }
 
+    .collapsible-settings-card {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .collapsible-settings-card > summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 16px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .collapsible-settings-card > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .collapsible-settings-card > summary::after {
+      content: "Show";
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .collapsible-settings-card[open] > summary {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .collapsible-settings-card[open] > summary::after {
+      content: "Hide";
+    }
+
+    .collapsible-settings-card > summary .helper {
+      display: block;
+      margin-top: 6px;
+    }
+
+    .collapsible-card-body {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+    }
+
     .muted-card {
       background: var(--surface);
       border-style: dashed;
@@ -245,6 +290,11 @@
       gap: 12px;
     }
 
+    .default-hose-coefficients-list {
+      display: grid;
+      gap: 12px;
+    }
+
     .default-hose-selection-card {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -256,8 +306,34 @@
       background: var(--surface);
     }
 
+    .default-hose-coefficient-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+      gap: 12px;
+      align-items: end;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+
     .default-hose-selection-card p {
       margin: 4px 0 0;
+    }
+
+    .default-hose-coefficient-card p {
+      margin: 4px 0 0;
+    }
+
+    .default-hose-coefficient-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .default-hose-coefficient-actions input {
+      min-width: 0;
     }
 
     .default-hose-choose-link {
@@ -267,6 +343,69 @@
       justify-content: center;
       color: var(--accent);
       font-weight: 800;
+    }
+
+    .default-hose-delete-button {
+      justify-self: end;
+    }
+
+    .references-list,
+    .references-group {
+      display: grid;
+      gap: 12px;
+    }
+
+    .references-list {
+      grid-column: 1 / -1;
+    }
+
+    .references-group h2 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .reference-card {
+      border-radius: 10px;
+      box-shadow: none;
+    }
+
+    .reference-details {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 14px;
+      margin-top: 10px;
+    }
+
+    .reference-details span {
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .reference-open-button {
+      min-height: 42px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .reference-open-button.disabled {
+      opacity: 0.56;
+      pointer-events: none;
+      min-height: 0;
+      padding: 0;
+      border: none;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .reference-missing-message {
+      align-self: center;
+      margin: 0;
     }
 
     .formula {

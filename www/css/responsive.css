@@ -68,6 +68,10 @@
         color: #cbd5e1;
       }
 
+      .reference-details span {
+        background: transparent;
+      }
+
       .hose-library-details a {
         color: #fed7aa;
       }
@@ -457,14 +461,20 @@
   }
 
   .custom-hose-form,
-  .default-hose-selection-card {
+  .default-hose-selection-card,
+  .default-hose-coefficient-card {
     grid-template-columns: 1fr;
   }
 
-  .custom-hose-form .reset-button,
-  .default-hose-choose-link {
-    width: 100%;
+  .default-hose-coefficient-actions {
+    grid-template-columns: 1fr;
   }
+
+	  .custom-hose-form .reset-button,
+	  .default-hose-choose-link,
+	  .default-hose-delete-button {
+	    width: 100%;
+	  }
 
   .detail {
     flex-basis: 100%;

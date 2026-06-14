@@ -73,82 +73,119 @@
           </p>
         </div>
 
-        <div class="settings-tool-card hose-library-panel">
-          <strong>Hose Library</strong>
-          <p class="helper">
-            Static hose profiles, charged IDs, and friction-loss coefficients.
-          </p>
-          <div class="hose-library-filters">
-            <div class="field">
-              <label for="hoseLibraryManufacturerFilter">Manufacturer</label>
-              <select id="hoseLibraryManufacturerFilter"></select>
-            </div>
+        <details class="settings-tool-card collapsible-settings-card hose-library-panel">
+          <summary>
+            <span>
+              <strong>Hose Library</strong>
+              <span class="helper">
+                Manufacturer hose reference profiles for hydraulic planning and default hose selection.
+              </span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <p class="helper hose-library-disclaimer">
+              Manufacturer specifications are provided as reference information only. Actual hydraulic performance may vary due to hose age, condition, manufacturing revision, testing methods, and department practices.
+            </p>
+            <div class="hose-library-filters">
+              <div class="field">
+                <label for="hoseLibraryManufacturerFilter">Manufacturer</label>
+                <select id="hoseLibraryManufacturerFilter"></select>
+              </div>
 
-            <div class="field">
-              <label for="hoseLibrarySizeFilter">Hose Size</label>
-              <select id="hoseLibrarySizeFilter"></select>
-            </div>
+              <div class="field">
+                <label for="hoseLibrarySizeFilter">Hose Size</label>
+                <select id="hoseLibrarySizeFilter"></select>
+              </div>
 
-            <div class="field">
-              <label for="hoseLibraryUseFilter">Use</label>
-              <select id="hoseLibraryUseFilter">
-                <option value="all">Supply and Attack</option>
-                <option value="supply">Supply</option>
-                <option value="attack">Attack</option>
-              </select>
+              <div class="field">
+                <label for="hoseLibraryUseFilter">Use</label>
+                <select id="hoseLibraryUseFilter">
+                  <option value="all">Supply and Attack</option>
+                  <option value="supply">Supply</option>
+                  <option value="attack">Attack</option>
+                </select>
+              </div>
+            </div>
+            <p id="hoseLibrarySummary" class="helper"></p>
+            <div id="hoseLibraryList" class="hose-library-list"></div>
+          </div>
+        </details>
+
+        <details class="settings-tool-card collapsible-settings-card">
+          <summary>
+            <span>
+              <strong>References</strong>
+              <span class="helper">
+                Manufacturer reference documents and permission status.
+              </span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <a class="reset-button default-hose-choose-link" href="references.html">
+              Open References
+            </a>
+          </div>
+        </details>
+
+        <details class="settings-tool-card collapsible-settings-card custom-hose-panel">
+          <summary>
+            <span>
+              <strong>Create Custom Hose</strong>
+              <span class="helper">
+                Add a department-specific hose profile to the Hose Library.
+              </span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <div class="custom-hose-form">
+              <div class="field">
+                <label for="customHoseManufacturer">Manufacturer</label>
+                <input id="customHoseManufacturer" type="text" placeholder="Department / Manufacturer" />
+              </div>
+
+              <div class="field">
+                <label for="customHoseModel">Model / Name</label>
+                <input id="customHoseModel" type="text" placeholder="Custom hose name" />
+              </div>
+
+              <div class="field">
+                <label for="customHoseSize">Hose Size</label>
+                <select id="customHoseSize"></select>
+              </div>
+
+              <div class="field">
+                <label for="customHoseUse">Use</label>
+                <select id="customHoseUse">
+                  <option value="both">Both</option>
+                  <option value="attack">Attack</option>
+                  <option value="supply">Supply</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="customHoseCoefficient">Coefficient</label>
+                <input id="customHoseCoefficient" type="text" inputmode="decimal" placeholder="C value" />
+              </div>
+
+              <button id="createCustomHoseButton" class="reset-button" type="button">
+                Add to Hose Library
+              </button>
             </div>
           </div>
-          <p id="hoseLibrarySummary" class="helper"></p>
-          <div id="hoseLibraryList" class="hose-library-list"></div>
-        </div>
+        </details>
 
-        <div class="settings-tool-card custom-hose-panel">
-          <strong>Create Custom Hose</strong>
-          <p class="helper">
-            Add a department-specific hose profile to the Hose Library.
-          </p>
-          <div class="custom-hose-form">
-            <div class="field">
-              <label for="customHoseManufacturer">Manufacturer</label>
-              <input id="customHoseManufacturer" type="text" placeholder="Department / Manufacturer" />
-            </div>
-
-            <div class="field">
-              <label for="customHoseModel">Model / Name</label>
-              <input id="customHoseModel" type="text" placeholder="Custom hose name" />
-            </div>
-
-            <div class="field">
-              <label for="customHoseSize">Hose Size</label>
-              <select id="customHoseSize"></select>
-            </div>
-
-            <div class="field">
-              <label for="customHoseUse">Use</label>
-              <select id="customHoseUse">
-                <option value="both">Both</option>
-                <option value="attack">Attack</option>
-                <option value="supply">Supply</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="customHoseCoefficient">Coefficient</label>
-              <input id="customHoseCoefficient" type="text" inputmode="decimal" placeholder="C value" />
-            </div>
-
-            <button id="createCustomHoseButton" class="reset-button" type="button">
-              Add to Hose Library
-            </button>
+        <details class="settings-tool-card collapsible-settings-card muted-card">
+          <summary>
+            <span>
+              <strong>More hydraulic tools coming soon</strong>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <p class="helper">
+              Future tools will live here as the calculator grows.
+            </p>
           </div>
-        </div>
-
-        <div class="settings-tool-card muted-card">
-          <strong>More hydraulic tools coming soon</strong>
-          <p class="helper">
-            Future tools will live here as the calculator grows.
-          </p>
-        </div>
+        </details>
       </div>
     </section>
 

@@ -102,8 +102,6 @@ function clearSavedHoseCoefficient(hoseId) {
 
 function resetSavedHoseCoefficients() {
   localStorage.removeItem(HOSE_COEFFS_KEY);
-  localStorage.removeItem(HOSE_LIBRARY_SELECTIONS_KEY);
-  localStorage.removeItem(DEFAULT_HOSE_PROFILES_KEY);
 }
 
 function loadDefaultHoseProfiles() {
@@ -129,6 +127,7 @@ function saveDefaultHoseProfile(hoseId, libraryHose) {
     manufacturer: libraryHose.manufacturer,
     model: libraryHose.model,
     size: libraryHose.appHoseId,
+    publishedCoefficient: libraryHose.coefficient,
     coefficient: libraryHose.coefficient,
     use: libraryHose.use || "",
     custom: !!libraryHose.custom
@@ -152,12 +151,6 @@ function clearDefaultHoseProfile(hoseId) {
 }
 
 function getActiveHoseCoefficient(hoseId) {
-  const defaultProfile = getDefaultHoseProfile(hoseId);
-
-  if (defaultProfile && defaultProfile.coefficient !== null) {
-    return defaultProfile.coefficient;
-  }
-
   const savedCoefficients = loadSavedHoseCoefficients();
 
   return savedCoefficients[hoseId] ?? FACTORY_HOSE_COEFFS[hoseId];

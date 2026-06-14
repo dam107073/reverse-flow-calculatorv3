@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+  />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Reverse Flow" />
+  <meta name="application-name" content="Reverse Flow: Fireground Hydraulics" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
+  <link rel="manifest" href="manifest.json?v=6" />
+  <style>
+    html {
+      min-height: 100%;
+      background: #e7edf3;
+      color: #111827;
+    }
+    @media (prefers-color-scheme: dark) {
+      html {
+        background: #020617;
+        color: #f8fafc;
+      }
+    }
+    body {
+      min-height: 100vh;
+      background: inherit;
+      color: inherit;
+    }
+  </style>
+
+  <title>References | Reverse Flow</title>
+
+  <link rel="stylesheet" href="css/base.css?v=build-6" />
+  <link rel="stylesheet" href="css/components.css?v=flash-3" />
+  <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
+  <link rel="stylesheet" href="css/support.css?v=build-6" />
+  <link rel="stylesheet" href="css/responsive.css?v=build-6" />
+</head>
+
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <h1 class="app-header-title">Reverse Flow</h1>
+        <p class="app-header-subtitle">
+          Fireground Hydraulics
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <main id="referencesPage">
+    <nav class="page-nav" aria-label="Primary">
+      <a class="reset-button nav-action-button nav-button-link" href="index.html">Calculator</a>
+      <a class="reset-button nav-action-button nav-button-link active" href="tools.html">Tools</a>
+      <a class="reset-button nav-action-button nav-button-link" href="settings.html">Settings</a>
+    </nav>
+
+    <section class="card app-view-panel">
+      <div class="form-grid">
+        <div class="field full">
+          <label>References</label>
+          <p class="helper">
+            Manufacturer reference documents and permission status.
+          </p>
+        </div>
+
+        <div id="referencesList" class="references-list"></div>
+      </div>
+    </section>
+
+    <p class="version-footer">
+      Reverse Flow: Fireground Hydraulics © 2026
+    </p>
+  </main>
+
+  <script src="js/data/references.js"></script>
+  <script>
+    const referencesList = document.getElementById("referencesList");
+
+    function groupReferencesByManufacturer(references) {
+      return references.reduce((groups, reference) => {
+        if (!groups[reference.manufacturer]) {
+          groups[reference.manufacturer] = [];
+        }
+
+        groups[reference.manufacturer].push(reference);
+        return groups;
+      }, {});
+    }
+
+    async function pdfExists(pdfPath) {
+      if (!pdfPath) return false;
+
+      try {
+        const response = await fetch(pdfPath, { method: "HEAD" });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    }
+
+    function createReferenceCard(reference) {
+      const card = document.createElement("article");
+      card.className = "hose-library-card reference-card";
+
+      card.innerHTML = `
+        <div class="hose-library-card-header">
+          <div>
+            <strong>${reference.title}</strong>
+            <div class="hose-library-details reference-details">
+              <span>Manufacturer: ${reference.manufacturer}</span>
+              <span>Category: ${reference.category}</span>
+              <span>Status: ${reference.status}</span>
+              <span>Updated: ${reference.lastUpdated}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hose-library-card-actions">
+          <a
+            class="reset-button reference-open-button"
+            href="${reference.pdfPath}"
+            target="_blank"
+            rel="noopener"
+          >
+            Open PDF
+          </a>
+          <span class="helper reference-missing-message" hidden>
+            PDF not added yet.
+          </span>
+        </div>
+      `;
+
+      return card;
+    }
+
+    async function renderReferences() {
+      const references = Array.isArray(REFERENCE_DOCUMENTS)
+        ? REFERENCE_DOCUMENTS
+        : [];
+      const groups = groupReferencesByManufacturer(references);
+
+      referencesList.innerHTML = "";
+
+      Object.entries(groups).forEach(([manufacturer, documents]) => {
+        const group = document.createElement("section");
+        group.className = "references-group";
+        group.innerHTML = `<h2>${manufacturer}</h2>`;
+
+        documents.forEach(reference => {
+          group.appendChild(createReferenceCard(reference));
+        });
+
+        referencesList.appendChild(group);
+      });
+
+      const cards = referencesList.querySelectorAll(".reference-card");
+
+      for (const card of cards) {
+        const link = card.querySelector(".reference-open-button");
+        const missingMessage = card.querySelector(".reference-missing-message");
+        const exists = await pdfExists(link.getAttribute("href"));
+
+        if (!exists) {
+          link.removeAttribute("href");
+          link.setAttribute("aria-disabled", "true");
+          link.classList.add("disabled");
+          missingMessage.hidden = false;
+        }
+      }
+    }
+
+    renderReferences();
+  </script>
+  <script type="module" src="js/analytics.js"></script>
+</body>
+</html>

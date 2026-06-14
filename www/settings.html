@@ -73,37 +73,62 @@
           </p>
         </div>
 
-        <div class="settings-tool-card default-hose-selections-panel">
-          <strong>Default Hose Selections</strong>
-          <p class="helper">
-            Catalog hose defaults selected from the Hose Library.
-          </p>
-          <div id="defaultHoseSelectionsList" class="default-hose-selections-list"></div>
-        </div>
+        <details class="settings-tool-card collapsible-settings-card default-hose-selections-panel">
+          <summary>
+            <span>
+              <strong>Default Hose Selections</strong>
+              <span class="helper">
+                Manufacturer hose references selected from the Hose Library.
+              </span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <div id="defaultHoseSelectionsList" class="default-hose-selections-list"></div>
+          </div>
+        </details>
 
-        <div class="settings-tool-card">
-          <strong>Hose Coefficients</strong>
-          <p class="helper">
-            Restore all saved hose coefficients to the app defaults.
-          </p>
-          <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
-            Reset to Default Hose Coefficients
-          </button>
-        </div>
+        <details class="settings-tool-card collapsible-settings-card default-hose-coefficients-panel">
+          <summary>
+            <span>
+              <strong>Default Hose Coefficients</strong>
+              <span class="helper">
+                Calculation coefficients currently used by the calculator. These remain separate from manufacturer hose references.
+              </span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <div id="defaultHoseCoefficientsList" class="default-hose-coefficients-list"></div>
+            <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
+              Reset All Coefficients to App Defaults
+            </button>
+          </div>
+        </details>
 
-        <div class="settings-tool-card muted-card">
-          <strong>Future Nozzle Defaults</strong>
-          <p class="helper">
-            Future nozzle defaults will stay separate from temporary calculation overrides.
-          </p>
-        </div>
+        <details class="settings-tool-card collapsible-settings-card muted-card">
+          <summary>
+            <span>
+              <strong>Future Nozzle Defaults</strong>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <p class="helper">
+              Future nozzle defaults will stay separate from temporary calculation overrides.
+            </p>
+          </div>
+        </details>
 
-        <div class="settings-tool-card muted-card">
-          <strong>Future Unit Preferences</strong>
-          <p class="helper">
-            Future unit preferences will live here without changing existing saved setup data.
-          </p>
-        </div>
+        <details class="settings-tool-card collapsible-settings-card muted-card">
+          <summary>
+            <span>
+              <strong>Future Unit Preferences</strong>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <p class="helper">
+              Future unit preferences will live here without changing existing saved setup data.
+            </p>
+          </div>
+        </details>
       </div>
     </section>
 

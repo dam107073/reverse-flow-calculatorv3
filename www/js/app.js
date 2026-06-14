@@ -86,6 +86,7 @@
       hoseLibrarySummary: document.getElementById("hoseLibrarySummary"),
       hoseLibraryList: document.getElementById("hoseLibraryList"),
       defaultHoseSelectionsList: document.getElementById("defaultHoseSelectionsList"),
+      defaultHoseCoefficientsList: document.getElementById("defaultHoseCoefficientsList"),
       customHoseManufacturer: document.getElementById("customHoseManufacturer"),
       customHoseModel: document.getElementById("customHoseModel"),
       customHoseSize: document.getElementById("customHoseSize"),
@@ -670,6 +671,7 @@ logStoreEvent("initialize-start", {
       populateCustomHoseSizeOptions();
       renderHoseLibrary();
       renderDefaultHoseSelections();
+      renderDefaultHoseCoefficients();
       bindSupportPageEvents();
       return;
     }
@@ -680,6 +682,7 @@ logStoreEvent("initialize-start", {
   populateCustomHoseSizeOptions();
   renderHoseLibrary();
   renderDefaultHoseSelections();
+  renderDefaultHoseCoefficients();
   populateSmoothboreTips();
   renderPresetOptions();
   syncInputsFromState();
@@ -947,7 +950,6 @@ function deleteCustomHoseProfile(customHoseId) {
     if (defaultProfile?.id === customHose.id) {
       clearDefaultHoseProfile(customHose.appHoseId);
       clearHoseLibrarySelection(customHose.appHoseId);
-      clearSavedHoseCoefficient(customHose.appHoseId);
     }
   }
 
@@ -976,12 +978,12 @@ const ATTACK_HOSE_IDS =
   const defaultProfile = getDefaultHoseProfile(hose.id);
 
   if (defaultProfile) {
-    return `${hose.label} — ${defaultProfile.manufacturer} ${defaultProfile.model} — C ${activeCoefficient}`;
+    return `${hose.label} — ${defaultProfile.manufacturer} ${defaultProfile.model} — Calculation C ${activeCoefficient}`;
   }
 
   const coefficientLabel = isModifiedHoseCoefficient(hose.id)
     ? `CUSTOM C ${activeCoefficient}`
-    : `C ${activeCoefficient}`;
+    : `Calculation C ${activeCoefficient}`;
 
   return `${hose.label} — ${coefficientLabel}`;
 }
@@ -1171,6 +1173,20 @@ function getDefaultHoseDisplayName(hose) {
   return "Built-in default";
 }
 
+function getPublishedHoseCoefficient(defaultProfile) {
+  if (!defaultProfile) return null;
+
+  return defaultProfile.publishedCoefficient ?? defaultProfile.coefficient ?? null;
+}
+
+function getCalculationCoefficientSource(hoseId) {
+  const savedCoefficients = loadSavedHoseCoefficients();
+
+  return savedCoefficients[hoseId] !== undefined
+    ? "Custom coefficient"
+    : "App default";
+}
+
 function getSupportedHoseOptions() {
   const hoseMap = new Map();
 
@@ -1181,6 +1197,10 @@ function getSupportedHoseOptions() {
   });
 
   return [...hoseMap.values()];
+}
+
+function getCoefficientSettingsHoseOptions() {
+  return HOSE_OPTIONS;
 }
 
 function getHoseLibrarySizeFilterValueForHose(hoseId) {
@@ -1197,31 +1217,198 @@ function renderDefaultHoseSelections() {
     .map(hose => {
       const defaultProfile = getDefaultHoseProfile(hose.id);
       const source = getDefaultHoseDisplaySource(hose.id);
-      const coefficient = getActiveHoseCoefficient(hose.id);
-      const librarySize = getHoseLibrarySizeFilterValueForHose(hose.id);
-      const chooseHref = librarySize
-        ? `tools.html?size=${encodeURIComponent(hose.id)}`
-        : "tools.html";
+      const calculationCoefficient = getActiveHoseCoefficient(hose.id);
+      const publishedCoefficient = getPublishedHoseCoefficient(defaultProfile);
       const profileMeta = defaultProfile
         ? `<p class="helper">Use: ${escapeHtml(defaultProfile.use || "Catalog")} • Catalog ID: ${escapeHtml(defaultProfile.id)}</p>`
         : "";
+      const defaultHoseText = defaultProfile
+        ? `${defaultProfile.manufacturer} ${defaultProfile.model}`
+        : "Built-in default";
+      const publishedCoefficientText = defaultProfile
+        ? formatLibraryValue(publishedCoefficient)
+        : "None selected";
+      const selectionAction = defaultProfile
+        ? `
+          <button
+            class="small-button default-hose-delete-button"
+            type="button"
+            data-default-hose-clear-id="${escapeHtml(hose.id)}"
+          >
+            Delete Selection
+          </button>
+        `
+        : `
+          <button class="small-button default-hose-delete-button" type="button" disabled>
+            No Selection to Delete
+          </button>
+        `;
 
       return `
         <article class="default-hose-selection-card">
           <div>
             <strong>${escapeHtml(hose.label)}</strong>
-            <p>${escapeHtml(getDefaultHoseDisplayName(hose))}</p>
-            <p class="helper">Coefficient: ${escapeHtml(coefficient)}</p>
-            <p class="helper">Source: ${escapeHtml(source)}</p>
+            <p>Default Hose: ${escapeHtml(defaultHoseText)}</p>
+            <p class="helper">Published Coefficient: ${escapeHtml(publishedCoefficientText)}</p>
+            <p class="helper">Calculation Coefficient: ${escapeHtml(calculationCoefficient)}</p>
+            <p class="helper">Reference Source: ${escapeHtml(source)}</p>
             ${profileMeta}
           </div>
-          <a class="small-button default-hose-choose-link" href="${chooseHref}">
-            Choose from Hose Library
-          </a>
+          ${selectionAction}
         </article>
       `;
     })
     .join("");
+
+  els.defaultHoseSelectionsList
+    .querySelectorAll("[data-default-hose-clear-id]")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        clearDefaultHoseSelection(button.dataset.defaultHoseClearId);
+      });
+    });
+}
+
+function clearDefaultHoseSelection(hoseId) {
+  const hose = getHoseOptionById(hoseId);
+  const defaultProfile = getDefaultHoseProfile(hoseId);
+
+  if (!hose || !defaultProfile) {
+    renderDefaultHoseSelections();
+    return;
+  }
+
+  const confirmed = confirm(
+    `Delete the default hose selection for ${hose.label}? Calculation coefficients will not change.`
+  );
+
+  if (!confirmed) return;
+
+  clearDefaultHoseProfile(hoseId);
+  clearHoseLibrarySelection(hoseId);
+
+  if (els.calculatorView) {
+    populateHoseOptions();
+    els.hoseSize.value = state.hoseSize;
+    syncCoefficientUi();
+    updateCalculator();
+  }
+
+  renderHoseLibrary();
+  renderDefaultHoseSelections();
+  renderDefaultHoseCoefficients();
+}
+
+function renderDefaultHoseCoefficients() {
+  if (!els.defaultHoseCoefficientsList) return;
+
+  els.defaultHoseCoefficientsList.innerHTML = getCoefficientSettingsHoseOptions()
+    .map(hose => {
+      const calculationCoefficient = getActiveHoseCoefficient(hose.id);
+      const factoryCoefficient = FACTORY_HOSE_COEFFS[hose.id];
+      const source = getCalculationCoefficientSource(hose.id);
+      const isModified = isModifiedHoseCoefficient(hose.id);
+
+      return `
+        <article class="default-hose-coefficient-card">
+          <div>
+            <strong>${escapeHtml(hose.label)}</strong>
+            <p class="helper">Current calculation coefficient: ${escapeHtml(calculationCoefficient)}</p>
+            <p class="helper">App default coefficient: ${escapeHtml(factoryCoefficient)}</p>
+            <p class="helper">Source: ${escapeHtml(source)}</p>
+          </div>
+          <div class="default-hose-coefficient-actions">
+            <input
+              type="text"
+              inputmode="decimal"
+              value="${escapeHtml(calculationCoefficient)}"
+              aria-label="${escapeHtml(hose.label)} calculation coefficient"
+              data-coefficient-input="${escapeHtml(hose.id)}"
+            />
+            <button
+              class="small-button"
+              type="button"
+              data-coefficient-save="${escapeHtml(hose.id)}"
+            >
+              Save
+            </button>
+            <button
+              class="small-button"
+              type="button"
+              data-coefficient-reset="${escapeHtml(hose.id)}"
+              ${isModified ? "" : "disabled"}
+            >
+              Reset
+            </button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  bindDefaultHoseCoefficientEvents();
+}
+
+function refreshCoefficientDisplays() {
+  if (els.calculatorView) {
+    populateHoseOptions();
+
+    if (els.hoseSize) {
+      els.hoseSize.value = state.hoseSize;
+    }
+
+    syncCoefficientUi();
+    calculateAndRender();
+  }
+
+  renderDefaultHoseSelections();
+  renderDefaultHoseCoefficients();
+}
+
+function bindDefaultHoseCoefficientEvents() {
+  if (!els.defaultHoseCoefficientsList) return;
+
+  els.defaultHoseCoefficientsList
+    .querySelectorAll("[data-coefficient-save]")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        if (!isProUser()) {
+          openProModal();
+          return;
+        }
+
+        const hoseId = button.dataset.coefficientSave;
+        const input = button
+          .closest(".default-hose-coefficient-card")
+          ?.querySelector("[data-coefficient-input]");
+        const coefficient = numberOrNull(input?.value);
+
+        if (coefficient === null || coefficient <= 0) {
+          alert("Enter a valid hose coefficient greater than 0.");
+          return;
+        }
+
+        saveHoseCoefficient(hoseId, coefficient);
+        refreshCoefficientDisplays();
+        alert("Calculation coefficient saved.");
+      });
+    });
+
+  els.defaultHoseCoefficientsList
+    .querySelectorAll("[data-coefficient-reset]")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        if (!isProUser()) {
+          openProModal();
+          return;
+        }
+
+        const hoseId = button.dataset.coefficientReset;
+
+        clearSavedHoseCoefficient(hoseId);
+        refreshCoefficientDisplays();
+      });
+    });
 }
 
 function hoseMatchesLibraryUse(hose, selectedUse) {
@@ -1250,7 +1437,7 @@ function renderHoseLibraryCard(hose) {
     : null;
   const isSelected =
     selectedLibrary && selectedLibrary.id === hose.id;
-  const canSelect = Boolean(appHose && hose.coefficient !== null);
+  const canSelect = Boolean(appHose);
   const buttonText = isSelected
     ? "Selected Default"
     : canSelect
@@ -1264,7 +1451,7 @@ function renderHoseLibraryCard(hose) {
       : "Source —";
   const coefficientText = hose.coefficient === null
     ? "Still gathering data"
-    : `C ${formatLibraryValue(hose.coefficient)}`;
+    : `Published C ${formatLibraryValue(hose.coefficient)}`;
 
   return `
     <article class="hose-library-card${isSelected ? " active" : ""}">
@@ -1368,8 +1555,8 @@ function applyHoseLibraryDefault(libraryId) {
   const libraryHose = getHoseLibraryRows()
     .find(hose => hose.id === libraryId);
 
-  if (!libraryHose || !libraryHose.appHoseId || libraryHose.coefficient === null) {
-    alert("This hose library entry does not include a selectable app coefficient.");
+  if (!libraryHose || !libraryHose.appHoseId) {
+    alert("This hose library entry cannot be selected as an app default.");
     return;
   }
 
@@ -1380,12 +1567,11 @@ function applyHoseLibraryDefault(libraryId) {
 
   const appHose = getHoseOptionById(libraryHose.appHoseId);
   const confirmed = confirm(
-    `Set ${libraryHose.manufacturer} ${libraryHose.model} C ${libraryHose.coefficient} as the default coefficient for ${appHose.label} hose?`
+    `Set ${libraryHose.manufacturer} ${libraryHose.model} as the default reference profile for ${appHose.label} hose? Calculation coefficients will not change.`
   );
 
   if (!confirmed) return;
 
-  saveHoseCoefficient(libraryHose.appHoseId, libraryHose.coefficient);
   saveHoseLibrarySelection(libraryHose.appHoseId, libraryHose);
   saveDefaultHoseProfile(libraryHose.appHoseId, {
     ...libraryHose,
@@ -1402,8 +1588,9 @@ function applyHoseLibraryDefault(libraryId) {
 
   renderHoseLibrary();
   renderDefaultHoseSelections();
+  renderDefaultHoseCoefficients();
 
-  alert(`${libraryHose.manufacturer} ${libraryHose.model} is now your default ${appHose.label} hose. Coefficient: ${libraryHose.coefficient}`);
+  alert(`${libraryHose.manufacturer} ${libraryHose.model} is now your default ${appHose.label} hose reference. Calculation coefficient unchanged: ${getActiveHoseCoefficient(libraryHose.appHoseId)}`);
 }
 
     function populateSmoothboreTips() {
@@ -2398,7 +2585,7 @@ els.customCoefficient.placeholder = String(activeCoefficient);
 els.coefficientHelper.textContent = state.useCustomCoefficient
   ? "Using temporary custom coefficient for this calculation only."
   : getDefaultHoseProfile(selectedHose.id)
-    ? `Using catalog default: ${getDefaultHoseProfile(selectedHose.id).manufacturer} ${getDefaultHoseProfile(selectedHose.id).model} — C ${activeCoefficient}.`
+    ? `Using default hose reference: ${getDefaultHoseProfile(selectedHose.id).manufacturer} ${getDefaultHoseProfile(selectedHose.id).model}. Calculation coefficient: ${activeCoefficient}.${modifiedText}`
     : `Using hose default coefficient: ${activeCoefficient}.${modifiedText}`;
 
     }
@@ -2608,6 +2795,7 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
         resetSavedHoseCoefficients();
         renderHoseLibrary();
         renderDefaultHoseSelections();
+        renderDefaultHoseCoefficients();
 
         alert("Hose coefficients reset to app defaults.");
       });
@@ -2705,15 +2893,12 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
 
   state.useCustomCoefficient = false;
   state.customCoefficient = "";
-  els.customCoefficient.value = "";
+  if (els.customCoefficient) {
+    els.customCoefficient.value = "";
+  }
 
-  populateHoseOptions();
-  els.hoseSize.value = state.hoseSize;
-
-  syncCoefficientUi();
-  updateCalculator();
+  refreshCoefficientDisplays();
   renderHoseLibrary();
-  renderDefaultHoseSelections();
 
   alert("Hose coefficients reset to app defaults.");
 });
