@@ -111,6 +111,9 @@
       closePumpChartModal:
         document.getElementById("closePumpChartModal"),
 
+      pumpChartModalSubtitle:
+        document.getElementById("pumpChartModalSubtitle"),
+
       pumpChartList:
         document.getElementById("pumpChartList"),
 
@@ -805,12 +808,24 @@ function renderSupportPageToolsContent() {
     }
 
     function loadPresets() {
-      try {
-        const saved = localStorage.getItem(PRESETS_KEY);
-        return saved ? JSON.parse(saved) : [];
-      } catch {
-        return [];
-      }
+      return loadPumpCharts()
+        .charts
+        .flatMap(chart =>
+          chart.setups.map(setup => ({
+            ...setup.inputs,
+            ...setup.result,
+            id: setup.id,
+            name: setup.name,
+            mode: setup.mode,
+            modeLabel: setup.modeLabel,
+            category: setup.category,
+            notes: setup.notes,
+            chartId: chart.id,
+            setupId: setup.id,
+            createdAt: setup.createdAt,
+            updatedAt: setup.updatedAt
+          }))
+        );
     }
 
     function savePresets(presets) {
@@ -821,6 +836,246 @@ function renderSupportPageToolsContent() {
 
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
   return true;
+}
+
+const PUMP_CHART_CATEGORIES = [
+  "Attack Lines",
+  "Master Streams",
+  "Water Supply",
+  "Apparatus Mounted",
+  "Other"
+];
+
+let pumpChartView = {
+  screen: "list",
+  chartId: null,
+  setupId: null
+};
+
+function generatePumpChartId(prefix) {
+  if (window.crypto?.randomUUID) {
+    return `${prefix}_${window.crypto.randomUUID()}`;
+  }
+
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function nowIsoString() {
+  return new Date().toISOString();
+}
+
+function formatPumpChartDate(value) {
+  if (!value) return "Not updated";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not updated";
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function normalizePumpChartData(rawData) {
+  const charts = Array.isArray(rawData?.charts) ? rawData.charts : [];
+
+  return {
+    version: 2,
+    charts: charts.map(chart => ({
+      id: chart.id || generatePumpChartId("chart"),
+      name: String(chart.name || "Untitled Pump Chart").trim() || "Untitled Pump Chart",
+      department: String(chart.department || "").trim(),
+      notes: String(chart.notes || "").trim(),
+      createdAt: chart.createdAt || nowIsoString(),
+      updatedAt: chart.updatedAt || chart.createdAt || nowIsoString(),
+      setups: Array.isArray(chart.setups)
+        ? chart.setups.map(setup => normalizePumpChartSetup(setup))
+        : []
+    }))
+  };
+}
+
+function normalizePumpChartSetup(setup) {
+  const inputs = setup.inputs || extractInputsFromLegacyPreset(setup);
+  const result = setup.result || extractResultFromLegacyPreset(setup);
+
+  return {
+    id: setup.id || generatePumpChartId("setup"),
+    name: String(setup.name || "Untitled Setup").trim() || "Untitled Setup",
+    category: PUMP_CHART_CATEGORIES.includes(setup.category)
+      ? setup.category
+      : "Other",
+    mode: setup.mode || inputs.mode || "",
+    modeLabel: setup.modeLabel || getModeLabel(setup.mode || inputs.mode),
+    notes: String(setup.notes || "").trim(),
+    createdAt: setup.createdAt || nowIsoString(),
+    updatedAt: setup.updatedAt || setup.createdAt || nowIsoString(),
+    inputs: JSON.parse(JSON.stringify(inputs || {})),
+    result: JSON.parse(JSON.stringify(result || {})),
+    warnings: Array.isArray(setup.warnings) ? [...setup.warnings] : []
+  };
+}
+
+function loadPumpCharts() {
+  try {
+    const saved = localStorage.getItem(PUMP_CHARTS_KEY);
+    if (saved) {
+      const data = normalizePumpChartData(JSON.parse(saved));
+      localStorage.setItem(PUMP_CHARTS_KEY, JSON.stringify(data));
+      return data;
+    }
+  } catch {}
+
+  const migratedData = migrateLegacyPumpChartPresets();
+  localStorage.setItem(PUMP_CHARTS_KEY, JSON.stringify(migratedData));
+  return migratedData;
+}
+
+function savePumpCharts(data) {
+  if (!isProUser()) {
+    openProModal();
+    return false;
+  }
+
+  localStorage.setItem(PUMP_CHARTS_KEY, JSON.stringify(normalizePumpChartData(data)));
+  return true;
+}
+
+function migrateLegacyPumpChartPresets() {
+  let oldPresets = [];
+
+  try {
+    const saved = localStorage.getItem(PRESETS_KEY);
+    oldPresets = saved ? JSON.parse(saved) : [];
+  } catch {
+    oldPresets = [];
+  }
+
+  if (!Array.isArray(oldPresets) || !oldPresets.length) {
+    return { version: 2, charts: [] };
+  }
+
+  const timestamp = nowIsoString();
+
+  return {
+    version: 2,
+    charts: [
+      {
+        id: generatePumpChartId("chart"),
+        name: "Imported Setups",
+        department: "",
+        notes: "Created from saved Pump Chart setups.",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        setups: oldPresets.map(preset =>
+          normalizePumpChartSetup({
+            ...preset,
+            category: "Other",
+            modeLabel: getModeLabel(preset.mode),
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            inputs: extractInputsFromLegacyPreset(preset),
+            result: extractResultFromLegacyPreset(preset)
+          })
+        )
+      }
+    ]
+  };
+}
+
+function extractInputsFromLegacyPreset(preset = {}) {
+  return {
+    mode: preset.mode || "",
+    pdp: preset.pdp || "",
+    targetGpm: preset.targetGpm || preset.targetFlow || "",
+    relayResidualPressure:
+      preset.relayResidualPressure || (preset.mode === "relay" ? "30" : ""),
+    hoseLength: preset.hoseLength || "",
+    hoseSize: preset.hoseSize || "",
+    nozzleType: preset.nozzleType || "",
+    nozzlePressure: preset.nozzlePressure || "",
+    customNozzlePressure: preset.customNozzlePressure || "",
+    smoothboreTip: preset.smoothboreTip || "",
+    bladeModel: preset.bladeModel || "blade160",
+    masterStreamType: preset.masterStreamType || "fog",
+    masterStreamLoss: preset.masterStreamLoss || "25",
+    dualLineSupply: !!preset.dualLineSupply,
+    apparatusFogFlow: preset.apparatusFogFlow || "1000",
+    apparatusCustomFogFlow: preset.apparatusCustomFogFlow || "",
+    apparatusElevation: preset.apparatusElevation || "",
+    applianceLoss: preset.applianceLoss || "0",
+    henTurboEnabled: !!preset.henTurboEnabled,
+    reverseSupplyEnabled: !!preset.reverseSupplyEnabled,
+    reverseSupplyLength: preset.reverseSupplyLength || "",
+    reverseSupplyHoseSize: preset.reverseSupplyHoseSize || "3",
+    reverseSupplyAppliance: preset.reverseSupplyAppliance || "gateValve",
+    useCustomCoefficient: !!preset.useCustomCoefficient,
+    customCoefficient: preset.customCoefficient || "",
+    splitLay: JSON.parse(JSON.stringify(preset.splitLay || DEFAULT_STATE.splitLay))
+  };
+}
+
+function extractResultFromLegacyPreset(preset = {}) {
+  return {
+    primaryResult: preset.calculatedPdp ? `${preset.calculatedPdp} PSI` : "",
+    primaryResultLabel: preset.mode === "reverse" ? "Pump Discharge Pressure" : "Required PDP",
+    calculatedPdp: preset.calculatedPdp || "",
+    calculatedFlow: preset.calculatedFlow || "",
+    summary: buildLegacyPresetSummary(preset)
+  };
+}
+
+function getModeLabel(mode) {
+  if (mode === "requiredPdp") return "Required PDP";
+  if (mode === "relay") return "Relay Pumping";
+  if (mode === "splitLay") return "Split Lay";
+  if (mode === "apparatusMounted") return "Apparatus Mounted";
+  return "Reverse Flow";
+}
+
+function findPumpChart(chartId) {
+  return loadPumpCharts().charts.find(chart => chart.id === chartId) || null;
+}
+
+function findPumpChartSetup(chartId, setupId) {
+  const chart = findPumpChart(chartId);
+  if (!chart) return { chart: null, setup: null };
+
+  return {
+    chart,
+    setup: chart.setups.find(item => item.id === setupId) || null
+  };
+}
+
+function getPumpChartCategoryCount(chart) {
+  return PUMP_CHART_CATEGORIES.filter(category =>
+    chart.setups.some(setup => setup.category === category)
+  ).length;
+}
+
+function getLastViewedPumpChartId() {
+  try {
+    return localStorage.getItem(LAST_VIEWED_PUMP_CHART_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setLastViewedPumpChartId(chartId) {
+  if (!chartId) return;
+
+  try {
+    localStorage.setItem(LAST_VIEWED_PUMP_CHART_KEY, chartId);
+  } catch {}
+}
+
+function clearLastViewedPumpChartId(chartId) {
+  if (!chartId || getLastViewedPumpChartId() !== chartId) return;
+
+  try {
+    localStorage.removeItem(LAST_VIEWED_PUMP_CHART_KEY);
+  } catch {}
 }
 
     // ========================================
@@ -1669,142 +1924,1029 @@ function applyHoseLibraryDefault(libraryId) {
 }
 
       function renderPumpChart() {
+  if (!els.pumpChartList) return;
 
-  const presets = loadPresets();
+  if (pumpChartView.screen === "save") {
+    renderSavePumpChartForm();
+    return;
+  }
 
-  if (!presets.length) {
+  if (pumpChartView.screen === "detail" && pumpChartView.chartId) {
+    renderPumpChartDetail(pumpChartView.chartId);
+    return;
+  }
+
+  if (pumpChartView.screen === "setup" && pumpChartView.chartId && pumpChartView.setupId) {
+    renderPumpChartSetupDetail(pumpChartView.chartId, pumpChartView.setupId);
+    return;
+  }
+
+  renderPumpChartList();
+}
+
+function setPumpChartSubtitle(text) {
+  if (els.pumpChartModalSubtitle) {
+    els.pumpChartModalSubtitle.textContent = text;
+  }
+}
+
+function renderPumpChartList() {
+  const data = loadPumpCharts();
+  pumpChartView = { screen: "list", chartId: null, setupId: null };
+  setPumpChartSubtitle("Department pump chart reference cards and saved hydraulic setups.");
+
+  if (!data.charts.length) {
     els.pumpChartList.innerHTML = `
       <div class="disabled-note">
-        No saved pump chart setups yet.
+        No Pump Charts saved yet.
       </div>
     `;
     return;
   }
 
-  els.pumpChartList.innerHTML = presets.map(preset => {
-
-    const isSplitLayPreset = preset.mode === "splitLay";
-
-    const nozzleDisplay = isSplitLayPreset
-      ? "Split Lay Setup"
-      : preset.nozzleType === "smoothbore"
-        ? `${preset.smoothboreTip || "SB"} Smoothbore`
-        : preset.nozzleType === "blade"
-          ? getBladeModelLabel(preset.bladeModel)
-          : `Fog @ ${preset.nozzlePressure} psi`;
-
-    const typeLabel =
-  preset.mode === "requiredPdp"
-    ? "REQUIRED PDP"
-    : preset.mode === "relay"
-      ? "RELAY"
-      : preset.mode === "splitLay"
-        ? "SPLIT LAY"
-        : "REVERSE FLOW";
-
-    const splitLay = preset.splitLay || {};
-
-const splitAttackCount = splitLay.attackLines || "1";
-const splitSectionCount = splitLay.sectionCount || "2";
-const dualSupply = splitLay.dualSupply ? "Dual Supply 1" : "Single Supply 1";
-
-const splitSupply1 =
-  `S1 • ${splitLay.supplyLength || "—"}' ${splitLay.supplyHoseSize || "—"}`;
-
-const splitSupply2 =
-  splitSectionCount === "3"
-    ? `<br>S2 • ${splitLay.supply2Length || "—"}' ${splitLay.supply2HoseSize || "—"}`
-    : "";
-
-const attack1Description =
-  splitLay.attack1NozzleType === "smoothbore"
-    ? `${splitLay.attack1SmoothboreTip || "SB"} SB`
-    : splitLay.attack1NozzleType === "blade"
-      ? getBladeModelLabel(splitLay.attack1BladeModel)
-    : `${splitLay.attack1Flow || "—"} GPM Fog`;
-
-const attack2Description =
-  splitLay.attack2NozzleType === "smoothbore"
-    ? `${splitLay.attack2SmoothboreTip || "SB"} SB`
-    : splitLay.attack2NozzleType === "blade"
-      ? getBladeModelLabel(splitLay.attack2BladeModel)
-    : `${splitLay.attack2Flow || "—"} GPM Fog`;
-
-const splitAttack1 =
-  `A1 • ${splitLay.attack1Length || "—"}' ${splitLay.attack1HoseSize || "—"} • ${attack1Description}`;
-
-const splitAttack2 =
-  splitAttackCount === "2"
-    ? `<br>A2 • ${splitLay.attack2Length || "—"}' ${splitLay.attack2HoseSize || "—"} • ${attack2Description}`
-    : "";
-
-const setupSummary =
-  preset.mode === "relay"
-    ? `${preset.calculatedFlow || "—"} • ${preset.hoseLength || "—"}' ${preset.hoseSize || "—"}`
-    : isSplitLayPreset
-      ? `
-        ${splitSupply1}
-        ${splitSupply2}
-        <br><br>
-        ${splitAttack1}
-        ${splitAttack2}
-      `
-      : `${preset.calculatedFlow || "—"} • ${preset.hoseLength || "—"}' ${preset.hoseSize || "—"} • ${nozzleDisplay}`;
-
-    const turboSummary =
-      preset.henTurboEnabled && !isSplitLayPreset && preset.mode !== "relay"
-        ? `<div class="pump-chart-card-summary">HEN Turbo included</div>`
-        : "";
+  els.pumpChartList.innerHTML = data.charts.map(chart => {
+    const categoryCount = getPumpChartCategoryCount(chart);
 
     return `
-      <div class="section-card pump-chart-card">
-        <div class="pump-chart-card-header">
-
-          <strong class="pump-chart-card-title">
-            ${preset.name}
-          </strong>
-
-          <div class="pump-chart-card-badge">
-            ${typeLabel}
-          </div>
-
-        </div>
-
+    <div class="section-card pump-chart-card pump-chart-container-card">
+      <div class="pump-chart-card-header">
         <div>
-
-          <div class="pump-chart-card-result">
-           ${preset.calculatedPdp ? `${preset.calculatedPdp} PSI` : "—"}
-          </div>
-
-          <div class="pump-chart-card-summary">
-            ${setupSummary}
-          </div>
-
-          ${turboSummary}
-
+          <strong class="pump-chart-card-title">${escapeHtml(chart.name)}</strong>
+          ${chart.department ? `<p class="pump-chart-meta">${escapeHtml(chart.department)}</p>` : ""}
         </div>
+        <div class="pump-chart-card-badge">${chart.setups.length} Setups</div>
+      </div>
+      <div class="pump-chart-card-summary">
+        Last updated ${escapeHtml(formatPumpChartDate(chart.updatedAt))}
+      </div>
+      <div class="pump-chart-card-summary pump-chart-card-subsummary">
+        ${categoryCount} ${categoryCount === 1 ? "Category" : "Categories"} • ${chart.setups.length} ${chart.setups.length === 1 ? "Setup" : "Setups"}
+      </div>
+      <div class="pump-chart-card-actions">
+        <button class="small-button" type="button" onclick="openPumpChartDetail('${chart.id}')">Open</button>
+        <button class="small-button" type="button" onclick="editPumpChartMetadata('${chart.id}')">Edit</button>
+        <button class="small-button danger-button" type="button" onclick="deletePumpChart('${chart.id}')">Delete</button>
+      </div>
+    </div>
+  `;
+  }).join("");
+}
 
-        <div class="pump-chart-card-actions">
+function renderPumpChartDetail(chartId, options = {}) {
+  const chart = findPumpChart(chartId);
+  if (!chart) {
+    renderPumpChartList();
+    return;
+  }
 
-          <button
-            class="small-button"
-            onclick="loadPumpChartPreset('${preset.id}')"
-          >
-            Load Setup
-          </button>
+  if (options.persist !== false) {
+    setLastViewedPumpChartId(chartId);
+  }
 
-          <button
-            class="small-button"
-            onclick="deletePumpChartPreset('${preset.id}')"
-          >
-            Delete
-          </button>
+  pumpChartView = { screen: "detail", chartId, setupId: null };
+  setPumpChartSubtitle("Printable department reference card.");
 
+  const groupedSections = PUMP_CHART_CATEGORIES.map(category => {
+    const setups = chart.setups.filter(setup => setup.category === category);
+    if (!setups.length) return "";
+
+    return `
+      <section class="pump-chart-document-section">
+        <h3>${escapeHtml(category.toUpperCase())} (${setups.length})</h3>
+        ${setups.map(setup => renderPumpChartSetupRow(chart.id, setup)).join("")}
+      </section>
+    `;
+  }).join("") || `
+    <div class="disabled-note">
+      No setups saved in this Pump Chart.
+    </div>
+  `;
+
+  els.pumpChartList.innerHTML = `
+    <div class="pump-chart-toolbar">
+      <button class="small-button" type="button" onclick="showPumpChartsList()">Back</button>
+      <button class="small-button" type="button" onclick="exportPumpChart('${chart.id}')">Export / Share</button>
+    </div>
+    <article class="pump-chart-document">
+      <header class="pump-chart-document-header">
+        <p>REVERSE FLOW PUMP CHART</p>
+        <h2>${escapeHtml(chart.name)}</h2>
+        ${chart.department ? `<strong>${escapeHtml(chart.department)}</strong>` : ""}
+        <div class="pump-chart-document-meta">
+          <span>${chart.setups.length} ${chart.setups.length === 1 ? "Setup" : "Setups"} • Updated ${escapeHtml(formatPumpChartDate(chart.updatedAt))}</span>
+        </div>
+        ${chart.notes ? `<p class="pump-chart-document-notes">${escapeHtml(chart.notes)}</p>` : ""}
+      </header>
+      ${groupedSections}
+    </article>
+  `;
+}
+
+function renderPumpChartSetupRow(chartId, setup) {
+  const configSummary = getSetupConfigurationSummary(setup);
+  const modeBadge = getSetupModeBadgeLabel(setup);
+
+  return `
+    <div class="pump-chart-setup-row">
+      <div class="pump-chart-setup-primary">
+        <strong class="pump-chart-setup-name">${escapeHtml(setup.name)}</strong>
+        <p class="pump-chart-config-summary">${escapeHtml(configSummary)}</p>
+      </div>
+      <div class="pump-chart-setup-aside">
+        <span class="pump-chart-mode-badge" data-mode="${escapeHtml(setup.mode || "")}">${escapeHtml(modeBadge)}</span>
+        <div class="pump-chart-row-result">${escapeHtml(getSetupHydraulicSummary(setup))}</div>
+      </div>
+      <div class="pump-chart-row-actions">
+        <button class="small-button" type="button" onclick="viewPumpChartSetup('${chartId}', '${setup.id}')">View</button>
+        <button class="small-button" type="button" onclick="loadPumpChartSetup('${chartId}', '${setup.id}')">Load</button>
+        <button class="small-button danger-button" type="button" onclick="deletePumpChartSetup('${chartId}', '${setup.id}')">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderPumpChartSetupDetail(chartId, setupId) {
+  const { chart, setup } = findPumpChartSetup(chartId, setupId);
+  if (!chart || !setup) {
+    renderPumpChartDetail(chartId);
+    return;
+  }
+
+  pumpChartView = { screen: "setup", chartId, setupId };
+  setPumpChartSubtitle("Saved hydraulic reference snapshot.");
+  const referenceSections = getSetupReferenceSections(setup);
+
+  els.pumpChartList.innerHTML = `
+    <div class="pump-chart-toolbar">
+      <button class="small-button" type="button" onclick="openPumpChartDetail('${chart.id}')">Back</button>
+      <button class="small-button" type="button" onclick="loadPumpChartSetup('${chart.id}', '${setup.id}')">Load Into Calculator</button>
+    </div>
+    <article class="pump-chart-document">
+      <header class="pump-chart-document-header">
+        <p>SETUP REFERENCE CARD</p>
+        <h2>${escapeHtml(setup.name)}</h2>
+        <strong>${escapeHtml(chart.name)}</strong>
+        <div class="pump-chart-document-meta">
+          <span>${escapeHtml(setup.category)}</span>
+          <span>${escapeHtml(setup.modeLabel || getModeLabel(setup.mode))}</span>
+        </div>
+      </header>
+
+      <section class="pump-chart-reference-card">
+        <h3>Operational Summary</h3>
+        <strong class="pump-chart-reference-result">${escapeHtml(getSetupHydraulicSummary(setup))}</strong>
+        <p class="pump-chart-reference-config">${escapeHtml(getSetupConfigurationSummary(setup))}</p>
+        ${referenceSections.map(section => renderReferenceCardSection(section)).join("")}
+      </section>
+
+      ${setup.notes ? `<section class="pump-chart-document-section"><h3>NOTES</h3><p>${escapeHtml(setup.notes)}</p></section>` : ""}
+      <details class="pump-chart-advanced-details">
+        <summary>Show Full Calculation</summary>
+        <div class="pump-chart-advanced-content">
+          <div class="pump-chart-setup-detail-grid">
+            <div>
+              <p>Mode</p>
+              <strong>${escapeHtml(setup.modeLabel || getModeLabel(setup.mode))}</strong>
+            </div>
+            <div>
+              <p>Created</p>
+              <strong>${escapeHtml(formatPumpChartDate(setup.createdAt))}</strong>
+            </div>
+            <div>
+              <p>Updated</p>
+              <strong>${escapeHtml(formatPumpChartDate(setup.updatedAt))}</strong>
+            </div>
+          </div>
+          ${renderSetupDetailSection("Key Inputs", getSetupInputRows(setup))}
+          ${renderSetupDetailSection("Calculation Breakdown", getSetupBreakdownRows(setup))}
+          ${setup.warnings?.length ? renderSetupDetailSection("Warnings", setup.warnings.map(warning => ["Warning", warning])) : ""}
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+function renderReferenceCardSection(section) {
+  if (!section.rows.length) return "";
+
+  return `
+    <div class="pump-chart-reference-section">
+      <h3>${escapeHtml(section.title)}</h3>
+      ${section.rows.map(row => `
+        <div class="pump-chart-reference-row">
+          <span>${escapeHtml(row.label)}</span>
+          <strong>${escapeHtml(row.value)}</strong>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSetupDetailSection(title, rows) {
+  if (!rows.length) return "";
+
+  return `
+    <section class="pump-chart-document-section">
+      <h3>${escapeHtml(title.toUpperCase())}</h3>
+      <div class="pump-chart-detail-table">
+        ${rows.map(([label, value]) => `
+          <div>
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value || "-")}</strong>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderSavePumpChartForm() {
+  const data = loadPumpCharts();
+  const firstChartId = data.charts[0]?.id || "";
+  setPumpChartSubtitle("Save the current calculation into a Pump Chart.");
+
+  els.pumpChartList.innerHTML = `
+    <form class="pump-chart-save-form" id="pumpChartSaveForm">
+      <div class="pump-chart-toolbar">
+        <button class="small-button" type="button" onclick="showPumpChartsList()">Cancel</button>
+      </div>
+
+      <div class="field full">
+        <label>Save Destination</label>
+        <select id="pumpChartSaveMode">
+          <option value="existing" ${data.charts.length ? "" : "disabled"}>Select Existing Pump Chart</option>
+          <option value="new" ${data.charts.length ? "" : "selected"}>Create New Pump Chart</option>
+        </select>
+      </div>
+
+      <div class="field full" id="pumpChartExistingField" ${data.charts.length ? "" : "hidden"}>
+        <label>Existing Pump Chart</label>
+        <select id="pumpChartExistingSelect">
+          ${data.charts.map(chart => `<option value="${escapeHtml(chart.id)}" ${chart.id === firstChartId ? "selected" : ""}>${escapeHtml(chart.name)}</option>`).join("")}
+        </select>
+      </div>
+
+      <div class="pump-chart-new-fields" id="pumpChartNewFields" ${data.charts.length ? "hidden" : ""}>
+        <div class="field full">
+          <label>Pump Chart Name</label>
+          <input id="pumpChartNewName" type="text" placeholder="Engine 1" />
+        </div>
+        <div class="field full">
+          <label>Department / Company</label>
+          <input id="pumpChartNewDepartment" type="text" placeholder="Optional" />
+        </div>
+        <div class="field full">
+          <label>Chart Notes</label>
+          <textarea id="pumpChartNewNotes" rows="2" placeholder="Optional"></textarea>
         </div>
       </div>
-    `;
 
-  }).join("");
+      <div class="field full">
+        <label>Setup Name</label>
+        <input id="pumpChartSetupName" type="text" required placeholder="200' 1.88 Fog" />
+      </div>
+
+      <div class="field full">
+        <label>Category</label>
+        <select id="pumpChartSetupCategory" required>
+          ${PUMP_CHART_CATEGORIES.map(category => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join("")}
+        </select>
+      </div>
+
+      <div class="field full">
+        <label>Notes</label>
+        <textarea id="pumpChartSetupNotes" rows="3" placeholder="Optional"></textarea>
+      </div>
+
+      <button class="small-button pump-chart-primary-action" type="submit">Save Setup</button>
+    </form>
+  `;
+
+  const saveMode = document.getElementById("pumpChartSaveMode");
+  const existingField = document.getElementById("pumpChartExistingField");
+  const newFields = document.getElementById("pumpChartNewFields");
+
+  saveMode?.addEventListener("change", () => {
+    const creatingNewChart = saveMode.value === "new";
+    if (existingField) existingField.hidden = creatingNewChart;
+    if (newFields) newFields.hidden = !creatingNewChart;
+  });
+
+  document
+    .getElementById("pumpChartSaveForm")
+    ?.addEventListener("submit", event => {
+      event.preventDefault();
+      submitPumpChartSaveForm();
+    });
+}
+
+function submitPumpChartSaveForm() {
+  if (!isProUser()) {
+    openProModal();
+    return;
+  }
+
+  const setupName = document.getElementById("pumpChartSetupName")?.value.trim();
+  const category = document.getElementById("pumpChartSetupCategory")?.value;
+  const setupNotes = document.getElementById("pumpChartSetupNotes")?.value.trim() || "";
+  const saveMode = document.getElementById("pumpChartSaveMode")?.value || "existing";
+
+  if (!setupName) {
+    alert("Setup Name is required.");
+    return;
+  }
+
+  if (!PUMP_CHART_CATEGORIES.includes(category)) {
+    alert("Select a setup category.");
+    return;
+  }
+
+  const data = loadPumpCharts();
+  const timestamp = nowIsoString();
+  let targetChart = null;
+
+  if (saveMode === "new") {
+    const chartName = document.getElementById("pumpChartNewName")?.value.trim();
+    if (!chartName) {
+      alert("Pump Chart Name is required.");
+      return;
+    }
+
+    targetChart = {
+      id: generatePumpChartId("chart"),
+      name: chartName,
+      department: document.getElementById("pumpChartNewDepartment")?.value.trim() || "",
+      notes: document.getElementById("pumpChartNewNotes")?.value.trim() || "",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      setups: []
+    };
+    data.charts.push(targetChart);
+  } else {
+    const chartId = document.getElementById("pumpChartExistingSelect")?.value;
+    targetChart = data.charts.find(chart => chart.id === chartId);
+    if (!targetChart) {
+      alert("Select an existing Pump Chart or create a new one.");
+      return;
+    }
+  }
+
+  const setup = buildCurrentPumpChartSetup({
+    name: setupName,
+    category,
+    notes: setupNotes,
+    timestamp
+  });
+
+  targetChart.setups.push(setup);
+  targetChart.updatedAt = timestamp;
+
+  if (!savePumpCharts(data)) return;
+
+  renderPresetOptions();
+  pumpChartView = { screen: "detail", chartId: targetChart.id, setupId: null };
+  renderPumpChart();
+}
+
+function buildCurrentPumpChartSetup({ name, category, notes, timestamp }) {
+  const presetData = buildPresetData();
+  const snapshot = captureCurrentResultSnapshot(presetData);
+
+  return normalizePumpChartSetup({
+    id: generatePumpChartId("setup"),
+    name,
+    category,
+    mode: state.mode || "",
+    modeLabel: getModeLabel(state.mode),
+    notes,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    inputs: extractInputsFromLegacyPreset({
+      ...presetData,
+      mode: state.mode
+    }),
+    result: snapshot,
+    warnings: getCurrentWarnings()
+  });
+}
+
+function captureCurrentResultSnapshot(presetData) {
+  return {
+    primaryResult: getCurrentPrimaryResult(),
+    primaryResultLabel: els.primaryResultLabel?.textContent || "Primary Result",
+    flowSummary: getCurrentFlowSummary(presetData),
+    pdpSummary: getCurrentPdpSummary(presetData),
+    calculatedPdp: presetData.calculatedPdp || "",
+    calculatedFlow: presetData.calculatedFlow || "",
+    totalFl: els.totalFl?.textContent || "",
+    flPer100: els.flPer100?.textContent || "",
+    nozzleDisplay: els.nozzleDisplay?.textContent || "",
+    nozzleReaction: els.nozzleReaction?.textContent || "",
+    setupDisplay: els.setupDisplay?.textContent || "",
+    turboLossDisplay: els.turboLossDisplay?.textContent || "",
+    splitSupplyLayoutResult: els.splitSupplyLayoutResult?.textContent || "",
+    splitSupplyFlow: els.splitSupplyFlow?.textContent || "",
+    splitSupplyLoss: els.splitSupplyLoss?.textContent || "",
+    splitApplianceLoss: els.splitApplianceLoss?.textContent || "",
+    splitAttack1FlowResult: els.splitAttack1FlowResult?.textContent || "",
+    splitAttack1NpResult: els.splitAttack1NpResult?.textContent || "",
+    splitAttack1FlResult: els.splitAttack1FlResult?.textContent || "",
+    splitAttack1ReactionResult: els.splitAttack1ReactionResult?.textContent || "",
+    splitAttack2FlowResult: els.splitAttack2FlowResult?.textContent || "",
+    splitAttack2NpResult: els.splitAttack2NpResult?.textContent || "",
+    splitAttack2FlResult: els.splitAttack2FlResult?.textContent || "",
+    splitAttack2ReactionResult: els.splitAttack2ReactionResult?.textContent || "",
+    summary: buildLegacyPresetSummary(presetData)
+  };
+}
+
+function getCurrentPrimaryResult() {
+  if (isSplitLayMode()) {
+    return els.splitPrimaryPdp?.textContent || "";
+  }
+
+  const value = els.roundedGpm?.textContent || "";
+  const unit = els.primaryResultUnit?.textContent || "";
+  return value && value !== "—" ? `${value} ${unit}`.trim() : "";
+}
+
+function getCurrentFlowSummary(presetData = {}) {
+  if (state.mode === "splitLay") {
+    return "";
+  }
+
+  const flowValue = state.mode === "reverse"
+    ? els.roundedGpm?.textContent
+    : presetData.calculatedFlow || els.calculatedGpm?.textContent || state.targetGpm;
+
+  return formatGpmValue(flowValue);
+}
+
+function getCurrentPdpSummary(presetData = {}) {
+  if (state.mode === "reverse") {
+    return formatPsiValue(state.pdp || presetData.calculatedPdp);
+  }
+
+  if (state.mode === "splitLay") {
+    return formatPsiValue(els.splitPrimaryPdp?.textContent || presetData.calculatedPdp);
+  }
+
+  return formatPsiValue(presetData.calculatedPdp || els.roundedGpm?.textContent);
+}
+
+function hasValidRenderedCalculation() {
+  const value = isSplitLayMode()
+    ? els.splitPrimaryPdp?.textContent || ""
+    : els.roundedGpm?.textContent || "";
+
+  const normalizedValue = String(value).trim();
+
+  return Boolean(normalizedValue) &&
+    normalizedValue !== "—" &&
+    normalizedValue !== "— PSI" &&
+    normalizedValue !== "-";
+}
+
+function getCurrentWarnings() {
+  if (!els.warningsCard || els.warningsCard.hidden) return [];
+
+  return [...els.warningsCard.querySelectorAll(".warning-item")]
+    .map(item => item.textContent.trim())
+    .filter(Boolean);
+}
+
+function getSetupPrimarySummary(setup) {
+  return setup.result?.primaryResult ||
+    (setup.result?.calculatedPdp ? `${setup.result.calculatedPdp} PSI` : "") ||
+    setup.result?.summary ||
+    "-";
+}
+
+function getSetupModeBadgeLabel(setup) {
+  if (setup.mode === "requiredPdp") return "REQUIRED PDP";
+  if (setup.mode === "splitLay") return "SPLIT LAY";
+  if (setup.mode === "relay") return "RELAY";
+  if (setup.mode === "apparatusMounted") return "APPARATUS";
+  if (setup.mode === "reverse") return "REVERSE FLOW";
+
+  return String(setup.modeLabel || getModeLabel(setup.mode))
+    .trim()
+    .toUpperCase();
+}
+
+function getSetupConfigurationSummary(setup) {
+  const inputs = setup.inputs || {};
+
+  if (setup.mode === "splitLay") {
+    return getSplitLayConfigurationSummary(inputs.splitLay || {});
+  }
+
+  if (setup.mode === "apparatusMounted") {
+    return getApparatusMountedConfigurationSummary(inputs);
+  }
+
+  if (setup.mode === "relay") {
+    return getRelayConfigurationSummary(inputs);
+  }
+
+  if (inputs.nozzleType === "masterstream") {
+    return [
+      "Master Stream",
+      getTargetFlowSummary(inputs)
+    ].filter(Boolean).join("\n");
+  }
+
+  const summary = [
+    formatLengthAndHose(inputs.hoseLength, inputs.hoseSize),
+    getNozzleConfigurationLabel(inputs)
+  ].filter(Boolean).join(" ");
+
+  return summary || setup.modeLabel || getModeLabel(setup.mode);
+}
+
+function getSetupHydraulicSummary(setup) {
+  const result = setup.result || {};
+  const flow = result.flowSummary || getSetupFlowSummary(setup);
+  const pdp = result.pdpSummary || getSetupPdpSummary(setup);
+
+  if (setup.mode === "splitLay") {
+    return pdp ? `PDP ${pdp}` : getSetupPrimarySummary(setup);
+  }
+
+  if (setup.mode === "relay") {
+    const residual = getRelayResidualSummary(setup);
+    const relayResult = pdp ? `PDP ${pdp}` : getSetupPrimarySummary(setup);
+    return residual ? `${relayResult}\n${residual}` : relayResult;
+  }
+
+  if (flow && pdp) return `${flow} • PDP ${pdp}`;
+  if (flow) return flow;
+  if (pdp) return `PDP ${pdp}`;
+
+  return getSetupPrimarySummary(setup);
+}
+
+function getSplitLayConfigurationSummary(splitLay = {}) {
+  const supplyLine = getSplitSupplySummary(splitLay);
+  const attackLine = getSplitAttackSummary(splitLay);
+
+  return [supplyLine, attackLine].filter(Boolean).join("\n") || "Split Lay";
+}
+
+function getSplitSupplySummary(splitLay = {}) {
+  const supply1 = {
+    length: splitLay.supplyLength,
+    hoseSize: splitLay.supplyHoseSize
+  };
+
+  if (splitLay.dualSupply) {
+    return `2 x ${formatSupplyDescription(supply1.length, supply1.hoseSize)}`.trim();
+  }
+
+  if (String(splitLay.sectionCount || "2") !== "3") {
+    return formatSupplyDescription(supply1.length, supply1.hoseSize);
+  }
+
+  const supply2 = {
+    length: splitLay.supply2Length,
+    hoseSize: splitLay.supply2HoseSize
+  };
+
+  if (areSplitSupplyLinesIdentical(supply1, supply2)) {
+    return `2 x ${formatSupplyDescription(supply1.length, supply1.hoseSize)}`.trim();
+  }
+
+  return [
+    formatSupplyDescription(supply1.length, supply1.hoseSize),
+    formatSupplyDescription(supply2.length, supply2.hoseSize)
+  ].filter(Boolean).join(" + ");
+}
+
+function getSplitAttackSummary(splitLay = {}) {
+  const attack1 = getSplitAttackLineSummary(splitLay, "1");
+
+  if (String(splitLay.attackLines || "1") !== "2") {
+    return attack1;
+  }
+
+  const attack2 = getSplitAttackLineSummary(splitLay, "2");
+
+  if (areSplitAttackLinesIdentical(splitLay)) {
+    return `2 x ${attack1}`.trim();
+  }
+
+  return [attack1, attack2].filter(Boolean).join(" + ");
+}
+
+function getSplitAttackLineSummary(splitLay = {}, lineNumber) {
+  return [
+    formatLengthAndHose(
+      splitLay[`attack${lineNumber}Length`],
+      splitLay[`attack${lineNumber}HoseSize`]
+    ),
+    getSplitNozzleConfigurationLabel(splitLay, lineNumber)
+  ].filter(Boolean).join(" ");
+}
+
+function areSplitSupplyLinesIdentical(supply1, supply2) {
+  return normalizeComparableValue(supply1.length) === normalizeComparableValue(supply2.length) &&
+    normalizeComparableValue(supply1.hoseSize) === normalizeComparableValue(supply2.hoseSize);
+}
+
+function areSplitAttackLinesIdentical(splitLay = {}) {
+  return normalizeComparableValue(splitLay.attack1Length) === normalizeComparableValue(splitLay.attack2Length) &&
+    normalizeComparableValue(splitLay.attack1HoseSize) === normalizeComparableValue(splitLay.attack2HoseSize) &&
+    normalizeComparableValue(splitLay.attack1NozzleType || "fog") === normalizeComparableValue(splitLay.attack2NozzleType || "fog") &&
+    normalizeComparableValue(getSplitNozzleDetailValue(splitLay, "1")) === normalizeComparableValue(getSplitNozzleDetailValue(splitLay, "2"));
+}
+
+function getSplitNozzleDetailValue(splitLay = {}, lineNumber) {
+  const type = splitLay[`attack${lineNumber}NozzleType`] || "fog";
+
+  if (type === "smoothbore") {
+    return splitLay[`attack${lineNumber}SmoothboreTip`] || "";
+  }
+
+  if (type === "blade") {
+    return splitLay[`attack${lineNumber}BladeModel`] || "blade160";
+  }
+
+  return splitLay[`attack${lineNumber}NozzlePressure`] || "";
+}
+
+function normalizeComparableValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getApparatusMountedConfigurationSummary(inputs = {}) {
+  const flow = inputs.apparatusFogFlow === "custom"
+    ? inputs.apparatusCustomFogFlow
+    : inputs.apparatusFogFlow;
+
+  const parts = [
+    getMasterStreamConfigurationLabel(inputs),
+    formatGpmValue(flow)
+  ].filter(Boolean);
+
+  return parts.join("\n") || "Apparatus Mounted";
+}
+
+function getRelayConfigurationSummary(inputs = {}) {
+  const parts = [
+    formatLengthAndHose(inputs.hoseLength, inputs.hoseSize, "Relay"),
+    formatGpmValue(inputs.targetGpm)
+  ].filter(Boolean);
+
+  return parts.join("\n") || "Relay Pumping";
+}
+
+function getMasterStreamConfigurationLabel(inputs = {}) {
+  if (inputs.masterStreamType === "smoothbore") return "Smoothbore";
+  if (inputs.masterStreamType === "fixedFog") return "Fixed Fog";
+  return "Fog";
+}
+
+function getNozzleConfigurationLabel(inputs = {}) {
+  if (inputs.nozzleType === "smoothbore") return "Smoothbore";
+  if (inputs.nozzleType === "blade") return "Blade";
+  if (inputs.nozzleType === "masterstream") {
+    return getMasterStreamConfigurationLabel(inputs);
+  }
+
+  return "Fog";
+}
+
+function getSplitNozzleConfigurationLabel(splitLay = {}, lineNumber) {
+  const type = splitLay[`attack${lineNumber}NozzleType`];
+  if (type === "smoothbore") return "Smoothbore";
+  if (type === "blade") return "Blade";
+  return "Fog";
+}
+
+function formatLengthAndHose(length, hoseSize, label = "") {
+  const normalizedLength = String(length || "").trim();
+  const normalizedHose = String(hoseSize || "").trim();
+  const prefix = label ? `${label} ` : "";
+
+  if (normalizedLength && normalizedHose) {
+    return `${prefix}${normalizedLength}' ${formatHoseSize(normalizedHose)}`;
+  }
+
+  if (normalizedHose) {
+    return `${prefix}${formatHoseSize(normalizedHose)}`;
+  }
+
+  if (normalizedLength) {
+    return `${prefix}${normalizedLength}'`;
+  }
+
+  return "";
+}
+
+function formatSupplyDescription(length, hoseSize) {
+  const line = formatLengthAndHose(length, hoseSize);
+  return line ? `${line} Supply` : "Supply";
+}
+
+function formatHoseSize(hoseSize) {
+  const normalized = String(hoseSize || "").trim();
+  if (!normalized) return "";
+  if (normalized.includes('"')) return normalized;
+  return `${normalized}"`;
+}
+
+function getApplianceLabel(appliance) {
+  if (appliance === "gatedWye") return "Gated Wye";
+  if (appliance === "gateValve") return "Gate Valve";
+  if (appliance === "reducer") return "Reducer";
+  if (appliance === "siamese") return "Siamese";
+  return "";
+}
+
+function hasManualApplianceLoss(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue !== 0;
+}
+
+function getRelayResidualSummary(setup) {
+  if (setup.mode !== "relay") return "";
+
+  const residual = formatPsiValue(setup.inputs?.relayResidualPressure);
+  return residual ? `Residual ${residual}` : "";
+}
+
+function getSetupReferenceSections(setup) {
+  if (setup.mode === "splitLay") {
+    return getSplitLayReferenceSections(setup);
+  }
+
+  const inputs = setup.inputs || {};
+  const result = setup.result || {};
+  const configurationRows = [];
+  const operationalRows = [];
+
+  if (setup.mode === "apparatusMounted") {
+    configurationRows.push(
+      ["Stream", getMasterStreamConfigurationLabel(inputs)],
+      ["Rated Flow", getTargetFlowSummary(inputs)]
+    );
+  } else if (setup.mode === "relay") {
+    configurationRows.push(
+      ["Relay Lay", formatLengthAndHose(inputs.hoseLength, inputs.hoseSize)],
+      ["Target Flow", formatGpmValue(inputs.targetGpm)]
+    );
+  } else if (inputs.nozzleType === "masterstream") {
+    configurationRows.push(
+      ["Stream", getMasterStreamConfigurationLabel(inputs)],
+      ["Target Flow", getTargetFlowSummary(inputs)],
+      ["Supply", formatLengthAndHose(inputs.hoseLength, inputs.hoseSize)]
+    );
+  } else {
+    configurationRows.push(
+      ["Line", formatLengthAndHose(inputs.hoseLength, inputs.hoseSize)],
+      ["Nozzle", getNozzleConfigurationLabel(inputs)]
+    );
+  }
+
+  const nozzlePressure = getNozzlePressureSummary(inputs);
+  if (nozzlePressure) operationalRows.push(["Nozzle Pressure", nozzlePressure]);
+
+  if (result.nozzleReaction && result.nozzleReaction !== "—") {
+    operationalRows.push(["Nozzle Reaction", result.nozzleReaction]);
+  }
+
+  if (inputs.reverseSupplyEnabled) {
+    configurationRows.push(
+      ["Supply", formatLengthAndHose(inputs.reverseSupplyLength, inputs.reverseSupplyHoseSize)],
+      ["Appliance", getApplianceLabel(inputs.reverseSupplyAppliance)]
+    );
+  }
+
+  if (hasManualApplianceLoss(inputs.applianceLoss)) {
+    operationalRows.push(["Loss / Elevation", formatPsiValue(inputs.applianceLoss)]);
+  }
+
+  return [
+    {
+      title: "Configuration",
+      rows: configurationRows
+        .filter(([, value]) => value)
+        .map(([label, value]) => ({ label, value }))
+    },
+    {
+      title: "Operational",
+      rows: operationalRows
+        .filter(([, value]) => value)
+        .map(([label, value]) => ({ label, value }))
+    }
+  ].filter(section => section.rows.length);
+}
+
+function getSplitLayReferenceSections(setup) {
+  const splitLay = setup.inputs?.splitLay || {};
+  const result = setup.result || {};
+  const supplyRows = [
+    {
+      label: "Supply",
+      value: splitLay.dualSupply
+        ? `2 x ${formatLengthAndHose(splitLay.supplyLength, splitLay.supplyHoseSize)}`
+        : formatLengthAndHose(splitLay.supplyLength, splitLay.supplyHoseSize)
+    },
+    {
+      label: "Appliance",
+      value: getApplianceLabel(splitLay.appliance1)
+    }
+  ];
+
+  if (String(splitLay.sectionCount || "2") === "3") {
+    supplyRows.push({
+      label: "Second Supply",
+      value: formatLengthAndHose(splitLay.supply2Length, splitLay.supply2HoseSize)
+    });
+  }
+
+  const attackRows = [
+    {
+      label: "Attack 1",
+      value: `${formatLengthAndHose(splitLay.attack1Length, splitLay.attack1HoseSize)} ${getSplitNozzleConfigurationLabel(splitLay, "1")}`.trim()
+    }
+  ];
+
+  if (String(splitLay.attackLines || "1") === "2") {
+    attackRows.push({
+      label: "Attack 2",
+      value: `${formatLengthAndHose(splitLay.attack2Length, splitLay.attack2HoseSize)} ${getSplitNozzleConfigurationLabel(splitLay, "2")}`.trim()
+    });
+  }
+
+  const operationalRows = [
+    {
+      label: "Attack 1 Flow",
+      value: result.splitAttack1FlowResult
+    },
+    {
+      label: "Attack 1 NP",
+      value: result.splitAttack1NpResult
+    }
+  ];
+
+  if (String(splitLay.attackLines || "1") === "2") {
+    operationalRows.push(
+      {
+        label: "Attack 2 Flow",
+        value: result.splitAttack2FlowResult
+      },
+      {
+        label: "Attack 2 NP",
+        value: result.splitAttack2NpResult
+      }
+    );
+  }
+
+  return [
+    {
+      title: "Supply",
+      rows: supplyRows.filter(row => row.value)
+    },
+    {
+      title: "Attack",
+      rows: attackRows.filter(row => row.value)
+    },
+    {
+      title: "Operational",
+      rows: operationalRows.filter(row => row.value && row.value !== "—")
+    }
+  ].filter(section => section.rows.length);
+}
+
+function getTargetFlowSummary(inputs = {}) {
+  if (inputs.apparatusFogFlow === "custom") {
+    return formatGpmValue(inputs.apparatusCustomFogFlow);
+  }
+
+  return formatGpmValue(inputs.apparatusFogFlow || inputs.targetGpm);
+}
+
+function getNozzlePressureSummary(inputs = {}) {
+  if (inputs.nozzlePressure === "custom") {
+    return formatPsiValue(inputs.customNozzlePressure);
+  }
+
+  if (inputs.nozzleType === "masterstream") {
+    return formatPsiValue(inputs.masterStreamLoss);
+  }
+
+  return formatPsiValue(inputs.nozzlePressure);
+}
+
+function getSetupFlowSummary(setup) {
+  const result = setup.result || {};
+  const inputs = setup.inputs || {};
+
+  if (setup.mode === "reverse") {
+    return formatGpmValue(result.calculatedFlow || result.primaryResult);
+  }
+
+  return formatGpmValue(result.calculatedFlow || inputs.targetGpm);
+}
+
+function getSetupPdpSummary(setup) {
+  const result = setup.result || {};
+  const inputs = setup.inputs || {};
+
+  if (setup.mode === "reverse") {
+    return formatPsiValue(inputs.pdp || result.calculatedPdp);
+  }
+
+  return formatPsiValue(result.calculatedPdp || result.primaryResult);
+}
+
+function formatGpmValue(value) {
+  const text = String(value || "").trim();
+  if (!text || text === "—" || text === "-") return "";
+
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  if (!match) return "";
+
+  return `${match[0]} GPM`;
+}
+
+function formatPsiValue(value) {
+  const text = String(value || "").trim();
+  if (!text || text === "—" || text === "— PSI" || text === "-") return "";
+
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  if (!match) return "";
+
+  return `${match[0]} PSI`;
+}
+
+function buildLegacyPresetSummary(preset = {}) {
+  if (preset.mode === "splitLay") {
+    return "Split Lay setup";
+  }
+
+  const flow = preset.calculatedFlow || "";
+  const hose = preset.hoseLength ? `${preset.hoseLength}' ${preset.hoseSize || ""}`.trim() : "";
+  const nozzle = preset.nozzleType === "smoothbore"
+    ? `${preset.smoothboreTip || "Smoothbore"}`
+    : preset.nozzleType === "blade"
+      ? getBladeModelLabel(preset.bladeModel)
+      : preset.nozzlePressure
+        ? `Fog @ ${preset.nozzlePressure} psi`
+        : "";
+
+  return [flow, hose, nozzle].filter(Boolean).join(" | ");
+}
+
+function getSetupInputRows(setup) {
+  const inputs = setup.inputs || {};
+  const rows = [
+    ["Mode", setup.modeLabel || getModeLabel(setup.mode)],
+    ["Hose Length", inputs.hoseLength ? `${inputs.hoseLength} ft` : ""],
+    ["Hose Size", inputs.hoseSize],
+    ["Nozzle Type", setup.mode === "relay" ? "" : getNozzleConfigurationLabel(inputs)],
+    ["Nozzle Pressure", setup.mode === "relay" ? "" : getNozzlePressureSummary(inputs)],
+    ["Target Flow", inputs.targetGpm ? `${inputs.targetGpm} GPM` : ""],
+    ["Receiving Residual", setup.mode === "relay" ? getRelayResidualSummary(setup).replace("Residual ", "") : ""],
+    ["Pump Discharge Pressure", inputs.pdp ? `${inputs.pdp} PSI` : ""],
+    ["Appliance / Elevation Loss", inputs.applianceLoss ? `${inputs.applianceLoss} PSI` : ""]
+  ];
+
+  if (setup.mode === "splitLay") {
+    const split = inputs.splitLay || {};
+    rows.push(
+      ["Supply 1", `${split.supplyLength || "-"} ft ${split.supplyHoseSize || ""}`.trim()],
+      ["Attack 1", `${split.attack1Length || "-"} ft ${split.attack1HoseSize || ""}`.trim()],
+      ["Attack Lines", split.attackLines || "1"]
+    );
+  }
+
+  return rows.filter(([, value]) => value);
+}
+
+function getSetupBreakdownRows(setup) {
+  const result = setup.result || {};
+  return [
+    [result.primaryResultLabel || "Primary Result", result.primaryResult],
+    ["Calculated PDP", result.calculatedPdp ? `${result.calculatedPdp} PSI` : ""],
+    ["Calculated Flow", result.calculatedFlow],
+    ["Total FL", result.totalFl],
+    ["FL / 100 ft", result.flPer100],
+    ["Nozzle", result.nozzleDisplay],
+    ["Nozzle Reaction", result.nozzleReaction],
+    ["Setup", result.setupDisplay],
+    ["Turbo Loss", result.turboLossDisplay],
+    ["Supply Layout", result.splitSupplyLayoutResult],
+    ["Supply Flow", result.splitSupplyFlow],
+    ["Supply Loss", result.splitSupplyLoss],
+    ["Attack 1 Flow", result.splitAttack1FlowResult],
+    ["Attack 1 NP", result.splitAttack1NpResult],
+    ["Attack 1 FL", result.splitAttack1FlResult],
+    ["Attack 2 Flow", result.splitAttack2FlowResult],
+    ["Attack 2 NP", result.splitAttack2NpResult],
+    ["Attack 2 FL", result.splitAttack2FlResult]
+  ].filter(([, value]) => value && value !== "—");
 }
 
     function renderPressureButtons() {
@@ -1894,7 +3036,7 @@ if (usingCustomPressure) {
           if (button.disabled) return;
 
           state.nozzlePressure = button.dataset.pressure;
-          
+
           if (button.dataset.pressure !== "custom") {
           state.customNozzlePressure = "";
           els.customNozzlePressure.value = "";
@@ -2037,7 +3179,7 @@ if (usingCustomPressure) {
         (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
       els.hoseSize.closest(".field").style.display =
         (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
-      
+
       els.nozzleType.closest(".field").style.display =
   (isSplitLayMode() || isRelayMode())
     ? "none"
@@ -2125,7 +3267,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
       : isRequiredPdpMode()
         ? "Required PDP"
         : "Rounded Flow";
-      
+
   els.primaryResultUnit.textContent =
   isRelayMode() || isRequiredPdpMode() || isSplitLayMode() || isApparatusMountedMode()
     ? "PSI"
@@ -2176,7 +3318,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
   els.nozzleReaction.parentElement.style.display = "";
 
 }
-    
+
       els.nozzleTypeLabel.textContent = "Nozzle Style";
 
 els.nozzleType.innerHTML = isApparatusMountedMode()
@@ -3011,7 +4153,7 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
     return;
   }
 
-  saveCurrentSetupAsPreset();
+  openSavePumpChartSheet();
 });
   });
       els.invertApplianceLossButton?.addEventListener("click", () => {
@@ -3151,10 +4293,10 @@ async function purchaseReverseFlowPro() {
     buttonText: els.buyProButton?.textContent
   });
 
-	  const store = getReverseFlowStore();
-	  if (!store) return;
-	
-	  if (!reverseFlowProProductReady) {
+  const store = getReverseFlowStore();
+  if (!store) return;
+
+  if (!reverseFlowProProductReady) {
 	  console.warn("[Reverse Flow IAP]", {
 	    event: "purchase-denied-product-not-ready",
 	    ready: reverseFlowProProductReady,
@@ -3163,7 +4305,7 @@ async function purchaseReverseFlowPro() {
 	  alert("Reverse Flow Pro purchase is not available yet. Please try again in a moment.");
 	  return;
 	}
-	
+
 	  const purchasePlatform = getReverseFlowPurchasePlatform();
 
 if (!purchasePlatform) {
@@ -3176,7 +4318,7 @@ const product =
     REVERSE_FLOW_PRO_PRODUCT_ID,
     purchasePlatform
   );
-	
+
 	  if (!product) {
 	    console.warn("[Reverse Flow IAP]", {
 	      event: "purchase-denied-product-missing",
@@ -3195,25 +4337,25 @@ const product =
     owned: product?.owned,
     state: product?.state
   });
-	
+
 	  const offer = product.getOffer();
-	
+
 	  if (!offer) {
 	    console.warn("[Reverse Flow IAP]", {
 	      event: "purchase-denied-offer-missing",
 	      rawProduct: product
 	    });
-	    alert("Reverse Flow Pro purchase offer is not available yet.");
-	    return;
-	  }
-	
+	  alert("Reverse Flow Pro purchase offer is not available yet.");
+	  return;
+	}
+
 	  try {
 	    updateBuyProButtonState("processing", {
 	      reason: "purchase order started"
-	    });
+    });
 
 	    const error = await offer.order();
-	
+
 	    if (error) {
 	      console.warn("[Reverse Flow IAP]", {
 	        event: "purchase-order-error",
@@ -3242,7 +4384,7 @@ const product =
 	    }
 	  }
 	}
-	
+
 	async function restoreReverseFlowPurchases() {
   console.info("[Reverse Flow IAP]", {
     event: "restore-click",
@@ -3252,9 +4394,9 @@ const product =
     buttonText: els.restorePurchaseButton?.textContent
   });
 
-	  const store = getReverseFlowStore();
-	  if (!store) return;
-	
+  const store = getReverseFlowStore();
+  if (!store) return;
+
 	  try {
 	    reverseFlowRestoreInProgress = true;
 	    if (els.restorePurchaseButton) {
@@ -3308,12 +4450,20 @@ els.closeProModal.addEventListener("click", () => {
     return;
   }
 
+  const data = loadPumpCharts();
+  const lastViewedChartId = getLastViewedPumpChartId();
+  const lastViewedChartExists = data.charts.some(chart => chart.id === lastViewedChartId);
+
+  pumpChartView = lastViewedChartExists
+    ? { screen: "detail", chartId: lastViewedChartId, setupId: null }
+    : { screen: "list", chartId: null, setupId: null };
+
   renderPumpChart();
 
   els.pumpChartModal.hidden = false;
 
   els.viewPumpChartButton.classList.add("active");
-  els.savePresetButton.classList.remove("active");
+  els.savePresetButton?.classList.remove("active");
 });
 
 els.closePumpChartModal.addEventListener("click", () => {
@@ -3585,7 +4735,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   updateCalculator();
 
 });
-      
+
       els.coefficientToggle.addEventListener("click", () => {
         state.useCustomCoefficient = !state.useCustomCoefficient;
 
@@ -3817,13 +4967,21 @@ function resetCalculator() {
 
     pdp: state.pdp || "",
     targetGpm: state.targetGpm || "",
+    relayResidualPressure: state.relayResidualPressure || (isRelayMode() ? "30" : ""),
 
     hoseLength: state.hoseLength || "",
     hoseSize: state.hoseSize || "",
     nozzleType: state.nozzleType || "",
     nozzlePressure: state.nozzlePressure || "",
+    customNozzlePressure: state.customNozzlePressure || "",
     smoothboreTip: state.smoothboreTip || "",
     bladeModel: state.bladeModel || "blade160",
+    masterStreamType: state.masterStreamType || "fog",
+    masterStreamLoss: state.masterStreamLoss || "25",
+    dualLineSupply: !!state.dualLineSupply,
+    apparatusFogFlow: state.apparatusFogFlow || "1000",
+    apparatusCustomFogFlow: state.apparatusCustomFogFlow || "",
+    apparatusElevation: state.apparatusElevation || "",
 
     applianceLoss: state.applianceLoss || "0",
     henTurboEnabled:
@@ -3909,7 +5067,7 @@ if (splitAppliance1) {
     els.splitDualSupplyToggle.checked = !!state.splitLay.dualSupply;
   }
 }
-    
+
 function applyPreset(presetId) {
   if (!presetId) return;
 
@@ -3930,16 +5088,38 @@ function applyPreset(presetId) {
   preset.targetFlow ||
   "",
 
+    relayResidualPressure:
+      preset.relayResidualPressure || "30",
+
     hoseLength: preset.hoseLength || "",
     hoseSize: preset.hoseSize || state.hoseSize,
     nozzleType: preset.nozzleType || state.nozzleType,
     nozzlePressure: preset.nozzlePressure || state.nozzlePressure,
+    customNozzlePressure: preset.customNozzlePressure || "",
 
     smoothboreTip:
       preset.smoothboreTip || "",
 
     bladeModel:
       preset.bladeModel || "blade160",
+
+    masterStreamType:
+      preset.masterStreamType || "fog",
+
+    masterStreamLoss:
+      preset.masterStreamLoss || "25",
+
+    dualLineSupply:
+      !!preset.dualLineSupply,
+
+    apparatusFogFlow:
+      preset.apparatusFogFlow || "1000",
+
+    apparatusCustomFogFlow:
+      preset.apparatusCustomFogFlow || "",
+
+    apparatusElevation:
+      preset.apparatusElevation || "",
 
     applianceLoss:
       preset.applianceLoss || "0",
@@ -3985,42 +5165,1148 @@ function applyPreset(presetId) {
   saveState();
 }
 
+function applyPumpChartSetup(chartId, setupId) {
+  const { setup } = findPumpChartSetup(chartId, setupId);
+  if (!setup) return;
+
+  const preset = {
+    ...setup.inputs,
+    ...setup.result,
+    id: setup.id,
+    name: setup.name,
+    mode: setup.mode
+  };
+
+  const isSplitPreset = preset.mode === "splitLay";
+
+  state = {
+    ...state,
+
+   mode: preset.mode || state.mode,
+
+    pdp: preset.pdp || "",
+    targetGpm:
+  preset.targetGpm ||
+  preset.targetFlow ||
+  "",
+
+    relayResidualPressure:
+      preset.relayResidualPressure || "30",
+
+    hoseLength: preset.hoseLength || "",
+    hoseSize: preset.hoseSize || state.hoseSize,
+    nozzleType: preset.nozzleType || state.nozzleType,
+    nozzlePressure: preset.nozzlePressure || state.nozzlePressure,
+    customNozzlePressure: preset.customNozzlePressure || "",
+
+    smoothboreTip:
+      preset.smoothboreTip || "",
+
+    bladeModel:
+      preset.bladeModel || "blade160",
+
+    masterStreamType:
+      preset.masterStreamType || "fog",
+
+    masterStreamLoss:
+      preset.masterStreamLoss || "25",
+
+    dualLineSupply:
+      !!preset.dualLineSupply,
+
+    apparatusFogFlow:
+      preset.apparatusFogFlow || "1000",
+
+    apparatusCustomFogFlow:
+      preset.apparatusCustomFogFlow || "",
+
+    apparatusElevation:
+      preset.apparatusElevation || "",
+
+    applianceLoss:
+      preset.applianceLoss || "0",
+
+    henTurboEnabled:
+      !!preset.henTurboEnabled &&
+      (preset.mode === "reverse" || preset.mode === "requiredPdp") &&
+      !!getHenTurboCurveForHose(preset.hoseSize || state.hoseSize),
+
+    reverseSupplyEnabled:
+      preset.reverseSupplyEnabled || false,
+
+    reverseSupplyLength:
+      preset.reverseSupplyLength || "",
+
+    reverseSupplyHoseSize:
+      preset.reverseSupplyHoseSize || "3",
+
+    reverseSupplyAppliance:
+      preset.reverseSupplyAppliance || "gateValve",
+
+    useCustomCoefficient:
+      preset.useCustomCoefficient || false,
+
+    customCoefficient:
+      preset.customCoefficient || "",
+
+    splitLay: {
+      ...DEFAULT_STATE.splitLay,
+      ...(preset.splitLay || {})
+    }
+  };
+
+  populateHoseOptions();
+  enforceHenTurboAvailability();
+  syncInputsFromState();
+  syncSplitLayInputsFromState();
+  syncReverseSupplyUi();
+  syncSmoothboreUi();
+  syncModeUi();
+  renderPressureButtons();
+  calculateAndRender();
+  saveState();
+}
+
+window.openSavePumpChartSheet = function() {
+  if (!isProUser()) {
+    openProModal();
+    return;
+  }
+
+  if (!hasValidRenderedCalculation()) {
+    alert("Enter the required values to generate a valid calculation before saving to a Pump Chart.");
+    return;
+  }
+
+  pumpChartView = { screen: "save", chartId: null, setupId: null };
+  renderPumpChart();
+  els.pumpChartModal.hidden = false;
+  els.viewPumpChartButton?.classList.add("active");
+};
+
+window.showPumpChartsList = function() {
+  renderPumpChartList();
+};
+
+window.openPumpChartDetail = function(chartId) {
+  pumpChartView = { screen: "detail", chartId, setupId: null };
+  renderPumpChart();
+};
+
+window.viewPumpChartSetup = function(chartId, setupId) {
+  pumpChartView = { screen: "setup", chartId, setupId };
+  renderPumpChart();
+};
+
+window.loadPumpChartSetup = function(chartId, setupId) {
+  if (!isProUser()) {
+    openProModal();
+    return;
+  }
+
+  applyPumpChartSetup(chartId, setupId);
+  els.viewPumpChartButton?.classList.remove("active");
+  els.pumpChartModal.hidden = true;
+};
+
+window.deletePumpChartSetup = function(chartId, setupId) {
+  const data = loadPumpCharts();
+  const chart = data.charts.find(item => item.id === chartId);
+  const setup = chart?.setups.find(item => item.id === setupId);
+  if (!chart || !setup) return;
+
+  const confirmed = confirm(`Delete "${setup.name}" from ${chart.name}?`);
+  if (!confirmed) return;
+
+  chart.setups = chart.setups.filter(item => item.id !== setupId);
+  chart.updatedAt = nowIsoString();
+
+  if (!savePumpCharts(data)) return;
+
+  renderPresetOptions();
+  pumpChartView = { screen: "detail", chartId, setupId: null };
+  renderPumpChart();
+};
+
+window.editPumpChartMetadata = function(chartId) {
+  const data = loadPumpCharts();
+  const chart = data.charts.find(item => item.id === chartId);
+  if (!chart) return;
+
+  const name = prompt("Pump Chart name:", chart.name);
+  if (!name || !name.trim()) return;
+
+  const department = prompt("Department / Company:", chart.department || "");
+  if (department === null) return;
+
+  const notes = prompt("Notes:", chart.notes || "");
+  if (notes === null) return;
+
+  chart.name = name.trim();
+  chart.department = department.trim();
+  chart.notes = notes.trim();
+  chart.updatedAt = nowIsoString();
+
+  if (!savePumpCharts(data)) return;
+  renderPumpChart();
+};
+
+window.deletePumpChart = function(chartId) {
+  const data = loadPumpCharts();
+  const chart = data.charts.find(item => item.id === chartId);
+  if (!chart) return;
+
+  const confirmed = confirm(`Delete Pump Chart "${chart.name}" and all ${chart.setups.length} setups?`);
+  if (!confirmed) return;
+
+  data.charts = data.charts.filter(item => item.id !== chartId);
+  clearLastViewedPumpChartId(chartId);
+
+  if (!savePumpCharts(data)) return;
+  renderPresetOptions();
+  renderPumpChartList();
+};
+
 window.loadPumpChartPreset = function(presetId) {
+  const preset = loadPresets().find(item => item.id === presetId);
+  if (!preset) return;
+
+  if (preset.chartId && preset.setupId) {
+    window.loadPumpChartSetup(preset.chartId, preset.setupId);
+    return;
+  }
 
   applyPreset(presetId);
-
   els.viewPumpChartButton.classList.remove("active");
   els.pumpChartModal.hidden = true;
 };
 
 window.deletePumpChartPreset = function(presetId) {
-
-  const presets = loadPresets();
-
-  const preset = presets.find(
-    item => item.id === presetId
-  );
-
-  if (!preset) return;
-
-  const confirmed = confirm(
-    `Delete "${preset.name}" from Pump Chart?`
-  );
-
-  if (!confirmed) return;
-
-  const updatedPresets =
-    presets.filter(item => item.id !== presetId);
-
-  savePresets(updatedPresets);
-
-  renderPresetOptions();
-  renderPumpChart();
-
-  if (els.presetSelect.value === presetId) {
-    els.presetSelect.value = "";
+  const preset = loadPresets().find(item => item.id === presetId);
+  if (preset?.chartId && preset?.setupId) {
+    window.deletePumpChartSetup(preset.chartId, preset.setupId);
   }
 };
+
+window.exportPumpChart = async function(chartId) {
+  if (!isProUser()) {
+    openProModal();
+    return;
+  }
+
+  const chart = findPumpChart(chartId);
+  if (!chart) return;
+
+  const shareText = buildPumpChartShareText(chart);
+  const pngExport = await createPumpChartPngFile(chart);
+  const pngFile = pngExport.file;
+  const shareTitle = `${chart.name} Pump Chart`;
+  const hasNavigatorShare = typeof navigator.share === "function";
+  const hasNavigatorCanShare = typeof navigator.canShare === "function";
+  let canSharePngFile = false;
+
+  logPumpChartShareStep("web-share-support", {
+    navigatorShare: hasNavigatorShare,
+    navigatorCanShare: hasNavigatorCanShare
+  });
+
+  if (pngFile && hasNavigatorCanShare) {
+    try {
+      canSharePngFile = navigator.canShare({ files: [pngFile] });
+      logPumpChartShareStep("png-canShare-result", {
+        canShareFiles: canSharePngFile
+      });
+    } catch (error) {
+      logPumpChartShareStep("png-canShare-error", {
+        message: error?.message || String(error)
+      });
+    }
+  } else if (!pngFile) {
+    logPumpChartShareFallback(`PNG file unavailable: ${pngExport.reason}`);
+  } else {
+    logPumpChartShareFallback("navigator.canShare is unavailable.");
+  }
+
+  if (pngFile && hasNavigatorShare && hasNavigatorCanShare && canSharePngFile) {
+    try {
+      logPumpChartShareStep("png-share-attempt", {
+        fileName: pngFile.name,
+        fileType: pngFile.type,
+        fileSize: pngFile.size
+      });
+      await navigator.share({
+        title: shareTitle,
+        files: [pngFile]
+      });
+      logPumpChartShareStep("png-share-success");
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        logPumpChartShareStep("png-share-aborted");
+        return;
+      }
+      logPumpChartShareStep("png-share-error", {
+        message: error?.message || String(error)
+      });
+      logPumpChartShareFallback(`PNG share failed: ${error?.message || String(error)}`);
+    }
+  } else if (pngFile) {
+    logPumpChartShareFallback(
+      `PNG sharing unavailable: navigator.share=${hasNavigatorShare}, navigator.canShare=${hasNavigatorCanShare}, canShareFiles=${canSharePngFile}.`
+    );
+  }
+
+  if (hasNavigatorShare) {
+    try {
+      showPumpChartShareFallbackMessage();
+      logPumpChartShareStep("share-text-attempt");
+      await navigator.share({
+        title: shareTitle,
+        text: shareText
+      });
+      logPumpChartShareStep("share-text-success");
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        logPumpChartShareStep("share-text-aborted");
+        return;
+      }
+      logPumpChartShareFallback(`Text share failed: ${error?.message || String(error)}`);
+    }
+  } else {
+    logPumpChartShareFallback("navigator.share is unavailable. Opening printable export view.");
+  }
+
+  openPumpChartPrintView(chart);
+};
+
+async function createPumpChartPngFile(chart) {
+  if (typeof Blob === "undefined" || typeof File === "undefined") {
+    logPumpChartShareFallback("Blob or File constructor is unavailable.");
+    return {
+      file: null,
+      reason: "Blob or File constructor is unavailable."
+    };
+  }
+
+  const source = getPumpChartExportElement();
+  if (!source) {
+    logPumpChartShareFallback("Pump Chart export element was not found.");
+    return {
+      file: null,
+      reason: "Pump Chart export element was not found."
+    };
+  }
+
+  try {
+    logPumpChartExportDomSources(source);
+
+    let blob = await tryRenderElementToPngBlob(source, "dom-original");
+    if (!blob) {
+      const sanitizedClone = createSanitizedPumpChartExportClone(source);
+      if (sanitizedClone) {
+        blob = await tryRenderElementToPngBlob(sanitizedClone, "dom-sanitized");
+      }
+    }
+    if (!blob) {
+      blob = await tryRenderManualPumpChartCanvasToBlob(source);
+    }
+    if (!blob) {
+      logPumpChartShareFallback("PNG renderer did not return a blob.");
+      return {
+        file: null,
+        reason: "PNG renderer did not return a blob."
+      };
+    }
+
+    logPumpChartShareStep("png-blob-created", {
+      blobSize: blob.size,
+      blobType: blob.type
+    });
+
+    let file;
+    try {
+      file = new File(
+        [blob],
+        `${sanitizeFileName(chart.name)}-Pump-Chart.png`,
+        { type: "image/png" }
+      );
+    } catch (error) {
+      logPumpChartShareStep("png-file-error", {
+        message: error?.message || String(error)
+      });
+      throw error;
+    }
+
+    logPumpChartShareStep("png-file-created", {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
+
+    return {
+      file,
+      reason: ""
+    };
+  } catch (error) {
+    logPumpChartShareFallback(`PNG export failed: ${error?.message || String(error)}`);
+    return {
+      file: null,
+      reason: `PNG export failed: ${error?.message || String(error)}`
+    };
+  }
+}
+
+function getPumpChartExportElement() {
+  if (!els.pumpChartModal || els.pumpChartModal.hidden) return null;
+
+  return els.pumpChartModal.querySelector(".pump-chart-document");
+}
+
+async function tryRenderElementToPngBlob(element, method) {
+  try {
+    logPumpChartShareStep("png-render-attempt", { method });
+    const blob = await renderElementToPngBlob(element, method);
+    if (blob) {
+      logPumpChartShareStep("png-render-success", {
+        method,
+        blobSize: blob.size,
+        blobType: blob.type
+      });
+      return blob;
+    }
+    logPumpChartShareStep("png-render-null", { method });
+  } catch (error) {
+    logPumpChartShareStep("png-render-error", {
+      method,
+      message: error?.message || String(error)
+    });
+  }
+
+  return null;
+}
+
+async function renderElementToPngBlob(element, method) {
+  const rect = element.getBoundingClientRect();
+  const width = Math.ceil(rect.width);
+  const height = Math.ceil(element.scrollHeight || rect.height);
+
+  if (!width || !height) return null;
+
+  const clone = element.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  inlineComputedStyles(element, clone);
+  clone.style.width = `${width}px`;
+  clone.style.boxSizing = "border-box";
+  clone.style.margin = "0";
+
+  const wrapper = document.createElement("div");
+  wrapper.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  wrapper.style.width = `${width}px`;
+  wrapper.style.minHeight = `${height}px`;
+  wrapper.style.padding = "0";
+  wrapper.style.margin = "0";
+  wrapper.style.background = getComputedStyle(element).backgroundColor || "#ffffff";
+  wrapper.appendChild(clone);
+
+  const serialized = new XMLSerializer().serializeToString(wrapper);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+      <foreignObject width="100%" height="100%">
+        ${serialized}
+      </foreignObject>
+    </svg>
+  `;
+
+  const svgBlob = new Blob([svg], {
+    type: "image/svg+xml;charset=utf-8"
+  });
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  try {
+    const image = await loadImage(svgUrl);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(width * pixelRatio);
+    canvas.height = Math.ceil(height * pixelRatio);
+
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.fillStyle = getResolvedExportBackground(element);
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    logPumpChartShareStep("png-canvas-created", {
+      method,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      cssWidth: width,
+      cssHeight: height,
+      pixelRatio
+    });
+
+    return await exportCanvasToPngBlob(canvas, method);
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+async function exportCanvasToPngBlob(canvas, method) {
+  logPumpChartShareStep("png-toBlob-start", { method });
+
+  try {
+    const blob = await new Promise((resolve, reject) => {
+      try {
+        canvas.toBlob(result => {
+          if (result) {
+            resolve(result);
+          } else {
+            resolve(null);
+          }
+        }, "image/png", 0.95);
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    if (blob) {
+      logPumpChartShareStep("png-toBlob-success", {
+        method,
+        blobSize: blob.size,
+        blobType: blob.type
+      });
+      return blob;
+    }
+
+    logPumpChartShareStep("png-toBlob-null", { method });
+  } catch (error) {
+    logPumpChartShareStep("png-toBlob-error", {
+      method,
+      message: error?.message || String(error)
+    });
+  }
+
+  logPumpChartShareStep("png-toDataURL-start", { method });
+
+  try {
+    const dataUrl = canvas.toDataURL("image/png");
+    logPumpChartShareStep("png-toDataURL-success", {
+      method,
+      dataUrlLength: dataUrl.length
+    });
+    return dataUrlToBlob(dataUrl);
+  } catch (error) {
+    logPumpChartShareStep("png-toDataURL-error", {
+      method,
+      message: error?.message || String(error)
+    });
+    throw error;
+  }
+}
+
+function dataUrlToBlob(dataUrl) {
+  const parts = dataUrl.split(",");
+  const mimeMatch = parts[0].match(/data:([^;]+);base64/i);
+  const mimeType = mimeMatch?.[1] || "image/png";
+  const binary = atob(parts[1] || "");
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
+}
+
+function inlineComputedStyles(source, clone) {
+  const sourceElements = [source, ...source.querySelectorAll("*")];
+  const cloneElements = [clone, ...clone.querySelectorAll("*")];
+
+  sourceElements.forEach((sourceElement, index) => {
+    const cloneElement = cloneElements[index];
+    if (!cloneElement) return;
+
+    const computed = getComputedStyle(sourceElement);
+    Array.from(computed).forEach(property => {
+      cloneElement.style.setProperty(
+        property,
+        computed.getPropertyValue(property),
+        computed.getPropertyPriority(property)
+      );
+    });
+  });
+}
+
+function createSanitizedPumpChartExportClone(source) {
+  try {
+    const clone = source.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+    inlineComputedStyles(source, clone);
+    sanitizePumpChartExportElement(clone);
+
+    const sourceRect = source.getBoundingClientRect();
+    clone.style.width = `${Math.ceil(sourceRect.width)}px`;
+    clone.style.boxSizing = "border-box";
+    clone.style.margin = "0";
+
+    logPumpChartShareStep("png-sanitized-clone-created", {
+      removedMedia: clone.dataset.removedMedia || "0",
+      removedBackgrounds: clone.dataset.removedBackgrounds || "0"
+    });
+
+    return clone;
+  } catch (error) {
+    logPumpChartShareStep("png-sanitized-clone-error", {
+      message: error?.message || String(error)
+    });
+    return null;
+  }
+}
+
+function sanitizePumpChartExportElement(element) {
+  let removedMedia = 0;
+  let removedBackgrounds = 0;
+
+  element.querySelectorAll("img, svg, picture, source, canvas, video, object, embed").forEach(node => {
+    node.remove();
+    removedMedia += 1;
+  });
+
+  [element, ...element.querySelectorAll("*")].forEach(node => {
+    if (node.style.backgroundImage && node.style.backgroundImage !== "none") {
+      node.style.backgroundImage = "none";
+      removedBackgrounds += 1;
+    }
+    node.style.webkitMaskImage = "none";
+    node.style.maskImage = "none";
+    node.style.filter = "none";
+    node.style.backdropFilter = "none";
+  });
+
+  element.dataset.removedMedia = String(removedMedia);
+  element.dataset.removedBackgrounds = String(removedBackgrounds);
+}
+
+function logPumpChartExportDomSources(source) {
+  const resources = [];
+
+  source.querySelectorAll("img, svg, use, image, picture, source, canvas, video, object, embed").forEach(node => {
+    resources.push({
+      tag: node.tagName.toLowerCase(),
+      src: node.getAttribute("src") || "",
+      currentSrc: node.currentSrc || "",
+      href: node.getAttribute("href") || node.getAttribute("xlink:href") || "",
+      crossorigin: node.getAttribute("crossorigin") || "",
+      urlType: classifyPumpChartExportUrl(node.currentSrc || node.getAttribute("src") || node.getAttribute("href") || node.getAttribute("xlink:href") || "")
+    });
+  });
+
+  [source, ...source.querySelectorAll("*")].forEach(node => {
+    const backgroundImage = getComputedStyle(node).backgroundImage;
+    if (backgroundImage && backgroundImage !== "none") {
+      resources.push({
+        tag: node.tagName.toLowerCase(),
+        backgroundImage,
+        urlType: classifyPumpChartExportUrl(backgroundImage)
+      });
+    }
+  });
+
+  logPumpChartShareStep("png-taint-sources", {
+    resourceCount: resources.length,
+    resources,
+    fontStatus: document.fonts?.status || "unknown"
+  });
+}
+
+function classifyPumpChartExportUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "none";
+  if (text.startsWith("data:")) return "data";
+  if (text.startsWith("blob:")) return "blob";
+  if (text.startsWith("capacitor://")) return "capacitor";
+  if (text.startsWith("file:")) return "file";
+  if (/^https?:\/\//i.test(text)) {
+    try {
+      const url = new URL(text);
+      return url.origin === window.location.origin ? "local-http" : "cross-origin-http";
+    } catch {
+      return "http";
+    }
+  }
+  if (text.includes("url(")) return "css-url";
+  return "local-or-inline";
+}
+
+async function tryRenderManualPumpChartCanvasToBlob(source) {
+  try {
+    const canvas = renderPumpChartDocumentToCanvas(source);
+    logPumpChartShareStep("png-canvas-created", {
+      method: "manual-canvas",
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
+    });
+    const blob = await exportCanvasToPngBlob(canvas, "manual-canvas");
+    if (blob) {
+      logPumpChartShareStep("png-render-success", {
+        method: "manual-canvas",
+        blobSize: blob.size,
+        blobType: blob.type
+      });
+    }
+    return blob;
+  } catch (error) {
+    logPumpChartShareStep("png-render-error", {
+      method: "manual-canvas",
+      message: error?.message || String(error)
+    });
+    return null;
+  }
+}
+
+function renderPumpChartDocumentToCanvas(source) {
+  const sourceRect = source.getBoundingClientRect();
+  const width = Math.max(320, Math.ceil(sourceRect.width || 370));
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const horizontalPadding = 16;
+  const contentWidth = width - horizontalPadding * 2;
+  const measureCanvas = document.createElement("canvas");
+  const measureContext = measureCanvas.getContext("2d");
+  if (!measureContext) throw new Error("Canvas context unavailable.");
+
+  const drawItems = [];
+  let y = 18;
+
+  const addText = (text, options = {}) => {
+    const cleanText = String(text || "").trim();
+    if (!cleanText) return;
+
+    const font = options.font || "700 14px Arial, sans-serif";
+    const lineHeight = options.lineHeight || 18;
+    const maxWidth = options.maxWidth || contentWidth;
+    measureContext.font = font;
+    const lines = wrapCanvasText(measureContext, cleanText, maxWidth);
+    drawItems.push({
+      type: "text",
+      text: cleanText,
+      lines,
+      x: options.x || horizontalPadding,
+      y,
+      font,
+      lineHeight,
+      color: options.color || "#111827",
+      maxWidth
+    });
+    y += lines.length * lineHeight + (options.marginBottom ?? 4);
+  };
+
+  const addRule = (marginTop = 8, marginBottom = 8) => {
+    y += marginTop;
+    drawItems.push({ type: "rule", x: horizontalPadding, y, width: contentWidth });
+    y += marginBottom;
+  };
+
+  const header = source.querySelector(".pump-chart-document-header");
+  addText(header?.querySelector("p")?.textContent || "REVERSE FLOW PUMP CHART", {
+    font: "900 11px Arial, sans-serif",
+    lineHeight: 14,
+    color: "#64748b",
+    marginBottom: 4
+  });
+  addText(header?.querySelector("h2")?.textContent || "Pump Chart", {
+    font: "900 26px Arial, sans-serif",
+    lineHeight: 30,
+    color: "#111827",
+    marginBottom: 4
+  });
+  addText(header?.querySelector("strong")?.textContent || "", {
+    font: "800 14px Arial, sans-serif",
+    lineHeight: 18,
+    color: "#111827",
+    marginBottom: 3
+  });
+  addText(Array.from(header?.querySelectorAll(".pump-chart-document-meta span") || [])
+    .map(item => item.textContent.trim())
+    .join(" • "), {
+    font: "800 13px Arial, sans-serif",
+    lineHeight: 17,
+    color: "#64748b",
+    marginBottom: 4
+  });
+  addText(header?.querySelector(".pump-chart-document-notes")?.textContent || "", {
+    font: "650 13px Arial, sans-serif",
+    lineHeight: 17,
+    color: "#475569",
+    marginBottom: 4
+  });
+  addRule(8, 10);
+
+  source.querySelectorAll(".pump-chart-document-section").forEach(section => {
+    addText(section.querySelector("h3")?.textContent || "", {
+      font: "900 12px Arial, sans-serif",
+      lineHeight: 15,
+      color: "#64748b",
+      marginBottom: 5
+    });
+
+    section.querySelectorAll(".pump-chart-setup-row").forEach(row => {
+      const rowTop = y;
+      const badgeText = row.querySelector(".pump-chart-mode-badge")?.textContent?.trim() || "";
+      const resultText = row.querySelector(".pump-chart-row-result")?.textContent?.trim() || "";
+      const asideWidth = Math.min(126, Math.max(104, contentWidth * 0.34));
+      const primaryWidth = contentWidth - asideWidth - 10;
+
+      addText(row.querySelector(".pump-chart-setup-name")?.textContent || "", {
+        font: "900 15px Arial, sans-serif",
+        lineHeight: 19,
+        color: "#111827",
+        maxWidth: primaryWidth,
+        marginBottom: 2
+      });
+      addText(row.querySelector(".pump-chart-config-summary")?.textContent || "", {
+        font: "750 12px Arial, sans-serif",
+        lineHeight: 16,
+        color: "#64748b",
+        maxWidth: primaryWidth,
+        marginBottom: 7
+      });
+
+      if (badgeText) {
+        drawItems.push({
+          type: "badge",
+          text: badgeText,
+          x: horizontalPadding + contentWidth - asideWidth,
+          y: rowTop,
+          width: asideWidth,
+          mode: row.querySelector(".pump-chart-mode-badge")?.dataset.mode || ""
+        });
+      }
+      if (resultText) {
+        drawItems.push({
+          type: "text",
+          lines: wrapCanvasText(setCanvasFont(measureContext, "900 17px Arial, sans-serif"), resultText, asideWidth),
+          x: horizontalPadding + contentWidth - asideWidth,
+          y: rowTop + 32,
+          font: "900 17px Arial, sans-serif",
+          lineHeight: 20,
+          color: "#111827",
+          maxWidth: asideWidth,
+          align: "right"
+        });
+      }
+      drawItems.push({ type: "rule", x: horizontalPadding, y: y + 1, width: contentWidth, color: "rgba(148, 163, 184, 0.35)" });
+      y += 9;
+    });
+
+    const sectionText = Array.from(section.children)
+      .filter(child => !child.matches("h3, .pump-chart-setup-row"))
+      .map(child => child.textContent.trim())
+      .filter(Boolean)
+      .join("\n");
+    addText(sectionText, {
+      font: "700 13px Arial, sans-serif",
+      lineHeight: 17,
+      color: "#334155",
+      marginBottom: 8
+    });
+    y += 4;
+  });
+
+  const height = Math.max(Math.ceil(source.scrollHeight || 0), Math.ceil(y + 14));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width * pixelRatio);
+  canvas.height = Math.ceil(height * pixelRatio);
+
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas context unavailable.");
+
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = "#d1d5db";
+  context.lineWidth = 1;
+  context.strokeRect(0.5, 0.5, width - 1, height - 1);
+  context.fillStyle = "#d95c13";
+  context.fillRect(0, 0, width, 4);
+
+  drawItems.forEach(item => {
+    if (item.type === "rule") {
+      context.strokeStyle = item.color || "rgba(17, 24, 39, 0.18)";
+      context.beginPath();
+      context.moveTo(item.x, item.y + 0.5);
+      context.lineTo(item.x + item.width, item.y + 0.5);
+      context.stroke();
+      return;
+    }
+
+    if (item.type === "badge") {
+      drawCanvasBadge(context, item);
+      return;
+    }
+
+    context.font = item.font;
+    context.fillStyle = item.color;
+    context.textAlign = item.align || "left";
+    item.lines.forEach((line, index) => {
+      const x = item.align === "right" ? item.x + item.maxWidth : item.x;
+      context.fillText(line, x, item.y + item.lineHeight * (index + 0.8), item.maxWidth);
+    });
+  });
+
+  return canvas;
+}
+
+function setCanvasFont(context, font) {
+  context.font = font;
+  return context;
+}
+
+function wrapCanvasText(context, text, maxWidth) {
+  return String(text || "")
+    .split(/\n+/)
+    .flatMap(line => wrapCanvasLine(context, line.trim(), maxWidth))
+    .filter(Boolean);
+}
+
+function wrapCanvasLine(context, text, maxWidth) {
+  if (!text) return [];
+
+  const words = text.split(/\s+/);
+  const lines = [];
+  let currentLine = "";
+
+  words.forEach(word => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (context.measureText(nextLine).width <= maxWidth || !currentLine) {
+      currentLine = nextLine;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+function drawCanvasBadge(context, item) {
+  const palette = getPumpChartCanvasBadgePalette(item.mode);
+  const height = 24;
+  const radius = 12;
+  const x = item.x + Math.max(0, item.width - 112);
+  const width = Math.min(item.width, 112);
+
+  context.fillStyle = palette.background;
+  context.strokeStyle = palette.border;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(x + radius, item.y);
+  context.lineTo(x + width - radius, item.y);
+  context.quadraticCurveTo(x + width, item.y, x + width, item.y + radius);
+  context.lineTo(x + width, item.y + height - radius);
+  context.quadraticCurveTo(x + width, item.y + height, x + width - radius, item.y + height);
+  context.lineTo(x + radius, item.y + height);
+  context.quadraticCurveTo(x, item.y + height, x, item.y + height - radius);
+  context.lineTo(x, item.y + radius);
+  context.quadraticCurveTo(x, item.y, x + radius, item.y);
+  context.fill();
+  context.stroke();
+
+  context.font = "900 10px Arial, sans-serif";
+  context.fillStyle = palette.text;
+  context.textAlign = "center";
+  context.fillText(item.text, x + width / 2, item.y + 15, width - 12);
+}
+
+function getPumpChartCanvasBadgePalette(mode) {
+  const palettes = {
+    reverse: { background: "rgba(37, 99, 235, 0.10)", border: "rgba(37, 99, 235, 0.34)", text: "#1d4ed8" },
+    requiredPdp: { background: "rgba(22, 163, 74, 0.10)", border: "rgba(22, 163, 74, 0.34)", text: "#166534" },
+    splitLay: { background: "rgba(217, 92, 19, 0.10)", border: "rgba(217, 92, 19, 0.38)", text: "#9a3412" },
+    relay: { background: "rgba(124, 58, 237, 0.10)", border: "rgba(124, 58, 237, 0.34)", text: "#6d28d9" },
+    apparatusMounted: { background: "rgba(71, 85, 105, 0.10)", border: "rgba(71, 85, 105, 0.32)", text: "#334155" }
+  };
+
+  return palettes[mode] || { background: "rgba(217, 92, 19, 0.08)", border: "rgba(217, 92, 19, 0.34)", text: "#7c2d12" };
+}
+
+function getResolvedExportBackground(element) {
+  let current = element;
+
+  while (current) {
+    const color = getComputedStyle(current).backgroundColor;
+    if (color && color !== "rgba(0, 0, 0, 0)" && color !== "transparent") {
+      return color;
+    }
+    current = current.parentElement;
+  }
+
+  return "#ffffff";
+}
+
+function sanitizeFileName(value) {
+  return String(value || "Reverse-Flow")
+    .trim()
+    .replace(/[^a-z0-9-_]+/gi, "-")
+    .replace(/^-+|-+$/g, "") || "Reverse-Flow";
+}
+
+function logPumpChartShareStep(event, details = {}) {
+  console.info("[Pump Chart Share]", {
+    event,
+    ...details
+  });
+}
+
+function logPumpChartShareFallback(reason) {
+  console.info("[Pump Chart Share]", {
+    event: "png-share-fallback",
+    reason
+  });
+}
+
+function showPumpChartShareFallbackMessage() {
+  const message = "PNG sharing unavailable on this device. Sharing text instead.";
+  const existingMessage = document.querySelector(".pump-chart-share-fallback-message");
+  if (existingMessage) existingMessage.remove();
+
+  const notice = document.createElement("div");
+  notice.className = "pump-chart-share-fallback-message";
+  notice.textContent = message;
+  notice.setAttribute("role", "status");
+  notice.setAttribute("aria-live", "polite");
+  notice.style.position = "fixed";
+  notice.style.left = "50%";
+  notice.style.bottom = "24px";
+  notice.style.transform = "translateX(-50%)";
+  notice.style.zIndex = "9999";
+  notice.style.maxWidth = "min(92vw, 420px)";
+  notice.style.padding = "10px 14px";
+  notice.style.borderRadius = "10px";
+  notice.style.background = "rgba(18, 26, 38, 0.94)";
+  notice.style.color = "#ffffff";
+  notice.style.fontSize = "0.92rem";
+  notice.style.lineHeight = "1.35";
+  notice.style.boxShadow = "0 12px 28px rgba(0, 0, 0, 0.28)";
+
+  document.body.appendChild(notice);
+  window.setTimeout(() => {
+    notice.remove();
+  }, 3600);
+}
+
+function buildPumpChartShareText(chart) {
+  const lines = [
+    "REVERSE FLOW PUMP CHART",
+    chart.name,
+    chart.department || "",
+    `Updated ${formatPumpChartDate(chart.updatedAt)} | ${chart.setups.length} Setups`,
+    ""
+  ].filter(line => line !== "");
+
+  PUMP_CHART_CATEGORIES.forEach(category => {
+    const setups = chart.setups.filter(setup => setup.category === category);
+    if (!setups.length) return;
+
+    lines.push(category.toUpperCase());
+    setups.forEach(setup => {
+      lines.push(`${setup.name} - ${getSetupConfigurationSummary(setup)} - ${getSetupHydraulicSummary(setup)}`);
+      if (setup.notes) lines.push(`Notes: ${setup.notes}`);
+    });
+    lines.push("");
+  });
+
+  if (chart.notes) {
+    lines.push(`Chart Notes: ${chart.notes}`);
+  }
+
+  return lines.join("\n");
+}
+
+function openPumpChartPrintView(chart) {
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Export view could not open. Check popup settings, then try again.");
+    return;
+  }
+
+  printWindow.document.write(buildPumpChartPrintHtml(chart));
+  printWindow.document.close();
+  printWindow.focus();
+}
+
+function buildPumpChartPrintHtml(chart) {
+  const sections = PUMP_CHART_CATEGORIES.map(category => {
+    const setups = chart.setups.filter(setup => setup.category === category);
+    if (!setups.length) return "";
+
+    return `
+      <section>
+        <h2>${escapeHtml(category.toUpperCase())}</h2>
+        ${setups.map(setup => `
+          <div class="setup">
+            <div>
+              <strong>${escapeHtml(setup.name)}</strong>
+              <p>${escapeHtml(getSetupConfigurationSummary(setup))}</p>
+            </div>
+            <b>${escapeHtml(getSetupHydraulicSummary(setup))}</b>
+            ${setup.notes ? `<p class="notes">${escapeHtml(setup.notes)}</p>` : ""}
+          </div>
+        `).join("")}
+      </section>
+    `;
+  }).join("");
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(chart.name)} Pump Chart</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 28px; color: #111827; }
+    header { border-bottom: 3px solid #111827; padding-bottom: 16px; margin-bottom: 20px; }
+    header p { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; }
+    h1 { margin: 0 0 6px; font-size: 30px; }
+    h2 { margin: 24px 0 10px; font-size: 15px; letter-spacing: 0.08em; border-bottom: 1px solid #9ca3af; padding-bottom: 6px; }
+    .meta { display: flex; gap: 16px; flex-wrap: wrap; color: #374151; font-size: 13px; }
+    .setup { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; border-bottom: 1px solid #d1d5db; padding: 10px 0; break-inside: avoid; }
+    .setup p { margin: 2px 0 0; color: #4b5563; font-size: 12px; }
+    .setup b { font-size: 18px; }
+    .notes { grid-column: 1 / -1; }
+    .actions { margin: 0 0 18px; }
+    button { min-height: 40px; padding: 0 16px; border: 1px solid #111827; background: #111827; color: white; border-radius: 4px; font-weight: 700; }
+    @media print { .actions { display: none; } body { margin: 18mm; } }
+  </style>
+</head>
+<body>
+  <div class="actions"><button onclick="window.print()">Print / Save PDF</button></div>
+  <header>
+    <p>REVERSE FLOW PUMP CHART</p>
+    <h1>${escapeHtml(chart.name)}</h1>
+    ${chart.department ? `<strong>${escapeHtml(chart.department)}</strong>` : ""}
+    <div class="meta">
+      <span>Updated ${escapeHtml(formatPumpChartDate(chart.updatedAt))}</span>
+      <span>${chart.setups.length} Setups</span>
+    </div>
+    ${chart.notes ? `<p>${escapeHtml(chart.notes)}</p>` : ""}
+  </header>
+  ${sections}
+</body>
+</html>`;
+}
 
     function deleteSelectedPreset() {
       const selectedId = els.presetSelect.value;

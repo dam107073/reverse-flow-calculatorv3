@@ -15,6 +15,8 @@ const APP_VERSION = "1.1.1";
 
 const STORAGE_KEY = "reverse-flow-calculator-v3";
 const PRESETS_KEY = "reverse-flow-calculator-presets-v1";
+const PUMP_CHARTS_KEY = "reverse-flow-pump-charts-v2";
+const LAST_VIEWED_PUMP_CHART_KEY = "reverse-flow-last-viewed-pump-chart-v1";
 const HOSE_COEFFS_KEY = "reverse-flow-hose-coefficients-v1";
 const HOSE_LIBRARY_SELECTIONS_KEY =
   "reverse-flow-hose-library-selections-v1";

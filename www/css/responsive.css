@@ -352,6 +352,93 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
+      #pumpChartModal .pump-chart-document {
+        background: rgba(15,23,42,0.94);
+        border-color: rgba(148, 163, 184, 0.34);
+        color: #f8fafc;
+      }
+
+      #pumpChartModal .pump-chart-document-header {
+        border-color: rgba(148, 163, 184, 0.28);
+      }
+
+      #pumpChartModal .pump-chart-row-result,
+      #pumpChartModal .pump-chart-document h2,
+      #pumpChartModal .pump-chart-document strong {
+        color: #f8fafc;
+        -webkit-text-fill-color: #f8fafc;
+      }
+
+      #pumpChartModal .pump-chart-setup-detail-grid div,
+      #pumpChartModal .pump-chart-detail-table div,
+      #pumpChartModal .pump-chart-reference-section {
+        background: rgba(2,6,23,0.48);
+        border-color: rgba(148, 163, 184, 0.24);
+      }
+
+      #pumpChartModal .pump-chart-reference-section h3,
+      #pumpChartModal .pump-chart-reference-row {
+        border-color: rgba(148, 163, 184, 0.22);
+      }
+
+      #pumpChartModal .pump-chart-reference-result,
+      #pumpChartModal .pump-chart-reference-row strong,
+      #pumpChartModal .pump-chart-advanced-details summary {
+        color: #f8fafc;
+        -webkit-text-fill-color: #f8fafc;
+      }
+
+      #pumpChartModal .pump-chart-mode-badge {
+        background: rgba(251,146,60,0.12);
+        border-color: rgba(251,146,60,0.42);
+        color: #fed7aa;
+        -webkit-text-fill-color: #fed7aa;
+      }
+
+      #pumpChartModal .pump-chart-mode-badge[data-mode="reverse"] {
+        background: rgba(96,165,250,0.14);
+        border-color: rgba(96,165,250,0.42);
+        color: #bfdbfe;
+        -webkit-text-fill-color: #bfdbfe;
+      }
+
+      #pumpChartModal .pump-chart-mode-badge[data-mode="requiredPdp"] {
+        background: rgba(74,222,128,0.13);
+        border-color: rgba(74,222,128,0.38);
+        color: #bbf7d0;
+        -webkit-text-fill-color: #bbf7d0;
+      }
+
+      #pumpChartModal .pump-chart-mode-badge[data-mode="splitLay"] {
+        background: rgba(251,146,60,0.14);
+        border-color: rgba(251,146,60,0.42);
+        color: #fed7aa;
+        -webkit-text-fill-color: #fed7aa;
+      }
+
+      #pumpChartModal .pump-chart-mode-badge[data-mode="relay"] {
+        background: rgba(168,85,247,0.15);
+        border-color: rgba(168,85,247,0.42);
+        color: #e9d5ff;
+        -webkit-text-fill-color: #e9d5ff;
+      }
+
+      #pumpChartModal .pump-chart-mode-badge[data-mode="apparatusMounted"] {
+        background: rgba(148,163,184,0.15);
+        border-color: rgba(148,163,184,0.38);
+        color: #e2e8f0;
+        -webkit-text-fill-color: #e2e8f0;
+      }
+
+      #pumpChartModal .danger-button {
+        background:
+          linear-gradient(180deg, rgba(69,26,3,0.92), rgba(42,18,5,0.94)),
+          linear-gradient(90deg, rgba(251,146,60,0.18), transparent 50%) !important;
+        border-color: rgba(251,146,60,0.72) !important;
+        color: #fed7aa !important;
+        -webkit-text-fill-color: #fed7aa !important;
+      }
+
       .hose-library-delete-button {
         background:
           linear-gradient(180deg, rgba(69,26,3,0.92), rgba(42,18,5,0.94)),
@@ -440,6 +527,36 @@
 
   .detail:last-child {
     border-bottom: none;
+  }
+
+  #pumpChartModal .pump-chart-setup-detail-grid,
+  #pumpChartModal .pump-chart-detail-table {
+    grid-template-columns: 1fr;
+  }
+
+  #pumpChartModal .pump-chart-setup-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  #pumpChartModal .pump-chart-setup-aside {
+    min-width: 88px;
+  }
+
+  #pumpChartModal .pump-chart-mode-badge {
+    max-width: 96px;
+    padding-inline: 6px;
+    font-size: 9px;
+    letter-spacing: 0.035em;
+  }
+
+  #pumpChartModal .pump-chart-row-result {
+    text-align: right;
+    font-size: 16px;
+  }
+
+  #pumpChartModal .pump-chart-reference-row {
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 
 }
