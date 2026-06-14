@@ -1888,7 +1888,7 @@ if (usingCustomPressure) {
 
       els.warningsCard.hidden = false;
       els.warningsCard.innerHTML = warnings.map(warning => (
-        `<div class="warning-item"><span>⚠️</span><span>${warning}</span></div>`
+        `<div class="warning-item"><span>⚠️</span><span>${escapeHtml(warning)}</span></div>`
       )).join("");
     }
 
@@ -2300,6 +2300,23 @@ function getHenTurboPublishedRange(curve) {
   };
 }
 
+function formatHenTurboWarningFlow(gpm) {
+  return Math.round(gpm);
+}
+
+function formatHenTurboOutOfRangeWarning(gpm, range, actionText) {
+  return [
+    "Calculation Unavailable",
+    "",
+    "Calculated flow is outside the published range for the selected Turbo device.",
+    "",
+    `Turbo Published Range: ${range.min}–${range.max} GPM`,
+    `Current Calculated Flow: ${formatHenTurboWarningFlow(gpm)} GPM`,
+    "",
+    `${actionText} flow or remove the Turbo to continue.`
+  ].join("\n");
+}
+
 function getHenTurboOutOfRangeWarning(gpm, curve) {
   const range = getHenTurboPublishedRange(curve);
 
@@ -2308,11 +2325,11 @@ function getHenTurboOutOfRangeWarning(gpm, curve) {
   }
 
   if (gpm < range.min) {
-    return HEN_TURBO_BELOW_RANGE_WARNING;
+    return formatHenTurboOutOfRangeWarning(gpm, range, "Increase");
   }
 
   if (gpm > range.max) {
-    return HEN_TURBO_ABOVE_RANGE_WARNING;
+    return formatHenTurboOutOfRangeWarning(gpm, range, "Reduce");
   }
 
   return HEN_TURBO_OUT_OF_RANGE_WARNING;
@@ -4124,7 +4141,7 @@ calculateReverseFlow({ ...inputs, warnings });
       }
 
       if (pdp === null) {
-        return HEN_TURBO_BELOW_RANGE_WARNING;
+        return getHenTurboOutOfRangeWarning(0, curve);
       }
 
       const supplyLength = state.reverseSupplyEnabled
@@ -4155,7 +4172,20 @@ calculateReverseFlow({ ...inputs, warnings });
         29.7 * model.diameter * model.diameter;
 
       if (totalLoad <= 0 || flowConstant <= 0) {
-        return HEN_TURBO_BELOW_RANGE_WARNING;
+        return getHenTurboOutOfRangeWarning(0, curve);
+      }
+
+      function estimateFlowWithFixedTurboLoss(turboLoss = 0) {
+        const availablePressure =
+          pdp - applianceLoss - masterStreamLoss - turboLoss;
+        const frictionMultiplier =
+          totalLoad * Math.pow(flowConstant / 100, 2);
+        const achievablePressure =
+          availablePressure / (1 + frictionMultiplier);
+
+        if (achievablePressure <= 0) return 0;
+
+        return flowConstant * Math.sqrt(achievablePressure);
       }
 
       function requiredPdpAtGpm(gpm) {
@@ -4182,14 +4212,23 @@ calculateReverseFlow({ ...inputs, warnings });
       const maximumRangePdp = requiredPdpAtGpm(range.max);
 
       if (minimumRangePdp !== null && pdp < minimumRangePdp) {
-        return HEN_TURBO_BELOW_RANGE_WARNING;
+        return getHenTurboOutOfRangeWarning(
+          estimateFlowWithFixedTurboLoss(getHenTurboLossForGpm(range.min, curve)),
+          curve
+        );
       }
 
       if (maximumRangePdp !== null && pdp > maximumRangePdp) {
-        return HEN_TURBO_ABOVE_RANGE_WARNING;
+        return getHenTurboOutOfRangeWarning(
+          estimateFlowWithFixedTurboLoss(getHenTurboLossForGpm(range.max, curve)),
+          curve
+        );
       }
 
-      return HEN_TURBO_BELOW_RANGE_WARNING;
+      return getHenTurboOutOfRangeWarning(
+        estimateFlowWithFixedTurboLoss(),
+        curve
+      );
     }
 
     function calculateReverseFlow({ pdp, hoseLength, nozzlePressure, applianceLoss, masterStreamLoss, coefficient, selectedHose, warnings }) {      if (pdp === null || hoseLength === null || nozzlePressure === null || coefficient === null) {
@@ -4303,10 +4342,56 @@ function solveReverseFlowGpm(supplyApplianceLoss) {
       availablePressure > 0 && totalFrictionLoad > 0
         ? Math.sqrt(availablePressure / totalFrictionLoad) * 100
         : null;
-    const outOfRangeWarning =
-      availablePressure <= 0
-        ? HEN_TURBO_BELOW_RANGE_WARNING
-        : getHenTurboOutOfRangeWarning(estimatedGpm, turboCurve);
+    const turboRange = getHenTurboPublishedRange(turboCurve);
+    const minimumTurboLoss = turboRange
+      ? getHenTurboLossForGpm(turboRange.min, turboCurve)
+      : null;
+    const maximumTurboLoss = turboRange
+      ? getHenTurboLossForGpm(turboRange.max, turboCurve)
+      : null;
+    const estimateFlowWithFixedTurboLoss = turboLoss => {
+      const pressureForFlow = availablePressure - (turboLoss || 0);
+      return pressureForFlow > 0 && totalFrictionLoad > 0
+        ? Math.sqrt(pressureForFlow / totalFrictionLoad) * 100
+        : 0;
+    };
+    const minimumRangePdp =
+      turboRange && minimumTurboLoss !== null
+        ? nozzlePressure +
+          applianceLoss +
+          masterStreamLoss +
+          supplyApplianceLoss +
+          totalFrictionLoad * Math.pow(turboRange.min / 100, 2) +
+          minimumTurboLoss
+        : null;
+    const maximumRangePdp =
+      turboRange && maximumTurboLoss !== null
+        ? nozzlePressure +
+          applianceLoss +
+          masterStreamLoss +
+          supplyApplianceLoss +
+          totalFrictionLoad * Math.pow(turboRange.max / 100, 2) +
+          maximumTurboLoss
+        : null;
+    let outOfRangeWarning =
+      getHenTurboOutOfRangeWarning(estimatedGpm, turboCurve);
+
+    if (availablePressure <= 0) {
+      outOfRangeWarning =
+        getHenTurboOutOfRangeWarning(0, turboCurve);
+    } else if (minimumRangePdp !== null && pdp < minimumRangePdp) {
+      outOfRangeWarning =
+        getHenTurboOutOfRangeWarning(
+          estimateFlowWithFixedTurboLoss(minimumTurboLoss),
+          turboCurve
+        );
+    } else if (maximumRangePdp !== null && pdp > maximumRangePdp) {
+      outOfRangeWarning =
+        getHenTurboOutOfRangeWarning(
+          estimateFlowWithFixedTurboLoss(maximumTurboLoss),
+          turboCurve
+        );
+    }
 
     return {
       totalFrictionLoss: null,

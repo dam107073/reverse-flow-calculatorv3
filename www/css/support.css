@@ -20,6 +20,11 @@
       margin: 8px 0;
     }
 
+    .warning-item span:last-child {
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+
     .footer-actions {
   display: flex;
   justify-content: flex-end;
