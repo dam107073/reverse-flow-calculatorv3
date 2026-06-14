@@ -14,6 +14,9 @@
       masterStreamType: "fog",
       masterStreamLoss: "25",
       dualLineSupply: false,
+      apparatusFogFlow: "1000",
+      apparatusCustomFogFlow: "",
+      apparatusElevation: "",
 
       nozzlePressure: "55",
       customNozzlePressure: "",
@@ -114,6 +117,7 @@
       reverseModeButton: document.getElementById("reverseModeButton"),
       pdpModeButton: document.getElementById("pdpModeButton"),
       relayModeButton: document.getElementById("relayModeButton"),
+      apparatusMountedModeButton: document.getElementById("apparatusMountedModeButton"),
       modeHelper: document.getElementById("modeHelper"),
 
       pdpLabel: document.getElementById("pdpLabel"),
@@ -130,6 +134,10 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
       masterStreamType:
       document.getElementById("masterStreamType"),
+      apparatusFogFlowField: document.getElementById("apparatusFogFlowField"),
+      apparatusFogFlow: document.getElementById("apparatusFogFlow"),
+      apparatusCustomFogFlowField: document.getElementById("apparatusCustomFogFlowField"),
+      apparatusCustomFogFlow: document.getElementById("apparatusCustomFogFlow"),
 
       dualLineSupplyField:
       document.getElementById("dualLineSupplyField"),
@@ -141,6 +149,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
       masterStreamLoss:
       document.getElementById("masterStreamLoss"),
+      apparatusElevationField: document.getElementById("apparatusElevationField"),
+      apparatusElevation: document.getElementById("apparatusElevation"),
       smoothboreTipField: document.getElementById("smoothboreTipField"),
       smoothboreTip: document.getElementById("smoothboreTip"),
       bladeModelField: document.getElementById("bladeModelField"),
@@ -739,7 +749,9 @@ function updateAccessBadge() {
 function updateToolsGate() {
   if (!els.toolsPage) return;
 
-  const hasProAccess = isProUser();
+  const hasProAccess =
+    isProUser() ||
+    document.body.classList.contains("pro-user");
 
   if (els.toolsProContent) {
     els.toolsProContent.hidden = !hasProAccess;
@@ -747,6 +759,10 @@ function updateToolsGate() {
 
   if (els.toolsProLockedMessage) {
     els.toolsProLockedMessage.hidden = hasProAccess;
+  }
+
+  if (hasProAccess && els.proModal) {
+    els.proModal.hidden = true;
   }
 }
 
@@ -1619,6 +1635,7 @@ function applyHoseLibraryDefault(libraryId) {
 
     function populateSmoothboreTips() {
   const tips = isMasterStream()
+    || isApparatusMountedMode()
     ? SMOOTHBORE_TIPS.filter(tip =>
         tip.diameter >= 1.25 &&
         tip.diameter <= 3
@@ -1821,7 +1838,7 @@ const setupSummary =
       els.disabledPressureExplanations.innerHTML = "";
 
   const pressureKey =
-  isMasterStream()
+  isMasterStream() || isApparatusMountedMode()
     ? "masterstream"
     : state.nozzleType;
 
@@ -1952,6 +1969,21 @@ if (usingCustomPressure) {
       els.masterStreamLoss.value =
     state.masterStreamLoss;
 
+  if (els.apparatusFogFlow) {
+    els.apparatusFogFlow.value =
+      state.apparatusFogFlow || "1000";
+  }
+
+  if (els.apparatusCustomFogFlow) {
+    els.apparatusCustomFogFlow.value =
+      state.apparatusCustomFogFlow || "";
+  }
+
+  if (els.apparatusElevation) {
+    els.apparatusElevation.value =
+      state.apparatusElevation || "";
+  }
+
   els.dualLineSupplyToggle.checked =
     state.dualLineSupply;
 
@@ -1975,35 +2007,45 @@ if (usingCustomPressure) {
 
       els.reverseModeButton.classList.toggle("active", isReverseMode());
       els.pdpModeButton.classList.toggle("active", isRequiredPdpMode());
+      els.apparatusMountedModeButton?.classList.toggle("active", isApparatusMountedMode());
       els.relayModeButton.classList.toggle("active",isRelayMode());
       els.splitLayButton.classList.toggle("active", isSplitLayMode());
 
       els.pdpLabel.textContent =
-        isRelayMode()
+        isApparatusMountedMode()
+          ? "Rated Flow"
+      : isRelayMode()
           ? "Target Flow"
       : isRequiredPdpMode()
           ? "Target Flow"
           : "Pump Discharge Pressure";
 
       els.pdp.placeholder =
-        isRelayMode()
+        isApparatusMountedMode()
+          ? "GPM"
+      : isRelayMode()
           ? "GPM"
       : isRequiredPdpMode()
           ? "GPM"
           : "PDP";
 
-      els.pdp.disabled = smoothboreRequiredPdp;
+      els.pdp.disabled = smoothboreRequiredPdp || isApparatusMountedMode();
 
-      els.pdp.closest(".field").style.display = isSplitLayMode() ? "none" : "";
-      els.hoseLength.closest(".field").style.display = isSplitLayMode() ? "none" : "";
-      els.hoseSize.closest(".field").style.display = isSplitLayMode() ? "none" : "";
+      els.pdp.closest(".field").style.display =
+        (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
+      els.hoseLength.closest(".field").style.display =
+        (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
+      els.hoseSize.closest(".field").style.display =
+        (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
       
       els.nozzleType.closest(".field").style.display =
   (isSplitLayMode() || isRelayMode())
     ? "none"
     : "";
-      els.applianceLoss.closest(".field").style.display = "";
-      els.customCoefficient.closest(".field").style.display = isSplitLayMode() ? "none" : "";
+      els.applianceLoss.closest(".field").style.display =
+        isApparatusMountedMode() ? "none" : "";
+      els.customCoefficient.closest(".field").style.display =
+        (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
       enforceHenTurboAvailability();
       syncHenTurboUi();
 
@@ -2025,6 +2067,13 @@ document.querySelector('label[for="applianceLoss"]').textContent =
   document.documentElement.style.setProperty(
     "--mode-glow",
     "rgba(168, 85, 247, 0.38)"
+  );
+
+} else if (isApparatusMountedMode()) {
+
+  document.documentElement.style.setProperty(
+    "--mode-glow",
+    "rgba(14, 165, 233, 0.36)"
   );
 
 } else if (isRelayMode()) {
@@ -2051,6 +2100,8 @@ document.querySelector('label[for="applianceLoss"]').textContent =
 }
     els.modeHelper.textContent = isSplitLayMode()
   ? "Split Lay: Calculate longer deployments using separate supply and attack sections joined by an appliance."
+  : isApparatusMountedMode()
+    ? "Apparatus Mounted: calculate master stream flow, reaction, elevation loss, and required PDP without hose friction."
   : isRelayMode()
     ? "Relay Pumping: Calculate the discharge pressure needed to supply a receiving engine."
     : smoothboreRequiredPdp
@@ -2067,14 +2118,16 @@ document.querySelector('label[for="applianceLoss"]').textContent =
       els.primaryResultLabel.textContent =
   isSplitLayMode()
     ? "Split Lay PDP"
+    : isApparatusMountedMode()
+      ? "Required PDP"
     : isRelayMode()
       ? "Relay PDP"
       : isRequiredPdpMode()
         ? "Required PDP"
         : "Rounded Flow";
       
-      els.primaryResultUnit.textContent =
-  isRelayMode() || isRequiredPdpMode() || isSplitLayMode()
+  els.primaryResultUnit.textContent =
+  isRelayMode() || isRequiredPdpMode() || isSplitLayMode() || isApparatusMountedMode()
     ? "PSI"
     : "GPM";
      if (isRelayMode()) {
@@ -2086,6 +2139,16 @@ document.querySelector('label[for="applianceLoss"]').textContent =
   els.reactionLabel.textContent = "Reserve";
   els.nozzleReaction.parentElement.style.display = isRelayMode() ? "none" : "";
   els.setupLabel.textContent = "Relay Distance";
+
+} else if (isApparatusMountedMode()) {
+
+  els.calculatedLabel.textContent = "Flow";
+  els.totalFlLabel.textContent = "Nozzle Pressure";
+  els.flPer100Label.textContent = "Elevation Loss";
+  els.nozzleDisplayLabel.textContent = "Appliance Loss";
+  els.reactionLabel.textContent = "Reaction";
+  els.setupLabel.textContent = "Nozzle";
+  els.nozzleReaction.parentElement.style.display = "";
 
 } else {
 
@@ -2116,12 +2179,24 @@ document.querySelector('label[for="applianceLoss"]').textContent =
     
       els.nozzleTypeLabel.textContent = "Nozzle Style";
 
-els.nozzleType.innerHTML = `
+els.nozzleType.innerHTML = isApparatusMountedMode()
+  ? `
+  <option value="fog">Fog</option>
+  <option value="smoothbore">Smoothbore</option>
+`
+  : `
   <option value="fog">Fog</option>
   <option value="smoothbore">Smoothbore</option>
   <option value="blade">Blade</option>
   <option value="masterstream">Master Stream</option>
 `;
+
+if (
+  isApparatusMountedMode() &&
+  !["fog", "smoothbore"].includes(state.nozzleType)
+) {
+  state.nozzleType = "fog";
+}
 
 els.nozzleType.value = state.nozzleType;
 
@@ -2189,12 +2264,27 @@ function syncSmoothboreUi() {
 
     els.dualLineSupplyField.hidden = true;
     els.dualLineSupplyField.style.display = "none";
+    if (els.apparatusFogFlowField) {
+      els.apparatusFogFlowField.hidden = true;
+      els.apparatusFogFlowField.style.display = "none";
+    }
+    if (els.apparatusCustomFogFlowField) {
+      els.apparatusCustomFogFlowField.hidden = true;
+      els.apparatusCustomFogFlowField.style.display = "none";
+    }
+    if (els.apparatusElevationField) {
+      els.apparatusElevationField.hidden = true;
+      els.apparatusElevationField.style.display = "none";
+    }
 
     return;
   }
 
   const showMasterStream =
     isMasterStream();
+
+  const showApparatusMounted =
+    isApparatusMountedMode();
 
   els.masterStreamTypeField.hidden =
     !showMasterStream;
@@ -2203,10 +2293,15 @@ function syncSmoothboreUi() {
     showMasterStream ? "" : "none";
 
   els.masterStreamLossField.hidden =
-    !showMasterStream;
+    !(showMasterStream || showApparatusMounted);
 
   els.masterStreamLossField.style.display =
-    showMasterStream ? "" : "none";
+    (showMasterStream || showApparatusMounted) ? "" : "none";
+
+  document.querySelector('label[for="masterStreamLoss"]').textContent =
+    showApparatusMounted
+      ? "Master Stream / Appliance Loss"
+      : "Master Stream Device Loss";
 
   const showSmoothbore =
     isSmoothbore();
@@ -2235,6 +2330,34 @@ function syncSmoothboreUi() {
 
   els.dualLineSupplyField.style.display =
     showDualLines ? "" : "none";
+
+  const showApparatusFogFlow =
+    showApparatusMounted && state.nozzleType === "fog";
+
+  if (els.apparatusFogFlowField) {
+    els.apparatusFogFlowField.hidden =
+      !showApparatusFogFlow;
+    els.apparatusFogFlowField.style.display =
+      showApparatusFogFlow ? "" : "none";
+  }
+
+  const showApparatusCustomFogFlow =
+    showApparatusFogFlow &&
+    state.apparatusFogFlow === "custom";
+
+  if (els.apparatusCustomFogFlowField) {
+    els.apparatusCustomFogFlowField.hidden =
+      !showApparatusCustomFogFlow;
+    els.apparatusCustomFogFlowField.style.display =
+      showApparatusCustomFogFlow ? "" : "none";
+  }
+
+  if (els.apparatusElevationField) {
+    els.apparatusElevationField.hidden =
+      !showApparatusMounted;
+    els.apparatusElevationField.style.display =
+      showApparatusMounted ? "" : "none";
+  }
 
   if (!showSmoothbore) {
     state.smoothboreTip = "";
@@ -2949,6 +3072,18 @@ els.pdpModeButton.addEventListener("click", () => {
   resetSplitLayResultCard();
 });
 
+els.apparatusMountedModeButton?.addEventListener("click", () => {
+  if (!isProUser()) {
+    openProModal();
+    return;
+  }
+
+  setMode("apparatusMounted");
+  resetSplitLayInputs();
+  syncSplitLayInputsFromState();
+  resetSplitLayResultCard();
+});
+
 els.relayModeButton.addEventListener("click", () => {
   if (!isProUser()) {
     openProModal();
@@ -3211,7 +3346,7 @@ document.addEventListener("keydown", event => {
   }
 });
 
-      ["pdp", "hoseLength", "applianceLoss", "reverseSupplyLength"].forEach(id => {
+      ["pdp", "hoseLength", "applianceLoss", "reverseSupplyLength", "apparatusElevation", "apparatusCustomFogFlow"].forEach(id => {
         els[id]?.addEventListener("input", e => handleWholeNumberInput(id, e.target));
       });
 
@@ -3315,6 +3450,18 @@ els.henTurboToggle?.addEventListener("click", () => {
 
 els.masterStreamLoss.addEventListener("input", e => {
   state.masterStreamLoss = e.target.value || "25";
+  updateCalculator();
+});
+
+els.apparatusFogFlow?.addEventListener("change", e => {
+  state.apparatusFogFlow = e.target.value;
+  if (state.apparatusFogFlow !== "custom") {
+    state.apparatusCustomFogFlow = "";
+    if (els.apparatusCustomFogFlow) {
+      els.apparatusCustomFogFlow.value = "";
+    }
+  }
+  syncSmoothboreUi();
   updateCalculator();
 });
 
@@ -3514,9 +3661,37 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
     state.hoseLength = "";
     state.hoseSize = "5";
 
-    state.nozzleType = "30";
-    state.nozzlePressure = "";
+	    state.nozzleType = "30";
+	    state.nozzlePressure = "";
+    state.masterStreamType = "fog";
+    state.masterStreamLoss = "25";
+    state.dualLineSupply = false;
+    state.apparatusFogFlow = "1000";
+    state.apparatusCustomFogFlow = "";
+    state.apparatusElevation = "";
 
+	    state.smoothboreTip = "";
+    state.bladeModel = "blade160";
+
+    state.applianceLoss = "0";
+    state.henTurboEnabled = false;
+  }
+
+  if (mode === "apparatusMounted") {
+    state.pdp = "";
+    state.targetGpm = "";
+    state.hoseLength = "";
+    state.hoseSize = "5";
+
+    state.nozzleType = "fog";
+    state.masterStreamType = "fog";
+    state.masterStreamLoss = "25";
+    state.dualLineSupply = false;
+    state.apparatusFogFlow = "1000";
+    state.apparatusCustomFogFlow = "";
+    state.apparatusElevation = "";
+
+    state.nozzlePressure = "50";
     state.smoothboreTip = "";
     state.bladeModel = "blade160";
 
@@ -3535,11 +3710,14 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   state.hoseSize = "1.88";
 
   state.nozzleType = "fog";
-  state.masterStreamType = "fog";
-  state.masterStreamLoss = "25";
-  state.dualLineSupply = false;
+	  state.masterStreamType = "fog";
+	  state.masterStreamLoss = "25";
+	  state.dualLineSupply = false;
+  state.apparatusFogFlow = "1000";
+  state.apparatusCustomFogFlow = "";
+  state.apparatusElevation = "";
 
-  state.nozzlePressure = "55";
+	  state.nozzlePressure = "55";
   state.smoothboreTip = "";
   state.bladeModel = "blade160";
 
@@ -3888,6 +4066,11 @@ if (isRelayMode()) {
   return;
 }
 
+if (isApparatusMountedMode()) {
+  calculateApparatusMounted({ ...inputs, warnings });
+  return;
+}
+
 if (isRequiredPdpMode()) {
   calculateRequiredPdp({ ...inputs, warnings });
   return;
@@ -3924,7 +4107,7 @@ calculateReverseFlow({ ...inputs, warnings });
       syncCalculatedSmoothboreTargetFlow();
 
       const masterStreamLoss =
-      isMasterStream()
+      (isMasterStream() || isApparatusMountedMode())
     ? numberOrNull(state.masterStreamLoss) ?? 25
     : 0;
 
@@ -4696,6 +4879,75 @@ Per line: ${Math.round(flowForFriction)} GPM`
 
       renderWarnings(warnings);
     }
+
+function getApparatusRatedFlow() {
+  if (state.nozzleType === "smoothbore") {
+    const tip = getSelectedHydraulicSmoothboreModel();
+    const nozzlePressure =
+      state.nozzlePressure === "custom"
+        ? numberOrNull(state.customNozzlePressure)
+        : numberOrNull(state.nozzlePressure);
+
+    if (!tip || nozzlePressure === null) return null;
+
+    return smoothboreGpm(tip.diameter, nozzlePressure);
+  }
+
+  return state.apparatusFogFlow === "custom"
+    ? numberOrNull(state.apparatusCustomFogFlow)
+    : numberOrNull(state.apparatusFogFlow);
+}
+
+function calculateApparatusMounted({ nozzlePressure, masterStreamLoss, warnings }) {
+  if (nozzlePressure === null) {
+    renderWarnings(warnings);
+    return;
+  }
+
+  const flow = getApparatusRatedFlow();
+  const elevationFeet = numberOrNull(state.apparatusElevation) ?? 0;
+  const applianceLoss = masterStreamLoss ?? 25;
+
+  if (flow === null || flow <= 0) {
+    warnings.push("Enter a valid rated flow greater than 0 GPM.");
+    renderWarnings(warnings);
+    return;
+  }
+
+  if (elevationFeet < 0) {
+    warnings.push("Elevation above pump must be 0 feet or greater.");
+    renderWarnings(warnings);
+    return;
+  }
+
+  if (applianceLoss < 0) {
+    warnings.push("Master stream / appliance loss must be 0 psi or greater.");
+    renderWarnings(warnings);
+    return;
+  }
+
+  const elevationLoss = elevationFeet * 0.434;
+  const requiredPdp =
+    nozzlePressure +
+    elevationLoss +
+    applianceLoss;
+  const nozzleReaction =
+    calculateNozzleReaction(flow, nozzlePressure);
+
+  setResult(
+    Math.round(requiredPdp),
+    `${Math.round(flow)} GPM`,
+    `${Math.round(nozzlePressure)} psi`,
+    `${elevationLoss.toFixed(1)} psi`,
+    `${Math.round(applianceLoss)} psi`,
+    getNozzleDisplay(),
+    nozzleReaction,
+    null,
+    null
+  );
+
+  renderWarnings(warnings);
+}
       // ========================================
 // RELAY PDP CALCULATIONS
 // ========================================
@@ -5675,6 +5927,10 @@ return `Fog @ ${displayPressure} psi`;
 
     function isRequiredPdpMode() {
       return state.mode === "requiredPdp";
+    }
+
+    function isApparatusMountedMode() {
+      return state.mode === "apparatusMounted";
     }
 
     function isRelayMode() {

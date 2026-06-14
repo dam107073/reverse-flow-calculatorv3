@@ -103,6 +103,14 @@
       gap: 16px;
     }
 
+    body.pro-user #toolsProLockedMessage {
+      display: none !important;
+    }
+
+    body.pro-user #toolsProContent {
+      display: grid !important;
+    }
+
     .settings-tool-card {
       grid-column: 1 / -1;
       display: grid;
@@ -119,6 +127,23 @@
       color: var(--ink);
       font-size: 16px;
       line-height: 1.2;
+    }
+
+    .privacy-policy-card {
+      gap: 12px;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .privacy-policy-card h2 {
+      margin: 10px 0 0;
+      color: var(--ink);
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    .privacy-policy-card p {
+      margin: 0;
     }
 
     .settings-tool-card .reset-button {

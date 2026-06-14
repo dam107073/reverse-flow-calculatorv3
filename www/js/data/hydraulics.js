@@ -162,10 +162,16 @@ function isModifiedHoseCoefficient(hoseId) {
 
     function getNozzlePressures() {
 
-  if (state.nozzleType === "masterstream") {
+  if (
+    state.nozzleType === "masterstream" ||
+    (
+      typeof isApparatusMountedMode === "function" &&
+      isApparatusMountedMode()
+    )
+  ) {
     return {
-      fog: [50, 55, 75, 100, "custom"],
-      smoothbore: [40, 50, 60, "custom"],
+      fog: [50, 60, 70, 80, 90, 100, "custom"],
+      smoothbore: [50, 60, 70, 80, 90, 100, "custom"],
       masterstream: [50, 60, 70, 80, 90, 100, "custom"]
     };
   }

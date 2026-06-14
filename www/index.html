@@ -39,11 +39,11 @@
   <!-- ========================================
        STYLES
   ========================================= -->
-  <link rel="stylesheet" href="css/base.css?v=build-6" />
-  <link rel="stylesheet" href="css/components.css?v=flash-3" />
+  <link rel="stylesheet" href="css/base.css?v=build-7" />
+  <link rel="stylesheet" href="css/components.css?v=flash-4" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=build-6" />
-  <link rel="stylesheet" href="css/responsive.css?v=build-6" />
+  <link rel="stylesheet" href="css/support.css?v=build-7" />
+  <link rel="stylesheet" href="css/responsive.css?v=build-9" />
 </head>
   
   <body>
@@ -84,7 +84,7 @@
 </button>
 
   <a
-    class="nav-button-link"
+    class="nav-button-link mode-card-pro"
     href="tools.html"
   >
     Tools
@@ -106,6 +106,10 @@ Select a hydraulic calculation mode.
 
   <button id="pdpModeButton" type="button">
     Required PDP
+  </button>
+
+  <button id="apparatusMountedModeButton" type="button" class="mode-card-pro">
+    Apparatus Mounted
   </button>
 
   <button id="relayModeButton" type="button" class="mode-card-pro">
@@ -547,6 +551,27 @@ Select a hydraulic calculation mode.
   </select>
 </div>
 
+        <div id="apparatusFogFlowField" class="field full" hidden>
+          <label for="apparatusFogFlow">Rated Flow</label>
+          <select id="apparatusFogFlow">
+            <option value="500">500 GPM</option>
+            <option value="750">750 GPM</option>
+            <option value="1000">1000 GPM</option>
+            <option value="1250">1250 GPM</option>
+            <option value="1500">1500 GPM</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+
+        <div id="apparatusCustomFogFlowField" class="field full" hidden>
+          <label for="apparatusCustomFogFlow">Custom Rated Flow</label>
+          <input
+            id="apparatusCustomFogFlow"
+            inputmode="numeric"
+            placeholder="GPM"
+          />
+        </div>
+
         <div id="smoothboreTipField" class="field full" hidden>
           <label for="smoothboreTip">Smoothbore Tip Size</label>
           <select id="smoothboreTip"></select>
@@ -609,6 +634,18 @@ Select a hydraulic calculation mode.
   </p>
 </div>
           
+<div id="apparatusElevationField" class="field full" hidden>
+  <label for="apparatusElevation">Elevation Above Pump</label>
+  <input
+    id="apparatusElevation"
+    type="number"
+    inputmode="numeric"
+    placeholder="0"
+  />
+  <p class="helper">
+    Elevation above the pump discharge.
+  </p>
+</div>
 
   <div class="field">
   <label for="applianceLoss">
