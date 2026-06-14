@@ -69,123 +69,196 @@
         <div class="field full">
           <label>Tools</label>
           <p class="helper">
-            Hydraulic tools and reference resources for Reverse Flow.
+            Hydraulic workspace, defaults, references, and future tools for Reverse Flow Pro.
           </p>
         </div>
 
-        <details class="settings-tool-card collapsible-settings-card hose-library-panel">
-          <summary>
-            <span>
-              <strong>Hose Library</strong>
-              <span class="helper">
-                Manufacturer hose reference profiles for hydraulic planning and default hose selection.
+        <div id="toolsProContent">
+          <details class="settings-tool-card collapsible-settings-card">
+            <summary>
+              <span>
+                <strong>Hose Management</strong>
+                <span class="helper">
+                  Hose reference profiles and department-specific hose entries.
+                </span>
               </span>
-            </span>
-          </summary>
-          <div class="collapsible-card-body">
-            <p class="helper hose-library-disclaimer">
-              Manufacturer specifications are provided as reference information only. Actual hydraulic performance may vary due to hose age, condition, manufacturing revision, testing methods, and department practices.
-            </p>
-            <div class="hose-library-filters">
-              <div class="field">
-                <label for="hoseLibraryManufacturerFilter">Manufacturer</label>
-                <select id="hoseLibraryManufacturerFilter"></select>
-              </div>
+            </summary>
+            <div class="collapsible-card-body">
+              <details class="tool-subsection collapsible-settings-card hose-library-panel">
+                <summary>
+                  <span>
+                    <strong>Hose Library</strong>
+                    <span class="helper">
+                      Manufacturer hose reference profiles for hydraulic planning and default hose selection.
+                    </span>
+                  </span>
+                </summary>
+                <div class="collapsible-card-body">
+                  <p class="helper hose-library-disclaimer">
+                    Manufacturer specifications are provided as reference information only. Actual hydraulic performance may vary due to hose age, condition, manufacturing revision, testing methods, and department practices.
+                  </p>
+                  <div class="hose-library-filters">
+                    <div class="field">
+                      <label for="hoseLibraryManufacturerFilter">Manufacturer</label>
+                      <select id="hoseLibraryManufacturerFilter"></select>
+                    </div>
 
-              <div class="field">
-                <label for="hoseLibrarySizeFilter">Hose Size</label>
-                <select id="hoseLibrarySizeFilter"></select>
-              </div>
+                    <div class="field">
+                      <label for="hoseLibrarySizeFilter">Hose Size</label>
+                      <select id="hoseLibrarySizeFilter"></select>
+                    </div>
 
-              <div class="field">
-                <label for="hoseLibraryUseFilter">Use</label>
-                <select id="hoseLibraryUseFilter">
-                  <option value="all">Supply and Attack</option>
-                  <option value="supply">Supply</option>
-                  <option value="attack">Attack</option>
-                </select>
-              </div>
+                    <div class="field">
+                      <label for="hoseLibraryUseFilter">Use</label>
+                      <select id="hoseLibraryUseFilter">
+                        <option value="all">Supply and Attack</option>
+                        <option value="supply">Supply</option>
+                        <option value="attack">Attack</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p id="hoseLibrarySummary" class="helper"></p>
+                  <div id="hoseLibraryList" class="hose-library-list"></div>
+                </div>
+              </details>
+
+              <details class="tool-subsection collapsible-settings-card custom-hose-panel">
+                <summary>
+                  <span>
+                    <strong>Create Custom Hose</strong>
+                    <span class="helper">
+                      Add a department-specific hose profile to the Hose Library.
+                    </span>
+                  </span>
+                </summary>
+                <div class="collapsible-card-body">
+                  <div class="custom-hose-form">
+                    <div class="field">
+                      <label for="customHoseManufacturer">Manufacturer</label>
+                      <input id="customHoseManufacturer" type="text" placeholder="Department / Manufacturer" />
+                    </div>
+
+                    <div class="field">
+                      <label for="customHoseModel">Model / Name</label>
+                      <input id="customHoseModel" type="text" placeholder="Custom hose name" />
+                    </div>
+
+                    <div class="field">
+                      <label for="customHoseSize">Hose Size</label>
+                      <select id="customHoseSize"></select>
+                    </div>
+
+                    <div class="field">
+                      <label for="customHoseUse">Use</label>
+                      <select id="customHoseUse">
+                        <option value="both">Both</option>
+                        <option value="attack">Attack</option>
+                        <option value="supply">Supply</option>
+                      </select>
+                    </div>
+
+                    <div class="field">
+                      <label for="customHoseCoefficient">Coefficient</label>
+                      <input id="customHoseCoefficient" type="text" inputmode="decimal" placeholder="C value" />
+                    </div>
+
+                    <button id="createCustomHoseButton" class="reset-button" type="button">
+                      Add to Hose Library
+                    </button>
+                  </div>
+                </div>
+              </details>
             </div>
-            <p id="hoseLibrarySummary" class="helper"></p>
-            <div id="hoseLibraryList" class="hose-library-list"></div>
-          </div>
-        </details>
+          </details>
 
-        <details class="settings-tool-card collapsible-settings-card">
-          <summary>
-            <span>
-              <strong>References</strong>
-              <span class="helper">
-                Manufacturer reference documents and permission status.
+          <details class="settings-tool-card collapsible-settings-card">
+            <summary>
+              <span>
+                <strong>Defaults</strong>
+                <span class="helper">
+                  Default hose selections and calculation coefficients.
+                </span>
               </span>
-            </span>
-          </summary>
-          <div class="collapsible-card-body">
-            <a class="reset-button default-hose-choose-link" href="references.html">
-              Open References
-            </a>
-          </div>
-        </details>
+            </summary>
+            <div class="collapsible-card-body">
+              <details class="tool-subsection collapsible-settings-card default-hose-selections-panel">
+                <summary>
+                  <span>
+                    <strong>Default Hose Selections</strong>
+                    <span class="helper">
+                      Manufacturer hose references selected from the Hose Library.
+                    </span>
+                  </span>
+                </summary>
+                <div class="collapsible-card-body">
+                  <div id="defaultHoseSelectionsList" class="default-hose-selections-list"></div>
+                </div>
+              </details>
 
-        <details class="settings-tool-card collapsible-settings-card custom-hose-panel">
-          <summary>
-            <span>
-              <strong>Create Custom Hose</strong>
-              <span class="helper">
-                Add a department-specific hose profile to the Hose Library.
-              </span>
-            </span>
-          </summary>
-          <div class="collapsible-card-body">
-            <div class="custom-hose-form">
-              <div class="field">
-                <label for="customHoseManufacturer">Manufacturer</label>
-                <input id="customHoseManufacturer" type="text" placeholder="Department / Manufacturer" />
-              </div>
-
-              <div class="field">
-                <label for="customHoseModel">Model / Name</label>
-                <input id="customHoseModel" type="text" placeholder="Custom hose name" />
-              </div>
-
-              <div class="field">
-                <label for="customHoseSize">Hose Size</label>
-                <select id="customHoseSize"></select>
-              </div>
-
-              <div class="field">
-                <label for="customHoseUse">Use</label>
-                <select id="customHoseUse">
-                  <option value="both">Both</option>
-                  <option value="attack">Attack</option>
-                  <option value="supply">Supply</option>
-                </select>
-              </div>
-
-              <div class="field">
-                <label for="customHoseCoefficient">Coefficient</label>
-                <input id="customHoseCoefficient" type="text" inputmode="decimal" placeholder="C value" />
-              </div>
-
-              <button id="createCustomHoseButton" class="reset-button" type="button">
-                Add to Hose Library
-              </button>
+              <details class="tool-subsection collapsible-settings-card default-hose-coefficients-panel">
+                <summary>
+                  <span>
+                    <strong>Default Hose Coefficients</strong>
+                    <span class="helper">
+                      Calculation coefficients currently used by the calculator. These remain separate from manufacturer hose references.
+                    </span>
+                  </span>
+                </summary>
+                <div class="collapsible-card-body">
+                  <div id="defaultHoseCoefficientsList" class="default-hose-coefficients-list"></div>
+                  <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
+                    Reset All Coefficients to App Defaults
+                  </button>
+                </div>
+              </details>
             </div>
-          </div>
-        </details>
+          </details>
 
-        <details class="settings-tool-card collapsible-settings-card muted-card">
-          <summary>
-            <span>
-              <strong>More hydraulic tools coming soon</strong>
-            </span>
-          </summary>
-          <div class="collapsible-card-body">
-            <p class="helper">
-              Future tools will live here as the calculator grows.
-            </p>
-          </div>
-        </details>
+          <details class="settings-tool-card collapsible-settings-card muted-card">
+            <summary>
+              <span>
+                <strong>Hydraulic Calculators</strong>
+                <span class="helper">
+                  Future hydraulic utilities.
+                </span>
+              </span>
+            </summary>
+            <div class="collapsible-card-body">
+              <p class="helper">
+                Hose Coefficient Calculator
+              </p>
+              <p class="helper">
+                More hydraulic calculators coming soon.
+              </p>
+            </div>
+          </details>
+
+          <details class="settings-tool-card collapsible-settings-card">
+            <summary>
+              <span>
+                <strong>References</strong>
+                <span class="helper">
+                  Manufacturer reference documents and permission status.
+                </span>
+              </span>
+            </summary>
+            <div class="collapsible-card-body">
+              <a class="reset-button default-hose-choose-link" href="references.html">
+                Open References
+              </a>
+            </div>
+          </details>
+        </div>
+
+        <div id="toolsProLockedMessage" class="settings-tool-card muted-card" hidden>
+          <strong>Reverse Flow Pro Required</strong>
+          <p class="helper">
+            Tools is the Pro hydraulic workspace. Unlock Pro to manage hose defaults, custom hoses, hydraulic references, and future tools.
+          </p>
+          <button id="toolsProUpgradeButton" class="reset-button" type="button">
+            Unlock Pro
+          </button>
+        </div>
       </div>
     </section>
 

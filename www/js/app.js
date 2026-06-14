@@ -74,6 +74,9 @@
       calculatorView: document.getElementById("calculatorView"),
       toolsPage: document.getElementById("toolsPage"),
       settingsPage: document.getElementById("settingsPage"),
+      toolsProContent: document.getElementById("toolsProContent"),
+      toolsProLockedMessage: document.getElementById("toolsProLockedMessage"),
+      toolsProUpgradeButton: document.getElementById("toolsProUpgradeButton"),
       settingsView: document.getElementById("settingsView"),
       toolsView: document.getElementById("toolsView"),
       settingsViewButton: document.getElementById("settingsViewButton"),
@@ -238,6 +241,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       buyProButton: document.getElementById("buyProButton"),
       restorePurchaseButton: document.getElementById("restorePurchaseButton"),
       webProBanner: document.getElementById("webProBanner"),
+      settingsVersionInfo: document.getElementById("settingsVersionInfo"),
       reverseFormula: document.getElementById("reverseFormula"),
       requiredPdpFormula: document.getElementById("requiredPdpFormula"),
       relayFormula: document.getElementById("relayFormula"),
@@ -650,6 +654,11 @@ logStoreEvent("initialize-start", {
       `Reverse Flow v${APP_VERSION}`;
   }
 
+  if (els.settingsVersionInfo) {
+    els.settingsVersionInfo.textContent =
+      `Reverse Flow v${APP_VERSION}`;
+  }
+
 	  if (els.buyProButton) {
 	  updateBuyProButtonState(
 	    isNativeCapacitorApp() ? "loading" : "web",
@@ -666,13 +675,15 @@ logStoreEvent("initialize-start", {
   await loadHoseLibraryData();
 
   if (!els.calculatorView) {
-    populateHoseLibraryFilter();
-    applyHoseLibraryQueryFilters();
-      populateCustomHoseSizeOptions();
-      renderHoseLibrary();
-      renderDefaultHoseSelections();
-      renderDefaultHoseCoefficients();
-      bindSupportPageEvents();
+    updateToolsGate();
+    bindSupportPageEvents();
+
+    if (els.toolsPage && !isProUser()) {
+      openProModal();
+      return;
+    }
+
+      renderSupportPageToolsContent();
       return;
     }
 
@@ -703,6 +714,16 @@ function updateAccessBadge() {
 
   document.body.classList.add("access-ready");
 
+  if (els.toolsPage) {
+    const wasToolsContentHidden = Boolean(els.toolsProContent?.hidden);
+
+    updateToolsGate();
+
+    if (isProUser() && wasToolsContentHidden) {
+      renderSupportPageToolsContent();
+    }
+  }
+
   const badge = document.getElementById("accessBadge");
 
   if (!badge) return;
@@ -713,6 +734,29 @@ function updateAccessBadge() {
   }
 
   badge.textContent = "BASIC";
+}
+
+function updateToolsGate() {
+  if (!els.toolsPage) return;
+
+  const hasProAccess = isProUser();
+
+  if (els.toolsProContent) {
+    els.toolsProContent.hidden = !hasProAccess;
+  }
+
+  if (els.toolsProLockedMessage) {
+    els.toolsProLockedMessage.hidden = hasProAccess;
+  }
+}
+
+function renderSupportPageToolsContent() {
+  populateHoseLibraryFilter();
+  applyHoseLibraryQueryFilters();
+  populateCustomHoseSizeOptions();
+  renderHoseLibrary();
+  renderDefaultHoseSelections();
+  renderDefaultHoseCoefficients();
 }
     // ========================================
     // STORAGE
@@ -878,11 +922,6 @@ function clearCustomHoseForm() {
 }
 
 function createCustomHoseProfile() {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
   const selectedHose = getHoseOptionById(els.customHoseSize?.value);
   const manufacturer =
     els.customHoseManufacturer?.value.trim() || "Custom";
@@ -1372,11 +1411,6 @@ function bindDefaultHoseCoefficientEvents() {
     .querySelectorAll("[data-coefficient-save]")
     .forEach(button => {
       button.addEventListener("click", () => {
-        if (!isProUser()) {
-          openProModal();
-          return;
-        }
-
         const hoseId = button.dataset.coefficientSave;
         const input = button
           .closest(".default-hose-coefficient-card")
@@ -1398,11 +1432,6 @@ function bindDefaultHoseCoefficientEvents() {
     .querySelectorAll("[data-coefficient-reset]")
     .forEach(button => {
       button.addEventListener("click", () => {
-        if (!isProUser()) {
-          openProModal();
-          return;
-        }
-
         const hoseId = button.dataset.coefficientReset;
 
         clearSavedHoseCoefficient(hoseId);
@@ -1557,11 +1586,6 @@ function applyHoseLibraryDefault(libraryId) {
 
   if (!libraryHose || !libraryHose.appHoseId) {
     alert("This hose library entry cannot be selected as an app default.");
-    return;
-  }
-
-  if (!isProUser()) {
-    openProModal();
     return;
   }
 
@@ -2793,16 +2817,12 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
 
 	    function bindSupportPageEvents() {
 	      els.hoseLibraryManufacturerFilter?.addEventListener("change", renderHoseLibrary);
-	      els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
-	      els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
-	      els.createCustomHoseButton?.addEventListener("click", createCustomHoseProfile);
+      els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
+      els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
+      els.createCustomHoseButton?.addEventListener("click", createCustomHoseProfile);
+      els.toolsProUpgradeButton?.addEventListener("click", openProModal);
 
 	      els.resetHoseCoefficientsButton?.addEventListener("click", () => {
-        if (!isProUser()) {
-          openProModal();
-          return;
-        }
-
         const confirmed = confirm(
           "Reset all hose coefficients back to app defaults?"
         );
@@ -2894,11 +2914,6 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
       els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
       els.createCustomHoseButton?.addEventListener("click", createCustomHoseProfile);
       els.resetHoseCoefficientsButton?.addEventListener("click", () => {
-
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
 
   const confirmed = confirm(
     "Reset all hose coefficients back to app defaults?"

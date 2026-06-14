@@ -97,6 +97,12 @@
       gap: 16px;
     }
 
+    #toolsProContent {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 16px;
+    }
+
     .settings-tool-card {
       grid-column: 1 / -1;
       display: grid;
@@ -118,6 +124,18 @@
     .settings-tool-card .reset-button {
       justify-self: start;
       margin-top: 2px;
+    }
+
+    .tool-subsection {
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.46);
+    }
+
+    .tool-subsection + .tool-subsection {
+      margin-top: 12px;
     }
 
     .collapsible-settings-card {

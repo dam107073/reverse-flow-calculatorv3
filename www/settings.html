@@ -69,50 +69,70 @@
         <div class="field full">
           <label>Settings</label>
           <p class="helper">
-            Preferences, defaults, and future app configuration for Reverse Flow.
+            App preferences, purchase recovery, and information for Reverse Flow.
           </p>
         </div>
 
-        <details class="settings-tool-card collapsible-settings-card default-hose-selections-panel">
+        <details class="settings-tool-card collapsible-settings-card">
           <summary>
             <span>
-              <strong>Default Hose Selections</strong>
+              <strong>Restore Purchases</strong>
               <span class="helper">
-                Manufacturer hose references selected from the Hose Library.
+                Recover an existing Reverse Flow Pro purchase.
               </span>
             </span>
           </summary>
           <div class="collapsible-card-body">
-            <div id="defaultHoseSelectionsList" class="default-hose-selections-list"></div>
-          </div>
-        </details>
-
-        <details class="settings-tool-card collapsible-settings-card default-hose-coefficients-panel">
-          <summary>
-            <span>
-              <strong>Default Hose Coefficients</strong>
-              <span class="helper">
-                Calculation coefficients currently used by the calculator. These remain separate from manufacturer hose references.
-              </span>
-            </span>
-          </summary>
-          <div class="collapsible-card-body">
-            <div id="defaultHoseCoefficientsList" class="default-hose-coefficients-list"></div>
-            <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
-              Reset All Coefficients to App Defaults
+            <button type="button" id="restorePurchaseButton" class="reset-button">
+              Restore Purchase
             </button>
           </div>
         </details>
 
-        <details class="settings-tool-card collapsible-settings-card muted-card">
+        <details class="settings-tool-card collapsible-settings-card">
           <summary>
             <span>
-              <strong>Future Nozzle Defaults</strong>
+              <strong>About Reverse Flow</strong>
+              <span class="helper">
+                Fireground hydraulics support and app information.
+              </span>
             </span>
           </summary>
           <div class="collapsible-card-body">
             <p class="helper">
-              Future nozzle defaults will stay separate from temporary calculation overrides.
+              Reverse Flow helps estimate hydraulic outcomes for fireground planning and operations. Always confirm calculations against department policy, apparatus limits, and field conditions.
+            </p>
+          </div>
+        </details>
+
+        <details class="settings-tool-card collapsible-settings-card">
+          <summary>
+            <span>
+              <strong>Privacy Policy</strong>
+              <span class="helper">
+                View privacy information for Reverse Flow.
+              </span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <a class="reset-button default-hose-choose-link" href="privacy.html">
+              Open Privacy Policy
+            </a>
+          </div>
+        </details>
+
+        <details class="settings-tool-card collapsible-settings-card">
+          <summary>
+            <span>
+              <strong>Version Information</strong>
+              <span class="helper">
+                Current app version.
+              </span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <p class="helper" id="settingsVersionInfo">
+              Reverse Flow version information will appear here.
             </p>
           </div>
         </details>
@@ -120,76 +140,36 @@
         <details class="settings-tool-card collapsible-settings-card muted-card">
           <summary>
             <span>
-              <strong>Future Unit Preferences</strong>
+              <strong>Appearance</strong>
+              <span class="helper">
+                Future app appearance preferences.
+              </span>
             </span>
           </summary>
           <div class="collapsible-card-body">
             <p class="helper">
-              Future unit preferences will live here without changing existing saved setup data.
+              Appearance preferences will live here.
+            </p>
+          </div>
+        </details>
+
+        <details class="settings-tool-card collapsible-settings-card muted-card">
+          <summary>
+            <span>
+              <strong>Units</strong>
+              <span class="helper">
+                Future app unit preferences.
+              </span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body">
+            <p class="helper">
+              Unit preferences will live here.
             </p>
           </div>
         </details>
       </div>
     </section>
-
-    <div id="proModal" class="pro-modal" hidden>
-      <div class="pro-modal-content">
-        <div class="pro-modal-header">
-          <div class="badge beta">
-            REVERSE FLOW PRO
-          </div>
-
-          <button id="closeProModal" class="modal-close-button" type="button">
-            X
-          </button>
-        </div>
-
-        <p class="pro-modal-subtitle">
-          Built for complex hydraulic operations.
-        </p>
-
-        <div class="pro-feature-list">
-          <div>
-            <strong>Relay Pumping</strong>
-            <span>Long-distance water supply calculations</span>
-          </div>
-
-          <div>
-            <strong>Split Lay</strong>
-            <span>Multi-line hydraulic calculations</span>
-          </div>
-
-          <div>
-            <strong>Pump Charts</strong>
-            <span>Save department setups</span>
-          </div>
-
-          <div>
-            <strong>Hose Coefficients</strong>
-            <span>Custom defaults</span>
-          </div>
-        </div>
-
-        <div class="pro-price-card">
-          <p>Lifetime Access</p>
-          <strong>$4.99 One-Time Purchase</strong>
-          <span>Includes all future Reverse Flow Pro features.</span>
-        </div>
-
-        <button type="button" id="buyProButton">
-          Unlock Pro
-        </button>
-
-        <button type="button" id="restorePurchaseButton">
-          Restore Purchase
-        </button>
-
-        <div class="pro-modal-footer">
-          One-time purchase through the App Store or Google Play.
-          Already own Pro? Tap Restore Purchase.
-        </div>
-      </div>
-    </div>
 
     <p class="version-footer">
       Reverse Flow: Fireground Hydraulics © 2026
