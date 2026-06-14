@@ -21,6 +21,7 @@
       smoothboreTip: "",
       bladeModel: "blade160",
       applianceLoss: "0",
+      henTurboEnabled: false,
       reverseSupplyEnabled: false,
       reverseSupplyLength: "",
       reverseSupplyHoseSize: "3",
@@ -155,6 +156,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
         document.getElementById("customNozzlePressure"),
 
       applianceLoss: document.getElementById("applianceLoss"),
+      henTurboField: document.getElementById("henTurboField"),
+      henTurboToggle: document.getElementById("henTurboToggle"),
       invertApplianceLossButton:
         document.getElementById("invertApplianceLossButton"),
       coefficientToggle: document.getElementById("coefficientToggle"),
@@ -177,6 +180,9 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       nozzleDisplay: document.getElementById("nozzleDisplay"),
       nozzleReaction: document.getElementById("nozzleReaction"),
       setupDisplay: document.getElementById("setupDisplay"),
+      turboLossDetail: document.getElementById("turboLossDetail"),
+      turboLossDisplay: document.getElementById("turboLossDisplay"),
+      bladeResultNote: document.getElementById("bladeResultNote"),
       warningsCard: document.getElementById("warningsCard"),
       splitDualSupplyToggle: document.getElementById("splitDualSupplyToggle"),
 
@@ -1517,6 +1523,11 @@ const setupSummary =
       `
       : `${preset.calculatedFlow || "—"} • ${preset.hoseLength || "—"}' ${preset.hoseSize || "—"} • ${nozzleDisplay}`;
 
+    const turboSummary =
+      preset.henTurboEnabled && !isSplitLayPreset && preset.mode !== "relay"
+        ? `<div class="pump-chart-card-summary">HEN Turbo included</div>`
+        : "";
+
     return `
       <div class="section-card pump-chart-card">
         <div class="pump-chart-card-header">
@@ -1540,6 +1551,8 @@ const setupSummary =
           <div class="pump-chart-card-summary">
             ${setupSummary}
           </div>
+
+          ${turboSummary}
 
         </div>
 
@@ -1738,6 +1751,8 @@ if (usingCustomPressure) {
   els.applianceLoss.value = state.applianceLoss;
   els.customCoefficient.value = state.customCoefficient;
 
+  enforceHenTurboAvailability();
+  syncHenTurboUi();
   syncReverseSupplyUi();
   syncCoefficientUi();
   syncSmoothboreUi();
@@ -1778,6 +1793,8 @@ if (usingCustomPressure) {
     : "";
       els.applianceLoss.closest(".field").style.display = "";
       els.customCoefficient.closest(".field").style.display = isSplitLayMode() ? "none" : "";
+      enforceHenTurboAvailability();
+      syncHenTurboUi();
 
       els.pdp.value =
   isRequiredPdpMode() || isRelayMode()
@@ -1939,6 +1956,7 @@ if (!isReverseMode()) {
 }
 
 syncSplitLayUi();
+syncHenTurboUi();
 
 }
 
@@ -2017,6 +2035,115 @@ function syncSmoothboreUi() {
     els.bladeModel.value = state.bladeModel;
   }
 }
+
+function getHenTurboCurveForHose(hoseId = state.hoseSize) {
+  return Object.values(HEN_TURBO_CURVES).find(curve =>
+    curve.compatibleHoseIds.includes(String(hoseId))
+  ) || null;
+}
+
+function isHenTurboAvailable() {
+  return (isReverseMode() || isRequiredPdpMode()) &&
+    !!getHenTurboCurveForHose();
+}
+
+function enforceHenTurboAvailability() {
+  if (!isHenTurboAvailable()) {
+    state.henTurboEnabled = false;
+  }
+}
+
+function syncHenTurboUi() {
+  if (!els.henTurboField || !els.henTurboToggle) return;
+
+  const isAvailable = isHenTurboAvailable();
+  els.henTurboField.hidden = !isAvailable;
+  els.henTurboField.style.display = isAvailable ? "" : "none";
+  els.henTurboToggle.classList.toggle("active", !!state.henTurboEnabled);
+  els.henTurboToggle.setAttribute(
+    "aria-pressed",
+    state.henTurboEnabled ? "true" : "false"
+  );
+}
+
+function getActiveHenTurboCurve() {
+  if (!state.henTurboEnabled) return null;
+  return getHenTurboCurveForHose();
+}
+
+function getHenTurboSegments(curve) {
+  if (!curve) return [];
+
+  return curve.points.slice(0, -1).map((point, index) => {
+    const nextPoint = curve.points[index + 1];
+    const slope =
+      (nextPoint.loss - point.loss) /
+      (nextPoint.gpm - point.gpm);
+
+    return {
+      minGpm: point.gpm,
+      maxGpm: nextPoint.gpm,
+      a: slope,
+      b: point.loss - slope * point.gpm
+    };
+  });
+}
+
+function getHenTurboLossForGpm(gpm, curve) {
+  if (!curve || gpm === null || !Number.isFinite(gpm)) return null;
+
+  const exactPoint = curve.points.find(point => point.gpm === gpm);
+  if (exactPoint) return exactPoint.loss;
+
+  const segment = getHenTurboSegments(curve).find(item =>
+    gpm >= item.minGpm && gpm <= item.maxGpm
+  );
+
+  if (!segment) return null;
+
+  return segment.a * gpm + segment.b;
+}
+
+function getHenTurboPublishedRange(curve) {
+  if (!curve || !curve.points.length) return null;
+
+  return {
+    min: curve.points[0].gpm,
+    max: curve.points[curve.points.length - 1].gpm
+  };
+}
+
+function getHenTurboOutOfRangeWarning(gpm, curve) {
+  const range = getHenTurboPublishedRange(curve);
+
+  if (!range || gpm === null || !Number.isFinite(gpm)) {
+    return HEN_TURBO_OUT_OF_RANGE_WARNING;
+  }
+
+  if (gpm < range.min) {
+    return HEN_TURBO_BELOW_RANGE_WARNING;
+  }
+
+  if (gpm > range.max) {
+    return HEN_TURBO_ABOVE_RANGE_WARNING;
+  }
+
+  return HEN_TURBO_OUT_OF_RANGE_WARNING;
+}
+
+function renderCalculationUnavailable(warnings) {
+  setResult(
+    "—",
+    "—",
+    "—",
+    "—",
+    getNozzleDisplay(),
+    getSetupDisplay(),
+    "—"
+  );
+  renderWarnings(warnings);
+}
+
 function enforceSplitLayRestrictions() {
   const connectingAppliance =
   state.splitLay.sectionCount === "3"
@@ -2892,6 +3019,7 @@ els.reverseSupplyAppliance?.addEventListener("change", e => {
       els.hoseSize.addEventListener("change", e => {
   state.hoseSize = e.target.value;
   clearCustomCoefficient();
+  enforceHenTurboAvailability();
   updateCalculator();
 });
 
@@ -2954,6 +3082,17 @@ updateCalculator();
 
 els.dualLineSupplyToggle.addEventListener("change", e => {
   state.dualLineSupply = e.target.checked;
+  updateCalculator();
+});
+
+els.henTurboToggle?.addEventListener("click", () => {
+  if (!isHenTurboAvailable()) {
+    state.henTurboEnabled = false;
+    updateCalculator();
+    return;
+  }
+
+  state.henTurboEnabled = !state.henTurboEnabled;
   updateCalculator();
 });
 
@@ -3109,6 +3248,8 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
 }
 
     function updateCalculator() {
+      enforceHenTurboAvailability();
+      syncHenTurboUi();
       saveState();
       renderPressureButtons();
       calculateAndRender();
@@ -3163,6 +3304,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
     state.bladeModel = "blade160";
 
     state.applianceLoss = "0";
+    state.henTurboEnabled = false;
   }
 
   // ========================================
@@ -3185,6 +3327,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   state.bladeModel = "blade160";
 
   state.applianceLoss = "0";
+  state.henTurboEnabled = false;
 }
 
   populateHoseOptions();
@@ -3288,6 +3431,10 @@ function resetCalculator() {
     bladeModel: state.bladeModel || "blade160",
 
     applianceLoss: state.applianceLoss || "0",
+    henTurboEnabled:
+      !!state.henTurboEnabled &&
+      (isReverseMode() || isRequiredPdpMode()) &&
+      !!getHenTurboCurveForHose(state.hoseSize),
 
     reverseSupplyEnabled:
   state.reverseSupplyEnabled || false,
@@ -3402,6 +3549,11 @@ function applyPreset(presetId) {
     applianceLoss:
       preset.applianceLoss || "0",
 
+    henTurboEnabled:
+      !!preset.henTurboEnabled &&
+      (preset.mode === "reverse" || preset.mode === "requiredPdp") &&
+      !!getHenTurboCurveForHose(preset.hoseSize || state.hoseSize),
+
     reverseSupplyEnabled:
       preset.reverseSupplyEnabled || false,
 
@@ -3427,6 +3579,7 @@ function applyPreset(presetId) {
   };
 
   populateHoseOptions();
+  enforceHenTurboAvailability();
   syncInputsFromState();
   syncSplitLayInputsFromState();
   syncReverseSupplyUi();
@@ -3573,7 +3726,308 @@ calculateReverseFlow({ ...inputs, warnings });
     // ========================================
     // REVERSE FLOW CALCULATIONS
     // ========================================
+    function solveReverseFogWithTurbo({
+      pdp,
+      nozzlePressure,
+      applianceLoss,
+      masterStreamLoss,
+      supplyApplianceLoss,
+      totalFrictionLoad,
+      hoseLength,
+      curve
+    }) {
+      const frictionFactor = totalFrictionLoad / 10000;
+
+      for (const segment of getHenTurboSegments(curve)) {
+        const a = frictionFactor;
+        const b = segment.a;
+        const c =
+          nozzlePressure +
+          applianceLoss +
+          masterStreamLoss +
+          supplyApplianceLoss +
+          segment.b -
+          pdp;
+        const discriminant = b * b - 4 * a * c;
+
+        if (discriminant < 0) continue;
+
+        const roots = [
+          (-b + Math.sqrt(discriminant)) / (2 * a),
+          (-b - Math.sqrt(discriminant)) / (2 * a)
+        ];
+
+        const calculatedGpm = roots.find(root =>
+          root > 0 &&
+          root >= segment.minGpm &&
+          root <= segment.maxGpm
+        );
+
+        if (!calculatedGpm) continue;
+
+        const turboLoss =
+          segment.a * calculatedGpm + segment.b;
+        const totalFrictionLoss =
+          totalFrictionLoad * Math.pow(calculatedGpm / 100, 2);
+
+        return {
+          totalFrictionLoss,
+          frictionLossPer100:
+            totalFrictionLoss / (hoseLength / 100),
+          calculatedGpm,
+          turboLoss
+        };
+      }
+
+      return null;
+    }
+
+    function solveReverseSmoothborePressure({
+      pdp,
+      hoseLength,
+      applianceLoss,
+      masterStreamLoss,
+      coefficient,
+      supplyApplianceLoss = 0
+    }) {
+      const model = getSelectedHydraulicSmoothboreModel();
+
+      if (
+        pdp === null ||
+        hoseLength === null ||
+        coefficient === null ||
+        !model ||
+        hoseLength <= 0 ||
+        coefficient <= 0
+      ) {
+        return null;
+      }
+
+      const reverseSupplyEnabled =
+        !!state.reverseSupplyEnabled;
+
+      const supplyLength =
+        reverseSupplyEnabled
+          ? numberOrNull(state.reverseSupplyLength)
+          : 0;
+
+      const supplyHose =
+        reverseSupplyEnabled
+          ? HOSE_OPTIONS.find(hose =>
+              hose.id === state.reverseSupplyHoseSize
+            )
+          : null;
+
+      if (
+        reverseSupplyEnabled &&
+        (supplyLength === null || supplyLength <= 0 || !supplyHose)
+      ) {
+        return null;
+      }
+
+      const attackLoad =
+        coefficient * (hoseLength / 100);
+
+      const supplyLoad =
+        reverseSupplyEnabled && supplyHose
+          ? getActiveHoseCoefficient(supplyHose.id) *
+            (supplyLength / 100)
+          : 0;
+
+      const totalLoad =
+        attackLoad + supplyLoad;
+
+      if (totalLoad <= 0) return null;
+
+      const flowConstant =
+        29.7 * model.diameter * model.diameter;
+      const turboCurve = getActiveHenTurboCurve();
+
+      if (!turboCurve) {
+        const frictionMultiplier =
+          Math.pow(flowConstant / 100, 2) *
+          totalLoad;
+        const achievablePressure =
+          (pdp - applianceLoss - masterStreamLoss - supplyApplianceLoss) /
+          (1 + frictionMultiplier);
+
+        if (achievablePressure <= 0) {
+          return {
+            nozzlePressure: 0,
+            calculatedGpm: 0,
+            turboLoss: 0
+          };
+        }
+
+        return {
+          nozzlePressure: achievablePressure,
+          calculatedGpm:
+            flowConstant * Math.sqrt(achievablePressure),
+          turboLoss: 0
+        };
+      }
+
+      for (const segment of getHenTurboSegments(turboCurve)) {
+        const quadraticA =
+          1 +
+          totalLoad *
+          Math.pow(flowConstant / 100, 2);
+        const quadraticB =
+          segment.a * flowConstant;
+        const quadraticC =
+          applianceLoss +
+          masterStreamLoss +
+          supplyApplianceLoss +
+          segment.b -
+          pdp;
+        const discriminant =
+          quadraticB * quadraticB -
+          4 * quadraticA * quadraticC;
+
+        if (discriminant < 0) continue;
+
+        const roots = [
+          (-quadraticB + Math.sqrt(discriminant)) /
+            (2 * quadraticA),
+          (-quadraticB - Math.sqrt(discriminant)) /
+            (2 * quadraticA)
+        ];
+
+        const root = roots.find(item => {
+          const calculatedGpm = flowConstant * item;
+          return item > 0 &&
+            calculatedGpm >= segment.minGpm &&
+            calculatedGpm <= segment.maxGpm;
+        });
+
+        if (!root) continue;
+
+        const calculatedGpm = flowConstant * root;
+
+        return {
+          nozzlePressure: root * root,
+          calculatedGpm,
+          turboLoss:
+            segment.a * calculatedGpm + segment.b
+        };
+      }
+
+      return null;
+    }
+
+    function getReverseSmoothboreTurboRangeWarning({
+      pdp,
+      hoseLength,
+      applianceLoss,
+      masterStreamLoss,
+      coefficient
+    }) {
+      const curve = getActiveHenTurboCurve();
+      const range = getHenTurboPublishedRange(curve);
+      const model = getSelectedHydraulicSmoothboreModel();
+
+      if (
+        !curve ||
+        !range ||
+        hoseLength === null ||
+        coefficient === null ||
+        !model ||
+        hoseLength <= 0 ||
+        coefficient <= 0
+      ) {
+        return HEN_TURBO_OUT_OF_RANGE_WARNING;
+      }
+
+      if (pdp === null) {
+        return HEN_TURBO_BELOW_RANGE_WARNING;
+      }
+
+      const supplyLength = state.reverseSupplyEnabled
+        ? numberOrNull(state.reverseSupplyLength)
+        : 0;
+      const supplyHose = state.reverseSupplyEnabled
+        ? HOSE_OPTIONS.find(hose =>
+            hose.id === state.reverseSupplyHoseSize
+          )
+        : null;
+
+      if (
+        state.reverseSupplyEnabled &&
+        (supplyLength === null || supplyLength <= 0 || !supplyHose)
+      ) {
+        return HEN_TURBO_OUT_OF_RANGE_WARNING;
+      }
+
+      const attackLoad =
+        coefficient * (hoseLength / 100);
+      const supplyLoad =
+        state.reverseSupplyEnabled && supplyHose
+          ? getActiveHoseCoefficient(supplyHose.id) *
+            (supplyLength / 100)
+          : 0;
+      const totalLoad = attackLoad + supplyLoad;
+      const flowConstant =
+        29.7 * model.diameter * model.diameter;
+
+      if (totalLoad <= 0 || flowConstant <= 0) {
+        return HEN_TURBO_BELOW_RANGE_WARNING;
+      }
+
+      function requiredPdpAtGpm(gpm) {
+        const nozzlePressureAtFlow =
+          Math.pow(gpm / flowConstant, 2);
+        const hoseFrictionLoss =
+          totalLoad * Math.pow(gpm / 100, 2);
+        const turboLoss =
+          getHenTurboLossForGpm(gpm, curve);
+        const supplyApplianceLoss =
+          state.reverseSupplyEnabled && gpm > 350 ? 10 : 0;
+
+        if (turboLoss === null) return null;
+
+        return nozzlePressureAtFlow +
+          hoseFrictionLoss +
+          applianceLoss +
+          masterStreamLoss +
+          supplyApplianceLoss +
+          turboLoss;
+      }
+
+      const minimumRangePdp = requiredPdpAtGpm(range.min);
+      const maximumRangePdp = requiredPdpAtGpm(range.max);
+
+      if (minimumRangePdp !== null && pdp < minimumRangePdp) {
+        return HEN_TURBO_BELOW_RANGE_WARNING;
+      }
+
+      if (maximumRangePdp !== null && pdp > maximumRangePdp) {
+        return HEN_TURBO_ABOVE_RANGE_WARNING;
+      }
+
+      return HEN_TURBO_BELOW_RANGE_WARNING;
+    }
+
     function calculateReverseFlow({ pdp, hoseLength, nozzlePressure, applianceLoss, masterStreamLoss, coefficient, selectedHose, warnings }) {      if (pdp === null || hoseLength === null || nozzlePressure === null || coefficient === null) {
+        if (
+          state.henTurboEnabled &&
+          isReverseSmoothbore() &&
+          pdp !== null &&
+          hoseLength !== null &&
+          coefficient !== null
+        ) {
+          warnings.push(
+            getReverseSmoothboreTurboRangeWarning({
+              pdp,
+              hoseLength,
+              applianceLoss,
+              masterStreamLoss,
+              coefficient
+            })
+          );
+          renderCalculationUnavailable(warnings);
+          return;
+        }
+
         renderWarnings(warnings);
         return;
       }
@@ -3638,34 +4092,98 @@ const totalFrictionLoad =
   attackLoad + supplyLoad;
 
 function solveReverseFlowGpm(supplyApplianceLoss) {
-  const totalFrictionLoss =
-    pdp -
-    nozzlePressure -
-    applianceLoss -
-    masterStreamLoss -
-    supplyApplianceLoss;
+  const turboCurve = getActiveHenTurboCurve();
 
-  if (totalFrictionLoss <= 0 || totalFrictionLoad <= 0) {
+  if (turboCurve && !usesSmoothboreHydraulics()) {
+    const turboSolve = solveReverseFogWithTurbo({
+      pdp,
+      nozzlePressure,
+      applianceLoss,
+      masterStreamLoss,
+      supplyApplianceLoss,
+      totalFrictionLoad,
+      hoseLength,
+      curve: turboCurve
+    });
+
+    if (turboSolve) return turboSolve;
+
+    const availablePressure =
+      pdp -
+      nozzlePressure -
+      applianceLoss -
+      masterStreamLoss -
+      supplyApplianceLoss;
+    const estimatedGpm =
+      availablePressure > 0 && totalFrictionLoad > 0
+        ? Math.sqrt(availablePressure / totalFrictionLoad) * 100
+        : null;
+    const outOfRangeWarning =
+      availablePressure <= 0
+        ? HEN_TURBO_BELOW_RANGE_WARNING
+        : getHenTurboOutOfRangeWarning(estimatedGpm, turboCurve);
+
     return {
-      totalFrictionLoss,
+      totalFrictionLoss: null,
       frictionLossPer100: null,
-      calculatedGpm: null
+      calculatedGpm: null,
+      turboLoss: null,
+      outOfRangeWarning
     };
   }
 
-  const calculatedGpm =
+  const smoothboreFlow =
     usesSmoothboreHydraulics()
       ? smoothboreGpm(
           getSelectedHydraulicSmoothboreModel().diameter,
           nozzlePressure
         )
+      : null;
+
+  const turboLoss =
+    turboCurve && smoothboreFlow !== null
+      ? getHenTurboLossForGpm(smoothboreFlow, turboCurve)
+      : 0;
+
+  if (turboCurve && turboLoss === null) {
+    return {
+      totalFrictionLoss: null,
+      frictionLossPer100: null,
+      calculatedGpm: null,
+      turboLoss: null,
+      outOfRangeWarning:
+        getHenTurboOutOfRangeWarning(smoothboreFlow, turboCurve)
+    };
+  }
+
+  const totalFrictionLoss =
+    pdp -
+    nozzlePressure -
+    applianceLoss -
+    masterStreamLoss -
+    supplyApplianceLoss -
+    turboLoss;
+
+  if (totalFrictionLoss <= 0 || totalFrictionLoad <= 0) {
+    return {
+      totalFrictionLoss,
+      frictionLossPer100: null,
+      calculatedGpm: null,
+      turboLoss
+    };
+  }
+
+  const calculatedGpm =
+    usesSmoothboreHydraulics()
+      ? smoothboreFlow
       : Math.sqrt(totalFrictionLoss / totalFrictionLoad) * 100;
 
   return {
     totalFrictionLoss,
     frictionLossPer100:
       totalFrictionLoss / (hoseLength / 100),
-    calculatedGpm
+    calculatedGpm,
+    turboLoss
   };
 }
 
@@ -3674,6 +4192,7 @@ let reverseSolve = solveReverseFlowGpm(supplyApplianceLoss);
 
 if (
   reverseSupplyEnabled &&
+  reverseSolve !== null &&
   reverseSolve.calculatedGpm !== null &&
   reverseSolve.calculatedGpm > 350
 ) {
@@ -3683,14 +4202,23 @@ if (
 
 if (
   reverseSolve.calculatedGpm === null ||
-  reverseSolve.totalFrictionLoss < 0
+  (
+    reverseSolve.totalFrictionLoss !== null &&
+    reverseSolve.totalFrictionLoss < 0
+  )
 ) {
-  warnings.push("Total friction loss is negative after subtracting nozzle pressure, appliance/elevation loss, master stream loss, and supply appliance loss.");
+  warnings.push(
+    reverseSolve.outOfRangeWarning
+      ? reverseSolve.outOfRangeWarning
+      : "Total friction loss is negative after subtracting nozzle pressure, appliance/elevation loss, master stream loss, and supply appliance loss."
+  );
 
   setResult(
     "—",
     "—",
-    `${Math.round(reverseSolve.totalFrictionLoss)} psi`,
+    reverseSolve.totalFrictionLoss === null
+      ? "—"
+      : `${Math.round(reverseSolve.totalFrictionLoss)} psi`,
     "—",
     getNozzleDisplay(),
     getSetupDisplay(),
@@ -3748,7 +4276,9 @@ setResult(
   frictionDisplay,
   getNozzleDisplay(),
   getSetupDisplay(),
-  nozzleReaction
+  nozzleReaction,
+  reverseSolve.turboLoss,
+  calculatedGpm
 );
 
 renderWarnings(warnings);
@@ -3773,89 +4303,31 @@ renderWarnings(warnings);
     ? numberOrNull(state.customCoefficient)
     : getActiveHoseCoefficient(selectedHose.id);
 
-  const tip = getSelectedHydraulicSmoothboreModel();
-
-  if (
-    pdp === null ||
-    hoseLength === null ||
-    coefficient === null ||
-    !tip ||
-    hoseLength <= 0 ||
-    coefficient <= 0
-  ) {
-    return null;
-  }
-
-  const reverseSupplyEnabled =
-    !!state.reverseSupplyEnabled;
-
-  const supplyLength =
-    reverseSupplyEnabled
-      ? numberOrNull(state.reverseSupplyLength)
-      : 0;
-
-  const supplyHose =
-    reverseSupplyEnabled
-      ? HOSE_OPTIONS.find(hose =>
-          hose.id === state.reverseSupplyHoseSize
-        )
-      : null;
-
-  if (
-    reverseSupplyEnabled &&
-    (supplyLength === null || supplyLength <= 0 || !supplyHose)
-  ) {
-    return null;
-  }
-
-  const attackLoad =
-    coefficient * (hoseLength / 100);
-
-  const supplyLoad =
-    reverseSupplyEnabled && supplyHose
-      ? getActiveHoseCoefficient(supplyHose.id) * (supplyLength / 100)
-      : 0;
-
-  const totalLoad =
-    attackLoad + supplyLoad;
-
-  if (totalLoad <= 0) return null;
-
-  const tipConstant =
-    29.7 * tip.diameter * tip.diameter / 100;
-
-  function solvePressure(supplyApplianceLoss) {
-    const usablePressure =
-      pdp -
-      applianceLoss -
-      masterStreamLoss -
-      supplyApplianceLoss;
-
-    if (usablePressure <= 0) return 0;
-
-    const frictionMultiplier =
-      tipConstant *
-      tipConstant *
-      totalLoad;
-
-    return usablePressure / (1 + frictionMultiplier);
-  }
-
   let supplyApplianceLoss = 0;
-  let achievablePressure = solvePressure(supplyApplianceLoss);
+  let solve = solveReverseSmoothborePressure({
+    pdp,
+    hoseLength,
+    applianceLoss,
+    masterStreamLoss,
+    coefficient,
+    supplyApplianceLoss
+  });
 
-  const calculatedGpm =
-    smoothboreGpm(tip.diameter, achievablePressure);
-
-  if (
-    reverseSupplyEnabled &&
-    calculatedGpm > 350
-  ) {
+  if (solve && state.reverseSupplyEnabled && solve.calculatedGpm > 350) {
     supplyApplianceLoss = 10;
-    achievablePressure = solvePressure(supplyApplianceLoss);
+    solve = solveReverseSmoothborePressure({
+      pdp,
+      hoseLength,
+      applianceLoss,
+      masterStreamLoss,
+      coefficient,
+      supplyApplianceLoss
+    });
   }
 
-  return Math.max(0, Math.floor(achievablePressure));
+  if (!solve) return null;
+
+  return Math.max(0, Math.floor(solve.nozzlePressure));
 }
 
     // ========================================
@@ -3886,11 +4358,25 @@ renderWarnings(warnings);
       const lengthHundreds = hoseLength / 100;
       const frictionLossPer100 = coefficient * q * q;
       const totalFrictionLoss = frictionLossPer100 * lengthHundreds;
+      const turboCurve = getActiveHenTurboCurve();
+      const henTurboLoss = turboCurve
+        ? getHenTurboLossForGpm(targetGpm, turboCurve)
+        : 0;
+
+      if (turboCurve && henTurboLoss === null) {
+        warnings.push(
+          getHenTurboOutOfRangeWarning(targetGpm, turboCurve)
+        );
+        renderCalculationUnavailable(warnings);
+        return;
+      }
+
       const requiredPdp =
         nozzlePressure +
         totalFrictionLoss +
         applianceLoss +
-        masterStreamLoss;      const roundedRequiredPdp = Math.round(requiredPdp);
+        masterStreamLoss +
+        henTurboLoss;      const roundedRequiredPdp = Math.round(requiredPdp);
       const nozzleReaction = calculateNozzleReaction(targetGpm, nozzlePressure);
 
       const warningFlow =
@@ -3918,7 +4404,9 @@ if (warningFlow > selectedHose.maxReferenceFlow) {
     : state.dualLineSupply && isMasterStream()
     ? `Dual lines: YES
 Per line: ${Math.round(flowForFriction)} GPM`
-    : "Dual lines: NO"
+    : "Dual lines: NO",
+  henTurboLoss,
+  targetGpm
 );
 
       renderWarnings(warnings);
@@ -4720,7 +5208,7 @@ els.splitAttack2PressureTag.className =
   actualAttack2.actualReaction;
   }
 }
-    function setResult(rounded, calculated, total, per100, nozzle, setup, reaction = "-") {
+    function setResult(rounded, calculated, total, per100, nozzle, setup, reaction = "-", turboLoss = null, turboFlow = null) {
       els.roundedGpm.textContent = rounded;
       els.calculatedGpm.textContent = calculated;
       els.totalFl.textContent = total;
@@ -4728,6 +5216,28 @@ els.splitAttack2PressureTag.className =
       els.nozzleDisplay.textContent = nozzle;
       els.setupDisplay.textContent = setup;
       els.nozzleReaction.textContent = reaction;
+      if (els.turboLossDetail && els.turboLossDisplay) {
+        const showTurboLoss =
+          state.henTurboEnabled &&
+          turboLoss !== null &&
+          Number.isFinite(turboLoss) &&
+          turboFlow !== null &&
+          Number.isFinite(turboFlow);
+
+        els.turboLossDetail.hidden = !showTurboLoss;
+        els.turboLossDetail.style.display = showTurboLoss ? "" : "none";
+        els.turboLossDisplay.textContent = showTurboLoss
+          ? `${turboLoss.toFixed(1)} psi @ ${Math.round(turboFlow)} GPM`
+          : "—";
+      }
+      if (els.bladeResultNote) {
+        els.bladeResultNote.hidden =
+          !isBlade() ||
+          isRelayMode() ||
+          isSplitLayMode() ||
+          String(rounded).trim() === "—" ||
+          String(rounded).trim() === "-";
+      }
       els.standardResultsCard?.classList.toggle(
         "result-empty",
         String(rounded).trim() === "—" || String(rounded).trim() === "-"
@@ -4740,11 +5250,11 @@ els.splitAttack2PressureTag.className =
 
   if (state.useCustomCoefficient && state.customCoefficient) {
 
-    return `${state.hoseLength || "—"}' of ${hose.label} • Custom C ${state.customCoefficient}`;
+    return `${state.hoseLength || "—"}' of ${hose.label} • Custom C ${state.customCoefficient}${state.henTurboEnabled ? " • HEN Turbo" : ""}`;
 
   }
 
-  return `${state.hoseLength || "—"}' of ${hose.label}`;
+  return `${state.hoseLength || "—"}' of ${hose.label}${state.henTurboEnabled ? " • HEN Turbo" : ""}`;
 }
 
     function getNozzleDisplay() {

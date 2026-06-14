@@ -35,6 +35,40 @@
   "5": 0.08,
 };
 
+const HEN_TURBO_OUT_OF_RANGE_WARNING =
+  "Calculation unavailable. Calculated flow is outside of the published range for a turbo device. Change inputs or remove the turbo to continue.";
+
+const HEN_TURBO_BELOW_RANGE_WARNING =
+  "Calculation unavailable. Calculated flow is below the published range for a turbo device. Increase flow or remove the turbo to continue.";
+
+const HEN_TURBO_ABOVE_RANGE_WARNING =
+  "Calculation unavailable. Calculated flow is above the published range for a turbo device. Reduce flow or remove the turbo to continue.";
+
+const HEN_TURBO_CURVES = {
+  turbo15: {
+    label: "HEN Turbo 1.5",
+    compatibleHoseIds: ["1.5", "1.75", "1.88"],
+    points: [
+      { gpm: 150, loss: 22 },
+      { gpm: 160, loss: 25 },
+      { gpm: 170, loss: 28 },
+      { gpm: 180, loss: 31 },
+      { gpm: 190, loss: 35 }
+    ]
+  },
+  turbo25: {
+    label: "HEN Turbo 2.5",
+    compatibleHoseIds: ["2.25", "2.5"],
+    points: [
+      { gpm: 245, loss: 22 },
+      { gpm: 255, loss: 24 },
+      { gpm: 265, loss: 26 },
+      { gpm: 275, loss: 28 },
+      { gpm: 285, loss: 30 }
+    ]
+  }
+};
+
 function loadSavedHoseCoefficients() {
   try {
     const saved = localStorage.getItem(HOSE_COEFFS_KEY);

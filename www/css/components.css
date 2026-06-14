@@ -377,6 +377,12 @@
     var(--accent-glow);
 }
 
+.result-note {
+  margin: 12px 0 0;
+  padding: 0 20px;
+  overflow-wrap: anywhere;
+}
+
 .pump-chart-card {
   margin-bottom: 14px;
   padding: 18px;

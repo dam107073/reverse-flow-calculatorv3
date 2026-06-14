@@ -640,6 +640,17 @@ Select a hydraulic calculation mode.
   </p>
 </div>
 
+        <div id="henTurboField" class="field" hidden>
+          <button
+            id="henTurboToggle"
+            class="toggle-button"
+            type="button"
+            aria-pressed="false"
+          >
+            Add HEN Turbo
+          </button>
+        </div>
+
         <div class="field">
           <div class="toggle-row">
             <label for="customCoefficient">Custom Coefficient</label>
@@ -864,7 +875,14 @@ Select a hydraulic calculation mode.
     <p id="setupLabel">Setup</p>
     <strong id="setupDisplay">—</strong>
   </div>
+  <div class="detail" id="turboLossDetail" hidden>
+    <p>Turbo Loss</p>
+    <strong id="turboLossDisplay">—</strong>
+  </div>
 </div> 
+      <p id="bladeResultNote" class="helper result-note" hidden>
+        Flow and reaction shown for solid-stream operation.
+      </p>
       <div class="result-actions">
         <button
           id="savePresetButton"
