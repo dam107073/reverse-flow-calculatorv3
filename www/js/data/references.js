@@ -1,18 +1,86 @@
-const REFERENCE_DOCUMENTS = [
-  {
-    manufacturer: "HEN",
-    title: "HEN Turbo 1.5 Datasheet",
-    category: "Turbo device datasheet",
-    status: "Permission pending",
-    lastUpdated: "2026-06-14",
-    pdfPath: "assets/references/hen-turbo-15-datasheet.pdf"
-  },
-  {
-    manufacturer: "HEN",
-    title: "HEN Turbo 2.5 Datasheet",
-    category: "Turbo device datasheet",
-    status: "Permission pending",
-    lastUpdated: "2026-06-14",
-    pdfPath: "assets/references/hen-turbo-25-datasheet.pdf"
-  }
-];
+const referencesData = {
+  manufacturers: [
+    {
+      id: "key-hose",
+      name: "Key Hose",
+      websiteUrl: "https://keyhose.com",
+      categories: ["Hoses"]
+    },
+    {
+      id: "snap-tite",
+      name: "Snap-Tite",
+      websiteUrl: "https://www.snaptitehose.com",
+      categories: ["Hoses"]
+    },
+    {
+      id: "mercedes-textiles",
+      name: "Mercedes Textiles",
+      websiteUrl: "https://mercedestextiles.com",
+      categories: ["Hoses"]
+    },
+    {
+      id: "north-american-fire-hose",
+      name: "North American Fire Hose",
+      websiteUrl: "https://www.nafh.com",
+      categories: ["Hoses"]
+    },
+    {
+      id: "elkhart-brass",
+      name: "Elkhart Brass",
+      websiteUrl: "https://elkhartbrass.com",
+      categories: ["Nozzles", "Appliances", "Connections"]
+    },
+    {
+      id: "task-force-tips",
+      name: "Task Force Tips",
+      websiteUrl: "https://tft.com",
+      categories: ["Nozzles", "Appliances", "Master Streams"]
+    },
+    {
+      id: "hen-nozzles",
+      name: "HEN Nozzles",
+      websiteUrl: "https://www.hentechnologies.com",
+      categories: ["Blade", "Turbo", "Accessories"]
+    },
+    {
+      id: "akron-brass",
+      name: "Akron Brass",
+      websiteUrl: "https://www.akronbrass.com",
+      categories: ["Nozzles", "Appliances", "Master Streams"]
+    }
+  ],
+  trainingResources: [
+    {
+      id: "hose-nozzle-operations",
+      name: "Hose & Nozzle Operations"
+    },
+    {
+      id: "relay-pumping",
+      name: "Relay Pumping"
+    },
+    {
+      id: "split-lays",
+      name: "Split Lays"
+    },
+    {
+      id: "master-streams",
+      name: "Master Streams"
+    },
+    {
+      id: "standpipe-operations",
+      name: "Standpipe Operations"
+    },
+    {
+      id: "rural-water-supply",
+      name: "Rural Water Supply"
+    },
+    {
+      id: "pump-operator-resources",
+      name: "Pump Operator Resources"
+    },
+    {
+      id: "reverse-flow-tutorials",
+      name: "Reverse Flow Tutorials"
+    }
+  ]
+};

@@ -65,11 +65,11 @@
         <div class="field full">
           <label>References</label>
           <p class="helper">
-            Manufacturer reference documents and permission status.
+            Manufacturer and training resource placeholders for future reference material.
           </p>
         </div>
 
-        <div id="referencesList" class="references-list"></div>
+        <div id="referencesList" class="references-list" aria-live="polite"></div>
       </div>
     </section>
 
@@ -82,97 +82,278 @@
   <script>
     const referencesList = document.getElementById("referencesList");
 
-    function groupReferencesByManufacturer(references) {
-      return references.reduce((groups, reference) => {
-        if (!groups[reference.manufacturer]) {
-          groups[reference.manufacturer] = [];
-        }
-
-        groups[reference.manufacturer].push(reference);
-        return groups;
-      }, {});
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
-    async function pdfExists(pdfPath) {
-      if (!pdfPath) return false;
-
-      try {
-        const response = await fetch(pdfPath, { method: "HEAD" });
-        return response.ok;
-      } catch {
-        return false;
-      }
+    function getReferenceData() {
+      return typeof referencesData === "object" && referencesData
+        ? referencesData
+        : { manufacturers: [], trainingResources: [] };
     }
 
-    function createReferenceCard(reference) {
+    function getRoute() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        section: params.get("section"),
+        id: params.get("id")
+      };
+    }
+
+    function getReferenceUrl(section, id) {
+      const params = new URLSearchParams({ section, id });
+      return `references.html?${params.toString()}`;
+    }
+
+    function createReferenceLinkCard(title, helper, href) {
       const card = document.createElement("article");
-      card.className = "hose-library-card reference-card";
-
+      card.className = "hose-library-card reference-card reference-nav-card";
       card.innerHTML = `
-        <div class="hose-library-card-header">
-          <div>
-            <strong>${reference.title}</strong>
-            <div class="hose-library-details reference-details">
-              <span>Manufacturer: ${reference.manufacturer}</span>
-              <span>Category: ${reference.category}</span>
-              <span>Status: ${reference.status}</span>
-              <span>Updated: ${reference.lastUpdated}</span>
-            </div>
-          </div>
+        <div>
+          <strong>${escapeHtml(title)}</strong>
+          <p class="helper">${escapeHtml(helper)}</p>
         </div>
-
-        <div class="hose-library-card-actions">
-          <a
-            class="reset-button reference-open-button"
-            href="${reference.pdfPath}"
-            target="_blank"
-            rel="noopener"
-          >
-            Open PDF
-          </a>
-          <span class="helper reference-missing-message" hidden>
-            PDF not added yet.
-          </span>
-        </div>
+        <a class="reset-button reference-open-button" href="${escapeHtml(href)}">
+          Open
+        </a>
       `;
-
       return card;
     }
 
-    async function renderReferences() {
-      const references = Array.isArray(REFERENCE_DOCUMENTS)
-        ? REFERENCE_DOCUMENTS
-        : [];
-      const groups = groupReferencesByManufacturer(references);
+    function createCollapsedSection(title, helper, bodyHtml) {
+      const section = document.createElement("details");
+      section.className = "settings-tool-card collapsible-settings-card reference-section-card";
+      section.innerHTML = `
+        <summary>
+          <span>
+            <strong>${escapeHtml(title)}</strong>
+            <span class="helper">${escapeHtml(helper)}</span>
+          </span>
+        </summary>
+        <div class="collapsible-card-body">
+          ${bodyHtml}
+        </div>
+      `;
+      return section;
+    }
 
+    function createReferenceLinkList(items, section) {
+      return items.map(item => `
+        <article class="hose-library-card reference-card reference-nav-card">
+          <div>
+            <strong>${escapeHtml(item.name)}</strong>
+            <p class="helper">${escapeHtml(item.helper)}</p>
+          </div>
+          <a class="reset-button reference-open-button" href="${escapeHtml(getReferenceUrl(section, item.id))}">
+            Open
+          </a>
+        </article>
+      `).join("");
+    }
+
+    function createManufacturerWebsiteCard(manufacturer) {
+      if (!manufacturer.websiteUrl) {
+        return "";
+      }
+
+      return `
+        <article class="hose-library-card reference-card reference-website-card">
+          <div>
+            <strong>Official Website</strong>
+            <p class="helper">${escapeHtml(manufacturer.websiteUrl)}</p>
+          </div>
+          <a
+            class="reset-button reference-open-button"
+            href="${escapeHtml(manufacturer.websiteUrl)}"
+            target="_blank"
+            rel="noopener"
+          >
+            Open Website
+          </a>
+        </article>
+      `;
+    }
+
+    function createCategoryList(categories) {
+      if (!Array.isArray(categories) || categories.length === 0) {
+        return `<p class="helper">No categories added yet.</p>`;
+      }
+
+      return `
+        <div class="reference-category-list">
+          ${categories.map(category => `
+            <details class="hose-library-card reference-category-card collapsible-settings-card">
+              <summary>
+                <span>
+                  <strong>${escapeHtml(category)}</strong>
+                  <span class="helper">Placeholder category</span>
+                </span>
+              </summary>
+              <div class="collapsible-card-body">
+                <p class="helper">Content will be added in a future References release.</p>
+              </div>
+            </details>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderOverview(data) {
       referencesList.innerHTML = "";
 
-      Object.entries(groups).forEach(([manufacturer, documents]) => {
-        const group = document.createElement("section");
-        group.className = "references-group";
-        group.innerHTML = `<h2>${manufacturer}</h2>`;
+      referencesList.appendChild(
+        createCollapsedSection(
+          "Manufacturers",
+          `${data.manufacturers.length} placeholder reference pages`,
+          createReferenceLinkList(
+            data.manufacturers.map(manufacturer => ({
+              id: manufacturer.id,
+              name: manufacturer.name,
+              helper: manufacturer.categories.join(", ")
+            })),
+            "manufacturer"
+          )
+        )
+      );
 
-        documents.forEach(reference => {
-          group.appendChild(createReferenceCard(reference));
-        });
+      referencesList.appendChild(
+        createCollapsedSection(
+          "Training Resources",
+          `${data.trainingResources.length} placeholder training categories`,
+          createReferenceLinkList(
+            data.trainingResources.map(resource => ({
+              id: resource.id,
+              name: resource.name,
+              helper: "Placeholder training category"
+            })),
+            "training-resource"
+          )
+        )
+      );
+    }
 
-        referencesList.appendChild(group);
+    function renderManufacturers(data) {
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html">
+            Back to References
+          </a>
+          <h2>Manufacturers</h2>
+        </div>
+      `;
+
+      data.manufacturers.forEach(manufacturer => {
+        referencesList.appendChild(
+          createReferenceLinkCard(
+            manufacturer.name,
+            manufacturer.categories.join(", "),
+            getReferenceUrl("manufacturer", manufacturer.id)
+          )
+        );
       });
+    }
 
-      const cards = referencesList.querySelectorAll(".reference-card");
+    function renderTrainingResources(data) {
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html">
+            Back to References
+          </a>
+          <h2>Training Resources</h2>
+        </div>
+      `;
 
-      for (const card of cards) {
-        const link = card.querySelector(".reference-open-button");
-        const missingMessage = card.querySelector(".reference-missing-message");
-        const exists = await pdfExists(link.getAttribute("href"));
+      data.trainingResources.forEach(resource => {
+        referencesList.appendChild(
+          createReferenceLinkCard(
+            resource.name,
+            "Placeholder training category",
+            getReferenceUrl("training-resource", resource.id)
+          )
+        );
+      });
+    }
 
-        if (!exists) {
-          link.removeAttribute("href");
-          link.setAttribute("aria-disabled", "true");
-          link.classList.add("disabled");
-          missingMessage.hidden = false;
-        }
+    function renderManufacturer(data, id) {
+      const manufacturer = data.manufacturers.find(item => item.id === id);
+
+      if (!manufacturer) {
+        renderOverview(data);
+        return;
       }
+
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=manufacturers">
+            Back to Manufacturers
+          </a>
+          <h2>${escapeHtml(manufacturer.name)}</h2>
+          <p class="helper">Product categories are placeholders for future reference material.</p>
+        </div>
+        ${createManufacturerWebsiteCard(manufacturer)}
+        ${createCategoryList(manufacturer.categories)}
+      `;
+    }
+
+    function renderTrainingResource(data, id) {
+      const resource = data.trainingResources.find(item => item.id === id);
+
+      if (!resource) {
+        renderOverview(data);
+        return;
+      }
+
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=training-resources">
+            Back to Training Resources
+          </a>
+          <h2>${escapeHtml(resource.name)}</h2>
+          <details class="hose-library-card reference-card collapsible-settings-card">
+            <summary>
+              <span>
+                <strong>${escapeHtml(resource.name)}</strong>
+                <span class="helper">Placeholder category for future training references.</span>
+              </span>
+            </summary>
+            <div class="collapsible-card-body">
+              <p class="helper">Content will be added in a future References release.</p>
+            </div>
+          </details>
+        </div>
+      `;
+    }
+
+    function renderReferences() {
+      const data = getReferenceData();
+      const route = getRoute();
+
+      if (route.section === "manufacturers") {
+        renderManufacturers(data);
+        return;
+      }
+
+      if (route.section === "training-resources") {
+        renderTrainingResources(data);
+        return;
+      }
+
+      if (route.section === "manufacturer") {
+        renderManufacturer(data, route.id);
+        return;
+      }
+
+      if (route.section === "training-resource") {
+        renderTrainingResource(data, route.id);
+        return;
+      }
+
+      renderOverview(data);
     }
 
     renderReferences();

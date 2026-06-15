@@ -602,8 +602,15 @@
     grid-template-columns: 1fr;
   }
 
+  .reference-nav-card,
+  .reference-website-card,
+  .reference-category-list {
+    grid-template-columns: 1fr;
+  }
+
 	  .custom-hose-form .reset-button,
 	  .default-hose-choose-link,
+	  .reference-open-button,
 	  .default-hose-delete-button {
 	    width: 100%;
 	  }

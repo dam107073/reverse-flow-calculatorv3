@@ -419,6 +419,25 @@
       box-shadow: none;
     }
 
+    .reference-nav-card {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+    }
+
+    .reference-website-card {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+    }
+
+    .reference-nav-card .helper {
+      margin-top: 6px;
+    }
+
+    .reference-website-card .helper {
+      margin-top: 6px;
+      overflow-wrap: anywhere;
+    }
+
     .reference-details {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -454,6 +473,25 @@
     .reference-missing-message {
       align-self: center;
       margin: 0;
+    }
+
+    .reference-category-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .reference-category-card {
+      min-height: 86px;
+      align-content: start;
+    }
+
+    .reference-category-card .helper {
+      margin-top: 6px;
+    }
+
+    .reference-back-link {
+      justify-self: start;
     }
 
     .formula {
