@@ -2442,7 +2442,11 @@ function getSetupConfigurationSummary(setup) {
   }
 
   if (setup.mode === "apparatusMounted") {
-    return getApparatusMountedConfigurationSummary(inputs);
+    const summary = getApparatusMountedConfigurationSummary(setup);
+    logPumpChartApparatusDisplay("saved inputs", setup, { inputs });
+    logPumpChartApparatusDisplay("saved result", setup, { result: setup.result || {} });
+    logPumpChartApparatusDisplay("card summary", setup, { summary });
+    return summary;
   }
 
   if (setup.mode === "relay") {
@@ -2590,12 +2594,12 @@ function normalizeComparableValue(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function getApparatusMountedConfigurationSummary(inputs = {}) {
-  const flow = inputs.apparatusFogFlow === "custom"
-    ? inputs.apparatusCustomFogFlow
-    : inputs.apparatusFogFlow;
-  const stream = getMasterStreamConfigurationLabel(inputs);
-  const flowSummary = formatGpmValue(flow);
+function getApparatusMountedConfigurationSummary(setupOrInputs = {}) {
+  const setup = setupOrInputs.inputs || setupOrInputs.result
+    ? setupOrInputs
+    : { inputs: setupOrInputs, result: {} };
+  const stream = getApparatusMountedStreamSummary(setup);
+  const flowSummary = getApparatusMountedFlowSummary(setup);
 
   if (stream && flowSummary) return `Deck Gun ${stream}\n${flowSummary}`;
   if (stream) return `Deck Gun ${stream}`;
@@ -2617,6 +2621,30 @@ function getMasterStreamConfigurationLabel(inputs = {}) {
   if (inputs.masterStreamType === "smoothbore") return "Smoothbore";
   if (inputs.masterStreamType === "fixedFog") return "Fixed Fog";
   return "Fog";
+}
+
+function getApparatusMountedStreamSummary(setup = {}) {
+  const inputs = setup.inputs || {};
+
+  if (inputs.nozzleType === "smoothbore") return "Smoothbore";
+  if (inputs.nozzleType === "masterstream") return getMasterStreamConfigurationLabel(inputs);
+  if (inputs.nozzleType === "fog") return "Fog";
+
+  return getNozzleConfigurationLabel(inputs);
+}
+
+function getApparatusMountedFlowSummary(setup = {}) {
+  const inputs = setup.inputs || {};
+  const result = setup.result || {};
+
+  if (inputs.nozzleType === "fog") {
+    const fogFlow = inputs.apparatusFogFlow === "custom"
+      ? inputs.apparatusCustomFogFlow
+      : inputs.apparatusFogFlow;
+    return formatGpmValue(fogFlow || result.calculatedFlow || result.flowSummary);
+  }
+
+  return formatGpmValue(result.flowSummary || result.calculatedFlow);
 }
 
 function getNozzleConfigurationLabel(inputs = {}) {
@@ -2699,10 +2727,14 @@ function getSetupReferenceSections(setup) {
   const operationalRows = [];
 
   if (setup.mode === "apparatusMounted") {
+    const apparatusFields = getApparatusMountedReferenceFields(setup);
     configurationRows.push(
-      ["Stream", getMasterStreamConfigurationLabel(inputs)],
-      ["Rated Flow", getTargetFlowSummary(inputs)]
+      ["Stream", apparatusFields.stream],
+      ["Flow", apparatusFields.flow],
+      ["Device Loss", apparatusFields.deviceLoss],
+      ["Elevation", apparatusFields.elevation]
     );
+    logPumpChartApparatusDisplay("detail fields", setup, { fields: apparatusFields });
   } else if (setup.mode === "relay") {
     configurationRows.push(
       ["Relay Lay", formatLengthAndHose(inputs.hoseLength, inputs.hoseSize)],
@@ -2838,6 +2870,17 @@ function getTargetFlowSummary(inputs = {}) {
   }
 
   return formatGpmValue(inputs.apparatusFogFlow || inputs.targetGpm);
+}
+
+function getApparatusMountedReferenceFields(setup = {}) {
+  const inputs = setup.inputs || {};
+
+  return {
+    stream: getApparatusMountedStreamSummary(setup),
+    flow: getApparatusMountedFlowSummary(setup),
+    deviceLoss: formatPsiValue(inputs.masterStreamLoss),
+    elevation: inputs.apparatusElevation ? `${inputs.apparatusElevation} ft` : ""
+  };
 }
 
 function getNozzlePressureSummary(inputs = {}) {
@@ -5416,7 +5459,16 @@ window.exportPumpChart = async function(chartId) {
   const shareTitle = `${chart.name} Pump Chart`;
   const hasNavigatorShare = typeof navigator.share === "function";
   const hasNavigatorCanShare = typeof navigator.canShare === "function";
+  const sharePlatform = getPumpChartSharePlatform();
   let canSharePngFile = false;
+
+  logPumpChartShareStep("platform-detected", sharePlatform);
+
+  if (pngFile && sharePlatform.supportsNativeFileShare) {
+    const nativeShareResult = await sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, sharePlatform.platform);
+    if (nativeShareResult.shared) return;
+    logPumpChartShareFallback(nativeShareResult.reason);
+  }
 
   logPumpChartShareStep("web-share-support", {
     navigatorShare: hasNavigatorShare,
@@ -5487,11 +5539,147 @@ window.exportPumpChart = async function(chartId) {
       logPumpChartShareFallback(`Text share failed: ${error?.message || String(error)}`);
     }
   } else {
-    logPumpChartShareFallback("navigator.share is unavailable. Opening printable export view.");
+    logPumpChartShareFallback("navigator.share is unavailable for text fallback.");
   }
 
-  openPumpChartPrintView(chart);
+  logPumpChartShareStep("browser-print-fallback-skipped", {
+    reason: "Printable export fallback is disabled for Export / Share."
+  });
+
+  if (await copyPumpChartShareTextToClipboard(shareText)) {
+    showPumpChartShareMessage("Pump Chart text copied to clipboard.");
+    return;
+  }
+
+  logPumpChartShareFallback("Text share and clipboard fallback failed.");
+  showPumpChartShareMessage("Pump Chart sharing is unavailable on this device.");
 };
+
+function getPumpChartSharePlatform() {
+  const capacitor = window.Capacitor;
+  let platform = "web";
+  let isNative = false;
+
+  try {
+    platform = capacitor?.getPlatform?.() || "web";
+    isNative = !!capacitor?.isNativePlatform?.();
+  } catch (error) {
+    logPumpChartShareStep("platform-detection-error", {
+      message: error?.message || String(error)
+    });
+  }
+
+  const plugins = capacitor?.Plugins || {};
+
+  return {
+    platform,
+    isNative,
+    isAndroidNative: platform === "android" && isNative,
+    isIosNative: platform === "ios" && isNative,
+    supportsNativeFileShare: (platform === "android" || platform === "ios") && isNative,
+    hasCapacitor: !!capacitor,
+    hasFilesystem: !!plugins.Filesystem,
+    hasShare: !!plugins.Share
+  };
+}
+
+async function sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, platform) {
+  const plugins = window.Capacitor?.Plugins || {};
+  const Filesystem = plugins.Filesystem;
+  const Share = plugins.Share;
+
+  logPumpChartShareStep("native-capacitor-availability", {
+    platform,
+    hasFilesystem: !!Filesystem,
+    hasShare: !!Share
+  });
+
+  if (!Filesystem || !Share) {
+    return {
+      shared: false,
+      reason: `Native ${platform} share unavailable: Capacitor Filesystem or Share plugin missing.`
+    };
+  }
+
+  let base64Data = "";
+  try {
+    logPumpChartShareStep("png-base64-conversion-attempt", {
+      fileName: pngFile.name,
+      fileType: pngFile.type,
+      fileSize: pngFile.size
+    });
+    base64Data = await blobToBase64Payload(pngFile);
+    logPumpChartShareStep("png-base64-conversion-success", {
+      base64Length: base64Data.length
+    });
+  } catch (error) {
+    logPumpChartShareStep("png-base64-conversion-failure", {
+      message: error?.message || String(error)
+    });
+    return {
+      shared: false,
+      reason: `Native ${platform} PNG conversion failed: ${error?.message || String(error)}`
+    };
+  }
+
+  const path = `pump-charts/${pngFile.name}`;
+  let fileUri = "";
+
+  try {
+    logPumpChartShareStep("native-file-write-attempt", {
+      path,
+      directory: "CACHE"
+    });
+    const writeResult = await Filesystem.writeFile({
+      path,
+      data: base64Data,
+      directory: "CACHE",
+      recursive: true
+    });
+    fileUri = writeResult.uri || "";
+    logPumpChartShareStep("native-file-write-success", {
+      path,
+      uri: fileUri
+    });
+  } catch (error) {
+    logPumpChartShareStep("native-file-write-failure", {
+      path,
+      message: error?.message || String(error)
+    });
+    return {
+      shared: false,
+      reason: `Native ${platform} PNG file write failed: ${error?.message || String(error)}`
+    };
+  }
+
+  try {
+    logPumpChartShareStep("native-share-attempt", {
+      fileName: pngFile.name,
+      uri: fileUri
+    });
+    await Share.share({
+      title: shareTitle,
+      files: [fileUri],
+      dialogTitle: "Share Pump Chart"
+    });
+    logPumpChartShareStep("native-share-success", {
+      uri: fileUri
+    });
+    return {
+      shared: true,
+      reason: ""
+    };
+  } catch (error) {
+    logPumpChartShareStep("native-share-failure", {
+      uri: fileUri,
+      message: error?.message || String(error)
+    });
+    return {
+      shared: false,
+      reason: `Native ${platform} PNG share failed: ${error?.message || String(error)}`
+    };
+  }
+}
 
 async function createPumpChartPngFile(chart) {
   if (typeof Blob === "undefined" || typeof File === "undefined") {
@@ -5740,6 +5928,27 @@ function dataUrlToBlob(dataUrl) {
   }
 
   return new Blob([bytes], { type: mimeType });
+}
+
+function blobToBase64Payload(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      const base64 = dataUrl.includes(",")
+        ? dataUrl.split(",")[1]
+        : dataUrl;
+      if (!base64) {
+        reject(new Error("PNG base64 payload was empty."));
+        return;
+      }
+      resolve(base64);
+    };
+    reader.onerror = () => {
+      reject(reader.error || new Error("Unable to read PNG blob."));
+    };
+    reader.readAsDataURL(blob);
+  });
 }
 
 function inlineComputedStyles(source, clone) {
@@ -6068,6 +6277,14 @@ function createPumpChartCanvasSetupRowLayout(context, row, bounds) {
   const badgeText = badgeElement?.textContent?.trim() || "";
   const resultText = row.querySelector(".pump-chart-row-result")?.textContent || "";
   const items = [];
+
+  if (badgeElement?.dataset.mode === "apparatusMounted") {
+    logPumpChartApparatusExportSummary({
+      name: nameText.trim(),
+      configuration: configText.trim(),
+      result: resultText.trim()
+    });
+  }
   const nameItem = createCanvasTextItem(context, nameText, {
     x: leftX,
     y: contentTop,
@@ -6357,8 +6574,26 @@ function logPumpChartShareFallback(reason) {
   });
 }
 
+function logPumpChartApparatusDisplay(event, setup = {}, details = {}) {
+  if (setup.mode !== "apparatusMounted") return;
+
+  console.info(`[Pump Chart Apparatus] ${event}`, {
+    setupId: setup.id || "",
+    setupName: setup.name || "",
+    mode: setup.mode,
+    ...details
+  });
+}
+
+function logPumpChartApparatusExportSummary(summary = {}) {
+  console.info("[Pump Chart Apparatus] export summary", summary);
+}
+
 function showPumpChartShareFallbackMessage() {
-  const message = "PNG sharing unavailable on this device. Sharing text instead.";
+  showPumpChartShareMessage("PNG sharing unavailable on this device. Sharing text instead.");
+}
+
+function showPumpChartShareMessage(message) {
   const existingMessage = document.querySelector(".pump-chart-share-fallback-message");
   if (existingMessage) existingMessage.remove();
 
@@ -6387,12 +6622,32 @@ function showPumpChartShareFallbackMessage() {
   }, 3600);
 }
 
+async function copyPumpChartShareTextToClipboard(text) {
+  if (!navigator.clipboard?.writeText) {
+    logPumpChartShareStep("clipboard-fallback-unavailable");
+    return false;
+  }
+
+  try {
+    logPumpChartShareStep("clipboard-fallback-attempt");
+    await navigator.clipboard.writeText(text);
+    logPumpChartShareStep("clipboard-fallback-success");
+    return true;
+  } catch (error) {
+    logPumpChartShareStep("clipboard-fallback-failure", {
+      message: error?.message || String(error)
+    });
+    return false;
+  }
+}
+
 function buildPumpChartShareText(chart) {
   const lines = [
-    "REVERSE FLOW PUMP CHART",
+    "Reverse Flow Pump Chart",
+    "",
     chart.name,
     chart.department || "",
-    `Updated ${formatPumpChartDate(chart.updatedAt)} | ${chart.setups.length} Setups`,
+    `${chart.setups.length} ${chart.setups.length === 1 ? "Setup" : "Setups"}`,
     ""
   ].filter(line => line !== "");
 
@@ -6400,9 +6655,11 @@ function buildPumpChartShareText(chart) {
     const setups = chart.setups.filter(setup => setup.category === category);
     if (!setups.length) return;
 
-    lines.push(category.toUpperCase());
+    lines.push(category);
     setups.forEach(setup => {
-      lines.push(`${setup.name} - ${getSetupConfigurationSummary(setup)} - ${getSetupHydraulicSummary(setup)}`);
+      const config = getSetupConfigurationSummary(setup).replace(/\n+/g, " / ");
+      const result = getSetupHydraulicSummary(setup).replace(/\n+/g, " / ");
+      lines.push([setup.name, config, result].filter(Boolean).join(" — "));
       if (setup.notes) lines.push(`Notes: ${setup.notes}`);
     });
     lines.push("");
@@ -6412,7 +6669,9 @@ function buildPumpChartShareText(chart) {
     lines.push(`Chart Notes: ${chart.notes}`);
   }
 
-  return lines.join("\n");
+  lines.push("Generated by Reverse Flow");
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function openPumpChartPrintView(chart) {
