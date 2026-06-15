@@ -2438,7 +2438,7 @@ function getSetupConfigurationSummary(setup) {
   const inputs = setup.inputs || {};
 
   if (setup.mode === "splitLay") {
-    return getSplitLayConfigurationSummary(inputs.splitLay || {});
+    return getSplitLayConfigurationSummary(inputs.splitLay || {}, setup.result || {});
   }
 
   if (setup.mode === "apparatusMounted") {
@@ -2486,11 +2486,23 @@ function getSetupHydraulicSummary(setup) {
   return getSetupPrimarySummary(setup);
 }
 
-function getSplitLayConfigurationSummary(splitLay = {}) {
+function getSplitLayConfigurationSummary(splitLay = {}, result = {}) {
   const supplyLine = getSplitSupplySummary(splitLay);
   const attackLine = getSplitAttackSummary(splitLay);
+  const operationalLine = getSplitLayOperationalSummary(splitLay, result);
 
-  return [supplyLine, attackLine].filter(Boolean).join("\n") || "Split Lay";
+  return [supplyLine, attackLine, operationalLine].filter(Boolean).join("\n") || "Split Lay";
+}
+
+function getSplitLayOperationalSummary(splitLay = {}, result = {}) {
+  const totalFlow = formatGpmValue(result.splitSupplyFlow || result.calculatedFlow);
+  if (totalFlow) return `${totalFlow} Total`;
+
+  if (String(splitLay.attackLines || "1") === "2") {
+    return "2 Attack Lines";
+  }
+
+  return "";
 }
 
 function getSplitSupplySummary(splitLay = {}) {
@@ -2582,13 +2594,14 @@ function getApparatusMountedConfigurationSummary(inputs = {}) {
   const flow = inputs.apparatusFogFlow === "custom"
     ? inputs.apparatusCustomFogFlow
     : inputs.apparatusFogFlow;
+  const stream = getMasterStreamConfigurationLabel(inputs);
+  const flowSummary = formatGpmValue(flow);
 
-  const parts = [
-    getMasterStreamConfigurationLabel(inputs),
-    formatGpmValue(flow)
-  ].filter(Boolean);
+  if (stream && flowSummary) return `Deck Gun ${stream}\n${flowSummary}`;
+  if (stream) return `Deck Gun ${stream}`;
+  if (flowSummary) return `Deck Gun\n${flowSummary}`;
 
-  return parts.join("\n") || "Apparatus Mounted";
+  return "Apparatus Mounted";
 }
 
 function getRelayConfigurationSummary(inputs = {}) {
@@ -5877,137 +5890,91 @@ async function tryRenderManualPumpChartCanvasToBlob(source) {
 }
 
 function renderPumpChartDocumentToCanvas(source) {
-  const sourceRect = source.getBoundingClientRect();
-  const width = Math.max(320, Math.ceil(sourceRect.width || 370));
+  const width = 720;
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  const horizontalPadding = 16;
+  const horizontalPadding = 32;
   const contentWidth = width - horizontalPadding * 2;
   const measureCanvas = document.createElement("canvas");
   const measureContext = measureCanvas.getContext("2d");
   if (!measureContext) throw new Error("Canvas context unavailable.");
 
   const drawItems = [];
-  let y = 18;
+  let y = 30;
 
-  const addText = (text, options = {}) => {
-    const cleanText = String(text || "").trim();
-    if (!cleanText) return;
-
-    const font = options.font || "700 14px Arial, sans-serif";
-    const lineHeight = options.lineHeight || 18;
-    const maxWidth = options.maxWidth || contentWidth;
-    measureContext.font = font;
-    const lines = wrapCanvasText(measureContext, cleanText, maxWidth);
-    drawItems.push({
-      type: "text",
-      text: cleanText,
-      lines,
-      x: options.x || horizontalPadding,
+  const pushText = (text, options = {}) => {
+    const item = createCanvasTextItem(measureContext, text, {
+      x: horizontalPadding,
       y,
-      font,
-      lineHeight,
-      color: options.color || "#111827",
-      maxWidth
+      maxWidth: contentWidth,
+      ...options
     });
-    y += lines.length * lineHeight + (options.marginBottom ?? 4);
+    if (!item) return 0;
+
+    drawItems.push(item);
+    const height = getCanvasTextItemHeight(item);
+    y += height + (options.marginBottom ?? 4);
+    return height;
   };
 
-  const addRule = (marginTop = 8, marginBottom = 8) => {
+  const pushRule = (marginTop = 10, marginBottom = 10, color = "#d1d5db") => {
     y += marginTop;
-    drawItems.push({ type: "rule", x: horizontalPadding, y, width: contentWidth });
+    drawItems.push({ type: "rule", x: horizontalPadding, y, width: contentWidth, color });
     y += marginBottom;
   };
 
   const header = source.querySelector(".pump-chart-document-header");
-  addText(header?.querySelector("p")?.textContent || "REVERSE FLOW PUMP CHART", {
+  pushText(header?.querySelector("p")?.textContent || "REVERSE FLOW PUMP CHART", {
     font: "900 11px Arial, sans-serif",
-    lineHeight: 14,
-    color: "#64748b",
-    marginBottom: 4
+    lineHeight: 16,
+    color: "#d95c13",
+    letterSpacing: 0.08,
+    marginBottom: 6
   });
-  addText(header?.querySelector("h2")?.textContent || "Pump Chart", {
-    font: "900 26px Arial, sans-serif",
-    lineHeight: 30,
+  pushText(header?.querySelector("h2")?.textContent || "Pump Chart", {
+    font: "900 34px Arial, sans-serif",
+    lineHeight: 39,
     color: "#111827",
-    marginBottom: 4
+    marginBottom: 6
   });
-  addText(header?.querySelector("strong")?.textContent || "", {
-    font: "800 14px Arial, sans-serif",
-    lineHeight: 18,
-    color: "#111827",
-    marginBottom: 3
+  pushText(header?.querySelector("strong")?.textContent || "", {
+    font: "800 17px Arial, sans-serif",
+    lineHeight: 22,
+    color: "#334155",
+    marginBottom: 5
   });
-  addText(Array.from(header?.querySelectorAll(".pump-chart-document-meta span") || [])
+  pushText(Array.from(header?.querySelectorAll(".pump-chart-document-meta span") || [])
     .map(item => item.textContent.trim())
     .join(" • "), {
-    font: "800 13px Arial, sans-serif",
-    lineHeight: 17,
+    font: "800 15px Arial, sans-serif",
+    lineHeight: 20,
     color: "#64748b",
-    marginBottom: 4
+    marginBottom: 7
   });
-  addText(header?.querySelector(".pump-chart-document-notes")?.textContent || "", {
-    font: "650 13px Arial, sans-serif",
-    lineHeight: 17,
+  pushText(header?.querySelector(".pump-chart-document-notes")?.textContent || "", {
+    font: "650 14px Arial, sans-serif",
+    lineHeight: 20,
     color: "#475569",
-    marginBottom: 4
+    marginBottom: 7
   });
-  addRule(8, 10);
+  pushRule(10, 18, "#cbd5e1");
 
   source.querySelectorAll(".pump-chart-document-section").forEach(section => {
-    addText(section.querySelector("h3")?.textContent || "", {
-      font: "900 12px Arial, sans-serif",
-      lineHeight: 15,
+    pushText(stripPumpChartCategoryCount(section.querySelector("h3")?.textContent || ""), {
+      font: "900 14px Arial, sans-serif",
+      lineHeight: 18,
       color: "#64748b",
-      marginBottom: 5
+      marginBottom: 8
     });
 
     section.querySelectorAll(".pump-chart-setup-row").forEach(row => {
-      const rowTop = y;
-      const badgeText = row.querySelector(".pump-chart-mode-badge")?.textContent?.trim() || "";
-      const resultText = row.querySelector(".pump-chart-row-result")?.textContent?.trim() || "";
-      const asideWidth = Math.min(126, Math.max(104, contentWidth * 0.34));
-      const primaryWidth = contentWidth - asideWidth - 10;
-
-      addText(row.querySelector(".pump-chart-setup-name")?.textContent || "", {
-        font: "900 15px Arial, sans-serif",
-        lineHeight: 19,
-        color: "#111827",
-        maxWidth: primaryWidth,
-        marginBottom: 2
-      });
-      addText(row.querySelector(".pump-chart-config-summary")?.textContent || "", {
-        font: "750 12px Arial, sans-serif",
-        lineHeight: 16,
-        color: "#64748b",
-        maxWidth: primaryWidth,
-        marginBottom: 7
+      const layout = createPumpChartCanvasSetupRowLayout(measureContext, row, {
+        x: horizontalPadding,
+        y,
+        width: contentWidth
       });
 
-      if (badgeText) {
-        drawItems.push({
-          type: "badge",
-          text: badgeText,
-          x: horizontalPadding + contentWidth - asideWidth,
-          y: rowTop,
-          width: asideWidth,
-          mode: row.querySelector(".pump-chart-mode-badge")?.dataset.mode || ""
-        });
-      }
-      if (resultText) {
-        drawItems.push({
-          type: "text",
-          lines: wrapCanvasText(setCanvasFont(measureContext, "900 17px Arial, sans-serif"), resultText, asideWidth),
-          x: horizontalPadding + contentWidth - asideWidth,
-          y: rowTop + 32,
-          font: "900 17px Arial, sans-serif",
-          lineHeight: 20,
-          color: "#111827",
-          maxWidth: asideWidth,
-          align: "right"
-        });
-      }
-      drawItems.push({ type: "rule", x: horizontalPadding, y: y + 1, width: contentWidth, color: "rgba(148, 163, 184, 0.35)" });
-      y += 9;
+      drawItems.push(...layout.items);
+      y += layout.height;
     });
 
     const sectionText = Array.from(section.children)
@@ -6015,16 +5982,24 @@ function renderPumpChartDocumentToCanvas(source) {
       .map(child => child.textContent.trim())
       .filter(Boolean)
       .join("\n");
-    addText(sectionText, {
-      font: "700 13px Arial, sans-serif",
-      lineHeight: 17,
+    pushText(sectionText, {
+      font: "700 14px Arial, sans-serif",
+      lineHeight: 20,
       color: "#334155",
-      marginBottom: 8
+      marginBottom: 10
     });
-    y += 4;
+    y += 8;
   });
 
-  const height = Math.max(Math.ceil(source.scrollHeight || 0), Math.ceil(y + 14));
+  pushRule(8, 12, "#e2e8f0");
+  pushText(`Reverse Flow Pump Chart • Generated ${formatPumpChartDate(new Date().toISOString())}`, {
+    font: "800 12px Arial, sans-serif",
+    lineHeight: 17,
+    color: "#64748b",
+    marginBottom: 0
+  });
+
+  const height = Math.ceil(y + 30);
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(width * pixelRatio);
   canvas.height = Math.ceil(height * pixelRatio);
@@ -6035,11 +6010,11 @@ function renderPumpChartDocumentToCanvas(source) {
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, width, height);
-  context.strokeStyle = "#d1d5db";
+  context.strokeStyle = "#cbd5e1";
   context.lineWidth = 1;
   context.strokeRect(0.5, 0.5, width - 1, height - 1);
   context.fillStyle = "#d95c13";
-  context.fillRect(0, 0, width, 4);
+  context.fillRect(0, 0, width, 6);
 
   drawItems.forEach(item => {
     if (item.type === "rule") {
@@ -6051,26 +6026,221 @@ function renderPumpChartDocumentToCanvas(source) {
       return;
     }
 
+    if (item.type === "row-background") {
+      drawCanvasRoundedRect(context, item.x, item.y, item.width, item.height, item.radius || 8);
+      context.fillStyle = item.fill || "#f8fafc";
+      context.fill();
+      if (item.stroke) {
+        context.strokeStyle = item.stroke;
+        context.stroke();
+      }
+      return;
+    }
+
     if (item.type === "badge") {
       drawCanvasBadge(context, item);
       return;
     }
 
-    context.font = item.font;
-    context.fillStyle = item.color;
-    context.textAlign = item.align || "left";
-    item.lines.forEach((line, index) => {
-      const x = item.align === "right" ? item.x + item.maxWidth : item.x;
-      context.fillText(line, x, item.y + item.lineHeight * (index + 0.8), item.maxWidth);
-    });
+    drawCanvasTextItem(context, item);
   });
 
   return canvas;
 }
 
-function setCanvasFont(context, font) {
+function createPumpChartCanvasSetupRowLayout(context, row, bounds) {
+  const paddingX = 14;
+  const paddingY = 13;
+  const gap = 24;
+  const canUseColumns = bounds.width >= 560;
+  const asideWidth = canUseColumns ? 240 : bounds.width - paddingX * 2;
+  const leftWidth = canUseColumns
+    ? bounds.width - paddingX * 2 - asideWidth - gap
+    : bounds.width - paddingX * 2;
+  const leftX = bounds.x + paddingX;
+  const asideX = canUseColumns
+    ? bounds.x + bounds.width - paddingX - asideWidth
+    : leftX;
+  const contentTop = bounds.y + paddingY;
+  const nameText = row.querySelector(".pump-chart-setup-name")?.textContent || "";
+  const configText = row.querySelector(".pump-chart-config-summary")?.textContent || "";
+  const badgeElement = row.querySelector(".pump-chart-mode-badge");
+  const badgeText = badgeElement?.textContent?.trim() || "";
+  const resultText = row.querySelector(".pump-chart-row-result")?.textContent || "";
+  const items = [];
+  const nameItem = createCanvasTextItem(context, nameText, {
+    x: leftX,
+    y: contentTop,
+    maxWidth: leftWidth,
+    font: "900 18px Arial, sans-serif",
+    lineHeight: 23,
+    color: "#111827"
+  });
+  const nameHeight = nameItem ? getCanvasTextItemHeight(nameItem) : 0;
+  const configItem = createCanvasTextItem(context, configText, {
+    x: leftX,
+    y: contentTop + nameHeight + 5,
+    maxWidth: leftWidth,
+    font: "750 15px Arial, sans-serif",
+    lineHeight: 21,
+    color: "#475569"
+  });
+  const configHeight = configItem ? getCanvasTextItemHeight(configItem) : 0;
+  const leftHeight = nameHeight + (configItem ? 5 : 0) + configHeight;
+  let rightHeight = 0;
+
+  if (badgeText) {
+    items.push({
+      type: "badge",
+      text: badgeText,
+      x: asideX,
+      y: contentTop,
+      width: asideWidth,
+      height: 26,
+      mode: badgeElement?.dataset.mode || ""
+    });
+    rightHeight += 26;
+  }
+
+  const resultItem = createCanvasResultTextItem(context, resultText, {
+    x: asideX,
+    y: contentTop + rightHeight + (badgeText ? 9 : 0),
+    maxWidth: asideWidth,
+    font: "900 19px Arial, sans-serif",
+    lineHeight: 25,
+    color: "#111827",
+    align: canUseColumns ? "right" : "left"
+  });
+
+  if (resultItem) {
+    rightHeight += (badgeText ? 9 : 0) + getCanvasTextItemHeight(resultItem);
+    items.push(resultItem);
+  }
+
+  if (!canUseColumns && badgeText) {
+    const stackedBadge = items.find(item => item.type === "badge");
+    if (stackedBadge) {
+      stackedBadge.y = contentTop + leftHeight + 12;
+      rightHeight = leftHeight + 12 + stackedBadge.height + (resultItem ? 9 + getCanvasTextItemHeight(resultItem) : 0);
+      if (resultItem) resultItem.y = stackedBadge.y + stackedBadge.height + 9;
+    }
+  }
+
+  if (nameItem) items.push(nameItem);
+  if (configItem) items.push(configItem);
+
+  const rowContentHeight = canUseColumns
+    ? Math.max(leftHeight, rightHeight)
+    : Math.max(leftHeight, rightHeight);
+  const rowHeight = Math.max(76, rowContentHeight + paddingY * 2);
+
+  items.unshift({
+    type: "row-background",
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: rowHeight - 8,
+    radius: 8,
+    fill: "#f8fafc",
+    stroke: "#e2e8f0"
+  });
+
+  return {
+    items,
+    height: rowHeight
+  };
+}
+
+function createCanvasTextItem(context, text, options = {}) {
+  const cleanText = String(text || "").trim();
+  if (!cleanText) return null;
+
+  const font = options.font || "700 14px Arial, sans-serif";
+  const maxWidth = options.maxWidth || 300;
   context.font = font;
-  return context;
+  const lines = wrapCanvasText(context, cleanText, maxWidth);
+  if (!lines.length) return null;
+
+  return {
+    type: "text",
+    lines,
+    x: options.x || 0,
+    y: options.y || 0,
+    font,
+    lineHeight: options.lineHeight || 18,
+    color: options.color || "#111827",
+    maxWidth,
+    align: options.align || "left"
+  };
+}
+
+function createCanvasResultTextItem(context, text, options = {}) {
+  const cleanText = String(text || "").trim();
+  if (!cleanText) return null;
+
+  const font = options.font || "900 19px Arial, sans-serif";
+  const maxWidth = options.maxWidth || 240;
+  context.font = font;
+
+  return {
+    type: "text",
+    lines: getCanvasResultLines(context, cleanText, maxWidth),
+    x: options.x || 0,
+    y: options.y || 0,
+    font,
+    lineHeight: options.lineHeight || 24,
+    color: options.color || "#111827",
+    maxWidth,
+    align: options.align || "left"
+  };
+}
+
+function getCanvasResultLines(context, text, maxWidth) {
+  return String(text || "")
+    .split(/\n+/)
+    .flatMap(line => splitCanvasResultLine(context, line.trim(), maxWidth))
+    .filter(Boolean);
+}
+
+function splitCanvasResultLine(context, line, maxWidth) {
+  if (!line) return [];
+  if (context.measureText(line).width <= maxWidth) return [line];
+
+  if (line.includes(" • ")) {
+    const segments = line.split(" • ").map(segment => segment.trim()).filter(Boolean);
+    const combinedLines = [];
+    let currentLine = "";
+
+    segments.forEach(segment => {
+      const candidate = currentLine ? `${currentLine} • ${segment}` : segment;
+      if (!currentLine || context.measureText(candidate).width <= maxWidth) {
+        currentLine = candidate;
+      } else {
+        combinedLines.push(currentLine);
+        currentLine = segment;
+      }
+    });
+
+    if (currentLine) combinedLines.push(currentLine);
+    return combinedLines;
+  }
+
+  return [line];
+}
+
+function getCanvasTextItemHeight(item) {
+  return item.lines.length * item.lineHeight;
+}
+
+function drawCanvasTextItem(context, item) {
+  context.font = item.font;
+  context.fillStyle = item.color;
+  context.textAlign = item.align || "left";
+  context.textBaseline = "alphabetic";
+  item.lines.forEach((line, index) => {
+    const x = item.align === "right" ? item.x + item.maxWidth : item.x;
+    context.fillText(line, x, item.y + item.lineHeight * (index + 0.78), item.maxWidth);
+  });
 }
 
 function wrapCanvasText(context, text, maxWidth) {
@@ -6103,31 +6273,41 @@ function wrapCanvasLine(context, text, maxWidth) {
 
 function drawCanvasBadge(context, item) {
   const palette = getPumpChartCanvasBadgePalette(item.mode);
-  const height = 24;
-  const radius = 12;
-  const x = item.x + Math.max(0, item.width - 112);
-  const width = Math.min(item.width, 112);
+  const height = item.height || 26;
+  const radius = height / 2;
+  const width = Math.min(item.width, 150);
+  const x = item.x + Math.max(0, item.width - width);
 
   context.fillStyle = palette.background;
   context.strokeStyle = palette.border;
   context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(x + radius, item.y);
-  context.lineTo(x + width - radius, item.y);
-  context.quadraticCurveTo(x + width, item.y, x + width, item.y + radius);
-  context.lineTo(x + width, item.y + height - radius);
-  context.quadraticCurveTo(x + width, item.y + height, x + width - radius, item.y + height);
-  context.lineTo(x + radius, item.y + height);
-  context.quadraticCurveTo(x, item.y + height, x, item.y + height - radius);
-  context.lineTo(x, item.y + radius);
-  context.quadraticCurveTo(x, item.y, x + radius, item.y);
+  drawCanvasRoundedRect(context, x, item.y, width, height, radius);
   context.fill();
   context.stroke();
 
-  context.font = "900 10px Arial, sans-serif";
+  context.font = "900 11px Arial, sans-serif";
   context.fillStyle = palette.text;
   context.textAlign = "center";
-  context.fillText(item.text, x + width / 2, item.y + 15, width - 12);
+  context.textBaseline = "middle";
+  context.fillText(item.text, x + width / 2, item.y + height / 2 + 0.5, width - 14);
+}
+
+function stripPumpChartCategoryCount(value) {
+  return String(value || "").replace(/\s+\(\d+\)\s*$/, "").trim();
+}
+
+function drawCanvasRoundedRect(context, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + safeRadius, y);
+  context.lineTo(x + width - safeRadius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  context.lineTo(x + width, y + height - safeRadius);
+  context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  context.lineTo(x + safeRadius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  context.lineTo(x, y + safeRadius);
+  context.quadraticCurveTo(x, y, x + safeRadius, y);
 }
 
 function getPumpChartCanvasBadgePalette(mode) {
