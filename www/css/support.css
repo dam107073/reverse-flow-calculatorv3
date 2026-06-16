@@ -403,6 +403,14 @@
       gap: 12px;
     }
 
+    #referencesPage {
+      padding-top: calc(18px + env(safe-area-inset-top));
+    }
+
+    #referencesPage .app-view-panel .form-grid {
+      gap: 18px;
+    }
+
     .references-list {
       grid-column: 1 / -1;
     }
@@ -410,32 +418,54 @@
     .references-group h2 {
       margin: 0;
       color: var(--ink);
-      font-size: 18px;
+      font-size: 26px;
       line-height: 1.2;
     }
 
     .reference-card {
       border-radius: 10px;
-      box-shadow: none;
     }
 
     .reference-nav-card {
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
+      gap: 12px;
+      padding: 13px 14px;
+      border-color: rgba(184, 195, 209, 0.9);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.82));
+      box-shadow:
+        inset 3px 0 0 rgba(217, 92, 19, 0.32),
+        0 3px 10px rgba(17, 24, 39, 0.06);
     }
 
     .reference-website-card {
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border-color: rgba(217, 92, 19, 0.55);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.86)),
+        linear-gradient(90deg, rgba(217,92,19,0.12), transparent 56%);
+      box-shadow:
+        inset 5px 0 0 var(--accent),
+        0 8px 22px rgba(17, 24, 39, 0.08);
     }
 
     .reference-nav-card .helper {
-      margin-top: 6px;
+      margin-top: 3px;
+      font-size: 13px;
+      line-height: 1.25;
     }
 
     .reference-website-card .helper {
-      margin-top: 6px;
+      margin-top: 5px;
       overflow-wrap: anywhere;
+    }
+
+    .reference-website-card strong {
+      font-size: 17px;
     }
 
     .reference-details {
@@ -453,11 +483,42 @@
     }
 
     .reference-open-button {
-      min-height: 42px;
+      min-height: 38px;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      border-color: rgba(217, 92, 19, 0.48);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,247,237,0.92));
+      color: var(--accent);
+      -webkit-text-fill-color: var(--accent);
+    }
+
+    .reference-nav-card .reference-open-button {
+      min-height: 34px;
+      padding: 0 12px;
+      border: none;
+      background: transparent;
+      box-shadow: none;
+      color: var(--accent);
+      -webkit-text-fill-color: var(--accent);
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .reference-website-card .reference-open-button {
+      min-height: 44px;
+      padding: 0 18px;
+      background: var(--button);
+      border-color: var(--button);
+      color: var(--button-text);
+      -webkit-text-fill-color: var(--button-text);
+      font-weight: 850;
+      box-shadow:
+        0 8px 18px rgba(17, 24, 39, 0.13),
+        var(--accent-glow);
     }
 
     .reference-open-button.disabled {
@@ -482,8 +543,12 @@
     }
 
     .reference-category-card {
-      min-height: 86px;
+      min-height: 74px;
       align-content: start;
+      border-color: rgba(184, 195, 209, 0.8);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.78));
+      box-shadow: 0 3px 10px rgba(17, 24, 39, 0.05);
     }
 
     .reference-category-card .helper {
@@ -492,6 +557,15 @@
 
     .reference-back-link {
       justify-self: start;
+      min-height: 36px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      box-shadow: none;
+      color: var(--accent);
+      -webkit-text-fill-color: var(--accent);
+      font-size: 14px;
+      font-weight: 900;
     }
 
     .formula {

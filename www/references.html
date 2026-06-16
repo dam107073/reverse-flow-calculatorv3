@@ -65,7 +65,7 @@
         <div class="field full">
           <label>References</label>
           <p class="helper">
-            Manufacturer and training resource placeholders for future reference material.
+            Manufacturer information and training resources for fireground hydraulics.
           </p>
         </div>
 
@@ -110,7 +110,7 @@
       return `references.html?${params.toString()}`;
     }
 
-    function createReferenceLinkCard(title, helper, href) {
+    function createReferenceLinkCard(title, helper, href, actionText = "Open") {
       const card = document.createElement("article");
       card.className = "hose-library-card reference-card reference-nav-card";
       card.innerHTML = `
@@ -119,7 +119,7 @@
           <p class="helper">${escapeHtml(helper)}</p>
         </div>
         <a class="reset-button reference-open-button" href="${escapeHtml(href)}">
-          Open
+          ${escapeHtml(actionText)}
         </a>
       `;
       return card;
@@ -150,7 +150,7 @@
             <p class="helper">${escapeHtml(item.helper)}</p>
           </div>
           <a class="reset-button reference-open-button" href="${escapeHtml(getReferenceUrl(section, item.id))}">
-            Open
+            ${escapeHtml(item.actionText || "Open")}
           </a>
         </article>
       `).join("");
@@ -191,11 +191,11 @@
               <summary>
                 <span>
                   <strong>${escapeHtml(category)}</strong>
-                  <span class="helper">Placeholder category</span>
+                  <span class="helper">Product references coming soon.</span>
                 </span>
               </summary>
               <div class="collapsible-card-body">
-                <p class="helper">Content will be added in a future References release.</p>
+                <p class="helper">Manufacturer resources and product reference content will live here.</p>
               </div>
             </details>
           `).join("")}
@@ -209,12 +209,13 @@
       referencesList.appendChild(
         createCollapsedSection(
           "Manufacturers",
-          `${data.manufacturers.length} placeholder reference pages`,
+          `${data.manufacturers.length} manufacturer resource pages`,
           createReferenceLinkList(
             data.manufacturers.map(manufacturer => ({
               id: manufacturer.id,
               name: manufacturer.name,
-              helper: manufacturer.categories.join(", ")
+              helper: manufacturer.categories.join(", "),
+              actionText: "View Manufacturer"
             })),
             "manufacturer"
           )
@@ -224,12 +225,13 @@
       referencesList.appendChild(
         createCollapsedSection(
           "Training Resources",
-          `${data.trainingResources.length} placeholder training categories`,
+          `${data.trainingResources.length} training resource categories`,
           createReferenceLinkList(
             data.trainingResources.map(resource => ({
               id: resource.id,
               name: resource.name,
-              helper: "Placeholder training category"
+              helper: "Training materials and reference content coming soon.",
+              actionText: "View Resource"
             })),
             "training-resource"
           )
@@ -252,7 +254,8 @@
           createReferenceLinkCard(
             manufacturer.name,
             manufacturer.categories.join(", "),
-            getReferenceUrl("manufacturer", manufacturer.id)
+            getReferenceUrl("manufacturer", manufacturer.id),
+            "View Manufacturer"
           )
         );
       });
@@ -272,8 +275,9 @@
         referencesList.appendChild(
           createReferenceLinkCard(
             resource.name,
-            "Placeholder training category",
-            getReferenceUrl("training-resource", resource.id)
+            "Training materials and reference content coming soon.",
+            getReferenceUrl("training-resource", resource.id),
+            "View Resource"
           )
         );
       });
@@ -293,7 +297,7 @@
             Back to Manufacturers
           </a>
           <h2>${escapeHtml(manufacturer.name)}</h2>
-          <p class="helper">Product categories are placeholders for future reference material.</p>
+          <p class="helper">Manufacturer resources and product references.</p>
         </div>
         ${createManufacturerWebsiteCard(manufacturer)}
         ${createCategoryList(manufacturer.categories)}
@@ -318,11 +322,11 @@
             <summary>
               <span>
                 <strong>${escapeHtml(resource.name)}</strong>
-                <span class="helper">Placeholder category for future training references.</span>
+                <span class="helper">Training materials and reference content coming soon.</span>
               </span>
             </summary>
             <div class="collapsible-card-body">
-              <p class="helper">Content will be added in a future References release.</p>
+              <p class="helper">Training references, guides, and supporting material will live here.</p>
             </div>
           </details>
         </div>

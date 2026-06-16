@@ -691,7 +691,7 @@
 .pump-chart-row-actions {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -699,6 +699,49 @@
 .pump-chart-primary-action {
   min-height: 42px;
   padding: 9px 10px;
+}
+
+.pump-chart-row-actions .small-button:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+}
+
+.pump-chart-edit-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(217, 92, 19, 0.38);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.86), rgba(248,250,252,0.72)),
+    linear-gradient(90deg, rgba(217,92,19,0.09), transparent 52%);
+  box-shadow: var(--shadow-soft);
+}
+
+.pump-chart-edit-banner[hidden] {
+  display: none;
+}
+
+.pump-chart-edit-banner strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.pump-chart-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pump-chart-edit-actions .small-button {
+  min-height: 38px;
+  padding: 8px 10px;
 }
 
 .pump-chart-save-form,

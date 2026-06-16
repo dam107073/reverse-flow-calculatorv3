@@ -219,6 +219,7 @@ function isModifiedHoseCoefficient(hoseId) {
       { id: '7/8', label: '7/8"', diameter: 0.875 },
       { id: '15/16', label: '15/16"', diameter: 0.9375 },
       { id: '1', label: '1"', diameter: 1 },
+      { id: '1-1/16', label: '1 1/16"', diameter: 1.0625 },
       { id: '1-1/8', label: '1 1/8"', diameter: 1.125 },
       { id: '1-3/16', label: '1 3/16"', diameter: 1.1875 },
       { id: '1-1/4', label: '1 1/4"', diameter: 1.25 },

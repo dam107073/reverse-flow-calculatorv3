@@ -104,6 +104,16 @@
 
       viewPumpChartButton:
         document.getElementById("viewPumpChartButton"),
+      pumpChartEditBanner:
+        document.getElementById("pumpChartEditBanner"),
+      pumpChartEditTitle:
+        document.getElementById("pumpChartEditTitle"),
+      pumpChartEditContext:
+        document.getElementById("pumpChartEditContext"),
+      updatePumpChartSetupButton:
+        document.getElementById("updatePumpChartSetupButton"),
+      cancelPumpChartEditButton:
+        document.getElementById("cancelPumpChartEditButton"),
 
       pumpChartModal:
         document.getElementById("pumpChartModal"),
@@ -851,6 +861,58 @@ let pumpChartView = {
   chartId: null,
   setupId: null
 };
+
+let activePumpChartEdit = null;
+
+function clearPumpChartEditState() {
+  activePumpChartEdit = null;
+  syncPumpChartEditUi();
+}
+
+function setPumpChartEditState(chartId, setupId) {
+  const { chart, setup } = findPumpChartSetup(chartId, setupId);
+  if (!chart || !setup) {
+    clearPumpChartEditState();
+    return;
+  }
+
+  activePumpChartEdit = {
+    chartId,
+    setupId
+  };
+  syncPumpChartEditUi();
+}
+
+function syncPumpChartEditUi() {
+  if (!els.pumpChartEditBanner) return;
+
+  if (!activePumpChartEdit) {
+    els.pumpChartEditBanner.hidden = true;
+    return;
+  }
+
+  const { chart, setup } = findPumpChartSetup(
+    activePumpChartEdit.chartId,
+    activePumpChartEdit.setupId
+  );
+
+  if (!chart || !setup) {
+    activePumpChartEdit = null;
+    els.pumpChartEditBanner.hidden = true;
+    return;
+  }
+
+  els.pumpChartEditBanner.hidden = false;
+
+  if (els.pumpChartEditTitle) {
+    els.pumpChartEditTitle.textContent = `Editing: ${setup.name}`;
+  }
+
+  if (els.pumpChartEditContext) {
+    els.pumpChartEditContext.textContent =
+      `Loaded from ${chart.name}. Use Update Saved Setup to replace this Pump Chart entry.`;
+  }
+}
 
 function generatePumpChartId(prefix) {
   if (window.crypto?.randomUUID) {
@@ -2013,7 +2075,10 @@ function renderPumpChartDetail(chartId, options = {}) {
     return `
       <section class="pump-chart-document-section">
         <h3>${escapeHtml(category.toUpperCase())} (${setups.length})</h3>
-        ${setups.map(setup => renderPumpChartSetupRow(chart.id, setup)).join("")}
+        ${setups.map((setup, index) => renderPumpChartSetupRow(chart.id, setup, {
+          canMoveUp: index > 0,
+          canMoveDown: index < setups.length - 1
+        })).join("")}
       </section>
     `;
   }).join("") || `
@@ -2042,9 +2107,11 @@ function renderPumpChartDetail(chartId, options = {}) {
   `;
 }
 
-function renderPumpChartSetupRow(chartId, setup) {
+function renderPumpChartSetupRow(chartId, setup, options = {}) {
   const configSummary = getSetupConfigurationSummary(setup);
   const modeBadge = getSetupModeBadgeLabel(setup);
+  const moveUpDisabled = options.canMoveUp ? "" : "disabled";
+  const moveDownDisabled = options.canMoveDown ? "" : "disabled";
 
   return `
     <div class="pump-chart-setup-row">
@@ -2057,6 +2124,8 @@ function renderPumpChartSetupRow(chartId, setup) {
         <div class="pump-chart-row-result">${escapeHtml(getSetupHydraulicSummary(setup))}</div>
       </div>
       <div class="pump-chart-row-actions">
+        <button class="small-button" type="button" onclick="movePumpChartSetup('${chartId}', '${setup.id}', 'up')" ${moveUpDisabled}>Move Up</button>
+        <button class="small-button" type="button" onclick="movePumpChartSetup('${chartId}', '${setup.id}', 'down')" ${moveDownDisabled}>Move Down</button>
         <button class="small-button" type="button" onclick="viewPumpChartSetup('${chartId}', '${setup.id}')">View</button>
         <button class="small-button" type="button" onclick="loadPumpChartSetup('${chartId}', '${setup.id}')">Load</button>
         <button class="small-button danger-button" type="button" onclick="deletePumpChartSetup('${chartId}', '${setup.id}')">Delete</button>
@@ -2304,22 +2373,73 @@ function submitPumpChartSaveForm() {
   if (!savePumpCharts(data)) return;
 
   renderPresetOptions();
+  clearPumpChartEditState();
   pumpChartView = { screen: "detail", chartId: targetChart.id, setupId: null };
   renderPumpChart();
 }
 
-function buildCurrentPumpChartSetup({ name, category, notes, timestamp }) {
+function updateActivePumpChartSetup() {
+  if (!isProUser()) {
+    openProModal();
+    return;
+  }
+
+  if (!activePumpChartEdit) {
+    alert("Load a saved Pump Chart setup before updating it.");
+    return;
+  }
+
+  if (!hasValidRenderedCalculation()) {
+    alert("Enter the required values to generate a valid calculation before updating this saved setup.");
+    return;
+  }
+
+  const data = loadPumpCharts();
+  const chart = data.charts.find(item => item.id === activePumpChartEdit.chartId);
+  const setupIndex = chart?.setups.findIndex(item => item.id === activePumpChartEdit.setupId) ?? -1;
+
+  if (!chart || setupIndex < 0) {
+    clearPumpChartEditState();
+    alert("This saved setup could not be found. Load it from Pump Chart again before updating.");
+    return;
+  }
+
+  const existingSetup = chart.setups[setupIndex];
+  const confirmed = confirm(`Update "${existingSetup.name}" in ${chart.name} with the current calculator values?`);
+  if (!confirmed) return;
+
+  const timestamp = nowIsoString();
+  const updatedSetup = buildCurrentPumpChartSetup({
+    id: existingSetup.id,
+    name: existingSetup.name,
+    category: existingSetup.category,
+    notes: existingSetup.notes,
+    createdAt: existingSetup.createdAt,
+    timestamp
+  });
+
+  chart.setups[setupIndex] = updatedSetup;
+  chart.updatedAt = timestamp;
+
+  if (!savePumpCharts(data)) return;
+
+  renderPresetOptions();
+  clearPumpChartEditState();
+  alert("Saved setup updated.");
+}
+
+function buildCurrentPumpChartSetup({ name, category, notes, timestamp, id, createdAt }) {
   const presetData = buildPresetData();
   const snapshot = captureCurrentResultSnapshot(presetData);
 
   return normalizePumpChartSetup({
-    id: generatePumpChartId("setup"),
+    id: id || generatePumpChartId("setup"),
     name,
     category,
     mode: state.mode || "",
     modeLabel: getModeLabel(state.mode),
     notes,
-    createdAt: timestamp,
+    createdAt: createdAt || timestamp,
     updatedAt: timestamp,
     inputs: extractInputsFromLegacyPreset({
       ...presetData,
@@ -4225,6 +4345,11 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
 
   calculateAndRender();
 });
+      els.updatePumpChartSetupButton?.addEventListener("click", updateActivePumpChartSetup);
+      els.cancelPumpChartEditButton?.addEventListener("click", () => {
+        clearPumpChartEditState();
+        alert("Pump Chart setup edit canceled.");
+      });
       els.resetButton.addEventListener("click", resetCalculator);
       els.settingsViewButton?.addEventListener("click", () => showAppView("settings"));
       els.toolsViewButton?.addEventListener("click", () => showAppView("tools"));
@@ -4835,6 +4960,10 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   syncCoefficientUi();
 }
     function setMode(mode) {
+  if (state.mode !== mode) {
+    clearPumpChartEditState();
+  }
+
   const leavingSplitLay =
     state.mode === "splitLay" && mode !== "splitLay";
 
@@ -4949,6 +5078,8 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
 }
 
 function resetCalculator() {
+  clearPumpChartEditState();
+
   state = {
     ...DEFAULT_STATE,
     splitLay: {
@@ -5130,6 +5261,8 @@ function applyPreset(presetId) {
   const presets = loadPresets();
   const preset = presets.find(item => item.id === presetId);
   if (!preset) return;
+
+  clearPumpChartEditState();
 
   const isSplitPreset = preset.mode === "splitLay";
 
@@ -5361,8 +5494,41 @@ window.loadPumpChartSetup = function(chartId, setupId) {
   }
 
   applyPumpChartSetup(chartId, setupId);
+  setPumpChartEditState(chartId, setupId);
   els.viewPumpChartButton?.classList.remove("active");
   els.pumpChartModal.hidden = true;
+};
+
+window.movePumpChartSetup = function(chartId, setupId, direction) {
+  const data = loadPumpCharts();
+  const chart = data.charts.find(item => item.id === chartId);
+  if (!chart) return;
+
+  const currentIndex = chart.setups.findIndex(item => item.id === setupId);
+  if (currentIndex < 0) return;
+
+  const setup = chart.setups[currentIndex];
+  const sameCategoryIndexes = chart.setups
+    .map((item, index) => ({ item, index }))
+    .filter(entry => entry.item.category === setup.category)
+    .map(entry => entry.index);
+  const visiblePosition = sameCategoryIndexes.indexOf(currentIndex);
+
+  const targetIndex = direction === "up"
+    ? sameCategoryIndexes[visiblePosition - 1]
+    : sameCategoryIndexes[visiblePosition + 1];
+
+  if (targetIndex === undefined) return;
+
+  const movedSetup = chart.setups[currentIndex];
+  chart.setups[currentIndex] = chart.setups[targetIndex];
+  chart.setups[targetIndex] = movedSetup;
+  chart.updatedAt = nowIsoString();
+
+  if (!savePumpCharts(data)) return;
+
+  renderPresetOptions();
+  renderPumpChartDetail(chartId);
 };
 
 window.deletePumpChartSetup = function(chartId, setupId) {
@@ -5378,6 +5544,13 @@ window.deletePumpChartSetup = function(chartId, setupId) {
   chart.updatedAt = nowIsoString();
 
   if (!savePumpCharts(data)) return;
+
+  if (
+    activePumpChartEdit?.chartId === chartId &&
+    activePumpChartEdit?.setupId === setupId
+  ) {
+    clearPumpChartEditState();
+  }
 
   renderPresetOptions();
   pumpChartView = { screen: "detail", chartId, setupId: null };

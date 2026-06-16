@@ -21,7 +21,7 @@ const referencesData = {
     {
       id: "north-american-fire-hose",
       name: "North American Fire Hose",
-      websiteUrl: "https://www.nafh.com",
+      websiteUrl: "https://www.nafhc.com",
       categories: ["Hoses"]
     },
     {

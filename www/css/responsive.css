@@ -73,6 +73,45 @@
         background: transparent;
       }
 
+      .reference-website-card {
+        border-color: rgba(251, 146, 60, 0.36);
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.96), rgba(15,23,42,0.9)),
+          linear-gradient(90deg, rgba(251,146,60,0.12), transparent 56%);
+        box-shadow:
+          inset 5px 0 0 var(--accent),
+          0 8px 18px rgba(0, 0, 0, 0.22);
+      }
+
+      .reference-nav-card,
+      .reference-category-card {
+        border-color: rgba(51, 65, 85, 0.9);
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.94), rgba(15,23,42,0.86));
+        box-shadow:
+          inset 3px 0 0 rgba(251, 146, 60, 0.22),
+          0 4px 14px rgba(0, 0, 0, 0.18);
+      }
+
+      .reference-open-button {
+        color: #fed7aa;
+        -webkit-text-fill-color: #fed7aa;
+      }
+
+      .reference-website-card .reference-open-button {
+        background: #f8fafc;
+        border-color: #f8fafc;
+        color: #020617;
+        -webkit-text-fill-color: #020617;
+      }
+
+      .pump-chart-edit-banner {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.94), rgba(15,23,42,0.88)),
+          linear-gradient(90deg, rgba(251,146,60,0.12), transparent 52%);
+        border-color: rgba(251, 146, 60, 0.34);
+      }
+
       .hose-library-details a {
         color: #fed7aa;
       }
@@ -554,6 +593,10 @@
     font-size: 16px;
   }
 
+  #pumpChartModal .pump-chart-row-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   #pumpChartModal .pump-chart-reference-row {
     grid-template-columns: 1fr;
     gap: 3px;
@@ -580,6 +623,18 @@
     flex: 1 1 100%;
   }
 
+  .pump-chart-edit-banner {
+    grid-template-columns: 1fr;
+  }
+
+  .pump-chart-edit-actions {
+    justify-content: stretch;
+  }
+
+  .pump-chart-edit-actions .small-button {
+    flex: 1 1 100%;
+  }
+
   .hose-library-card-header {
     flex-direction: column;
   }
@@ -602,18 +657,29 @@
     grid-template-columns: 1fr;
   }
 
-  .reference-nav-card,
   .reference-website-card,
   .reference-category-list {
     grid-template-columns: 1fr;
   }
 
+  .reference-nav-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 12px 13px;
+  }
+
 	  .custom-hose-form .reset-button,
 	  .default-hose-choose-link,
-	  .reference-open-button,
 	  .default-hose-delete-button {
 	    width: 100%;
 	  }
+
+  #referencesPage .reference-open-button {
+    width: auto;
+  }
+
+  #referencesPage .reference-website-card .reference-open-button {
+    width: 100%;
+  }
 
   .detail {
     flex-basis: 100%;
