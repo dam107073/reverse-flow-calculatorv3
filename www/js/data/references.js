@@ -49,38 +49,5 @@ const referencesData = {
       categories: ["Nozzles", "Appliances", "Master Streams"]
     }
   ],
-  trainingResources: [
-    {
-      id: "hose-nozzle-operations",
-      name: "Hose & Nozzle Operations"
-    },
-    {
-      id: "relay-pumping",
-      name: "Relay Pumping"
-    },
-    {
-      id: "split-lays",
-      name: "Split Lays"
-    },
-    {
-      id: "master-streams",
-      name: "Master Streams"
-    },
-    {
-      id: "standpipe-operations",
-      name: "Standpipe Operations"
-    },
-    {
-      id: "rural-water-supply",
-      name: "Rural Water Supply"
-    },
-    {
-      id: "pump-operator-resources",
-      name: "Pump Operator Resources"
-    },
-    {
-      id: "reverse-flow-tutorials",
-      name: "Reverse Flow Tutorials"
-    }
-  ]
+  trainingResources: []
 };

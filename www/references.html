@@ -125,6 +125,20 @@
       return card;
     }
 
+    function createTrainingResourcesEmptyCard() {
+      const card = document.createElement("article");
+      card.className = "hose-library-card reference-card reference-nav-card";
+      card.innerHTML = `
+        <div>
+          <strong>Training Resources Coming Soon</strong>
+          <p class="helper">
+            This section will include fireground hydraulics training material, reference guides, and operational resources as they are developed and reviewed.
+          </p>
+        </div>
+      `;
+      return card;
+    }
+
     function createCollapsedSection(title, helper, bodyHtml) {
       const section = document.createElement("details");
       section.className = "settings-tool-card collapsible-settings-card reference-section-card";
@@ -225,16 +239,18 @@
       referencesList.appendChild(
         createCollapsedSection(
           "Training Resources",
-          `${data.trainingResources.length} training resource categories`,
-          createReferenceLinkList(
-            data.trainingResources.map(resource => ({
-              id: resource.id,
-              name: resource.name,
-              helper: "Training materials and reference content coming soon.",
-              actionText: "View Resource"
-            })),
-            "training-resource"
-          )
+          "Fireground hydraulics training material coming soon",
+          `
+            <article class="hose-library-card reference-card reference-nav-card">
+              <div>
+                <strong>Training Resources Coming Soon</strong>
+                <p class="helper">This section will include fireground hydraulics training material, reference guides, and operational resources as they are developed and reviewed.</p>
+              </div>
+              <a class="reset-button reference-open-button" href="references.html?section=training-resources">
+                Open
+              </a>
+            </article>
+          `
         )
       );
     }
@@ -271,16 +287,7 @@
         </div>
       `;
 
-      data.trainingResources.forEach(resource => {
-        referencesList.appendChild(
-          createReferenceLinkCard(
-            resource.name,
-            "Training materials and reference content coming soon.",
-            getReferenceUrl("training-resource", resource.id),
-            "View Resource"
-          )
-        );
-      });
+      referencesList.appendChild(createTrainingResourcesEmptyCard());
     }
 
     function renderManufacturer(data, id) {
@@ -304,35 +311,6 @@
       `;
     }
 
-    function renderTrainingResource(data, id) {
-      const resource = data.trainingResources.find(item => item.id === id);
-
-      if (!resource) {
-        renderOverview(data);
-        return;
-      }
-
-      referencesList.innerHTML = `
-        <div class="references-group">
-          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=training-resources">
-            Back to Training Resources
-          </a>
-          <h2>${escapeHtml(resource.name)}</h2>
-          <details class="hose-library-card reference-card collapsible-settings-card">
-            <summary>
-              <span>
-                <strong>${escapeHtml(resource.name)}</strong>
-                <span class="helper">Training materials and reference content coming soon.</span>
-              </span>
-            </summary>
-            <div class="collapsible-card-body">
-              <p class="helper">Training references, guides, and supporting material will live here.</p>
-            </div>
-          </details>
-        </div>
-      `;
-    }
-
     function renderReferences() {
       const data = getReferenceData();
       const route = getRoute();
@@ -349,11 +327,6 @@
 
       if (route.section === "manufacturer") {
         renderManufacturer(data, route.id);
-        return;
-      }
-
-      if (route.section === "training-resource") {
-        renderTrainingResource(data, route.id);
         return;
       }
 
