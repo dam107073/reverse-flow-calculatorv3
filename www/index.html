@@ -91,20 +91,6 @@
   </a>
 
 </div>
-          <div id="pumpChartEditBanner" class="pump-chart-edit-banner" hidden>
-            <div>
-              <strong id="pumpChartEditTitle">Editing saved setup</strong>
-              <p id="pumpChartEditContext" class="helper">Loaded from Pump Chart.</p>
-            </div>
-            <div class="pump-chart-edit-actions">
-              <button id="updatePumpChartSetupButton" class="small-button" type="button">
-                Update Saved Setup
-              </button>
-              <button id="cancelPumpChartEditButton" class="small-button" type="button">
-                Cancel Edit
-              </button>
-            </div>
-          </div>
         </div>
 
         <div class="field full">
@@ -886,6 +872,14 @@ Select a hydraulic calculation mode.
     >
       Save to Pump Chart
     </button>
+    <button
+      id="updatePumpChartSetupButtonSplit"
+      type="button"
+      class="update-loaded-setup-button"
+      hidden
+    >
+      Update Loaded Setup
+    </button>
   </div>
 
 </section>
@@ -941,6 +935,14 @@ Select a hydraulic calculation mode.
           class="mode-card-pro"
         >
           Save to Pump Chart
+        </button>
+        <button
+          id="updatePumpChartSetupButton"
+          type="button"
+          class="update-loaded-setup-button"
+          hidden
+        >
+          Update Loaded Setup
         </button>
       </div>
     </section>
@@ -1127,7 +1129,7 @@ Select a hydraulic calculation mode.
   <script src="js/constants.js?v=build-6"></script>
   <script src="js/services/entitlement.js"></script>
   <script src="js/data/hydraulics.js?v=build-6"></script>
-  <script src="js/app.js?v=build-7"></script>
+  <script src="js/app.js?v=build-13"></script>
 
   <script type="module" src="js/analytics.js"></script>
 

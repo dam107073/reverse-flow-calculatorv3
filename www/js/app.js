@@ -74,6 +74,10 @@
       presetSelect: document.getElementById("presetSelect"),
       savePresetButton: document.getElementById("savePresetButton"),
       savePresetButtonSplit: document.getElementById("savePresetButtonSplit"),
+      updatePumpChartSetupButton:
+        document.getElementById("updatePumpChartSetupButton"),
+      updatePumpChartSetupButtonSplit:
+        document.getElementById("updatePumpChartSetupButtonSplit"),
       calculatorView: document.getElementById("calculatorView"),
       toolsPage: document.getElementById("toolsPage"),
       settingsPage: document.getElementById("settingsPage"),
@@ -104,16 +108,6 @@
 
       viewPumpChartButton:
         document.getElementById("viewPumpChartButton"),
-      pumpChartEditBanner:
-        document.getElementById("pumpChartEditBanner"),
-      pumpChartEditTitle:
-        document.getElementById("pumpChartEditTitle"),
-      pumpChartEditContext:
-        document.getElementById("pumpChartEditContext"),
-      updatePumpChartSetupButton:
-        document.getElementById("updatePumpChartSetupButton"),
-      cancelPumpChartEditButton:
-        document.getElementById("cancelPumpChartEditButton"),
 
       pumpChartModal:
         document.getElementById("pumpChartModal"),
@@ -866,7 +860,7 @@ let activePumpChartEdit = null;
 
 function clearPumpChartEditState() {
   activePumpChartEdit = null;
-  syncPumpChartEditUi();
+  syncLoadedSetupUpdateUi();
 }
 
 function setPumpChartEditState(chartId, setupId) {
@@ -876,42 +870,169 @@ function setPumpChartEditState(chartId, setupId) {
     return;
   }
 
+  const setupInputs = {
+    ...(setup.inputs || {}),
+    mode: setup.inputs?.mode || setup.mode || ""
+  };
+
   activePumpChartEdit = {
     chartId,
-    setupId
+    setupId,
+    originalInputs: getComparablePumpChartInputs(setupInputs)
   };
-  syncPumpChartEditUi();
+  syncLoadedSetupUpdateUi();
 }
 
-function syncPumpChartEditUi() {
-  if (!els.pumpChartEditBanner) return;
+function setLoadedSetupUpdateButtonsVisible(visible) {
+  [
+    els.updatePumpChartSetupButton,
+    els.updatePumpChartSetupButtonSplit
+  ].forEach(button => {
+    if (button) button.hidden = !visible;
+  });
+}
 
-  if (!activePumpChartEdit) {
-    els.pumpChartEditBanner.hidden = true;
-    return;
-  }
-
+function syncLoadedSetupUpdateUi() {
   const { chart, setup } = findPumpChartSetup(
-    activePumpChartEdit.chartId,
-    activePumpChartEdit.setupId
+    activePumpChartEdit?.chartId,
+    activePumpChartEdit?.setupId
   );
 
-  if (!chart || !setup) {
+  if (!activePumpChartEdit || !chart || !setup) {
     activePumpChartEdit = null;
-    els.pumpChartEditBanner.hidden = true;
+    setLoadedSetupUpdateButtonsVisible(false);
     return;
   }
 
-  els.pumpChartEditBanner.hidden = false;
+  const currentInputs = getCurrentComparablePumpChartInputs();
+  const isModified = haveComparablePumpChartInputsChanged(
+    activePumpChartEdit.originalInputs,
+    currentInputs
+  );
+  const hasMatchingMode = currentInputs.mode === activePumpChartEdit.originalInputs.mode;
 
-  if (els.pumpChartEditTitle) {
-    els.pumpChartEditTitle.textContent = `Editing: ${setup.name}`;
+  setLoadedSetupUpdateButtonsVisible(isModified && hasMatchingMode);
+}
+
+function getCurrentComparablePumpChartInputs() {
+  return getComparablePumpChartInputs(
+    extractInputsFromLegacyPreset({
+      ...buildPresetData(),
+      mode: state.mode
+    })
+  );
+}
+
+function getComparablePumpChartInputs(inputs = {}) {
+  const mode = inputs.mode || "";
+  const commonInputs = {
+    mode,
+    useCustomCoefficient: !!inputs.useCustomCoefficient,
+    customCoefficient: inputs.customCoefficient || ""
+  };
+
+  if (mode === "splitLay") {
+    return {
+      ...commonInputs,
+      splitLay: normalizePumpChartComparableValue(inputs.splitLay || DEFAULT_STATE.splitLay)
+    };
   }
 
-  if (els.pumpChartEditContext) {
-    els.pumpChartEditContext.textContent =
-      `Loaded from ${chart.name}. Use Update Saved Setup to replace this Pump Chart entry.`;
+  if (mode === "relay") {
+    return {
+      ...commonInputs,
+      targetGpm: inputs.targetGpm || "",
+      relayResidualPressure: inputs.relayResidualPressure || "30",
+      hoseLength: inputs.hoseLength || "",
+      hoseSize: inputs.hoseSize || ""
+    };
   }
+
+  if (mode === "apparatusMounted") {
+    return {
+      ...commonInputs,
+      hoseLength: inputs.hoseLength || "",
+      hoseSize: inputs.hoseSize || "",
+      nozzleType: inputs.nozzleType || "",
+      nozzlePressure: inputs.nozzlePressure || "",
+      customNozzlePressure: inputs.customNozzlePressure || "",
+      smoothboreTip: inputs.smoothboreTip || "",
+      bladeModel: inputs.bladeModel || "blade160",
+      masterStreamType: inputs.masterStreamType || "fog",
+      masterStreamLoss: inputs.masterStreamLoss || "25",
+      apparatusFogFlow: inputs.apparatusFogFlow || "1000",
+      apparatusCustomFogFlow: inputs.apparatusCustomFogFlow || "",
+      apparatusElevation: inputs.apparatusElevation || "",
+      applianceLoss: inputs.applianceLoss || "0"
+    };
+  }
+
+  return {
+    mode: inputs.mode || "",
+    pdp: inputs.pdp || "",
+    targetGpm: inputs.targetGpm || "",
+    hoseLength: inputs.hoseLength || "",
+    hoseSize: inputs.hoseSize || "",
+    nozzleType: inputs.nozzleType || "",
+    nozzlePressure: inputs.nozzlePressure || "",
+    customNozzlePressure: inputs.customNozzlePressure || "",
+    smoothboreTip: inputs.smoothboreTip || "",
+    bladeModel: inputs.bladeModel || "blade160",
+    masterStreamType: inputs.masterStreamType || "fog",
+    masterStreamLoss: inputs.masterStreamLoss || "25",
+    dualLineSupply: !!inputs.dualLineSupply,
+    applianceLoss: inputs.applianceLoss || "0",
+    henTurboEnabled: !!inputs.henTurboEnabled,
+    reverseSupplyEnabled: !!inputs.reverseSupplyEnabled,
+    reverseSupplyLength: inputs.reverseSupplyLength || "",
+    reverseSupplyHoseSize: inputs.reverseSupplyHoseSize || "3",
+    reverseSupplyAppliance: inputs.reverseSupplyAppliance || "gateValve",
+    useCustomCoefficient: !!inputs.useCustomCoefficient,
+    customCoefficient: inputs.customCoefficient || ""
+  };
+}
+
+function normalizePumpChartComparableValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(item => normalizePumpChartComparableValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.keys(value)
+      .sort()
+      .reduce((normalized, key) => {
+        normalized[key] = normalizePumpChartComparableValue(value[key]);
+        return normalized;
+      }, {});
+  }
+
+  return value;
+}
+
+function getStableJsonString(value) {
+  return JSON.stringify(normalizePumpChartComparableValue(value));
+}
+
+function haveComparablePumpChartInputsChanged(originalInputs = {}, currentInputs = {}) {
+  const normalizedOriginal = normalizePumpChartComparableValue(originalInputs);
+  const normalizedCurrent = normalizePumpChartComparableValue(currentInputs);
+  const keys = new Set([
+    ...Object.keys(normalizedOriginal || {}),
+    ...Object.keys(normalizedCurrent || {})
+  ]);
+
+  return [...keys].some(key =>
+    getStableJsonString(normalizedOriginal?.[key]) !==
+    getStableJsonString(normalizedCurrent?.[key])
+  );
+}
+
+function scheduleLoadedSetupUpdateSync() {
+  if (!activePumpChartEdit) return;
+
+  window.requestAnimationFrame(() => {
+    syncLoadedSetupUpdateUi();
+  });
 }
 
 function generatePumpChartId(prefix) {
@@ -961,6 +1082,11 @@ function normalizePumpChartData(rawData) {
 function normalizePumpChartSetup(setup) {
   const inputs = setup.inputs || extractInputsFromLegacyPreset(setup);
   const result = setup.result || extractResultFromLegacyPreset(setup);
+  const mode = setup.mode || inputs.mode || "";
+  const normalizedInputs = {
+    ...inputs,
+    mode
+  };
 
   return {
     id: setup.id || generatePumpChartId("setup"),
@@ -968,12 +1094,12 @@ function normalizePumpChartSetup(setup) {
     category: PUMP_CHART_CATEGORIES.includes(setup.category)
       ? setup.category
       : "Other",
-    mode: setup.mode || inputs.mode || "",
-    modeLabel: setup.modeLabel || getModeLabel(setup.mode || inputs.mode),
+    mode,
+    modeLabel: setup.modeLabel || getModeLabel(mode),
     notes: String(setup.notes || "").trim(),
     createdAt: setup.createdAt || nowIsoString(),
     updatedAt: setup.updatedAt || setup.createdAt || nowIsoString(),
-    inputs: JSON.parse(JSON.stringify(inputs || {})),
+    inputs: JSON.parse(JSON.stringify(normalizedInputs)),
     result: JSON.parse(JSON.stringify(result || {})),
     warnings: Array.isArray(setup.warnings) ? [...setup.warnings] : []
   };
@@ -2112,6 +2238,8 @@ function renderPumpChartSetupRow(chartId, setup, options = {}) {
   const modeBadge = getSetupModeBadgeLabel(setup);
   const moveUpDisabled = options.canMoveUp ? "" : "disabled";
   const moveDownDisabled = options.canMoveDown ? "" : "disabled";
+  const escapedChartId = escapeHtml(chartId);
+  const escapedSetupId = escapeHtml(setup.id);
 
   return `
     <div class="pump-chart-setup-row">
@@ -2124,11 +2252,15 @@ function renderPumpChartSetupRow(chartId, setup, options = {}) {
         <div class="pump-chart-row-result">${escapeHtml(getSetupHydraulicSummary(setup))}</div>
       </div>
       <div class="pump-chart-row-actions">
-        <button class="small-button" type="button" onclick="movePumpChartSetup('${chartId}', '${setup.id}', 'up')" ${moveUpDisabled}>Move Up</button>
-        <button class="small-button" type="button" onclick="movePumpChartSetup('${chartId}', '${setup.id}', 'down')" ${moveDownDisabled}>Move Down</button>
-        <button class="small-button" type="button" onclick="viewPumpChartSetup('${chartId}', '${setup.id}')">View</button>
-        <button class="small-button" type="button" onclick="loadPumpChartSetup('${chartId}', '${setup.id}')">Load</button>
-        <button class="small-button danger-button" type="button" onclick="deletePumpChartSetup('${chartId}', '${setup.id}')">Delete</button>
+        <button class="small-button pump-chart-load-button" type="button" onclick="loadPumpChartSetup('${escapedChartId}', '${escapedSetupId}')">Load</button>
+        <details class="pump-chart-overflow">
+          <summary aria-label="Setup actions" title="Setup actions">⋮</summary>
+          <div class="pump-chart-overflow-menu">
+            <button class="pump-chart-menu-action" type="button" onclick="movePumpChartSetup('${escapedChartId}', '${escapedSetupId}', 'up'); closePumpChartActionMenus();" ${moveUpDisabled}>Move Up</button>
+            <button class="pump-chart-menu-action" type="button" onclick="movePumpChartSetup('${escapedChartId}', '${escapedSetupId}', 'down'); closePumpChartActionMenus();" ${moveDownDisabled}>Move Down</button>
+            <button class="pump-chart-menu-action danger-button" type="button" onclick="deletePumpChartSetup('${escapedChartId}', '${escapedSetupId}'); closePumpChartActionMenus();">Delete</button>
+          </div>
+        </details>
       </div>
     </div>
   `;
@@ -2405,7 +2537,21 @@ function updateActivePumpChartSetup() {
   }
 
   const existingSetup = chart.setups[setupIndex];
-  const confirmed = confirm(`Update "${existingSetup.name}" in ${chart.name} with the current calculator values?`);
+  const currentInputs = getCurrentComparablePumpChartInputs();
+
+  if (
+    getStableJsonString(currentInputs) ===
+    getStableJsonString(activePumpChartEdit.originalInputs)
+  ) {
+    syncLoadedSetupUpdateUi();
+    alert("No changes detected for the loaded setup.");
+    return;
+  }
+
+  const confirmed = confirm(
+    `Update "${existingSetup.name}" in ${chart.name}?\n\n` +
+    "This will replace the saved Pump Chart setup with the current calculator values."
+  );
   if (!confirmed) return;
 
   const timestamp = nowIsoString();
@@ -2424,7 +2570,7 @@ function updateActivePumpChartSetup() {
   if (!savePumpCharts(data)) return;
 
   renderPresetOptions();
-  clearPumpChartEditState();
+  setPumpChartEditState(chart.id, updatedSetup.id);
   alert("Saved setup updated.");
 }
 
@@ -4345,10 +4491,14 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
 
   calculateAndRender();
 });
-      els.updatePumpChartSetupButton?.addEventListener("click", updateActivePumpChartSetup);
-      els.cancelPumpChartEditButton?.addEventListener("click", () => {
-        clearPumpChartEditState();
-        alert("Pump Chart setup edit canceled.");
+      [
+        els.updatePumpChartSetupButton,
+        els.updatePumpChartSetupButtonSplit
+      ].forEach(button => {
+        button?.addEventListener("click", updateActivePumpChartSetup);
+      });
+      ["input", "change"].forEach(eventName => {
+        els.calculatorView?.addEventListener(eventName, scheduleLoadedSetupUpdateSync);
       });
       els.resetButton.addEventListener("click", resetCalculator);
       els.settingsViewButton?.addEventListener("click", () => showAppView("settings"));
@@ -4655,6 +4805,14 @@ els.closePumpChartModal.addEventListener("click", () => {
 });
 
 els.pumpChartModal.addEventListener("click", event => {
+  const overflowMenu = event.target.closest?.(".pump-chart-overflow");
+
+  if (overflowMenu) {
+    closePumpChartActionMenus(overflowMenu);
+    return;
+  }
+
+  closePumpChartActionMenus();
 
   if (event.target === els.pumpChartModal) {
 
@@ -4672,6 +4830,7 @@ els.proModal.addEventListener("click", event => {
 
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") {
+    closePumpChartActionMenus();
     els.proModal.hidden = true;
     els.pumpChartModal.hidden = true;
   }
@@ -4948,6 +5107,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
       saveState();
       renderPressureButtons();
       calculateAndRender();
+      syncLoadedSetupUpdateUi();
     }
     function clearCustomCoefficient() {
   state.useCustomCoefficient = false;
@@ -5480,6 +5640,12 @@ window.showPumpChartsList = function() {
 window.openPumpChartDetail = function(chartId) {
   pumpChartView = { screen: "detail", chartId, setupId: null };
   renderPumpChart();
+};
+
+window.closePumpChartActionMenus = function(exceptMenu = null) {
+  document.querySelectorAll(".pump-chart-overflow[open]").forEach(menu => {
+    if (menu !== exceptMenu) menu.open = false;
+  });
 };
 
 window.viewPumpChartSetup = function(chartId, setupId) {
@@ -6956,25 +7122,30 @@ function buildPumpChartPrintHtml(chart) {
       
       if (isSplitLayMode()) {
   calculateSplitLay(warnings);
+  syncLoadedSetupUpdateUi();
   return;
 }
 
 if (isRelayMode()) {
   calculateRelayPdp({ ...inputs, warnings });
+  syncLoadedSetupUpdateUi();
   return;
 }
 
 if (isApparatusMountedMode()) {
   calculateApparatusMounted({ ...inputs, warnings });
+  syncLoadedSetupUpdateUi();
   return;
 }
 
 if (isRequiredPdpMode()) {
   calculateRequiredPdp({ ...inputs, warnings });
+  syncLoadedSetupUpdateUi();
   return;
 }
 
 calculateReverseFlow({ ...inputs, warnings });
+syncLoadedSetupUpdateUi();
     }
 
     function addFiftyFeet(inputId) {
