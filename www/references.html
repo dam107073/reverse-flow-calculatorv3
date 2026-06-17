@@ -65,7 +65,7 @@
         <div class="field full">
           <label>References</label>
           <p class="helper">
-            Manufacturer information and training resources for fireground hydraulics.
+            Manufacturer information, training partners, and training resources for fireground hydraulics.
           </p>
         </div>
 
@@ -93,8 +93,12 @@
 
     function getReferenceData() {
       return typeof referencesData === "object" && referencesData
-        ? referencesData
-        : { manufacturers: [], trainingResources: [] };
+        ? {
+            manufacturers: referencesData.manufacturers || [],
+            trainingPartners: referencesData.trainingPartners || [],
+            trainingResources: referencesData.trainingResources || []
+          }
+        : { manufacturers: [], trainingPartners: [], trainingResources: [] };
     }
 
     function getRoute() {
@@ -193,6 +197,77 @@
       `;
     }
 
+    function createTrainingPartnerLogo(partner) {
+      if (!partner.logo) {
+        return "";
+      }
+
+      return `
+        <img
+          class="reference-partner-logo"
+          src="${escapeHtml(partner.logo)}"
+          alt="${escapeHtml(partner.name)} logo"
+          loading="lazy"
+        />
+      `;
+    }
+
+    function createTrainingPartnerContactCard(partner) {
+      const hasEmail = !!partner.contactEmail;
+      const hasWebsite = !!partner.websiteUrl;
+
+      return `
+        <article class="hose-library-card reference-card reference-website-card reference-partner-contact-card">
+          <div>
+            <strong>Contact</strong>
+            <p class="helper">
+              ${hasEmail
+                ? `Interested training organizations can email ${escapeHtml(partner.contactEmail)}.`
+                : "Contact information has not been added yet."}
+            </p>
+          </div>
+          <div class="reference-partner-actions">
+            ${hasEmail
+              ? `
+                <a
+                  class="reset-button reference-open-button"
+                  href="mailto:${escapeHtml(partner.contactEmail)}"
+                >
+                  Contact Reverse Flow
+                </a>
+              `
+              : ""}
+            ${hasWebsite
+              ? `
+                <a
+                  class="reset-button reference-open-button"
+                  href="${escapeHtml(partner.websiteUrl)}"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Visit Website
+                </a>
+              `
+              : ""}
+          </div>
+        </article>
+      `;
+    }
+
+    function createTrainingPartnerSpecialties(partner) {
+      if (!Array.isArray(partner.specialties) || partner.specialties.length === 0) {
+        return `<p class="helper">Specialties coming soon.</p>`;
+      }
+
+      return `
+        <div class="reference-specialty-tags" aria-label="Training partner specialties">
+          ${partner.specialties.map(specialty => `
+            <span>${escapeHtml(specialty)}</span>
+          `).join("")}
+        </div>
+      `;
+    }
+
     function createCategoryList(categories) {
       if (!Array.isArray(categories) || categories.length === 0) {
         return `<p class="helper">No categories added yet.</p>`;
@@ -237,6 +312,15 @@
       );
 
       referencesList.appendChild(
+        createReferenceLinkCard(
+          "Training Partners",
+          "Fire service training organizations and instructors focused on pump operations, hydraulics, water supply, and related disciplines.",
+          "references.html?section=training-partners",
+          "Show"
+        )
+      );
+
+      referencesList.appendChild(
         createCollapsedSection(
           "Training Resources",
           "Fireground hydraulics training material coming soon",
@@ -277,6 +361,28 @@
       });
     }
 
+    function renderTrainingPartners(data) {
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html">
+            Back to References
+          </a>
+          <h2>Training Partners</h2>
+        </div>
+      `;
+
+      data.trainingPartners.forEach(partner => {
+        referencesList.appendChild(
+          createReferenceLinkCard(
+            partner.name,
+            partner.subtitle || "Coming soon",
+            getReferenceUrl("training-partner", partner.id),
+            "View Partner"
+          )
+        );
+      });
+    }
+
     function renderTrainingResources(data) {
       referencesList.innerHTML = `
         <div class="references-group">
@@ -311,12 +417,58 @@
       `;
     }
 
+    function renderTrainingPartner(data, id) {
+      const partner = data.trainingPartners.find(item => item.id === id);
+
+      if (!partner) {
+        renderTrainingPartners(data);
+        return;
+      }
+
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=training-partners">
+            Back to Training Partners
+          </a>
+          <div class="reference-partner-header${partner.logo ? "" : " reference-partner-header-no-logo"}">
+            ${createTrainingPartnerLogo(partner)}
+            <div class="reference-partner-title-copy">
+              <h2>${escapeHtml(partner.name)}</h2>
+              <p class="helper">${escapeHtml(partner.description)}</p>
+            </div>
+          </div>
+        </div>
+
+        <article class="hose-library-card reference-card reference-category-card reference-partner-detail-card">
+          <strong>Service Area</strong>
+          <p class="helper">${escapeHtml(partner.serviceArea || "Service area coming soon.")}</p>
+        </article>
+
+        <article class="hose-library-card reference-card reference-category-card reference-partner-detail-card">
+          <strong>Specialties</strong>
+          ${createTrainingPartnerSpecialties(partner)}
+        </article>
+
+        ${createTrainingPartnerContactCard(partner)}
+      `;
+    }
+
     function renderReferences() {
       const data = getReferenceData();
       const route = getRoute();
 
       if (route.section === "manufacturers") {
         renderManufacturers(data);
+        return;
+      }
+
+      if (route.section === "training-partners") {
+        renderTrainingPartners(data);
+        return;
+      }
+
+      if (route.section === "training-partner") {
+        renderTrainingPartner(data, route.id);
         return;
       }
 

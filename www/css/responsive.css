@@ -93,6 +93,21 @@
           0 4px 14px rgba(0, 0, 0, 0.18);
       }
 
+      .reference-partner-logo {
+        border-color: rgba(251, 146, 60, 0.3);
+        background:
+          linear-gradient(180deg, rgba(23,32,51,0.96), rgba(17,24,39,0.92));
+        color: #fed7aa;
+        -webkit-text-fill-color: #fed7aa;
+      }
+
+      .reference-specialty-tags span {
+        border-color: rgba(148, 163, 184, 0.26);
+        background: rgba(255,255,255,0.06);
+        color: #cbd5e1;
+        -webkit-text-fill-color: #cbd5e1;
+      }
+
       .reference-open-button {
         color: #fed7aa;
         -webkit-text-fill-color: #fed7aa;
@@ -709,6 +724,15 @@
     grid-template-columns: 1fr;
   }
 
+  .reference-partner-header {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-partner-logo {
+    width: 62px;
+    height: 62px;
+  }
+
   .reference-nav-card {
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 12px 13px;
@@ -725,6 +749,14 @@
   }
 
   #referencesPage .reference-website-card .reference-open-button {
+    width: 100%;
+  }
+
+  .reference-partner-actions {
+    justify-content: stretch;
+  }
+
+  .reference-partner-actions .reference-open-button {
     width: 100%;
   }
 
