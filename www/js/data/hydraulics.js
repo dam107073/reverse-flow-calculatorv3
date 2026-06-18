@@ -55,17 +55,6 @@ const HEN_TURBO_CURVES = {
       { gpm: 180, loss: 31 },
       { gpm: 190, loss: 35 }
     ]
-  },
-  turbo25: {
-    label: "HEN Turbo 2.5",
-    compatibleHoseIds: ["2.25", "2.5"],
-    points: [
-      { gpm: 245, loss: 22 },
-      { gpm: 255, loss: 24 },
-      { gpm: 265, loss: 26 },
-      { gpm: 275, loss: 28 },
-      { gpm: 285, loss: 30 }
-    ]
   }
 };
 

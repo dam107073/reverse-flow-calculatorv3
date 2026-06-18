@@ -349,6 +349,18 @@
         </div>
       `;
 
+      if (!data.manufacturers.length) {
+        referencesList.insertAdjacentHTML("beforeend", `
+          <article class="hose-library-card reference-card">
+            <strong>Manufacturer References Coming Soon</strong>
+            <p class="helper">
+              Manufacturer reference materials will be added here as permissions are approved. This section is intended to provide direct access to official manufacturer resources and documentation.
+            </p>
+          </article>
+        `);
+        return;
+      }
+
       data.manufacturers.forEach(manufacturer => {
         referencesList.appendChild(
           createReferenceLinkCard(

@@ -822,7 +822,6 @@ function renderSupportPageToolsContent() {
             name: setup.name,
             mode: setup.mode,
             modeLabel: setup.modeLabel,
-            category: setup.category,
             notes: setup.notes,
             chartId: chart.id,
             setupId: setup.id,
@@ -841,14 +840,6 @@ function renderSupportPageToolsContent() {
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
   return true;
 }
-
-const PUMP_CHART_CATEGORIES = [
-  "Attack Lines",
-  "Master Streams",
-  "Water Supply",
-  "Apparatus Mounted",
-  "Other"
-];
 
 let pumpChartView = {
   screen: "list",
@@ -1091,9 +1082,6 @@ function normalizePumpChartSetup(setup) {
   return {
     id: setup.id || generatePumpChartId("setup"),
     name: String(setup.name || "Untitled Setup").trim() || "Untitled Setup",
-    category: PUMP_CHART_CATEGORIES.includes(setup.category)
-      ? setup.category
-      : "Other",
     mode,
     modeLabel: setup.modeLabel || getModeLabel(mode),
     notes: String(setup.notes || "").trim(),
@@ -1159,7 +1147,6 @@ function migrateLegacyPumpChartPresets() {
         setups: oldPresets.map(preset =>
           normalizePumpChartSetup({
             ...preset,
-            category: "Other",
             modeLabel: getModeLabel(preset.mode),
             createdAt: timestamp,
             updatedAt: timestamp,
@@ -1234,12 +1221,6 @@ function findPumpChartSetup(chartId, setupId) {
     chart,
     setup: chart.setups.find(item => item.id === setupId) || null
   };
-}
-
-function getPumpChartCategoryCount(chart) {
-  return PUMP_CHART_CATEGORIES.filter(category =>
-    chart.setups.some(setup => setup.category === category)
-  ).length;
 }
 
 function getLastViewedPumpChartId() {
@@ -2152,10 +2133,7 @@ function renderPumpChartList() {
     return;
   }
 
-  els.pumpChartList.innerHTML = data.charts.map(chart => {
-    const categoryCount = getPumpChartCategoryCount(chart);
-
-    return `
+  els.pumpChartList.innerHTML = data.charts.map(chart => `
     <div class="section-card pump-chart-card pump-chart-container-card">
       <div class="pump-chart-card-header">
         <div>
@@ -2168,7 +2146,7 @@ function renderPumpChartList() {
         Last updated ${escapeHtml(formatPumpChartDate(chart.updatedAt))}
       </div>
       <div class="pump-chart-card-summary pump-chart-card-subsummary">
-        ${categoryCount} ${categoryCount === 1 ? "Category" : "Categories"} • ${chart.setups.length} ${chart.setups.length === 1 ? "Setup" : "Setups"}
+        ${chart.setups.length} ${chart.setups.length === 1 ? "Setup" : "Setups"}
       </div>
       <div class="pump-chart-card-actions">
         <button class="small-button" type="button" onclick="openPumpChartDetail('${chart.id}')">Open</button>
@@ -2176,8 +2154,7 @@ function renderPumpChartList() {
         <button class="small-button danger-button" type="button" onclick="deletePumpChart('${chart.id}')">Delete</button>
       </div>
     </div>
-  `;
-  }).join("");
+  `).join("");
 }
 
 function renderPumpChartDetail(chartId, options = {}) {
@@ -2194,20 +2171,14 @@ function renderPumpChartDetail(chartId, options = {}) {
   pumpChartView = { screen: "detail", chartId, setupId: null };
   setPumpChartSubtitle("Printable department reference card.");
 
-  const groupedSections = PUMP_CHART_CATEGORIES.map(category => {
-    const setups = chart.setups.filter(setup => setup.category === category);
-    if (!setups.length) return "";
-
-    return `
+  const setupSection = chart.setups.length ? `
       <section class="pump-chart-document-section">
-        <h3>${escapeHtml(category.toUpperCase())} (${setups.length})</h3>
-        ${setups.map((setup, index) => renderPumpChartSetupRow(chart.id, setup, {
+        ${chart.setups.map((setup, index) => renderPumpChartSetupRow(chart.id, setup, {
           canMoveUp: index > 0,
-          canMoveDown: index < setups.length - 1
+          canMoveDown: index < chart.setups.length - 1
         })).join("")}
       </section>
-    `;
-  }).join("") || `
+    ` : `
     <div class="disabled-note">
       No setups saved in this Pump Chart.
     </div>
@@ -2228,7 +2199,7 @@ function renderPumpChartDetail(chartId, options = {}) {
         </div>
         ${chart.notes ? `<p class="pump-chart-document-notes">${escapeHtml(chart.notes)}</p>` : ""}
       </header>
-      ${groupedSections}
+      ${setupSection}
     </article>
   `;
 }
@@ -2288,7 +2259,6 @@ function renderPumpChartSetupDetail(chartId, setupId) {
         <h2>${escapeHtml(setup.name)}</h2>
         <strong>${escapeHtml(chart.name)}</strong>
         <div class="pump-chart-document-meta">
-          <span>${escapeHtml(setup.category)}</span>
           <span>${escapeHtml(setup.modeLabel || getModeLabel(setup.mode))}</span>
         </div>
       </header>
@@ -2408,13 +2378,6 @@ function renderSavePumpChartForm() {
       </div>
 
       <div class="field full">
-        <label>Category</label>
-        <select id="pumpChartSetupCategory" required>
-          ${PUMP_CHART_CATEGORIES.map(category => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join("")}
-        </select>
-      </div>
-
-      <div class="field full">
         <label>Notes</label>
         <textarea id="pumpChartSetupNotes" rows="3" placeholder="Optional"></textarea>
       </div>
@@ -2448,17 +2411,11 @@ function submitPumpChartSaveForm() {
   }
 
   const setupName = document.getElementById("pumpChartSetupName")?.value.trim();
-  const category = document.getElementById("pumpChartSetupCategory")?.value;
   const setupNotes = document.getElementById("pumpChartSetupNotes")?.value.trim() || "";
   const saveMode = document.getElementById("pumpChartSaveMode")?.value || "existing";
 
   if (!setupName) {
     alert("Setup Name is required.");
-    return;
-  }
-
-  if (!PUMP_CHART_CATEGORIES.includes(category)) {
-    alert("Select a setup category.");
     return;
   }
 
@@ -2494,7 +2451,6 @@ function submitPumpChartSaveForm() {
 
   const setup = buildCurrentPumpChartSetup({
     name: setupName,
-    category,
     notes: setupNotes,
     timestamp
   });
@@ -2558,7 +2514,6 @@ function updateActivePumpChartSetup() {
   const updatedSetup = buildCurrentPumpChartSetup({
     id: existingSetup.id,
     name: existingSetup.name,
-    category: existingSetup.category,
     notes: existingSetup.notes,
     createdAt: existingSetup.createdAt,
     timestamp
@@ -2574,14 +2529,13 @@ function updateActivePumpChartSetup() {
   alert("Saved setup updated.");
 }
 
-function buildCurrentPumpChartSetup({ name, category, notes, timestamp, id, createdAt }) {
+function buildCurrentPumpChartSetup({ name, notes, timestamp, id, createdAt }) {
   const presetData = buildPresetData();
   const snapshot = captureCurrentResultSnapshot(presetData);
 
   return normalizePumpChartSetup({
     id: id || generatePumpChartId("setup"),
     name,
-    category,
     mode: state.mode || "",
     modeLabel: getModeLabel(state.mode),
     notes,
@@ -5673,18 +5627,11 @@ window.movePumpChartSetup = function(chartId, setupId, direction) {
   const currentIndex = chart.setups.findIndex(item => item.id === setupId);
   if (currentIndex < 0) return;
 
-  const setup = chart.setups[currentIndex];
-  const sameCategoryIndexes = chart.setups
-    .map((item, index) => ({ item, index }))
-    .filter(entry => entry.item.category === setup.category)
-    .map(entry => entry.index);
-  const visiblePosition = sameCategoryIndexes.indexOf(currentIndex);
-
   const targetIndex = direction === "up"
-    ? sameCategoryIndexes[visiblePosition - 1]
-    : sameCategoryIndexes[visiblePosition + 1];
+    ? currentIndex - 1
+    : currentIndex + 1;
 
-  if (targetIndex === undefined) return;
+  if (targetIndex < 0 || targetIndex >= chart.setups.length) return;
 
   const movedSetup = chart.setups[currentIndex];
   chart.setups[currentIndex] = chart.setups[targetIndex];
@@ -6990,18 +6937,11 @@ function buildPumpChartShareText(chart) {
     ""
   ].filter(line => line !== "");
 
-  PUMP_CHART_CATEGORIES.forEach(category => {
-    const setups = chart.setups.filter(setup => setup.category === category);
-    if (!setups.length) return;
-
-    lines.push(category);
-    setups.forEach(setup => {
-      const config = getSetupConfigurationSummary(setup).replace(/\n+/g, " / ");
-      const result = getSetupHydraulicSummary(setup).replace(/\n+/g, " / ");
-      lines.push([setup.name, config, result].filter(Boolean).join(" — "));
-      if (setup.notes) lines.push(`Notes: ${setup.notes}`);
-    });
-    lines.push("");
+  chart.setups.forEach(setup => {
+    const config = getSetupConfigurationSummary(setup).replace(/\n+/g, " / ");
+    const result = getSetupHydraulicSummary(setup).replace(/\n+/g, " / ");
+    lines.push([setup.name, config, result].filter(Boolean).join(" — "));
+    if (setup.notes) lines.push(`Notes: ${setup.notes}`);
   });
 
   if (chart.notes) {
@@ -7026,14 +6966,9 @@ function openPumpChartPrintView(chart) {
 }
 
 function buildPumpChartPrintHtml(chart) {
-  const sections = PUMP_CHART_CATEGORIES.map(category => {
-    const setups = chart.setups.filter(setup => setup.category === category);
-    if (!setups.length) return "";
-
-    return `
+  const sections = chart.setups.length ? `
       <section>
-        <h2>${escapeHtml(category.toUpperCase())}</h2>
-        ${setups.map(setup => `
+        ${chart.setups.map(setup => `
           <div class="setup">
             <div>
               <strong>${escapeHtml(setup.name)}</strong>
@@ -7044,8 +6979,7 @@ function buildPumpChartPrintHtml(chart) {
           </div>
         `).join("")}
       </section>
-    `;
-  }).join("");
+    ` : "";
 
   return `<!doctype html>
 <html>
