@@ -2676,7 +2676,7 @@ function getSetupConfigurationSummary(setup) {
   if (inputs.nozzleType === "masterstream") {
     return [
       "Master Stream",
-      getTargetFlowSummary(inputs)
+      getMasterStreamSavedFlowSummary(setup)
     ].filter(Boolean).join("\n");
   }
 
@@ -2963,7 +2963,7 @@ function getSetupReferenceSections(setup) {
   } else if (inputs.nozzleType === "masterstream") {
     configurationRows.push(
       ["Stream", getMasterStreamConfigurationLabel(inputs)],
-      ["Target Flow", getTargetFlowSummary(inputs)],
+      ["Target Flow", getMasterStreamSavedFlowSummary(setup)],
       ["Supply", formatLengthAndHose(inputs.hoseLength, inputs.hoseSize)]
     );
   } else {
@@ -3090,6 +3090,18 @@ function getTargetFlowSummary(inputs = {}) {
   }
 
   return formatGpmValue(inputs.apparatusFogFlow || inputs.targetGpm);
+}
+
+function getMasterStreamSavedFlowSummary(setup = {}) {
+  const result = setup.result || {};
+  const inputs = setup.inputs || {};
+
+  return formatGpmValue(
+    result.flowSummary ||
+    result.calculatedFlow ||
+    getSetupFlowSummary(setup) ||
+    getTargetFlowSummary(inputs)
+  );
 }
 
 function getApparatusMountedReferenceFields(setup = {}) {
@@ -5988,13 +6000,31 @@ async function createPumpChartPngFile(chart) {
   try {
     logPumpChartExportDomSources(source);
 
-    let blob = await tryRenderElementToPngBlob(source, "dom-original");
-    if (!blob) {
-      const sanitizedClone = createSanitizedPumpChartExportClone(source);
-      if (sanitizedClone) {
-        blob = await tryRenderElementToPngBlob(sanitizedClone, "dom-sanitized");
+    const exportElement = createPumpChartExportRenderElement(source);
+    let blob = null;
+
+    if (exportElement) {
+      try {
+        blob = await tryRenderElementToPngBlob(exportElement, "dom-export");
+        if (!blob) {
+          const sanitizedClone = createSanitizedPumpChartExportClone(exportElement);
+          if (sanitizedClone) {
+            blob = await tryRenderElementToPngBlob(sanitizedClone, "dom-sanitized");
+          }
+        }
+        if (!blob) {
+          blob = await tryRenderManualPumpChartCanvasToBlob(exportElement);
+        }
+      } finally {
+        const exportWrapper = exportElement.parentElement;
+        if (exportWrapper) {
+          exportWrapper.remove();
+        } else {
+          exportElement.remove();
+        }
       }
     }
+
     if (!blob) {
       blob = await tryRenderManualPumpChartCanvasToBlob(source);
     }
@@ -6048,6 +6078,102 @@ function getPumpChartExportElement() {
   if (!els.pumpChartModal || els.pumpChartModal.hidden) return null;
 
   return els.pumpChartModal.querySelector(".pump-chart-document");
+}
+
+function getPumpChartExportLogoSrc() {
+  return "/icons/reverse-flow-logo.png";
+}
+
+function createPumpChartExportRenderElement(source) {
+  try {
+    const sourceRect = source.getBoundingClientRect();
+    const width = Math.ceil(sourceRect.width);
+    if (!width) return null;
+
+    const clone = source.cloneNode(true);
+    inlineComputedStyles(source, clone);
+    preparePumpChartExportContent(clone);
+
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "fixed";
+    wrapper.style.left = "-10000px";
+    wrapper.style.top = "0";
+    wrapper.style.width = `${width}px`;
+    wrapper.style.background = getResolvedExportBackground(source);
+    wrapper.style.pointerEvents = "none";
+    wrapper.style.zIndex = "-1";
+
+    clone.style.width = `${width}px`;
+    clone.style.boxSizing = "border-box";
+    clone.style.margin = "0";
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    logPumpChartShareStep("png-export-clone-created", {
+      removedModeBadges: clone.dataset.removedModeBadges || "0",
+      hasBranding: clone.dataset.exportBranding || "false"
+    });
+
+    return clone;
+  } catch (error) {
+    logPumpChartShareStep("png-export-clone-error", {
+      message: error?.message || String(error)
+    });
+    return null;
+  }
+}
+
+function preparePumpChartExportContent(element) {
+  let removedModeBadges = 0;
+
+  element.querySelectorAll(".pump-chart-mode-badge").forEach(node => {
+    node.remove();
+    removedModeBadges += 1;
+  });
+
+  element.querySelectorAll(".pump-chart-setup-aside").forEach(node => {
+    node.style.justifyContent = "center";
+    node.style.gap = "0";
+  });
+
+  addPumpChartExportBranding(element);
+  element.dataset.removedModeBadges = String(removedModeBadges);
+}
+
+function addPumpChartExportBranding(element) {
+  if (element.querySelector(".pump-chart-export-brand")) return;
+
+  const brand = document.createElement("div");
+  brand.className = "pump-chart-export-brand";
+  brand.setAttribute("aria-hidden", "true");
+  brand.style.display = "flex";
+  brand.style.alignItems = "center";
+  brand.style.justifyContent = "flex-end";
+  brand.style.gap = "7px";
+  brand.style.marginTop = "18px";
+  brand.style.paddingTop = "12px";
+  brand.style.borderTop = "1px solid rgba(100, 116, 139, 0.22)";
+  brand.style.color = "rgba(71, 85, 105, 0.72)";
+  brand.style.font = "800 11px Arial, sans-serif";
+  brand.style.letterSpacing = "0.04em";
+  brand.style.textTransform = "uppercase";
+
+  const mark = document.createElement("img");
+  mark.src = "/icons/reverse-flow-logo.png";
+  mark.alt = "";
+  mark.style.display = "block";
+  mark.style.width = "24px";
+  mark.style.height = "24px";
+  mark.style.borderRadius = "5px";
+  mark.style.objectFit = "cover";
+  mark.style.opacity = "0.72";
+
+  const text = document.createElement("span");
+  text.textContent = "Reverse Flow";
+
+  brand.append(mark, text);
+  element.appendChild(brand);
+  element.dataset.exportBranding = "true";
 }
 
 async function tryRenderElementToPngBlob(element, method) {
@@ -6360,6 +6486,7 @@ function classifyPumpChartExportUrl(value) {
 async function tryRenderManualPumpChartCanvasToBlob(source) {
   try {
     const canvas = renderPumpChartDocumentToCanvas(source);
+    await drawPumpChartCanvasBrandLogo(canvas);
     logPumpChartShareStep("png-canvas-created", {
       method: "manual-canvas",
       canvasWidth: canvas.width,
@@ -6487,12 +6614,14 @@ function renderPumpChartDocumentToCanvas(source) {
   });
 
   pushRule(8, 12, "#e2e8f0");
-  pushText(`Reverse Flow Pump Chart • Generated ${formatPumpChartDate(new Date().toISOString())}`, {
-    font: "800 12px Arial, sans-serif",
-    lineHeight: 17,
-    color: "#64748b",
-    marginBottom: 0
+  drawItems.push({
+    type: "brand",
+    x: horizontalPadding,
+    y,
+    width: contentWidth,
+    generated: `Generated ${formatPumpChartDate(new Date().toISOString())}`
   });
+  y += 28;
 
   const height = Math.ceil(y + 30);
   const canvas = document.createElement("canvas");
@@ -6537,6 +6666,11 @@ function renderPumpChartDocumentToCanvas(source) {
       return;
     }
 
+    if (item.type === "brand") {
+      drawCanvasExportBrand(context, item);
+      return;
+    }
+
     drawCanvasTextItem(context, item);
   });
 
@@ -6560,7 +6694,6 @@ function createPumpChartCanvasSetupRowLayout(context, row, bounds) {
   const nameText = row.querySelector(".pump-chart-setup-name")?.textContent || "";
   const configText = row.querySelector(".pump-chart-config-summary")?.textContent || "";
   const badgeElement = row.querySelector(".pump-chart-mode-badge");
-  const badgeText = badgeElement?.textContent?.trim() || "";
   const resultText = row.querySelector(".pump-chart-row-result")?.textContent || "";
   const items = [];
 
@@ -6592,22 +6725,9 @@ function createPumpChartCanvasSetupRowLayout(context, row, bounds) {
   const leftHeight = nameHeight + (configItem ? 5 : 0) + configHeight;
   let rightHeight = 0;
 
-  if (badgeText) {
-    items.push({
-      type: "badge",
-      text: badgeText,
-      x: asideX,
-      y: contentTop,
-      width: asideWidth,
-      height: 26,
-      mode: badgeElement?.dataset.mode || ""
-    });
-    rightHeight += 26;
-  }
-
   const resultItem = createCanvasResultTextItem(context, resultText, {
     x: asideX,
-    y: contentTop + rightHeight + (badgeText ? 9 : 0),
+    y: contentTop,
     maxWidth: asideWidth,
     font: "900 19px Arial, sans-serif",
     lineHeight: 25,
@@ -6616,17 +6736,8 @@ function createPumpChartCanvasSetupRowLayout(context, row, bounds) {
   });
 
   if (resultItem) {
-    rightHeight += (badgeText ? 9 : 0) + getCanvasTextItemHeight(resultItem);
+    rightHeight += getCanvasTextItemHeight(resultItem);
     items.push(resultItem);
-  }
-
-  if (!canUseColumns && badgeText) {
-    const stackedBadge = items.find(item => item.type === "badge");
-    if (stackedBadge) {
-      stackedBadge.y = contentTop + leftHeight + 12;
-      rightHeight = leftHeight + 12 + stackedBadge.height + (resultItem ? 9 + getCanvasTextItemHeight(resultItem) : 0);
-      if (resultItem) resultItem.y = stackedBadge.y + stackedBadge.height + 9;
-    }
   }
 
   if (nameItem) items.push(nameItem);
@@ -6793,6 +6904,68 @@ function drawCanvasBadge(context, item) {
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.fillText(item.text, x + width / 2, item.y + height / 2 + 0.5, width - 14);
+}
+
+function drawCanvasExportBrand(context, item) {
+  const markSize = 24;
+  const text = "Reverse Flow";
+  const generated = item.generated || "";
+  context.font = "800 11px Arial, sans-serif";
+  const textWidth = context.measureText(text).width;
+  context.font = "700 10px Arial, sans-serif";
+  const generatedWidth = generated ? context.measureText(generated).width : 0;
+  const contentWidth = markSize + 7 + Math.max(textWidth, generatedWidth);
+  const startX = item.x + item.width - contentWidth;
+  const markX = startX;
+  const markY = item.y;
+  const textX = markX + markSize + 7;
+
+  context.save();
+  context.globalAlpha = 0.78;
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+  context.font = "800 11px Arial, sans-serif";
+  context.fillStyle = "rgba(71, 85, 105, 0.76)";
+  context.fillText(text, textX, markY + 10, item.width);
+
+  if (generated) {
+    context.font = "700 10px Arial, sans-serif";
+    context.fillStyle = "rgba(100, 116, 139, 0.64)";
+    context.fillText(generated, textX, markY + 23, item.width);
+  }
+  context.restore();
+}
+
+async function drawPumpChartCanvasBrandLogo(canvas) {
+  try {
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const width = canvas.width / pixelRatio;
+    const height = canvas.height / pixelRatio;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    const logo = await loadImage(getPumpChartExportLogoSrc());
+    const horizontalPadding = 32;
+    const contentWidth = width - horizontalPadding * 2;
+    const markSize = 24;
+    const generated = `Generated ${formatPumpChartDate(new Date().toISOString())}`;
+    context.font = "800 11px Arial, sans-serif";
+    const textWidth = context.measureText("Reverse Flow").width;
+    context.font = "700 10px Arial, sans-serif";
+    const generatedWidth = context.measureText(generated).width;
+    const brandWidth = markSize + 7 + Math.max(textWidth, generatedWidth);
+    const x = horizontalPadding + contentWidth - brandWidth;
+    const y = height - 58;
+
+    context.save();
+    context.globalAlpha = 0.72;
+    context.drawImage(logo, x, y, markSize, markSize);
+    context.restore();
+  } catch (error) {
+    logPumpChartShareStep("png-brand-logo-fallback", {
+      message: error?.message || String(error)
+    });
+  }
 }
 
 function stripPumpChartCategoryCount(value) {
