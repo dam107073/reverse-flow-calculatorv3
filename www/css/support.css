@@ -439,6 +439,19 @@
         0 3px 10px rgba(17, 24, 39, 0.06);
     }
 
+    .reference-empty-card {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 14px;
+      border-color: rgba(184, 195, 209, 0.9);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.82));
+      box-shadow:
+        inset 3px 0 0 rgba(217, 92, 19, 0.32),
+        0 3px 10px rgba(17, 24, 39, 0.06);
+    }
+
     .reference-website-card {
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
@@ -453,7 +466,8 @@
         0 8px 22px rgba(17, 24, 39, 0.08);
     }
 
-    .reference-nav-card .helper {
+    .reference-nav-card .helper,
+    .reference-empty-card .helper {
       margin-top: 3px;
       font-size: 13px;
       line-height: 1.25;
@@ -558,7 +572,8 @@
       -webkit-text-fill-color: var(--accent);
     }
 
-    .reference-nav-card .reference-open-button {
+    .reference-nav-card .reference-open-button,
+    .reference-empty-card .reference-open-button {
       min-height: 34px;
       padding: 0 12px;
       border: none;

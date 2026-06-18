@@ -84,6 +84,7 @@
       }
 
       .reference-nav-card,
+      .reference-empty-card,
       .reference-category-card {
         border-color: rgba(51, 65, 85, 0.9);
         background:
@@ -733,7 +734,8 @@
     height: 62px;
   }
 
-  .reference-nav-card {
+  .reference-nav-card,
+  .reference-empty-card {
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 12px 13px;
   }

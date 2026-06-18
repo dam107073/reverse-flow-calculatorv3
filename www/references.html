@@ -131,7 +131,7 @@
 
     function createTrainingResourcesEmptyCard() {
       const card = document.createElement("article");
-      card.className = "hose-library-card reference-card reference-nav-card";
+      card.className = "hose-library-card reference-card reference-empty-card";
       card.innerHTML = `
         <div>
           <strong>Training Resources Coming Soon</strong>
@@ -141,6 +141,19 @@
         </div>
       `;
       return card;
+    }
+
+    function createManufacturerEmptyStateHtml() {
+      return `
+        <article class="hose-library-card reference-card reference-empty-card">
+          <div>
+            <strong>Manufacturer References Coming Soon</strong>
+            <p class="helper">
+              Manufacturer reference materials will be added here as permissions are approved. This section is intended to provide direct access to official manufacturer resources and documentation.
+            </p>
+          </div>
+        </article>
+      `;
     }
 
     function createCollapsedSection(title, helper, bodyHtml) {
@@ -294,12 +307,8 @@
 
     function renderOverview(data) {
       referencesList.innerHTML = "";
-
-      referencesList.appendChild(
-        createCollapsedSection(
-          "Manufacturers",
-          `${data.manufacturers.length} manufacturer resource pages`,
-          createReferenceLinkList(
+      const manufacturerBody = data.manufacturers.length
+        ? createReferenceLinkList(
             data.manufacturers.map(manufacturer => ({
               id: manufacturer.id,
               name: manufacturer.name,
@@ -308,15 +317,45 @@
             })),
             "manufacturer"
           )
+        : createManufacturerEmptyStateHtml();
+
+      const trainingPartnersBody = data.trainingPartners.length
+        ? createReferenceLinkList(
+            data.trainingPartners.map(partner => ({
+              id: partner.id,
+              name: partner.name,
+              helper: partner.subtitle || "Coming soon",
+              actionText: "View Partner"
+            })),
+            "training-partner"
+          )
+        : `
+            <article class="hose-library-card reference-card reference-empty-card">
+              <div>
+                <strong>Training Partners Coming Soon</strong>
+                <p class="helper">Fire service training organizations and instructors will be added here after review.</p>
+              </div>
+              <a class="reset-button reference-open-button" href="references.html?section=training-partners">
+                Open
+              </a>
+            </article>
+          `;
+
+      referencesList.appendChild(
+        createCollapsedSection(
+          "Manufacturers",
+          data.manufacturers.length
+            ? `${data.manufacturers.length} manufacturer resource pages`
+            : "Manufacturer reference materials coming soon",
+          manufacturerBody
         )
       );
 
       referencesList.appendChild(
-        createReferenceLinkCard(
+        createCollapsedSection(
           "Training Partners",
           "Fire service training organizations and instructors focused on pump operations, hydraulics, water supply, and related disciplines.",
-          "references.html?section=training-partners",
-          "Show"
+          trainingPartnersBody
         )
       );
 
@@ -350,14 +389,10 @@
       `;
 
       if (!data.manufacturers.length) {
-        referencesList.insertAdjacentHTML("beforeend", `
-          <article class="hose-library-card reference-card">
-            <strong>Manufacturer References Coming Soon</strong>
-            <p class="helper">
-              Manufacturer reference materials will be added here as permissions are approved. This section is intended to provide direct access to official manufacturer resources and documentation.
-            </p>
-          </article>
-        `);
+        referencesList.insertAdjacentHTML(
+          "beforeend",
+          createManufacturerEmptyStateHtml()
+        );
         return;
       }
 
