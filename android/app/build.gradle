@@ -42,6 +42,23 @@ dependencies {
     implementation project(':capacitor-cordova-android-plugins')
 }
 
+def removeDuplicateGeneratedConfigFiles = tasks.register("removeDuplicateGeneratedConfigFiles") {
+    doLast {
+        delete fileTree(dir: "$projectDir/src/main/res/xml") {
+            include "config *.xml"
+            include ".DS_Store"
+        }
+        delete fileTree(dir: "$projectDir/build/intermediates/packaged_res") {
+            include "**/config *.xml"
+            include "**/.DS_Store"
+        }
+    }
+}
+
+tasks.matching { task -> task.name == "preBuild" }.configureEach {
+    dependsOn(removeDuplicateGeneratedConfigFiles)
+}
+
 apply from: 'capacitor.build.gradle'
 
 try {
