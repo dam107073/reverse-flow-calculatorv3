@@ -74,6 +74,105 @@
         </div>
 
         <div id="toolsProContent">
+          <div id="toolsOverviewContent" class="tools-overview-content">
+            <details class="settings-tool-card collapsible-settings-card">
+              <summary>
+                <span>
+                  <strong>Field Calculators</strong>
+                  <span class="helper">
+                    Quick field math for flow, reaction, tank time, and hose coefficient checks.
+                  </span>
+                </span>
+              </summary>
+              <div class="collapsible-card-body">
+                <div class="tools-link-grid">
+                  <a class="hose-library-card reference-card reference-nav-card tool-nav-card" href="tools.html?calculator=smoothbore-flow">
+                    <span>
+                      <strong>Smoothbore Flow</strong>
+                      <span class="helper">Calculate flow from tip diameter and pressure.</span>
+                    </span>
+                    <span class="reference-open-button">Open</span>
+                  </a>
+
+                  <a class="hose-library-card reference-card reference-nav-card tool-nav-card" href="tools.html?calculator=nozzle-reaction">
+                    <span>
+                      <strong>Nozzle Reaction</strong>
+                      <span class="helper">Calculate smoothbore or fog nozzle reaction.</span>
+                    </span>
+                    <span class="reference-open-button">Open</span>
+                  </a>
+
+                  <a class="hose-library-card reference-card reference-nav-card tool-nav-card" href="tools.html?calculator=tank-time">
+                    <span>
+                      <strong>Tank Time</strong>
+                      <span class="helper">Estimate onboard water duration at a known flow.</span>
+                    </span>
+                    <span class="reference-open-button">Open</span>
+                  </a>
+
+                  <a class="hose-library-card reference-card reference-nav-card tool-nav-card" href="tools.html?calculator=coefficient">
+                    <span>
+                      <strong>Coefficient Calculator</strong>
+                      <span class="helper">Verify hose friction loss coefficient from a 100' test.</span>
+                    </span>
+                    <span class="reference-open-button">Open</span>
+                  </a>
+                </div>
+              </div>
+            </details>
+
+            <details class="settings-tool-card collapsible-settings-card">
+              <summary>
+                <span>
+                  <strong>Reference Library</strong>
+                  <span class="helper">
+                    Manufacturer, training partner, and training resource references.
+                  </span>
+                </span>
+              </summary>
+              <div class="collapsible-card-body">
+                <div class="tools-link-grid">
+                  <a class="hose-library-card reference-card reference-nav-card tool-nav-card" href="references.html?section=manufacturers">
+                    <span>
+                      <strong>Manufacturers</strong>
+                      <span class="helper">Official manufacturer resources and product references.</span>
+                    </span>
+                    <span class="reference-open-button">Open</span>
+                  </a>
+
+                  <a class="hose-library-card reference-card reference-nav-card tool-nav-card" href="references.html?section=training-partners">
+                    <span>
+                      <strong>Training Partners</strong>
+                      <span class="helper">Fire service training organizations and instructors.</span>
+                    </span>
+                    <span class="reference-open-button">Open</span>
+                  </a>
+
+                  <a class="hose-library-card reference-card reference-nav-card tool-nav-card" href="references.html?section=training-resources">
+                    <span>
+                      <strong>Training Resources</strong>
+                      <span class="helper">Hydraulics training material and reference guides.</span>
+                    </span>
+                    <span class="reference-open-button">Open</span>
+                  </a>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <section id="fieldCalculatorPage" class="settings-tool-card field-calculator-page" hidden>
+            <a class="reset-button reference-open-button reference-back-link" href="tools.html">
+              Back to Tools
+            </a>
+
+            <div class="field-calculator-header">
+              <h2 id="fieldCalculatorTitle"></h2>
+              <p id="fieldCalculatorDescription" class="helper"></p>
+            </div>
+
+            <div id="fieldCalculatorBody" class="field-calculator-body"></div>
+          </section>
+
           <details class="settings-tool-card collapsible-settings-card">
             <summary>
               <span>
@@ -213,41 +312,6 @@
               </details>
             </div>
           </details>
-
-          <details class="settings-tool-card collapsible-settings-card muted-card">
-            <summary>
-              <span>
-                <strong>Hydraulic Calculators</strong>
-                <span class="helper">
-                  Future hydraulic utilities.
-                </span>
-              </span>
-            </summary>
-            <div class="collapsible-card-body">
-              <p class="helper">
-                Hose Coefficient Calculator
-              </p>
-              <p class="helper">
-                More hydraulic calculators coming soon.
-              </p>
-            </div>
-          </details>
-
-          <details class="settings-tool-card collapsible-settings-card">
-            <summary>
-              <span>
-                <strong>References</strong>
-                <span class="helper">
-                  Manufacturer and training resource framework.
-                </span>
-              </span>
-            </summary>
-            <div class="collapsible-card-body">
-              <a class="reset-button default-hose-choose-link" href="references.html">
-                Open References
-              </a>
-            </div>
-          </details>
         </div>
 
         <div id="toolsProLockedMessage" class="settings-tool-card muted-card" hidden>
@@ -320,6 +384,7 @@
   <script src="js/services/entitlement.js"></script>
   <script src="js/data/hydraulics.js?v=build-6"></script>
   <script src="js/app.js?v=build-13"></script>
+  <script src="js/tools-calculators.js?v=build-1"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>
 </html>
