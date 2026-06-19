@@ -848,6 +848,31 @@ let pumpChartView = {
 };
 
 let activePumpChartEdit = null;
+let shouldScrollToTopAfterPumpChartSaveClose = false;
+
+function scrollCalculatorPageToTop() {
+  requestAnimationFrame(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  });
+}
+
+function closePumpChartModal({ allowPostSaveScroll = true } = {}) {
+  els.pumpChartModal.hidden = true;
+  els.viewPumpChartButton?.classList.remove("active");
+
+  if (allowPostSaveScroll && shouldScrollToTopAfterPumpChartSaveClose) {
+    shouldScrollToTopAfterPumpChartSaveClose = false;
+    scrollCalculatorPageToTop();
+    return;
+  }
+
+  if (!allowPostSaveScroll) {
+    shouldScrollToTopAfterPumpChartSaveClose = false;
+  }
+}
 
 function clearPumpChartEditState() {
   activePumpChartEdit = null;
@@ -2462,6 +2487,7 @@ function submitPumpChartSaveForm() {
 
   renderPresetOptions();
   clearPumpChartEditState();
+  shouldScrollToTopAfterPumpChartSaveClose = true;
   pumpChartView = { screen: "detail", chartId: targetChart.id, setupId: null };
   renderPumpChart();
 }
@@ -4747,6 +4773,7 @@ els.closeProModal.addEventListener("click", () => {
     return;
   }
 
+  shouldScrollToTopAfterPumpChartSaveClose = false;
   const data = loadPumpCharts();
   const lastViewedChartId = getLastViewedPumpChartId();
   const lastViewedChartExists = data.charts.some(chart => chart.id === lastViewedChartId);
@@ -4764,10 +4791,7 @@ els.closeProModal.addEventListener("click", () => {
 });
 
 els.closePumpChartModal.addEventListener("click", () => {
-
-  els.pumpChartModal.hidden = true;
-
-  els.viewPumpChartButton.classList.remove("active");
+  closePumpChartModal();
 });
 
 els.pumpChartModal.addEventListener("click", event => {
@@ -4781,10 +4805,7 @@ els.pumpChartModal.addEventListener("click", event => {
   closePumpChartActionMenus();
 
   if (event.target === els.pumpChartModal) {
-
-    els.pumpChartModal.hidden = true;
-
-    els.viewPumpChartButton.classList.remove("active");
+    closePumpChartModal();
   }
 });
 
@@ -4798,7 +4819,7 @@ document.addEventListener("keydown", event => {
   if (event.key === "Escape") {
     closePumpChartActionMenus();
     els.proModal.hidden = true;
-    els.pumpChartModal.hidden = true;
+    closePumpChartModal();
   }
 });
 
@@ -5224,6 +5245,7 @@ function resetCalculator() {
   renderPressureButtons();
   saveState();
   calculateAndRender();
+  scrollCalculatorPageToTop();
 }
 
     // ========================================
@@ -5593,6 +5615,7 @@ window.openSavePumpChartSheet = function() {
     return;
   }
 
+  shouldScrollToTopAfterPumpChartSaveClose = false;
   pumpChartView = { screen: "save", chartId: null, setupId: null };
   renderPumpChart();
   els.pumpChartModal.hidden = false;
@@ -5627,8 +5650,7 @@ window.loadPumpChartSetup = function(chartId, setupId) {
 
   applyPumpChartSetup(chartId, setupId);
   setPumpChartEditState(chartId, setupId);
-  els.viewPumpChartButton?.classList.remove("active");
-  els.pumpChartModal.hidden = true;
+  closePumpChartModal({ allowPostSaveScroll: false });
 };
 
 window.movePumpChartSetup = function(chartId, setupId, direction) {
@@ -5731,8 +5753,7 @@ window.loadPumpChartPreset = function(presetId) {
   }
 
   applyPreset(presetId);
-  els.viewPumpChartButton.classList.remove("active");
-  els.pumpChartModal.hidden = true;
+  closePumpChartModal({ allowPostSaveScroll: false });
 };
 
 window.deletePumpChartPreset = function(presetId) {

@@ -75,7 +75,7 @@
 
         <div id="toolsProContent">
           <div id="toolsOverviewContent" class="tools-overview-content">
-            <details class="settings-tool-card collapsible-settings-card">
+            <details class="settings-tool-card collapsible-settings-card" data-tools-section="field-calculators" data-tools-title="Field Calculators" data-tools-path="Tools / Field Calculators">
               <summary>
                 <span>
                   <strong>Field Calculators</strong>
@@ -117,11 +117,19 @@
                     </span>
                     <span class="reference-open-button">Open</span>
                   </a>
+
+                  <a class="hose-library-card reference-card reference-nav-card tool-nav-card" href="tools.html?calculator=wye-operations">
+                    <span>
+                      <strong>Wye Operations</strong>
+                      <span class="helper">Show fixed-PDP effects when one wye attack line closes.</span>
+                    </span>
+                    <span class="reference-open-button">Open</span>
+                  </a>
                 </div>
               </div>
             </details>
 
-            <details class="settings-tool-card collapsible-settings-card">
+            <details class="settings-tool-card collapsible-settings-card" data-tools-section="reference-library" data-tools-title="Reference Library" data-tools-path="Tools / Reference Library">
               <summary>
                 <span>
                   <strong>Reference Library</strong>
@@ -166,6 +174,7 @@
             </a>
 
             <div class="field-calculator-header">
+              <p id="fieldCalculatorPath" class="field-calculator-path"></p>
               <h2 id="fieldCalculatorTitle"></h2>
               <p id="fieldCalculatorDescription" class="helper"></p>
             </div>
@@ -173,7 +182,7 @@
             <div id="fieldCalculatorBody" class="field-calculator-body"></div>
           </section>
 
-          <details class="settings-tool-card collapsible-settings-card">
+          <details class="settings-tool-card collapsible-settings-card" data-tools-section="hose-management" data-tools-title="Hose Management" data-tools-path="Tools / Hose Management">
             <summary>
               <span>
                 <strong>Hose Management</strong>
@@ -183,7 +192,7 @@
               </span>
             </summary>
             <div class="collapsible-card-body">
-              <details class="tool-subsection collapsible-settings-card hose-library-panel">
+              <details class="tool-subsection collapsible-settings-card hose-library-panel" data-tools-section="hose-library" data-tools-title="Hose Library" data-tools-path="Tools / Hose Management / Hose Library">
                 <summary>
                   <span>
                     <strong>Hose Library</strong>
@@ -221,7 +230,7 @@
                 </div>
               </details>
 
-              <details class="tool-subsection collapsible-settings-card custom-hose-panel">
+              <details class="tool-subsection collapsible-settings-card custom-hose-panel" data-tools-section="create-custom-hose" data-tools-title="Create Custom Hose" data-tools-path="Tools / Hose Management / Create Custom Hose">
                 <summary>
                   <span>
                     <strong>Create Custom Hose</strong>
@@ -270,7 +279,7 @@
             </div>
           </details>
 
-          <details class="settings-tool-card collapsible-settings-card">
+          <details class="settings-tool-card collapsible-settings-card" data-tools-section="defaults" data-tools-title="Defaults" data-tools-path="Tools / Defaults">
             <summary>
               <span>
                 <strong>Defaults</strong>
@@ -280,7 +289,7 @@
               </span>
             </summary>
             <div class="collapsible-card-body">
-              <details class="tool-subsection collapsible-settings-card default-hose-selections-panel">
+              <details class="tool-subsection collapsible-settings-card default-hose-selections-panel" data-tools-section="default-hose-selections" data-tools-title="Default Hose Selections" data-tools-path="Tools / Defaults / Default Hose Selections">
                 <summary>
                   <span>
                     <strong>Default Hose Selections</strong>
@@ -294,7 +303,7 @@
                 </div>
               </details>
 
-              <details class="tool-subsection collapsible-settings-card default-hose-coefficients-panel">
+              <details class="tool-subsection collapsible-settings-card default-hose-coefficients-panel" data-tools-section="default-hose-coefficients" data-tools-title="Default Hose Coefficients" data-tools-path="Tools / Defaults / Default Hose Coefficients">
                 <summary>
                   <span>
                     <strong>Default Hose Coefficients</strong>
