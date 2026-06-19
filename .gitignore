@@ -1,2 +1,3 @@
 node_modules/
 ios/App/App/config 3.xml
+android/app/src/main/res/xml/config 2.xml
