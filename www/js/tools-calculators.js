@@ -39,6 +39,12 @@
       title: "Wye Operations",
       description: "Show fixed-PDP effects when one gated wye attack line closes.",
       render: renderWyeOperations
+    },
+    "friction-loss-chart": {
+      title: "Friction Loss Chart",
+      description: "Generate a friction loss reference chart from your current default hose coefficients.",
+      path: "Tools / Reference Library / Friction Loss Chart",
+      render: renderFrictionLossChart
     }
   };
 
@@ -55,7 +61,7 @@
   document.body.classList.add("tools-calculator-screen");
   overviewContent.hidden = true;
   calculatorPage.hidden = false;
-  calculatorPath.textContent = `Tools / Field Calculators / ${selectedCalculator.title}`;
+  calculatorPath.textContent = selectedCalculator.path || `Tools / Field Calculators / ${selectedCalculator.title}`;
   calculatorTitle.textContent = selectedCalculator.title;
   calculatorDescription.textContent = selectedCalculator.description;
   selectedCalculator.render();
@@ -244,6 +250,10 @@
         `).join("")}
       </select>
     `;
+  }
+
+  function getFrictionLossChartHoseOptions() {
+    return getHoseOptions().filter(hose => getHoseCoefficientValue(hose) > 0);
   }
 
   function createPressureSelect(id, values, selectedValue) {
@@ -1233,5 +1243,70 @@
       input.addEventListener("change", update);
     });
     update();
+  }
+
+  function renderFrictionLossChart() {
+    const hoseOptions = getFrictionLossChartHoseOptions();
+    const defaultHoseIds = new Set(["1.75", "1.88", "2", "2.25", "2.5", "3", "4", "5"]);
+
+    calculatorBody.innerHTML = `
+      <p class="helper field-calculator-note">Select hose sizes to include. The chart covers 0-1000 GPM in 50 GPM increments.</p>
+      <section class="field-calculator-section">
+        <strong>Included Hose Sizes</strong>
+        <div class="field-calculator-form" role="group" aria-label="Included hose sizes">
+          ${hoseOptions.map(hose => {
+            const coefficient = getHoseCoefficientValue(hose);
+            return `
+              <label class="split-inline-toggle friction-loss-hose-toggle">
+                <input type="checkbox" value="${escapeHtml(hose.id)}"${defaultHoseIds.has(hose.id) ? " checked" : ""} />
+                <span>
+                  <strong>${escapeHtml(hose.chartName || hose.label)}</strong>
+                  <span class="helper">C ${escapeHtml(formatNumber(coefficient, coefficient < 1 ? 2 : 1))}</span>
+                </span>
+              </label>
+            `;
+          }).join("")}
+        </div>
+        <div class="field-calculator-actions">
+          <button id="generateFrictionLossChartButton" class="reset-button" type="button">Generate PNG</button>
+        </div>
+        <p id="frictionLossChartStatus" class="helper field-calculator-note" hidden></p>
+      </section>
+    `;
+
+    const button = document.getElementById("generateFrictionLossChartButton");
+    const status = document.getElementById("frictionLossChartStatus");
+
+    button?.addEventListener("click", async () => {
+      const selectedHoseIds = [...calculatorBody.querySelectorAll(".friction-loss-hose-toggle input:checked")]
+        .map(input => input.value)
+        .filter(Boolean);
+
+      if (!selectedHoseIds.length) {
+        alert("Select at least one hose size.");
+        return;
+      }
+
+      if (typeof window.exportFrictionLossChart !== "function") {
+        alert("Friction Loss Chart export is unavailable.");
+        return;
+      }
+
+      button.disabled = true;
+      status.hidden = false;
+      status.textContent = "Generating Friction Loss Chart PNG...";
+
+      try {
+        const result = await window.exportFrictionLossChart(selectedHoseIds);
+        status.textContent = result?.shared
+          ? "Share sheet opened."
+          : "PNG generated. Sharing fallback was used or unavailable on this device.";
+      } catch (error) {
+        status.textContent = "Unable to generate the Friction Loss Chart PNG.";
+        console.error("[Friction Loss Chart]", error);
+      } finally {
+        button.disabled = false;
+      }
+    });
   }
 })();

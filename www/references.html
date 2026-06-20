@@ -37,8 +37,8 @@
   <link rel="stylesheet" href="css/base.css?v=build-6" />
   <link rel="stylesheet" href="css/components.css?v=flash-3" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=build-6" />
-  <link rel="stylesheet" href="css/responsive.css?v=build-6" />
+  <link rel="stylesheet" href="css/support.css?v=build-13" />
+  <link rel="stylesheet" href="css/responsive.css?v=build-11" />
 </head>
 
 <body>
@@ -112,6 +112,10 @@
     function getReferenceUrl(section, id) {
       const params = new URLSearchParams({ section, id });
       return `references.html?${params.toString()}`;
+    }
+
+    function getFrictionLossChartUrl() {
+      return "tools.html?calculator=friction-loss-chart";
     }
 
     function createReferenceLinkCard(title, helper, href, actionText = "Open") {
@@ -370,6 +374,24 @@
                 <p class="helper">This section will include fire hydraulics training material, reference guides, and operational resources as they are developed and reviewed.</p>
               </div>
               <a class="reset-button reference-open-button" href="references.html?section=training-resources">
+                Open
+              </a>
+            </article>
+          `
+        )
+      );
+
+      referencesList.appendChild(
+        createCollapsedSection(
+          "Friction Loss Chart",
+          "Generate a reference chart from your current default hose coefficients.",
+          `
+            <article class="hose-library-card reference-card reference-nav-card">
+              <div>
+                <strong>Friction Loss Chart</strong>
+                <p class="helper">Generate a friction loss reference chart from your current default hose coefficients.</p>
+              </div>
+              <a class="reset-button reference-open-button" href="${escapeHtml(getFrictionLossChartUrl())}">
                 Open
               </a>
             </article>

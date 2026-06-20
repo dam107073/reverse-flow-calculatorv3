@@ -5774,8 +5774,31 @@ window.exportPumpChart = async function(chartId) {
 
   const shareText = buildPumpChartShareText(chart);
   const pngExport = await createPumpChartPngFile(chart);
-  const pngFile = pngExport.file;
   const shareTitle = `${chart.name} Pump Chart`;
+
+  await shareGeneratedPngFile({
+    pngExport,
+    shareTitle,
+    fallbackText: shareText,
+    nativeFolder: "pump-charts",
+    nativeDialogTitle: "Share Pump Chart",
+    fallbackMessage: "Pump Chart sharing is unavailable on this device.",
+    fallbackCopyMessage: "Pump Chart text copied to clipboard.",
+    showTextShareNotice: showPumpChartShareFallbackMessage
+  });
+};
+
+async function shareGeneratedPngFile({
+  pngExport,
+  shareTitle,
+  fallbackText = "",
+  nativeFolder = "generated",
+  nativeDialogTitle = "Share PNG",
+  fallbackMessage = "PNG sharing is unavailable on this device.",
+  fallbackCopyMessage = "Share text copied to clipboard.",
+  showTextShareNotice = null
+}) {
+  const pngFile = pngExport?.file || null;
   const hasNavigatorShare = typeof navigator.share === "function";
   const hasNavigatorCanShare = typeof navigator.canShare === "function";
   const sharePlatform = getPumpChartSharePlatform();
@@ -5784,8 +5807,11 @@ window.exportPumpChart = async function(chartId) {
   logPumpChartShareStep("platform-detected", sharePlatform);
 
   if (pngFile && sharePlatform.supportsNativeFileShare) {
-    const nativeShareResult = await sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, sharePlatform.platform);
-    if (nativeShareResult.shared) return;
+    const nativeShareResult = await sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, sharePlatform.platform, {
+      folder: nativeFolder,
+      dialogTitle: nativeDialogTitle
+    });
+    if (nativeShareResult.shared) return { shared: true, reason: "" };
     logPumpChartShareFallback(nativeShareResult.reason);
   }
 
@@ -5823,11 +5849,11 @@ window.exportPumpChart = async function(chartId) {
         files: [pngFile]
       });
       logPumpChartShareStep("png-share-success");
-      return;
+      return { shared: true, reason: "" };
     } catch (error) {
       if (error?.name === "AbortError") {
         logPumpChartShareStep("png-share-aborted");
-        return;
+        return { shared: false, reason: "Share cancelled." };
       }
       logPumpChartShareStep("png-share-error", {
         message: error?.message || String(error)
@@ -5840,24 +5866,24 @@ window.exportPumpChart = async function(chartId) {
     );
   }
 
-  if (hasNavigatorShare) {
+  if (fallbackText && hasNavigatorShare) {
     try {
-      showPumpChartShareFallbackMessage();
+      if (typeof showTextShareNotice === "function") showTextShareNotice();
       logPumpChartShareStep("share-text-attempt");
       await navigator.share({
         title: shareTitle,
-        text: shareText
+        text: fallbackText
       });
       logPumpChartShareStep("share-text-success");
-      return;
+      return { shared: false, reason: "Text fallback shared." };
     } catch (error) {
       if (error?.name === "AbortError") {
         logPumpChartShareStep("share-text-aborted");
-        return;
+        return { shared: false, reason: "Share cancelled." };
       }
       logPumpChartShareFallback(`Text share failed: ${error?.message || String(error)}`);
     }
-  } else {
+  } else if (fallbackText) {
     logPumpChartShareFallback("navigator.share is unavailable for text fallback.");
   }
 
@@ -5865,14 +5891,15 @@ window.exportPumpChart = async function(chartId) {
     reason: "Printable export fallback is disabled for Export / Share."
   });
 
-  if (await copyPumpChartShareTextToClipboard(shareText)) {
-    showPumpChartShareMessage("Pump Chart text copied to clipboard.");
-    return;
+  if (fallbackText && await copyPumpChartShareTextToClipboard(fallbackText)) {
+    showPumpChartShareMessage(fallbackCopyMessage);
+    return { shared: false, reason: "Text copied to clipboard." };
   }
 
   logPumpChartShareFallback("Text share and clipboard fallback failed.");
-  showPumpChartShareMessage("Pump Chart sharing is unavailable on this device.");
-};
+  showPumpChartShareMessage(fallbackMessage);
+  return { shared: false, reason: fallbackMessage };
+}
 
 function getPumpChartSharePlatform() {
   const capacitor = window.Capacitor;
@@ -5902,7 +5929,7 @@ function getPumpChartSharePlatform() {
   };
 }
 
-async function sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, platform) {
+async function sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, platform, options = {}) {
   const plugins = window.Capacitor?.Plugins || {};
   const Filesystem = plugins.Filesystem;
   const Share = plugins.Share;
@@ -5941,7 +5968,7 @@ async function sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, platfor
     };
   }
 
-  const path = `pump-charts/${pngFile.name}`;
+  const path = `${options.folder || "pump-charts"}/${pngFile.name}`;
   let fileUri = "";
 
   try {
@@ -5979,7 +6006,7 @@ async function sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, platfor
     await Share.share({
       title: shareTitle,
       files: [fileUri],
-      dialogTitle: "Share Pump Chart"
+      dialogTitle: options.dialogTitle || "Share Pump Chart"
     });
     logPumpChartShareStep("native-share-success", {
       uri: fileUri
@@ -6102,7 +6129,366 @@ function getPumpChartExportElement() {
 }
 
 function getPumpChartExportLogoSrc() {
-  return "/icons/reverse-flow-logo.png";
+  return GENERATED_PNG_STYLE.brand.logoSrc;
+}
+
+const GENERATED_PNG_STYLE = {
+  background: "#ffffff",
+  borderColor: "#cbd5e1",
+  accentColor: "#d95c13",
+  documentTopBorder: "6px solid rgba(217, 92, 19, 0.84)",
+  canvasTopBorderHeight: 8,
+  brand: {
+    logoSrc: "/icons/reverse-flow-logo.png",
+    borderRadiusRatio: 0.22,
+    compact: {
+      logoSize: 54,
+      gap: 11,
+      primaryFont: "900 22px Arial, sans-serif",
+      secondaryFont: "900 15px Arial, sans-serif",
+      primarySize: "18px",
+      secondarySize: "13px",
+      textWidth: 165,
+      blockWidth: 230
+    },
+    wide: {
+      logoSize: 90,
+      gap: 14,
+      primaryFont: "900 34px Arial, sans-serif",
+      secondaryFont: "900 25px Arial, sans-serif",
+      textWidth: 300,
+      blockWidth: 410
+    }
+  }
+};
+
+window.exportFrictionLossChart = async function(selectedHoseIds = []) {
+  const pngExport = await createFrictionLossChartPngFile(selectedHoseIds);
+  return await shareGeneratedPngFile({
+    pngExport,
+    shareTitle: "Friction Loss Chart",
+    fallbackText: "Reverse Flow Friction Loss Chart generated as a PNG.",
+    nativeFolder: "friction-loss-charts",
+    nativeDialogTitle: "Share Friction Loss Chart",
+    fallbackMessage: "Friction Loss Chart sharing is unavailable on this device.",
+    fallbackCopyMessage: "Friction Loss Chart share text copied to clipboard."
+  });
+};
+
+async function createFrictionLossChartPngFile(selectedHoseIds = []) {
+  if (typeof Blob === "undefined" || typeof File === "undefined") {
+    logPumpChartShareFallback("Blob or File constructor is unavailable.");
+    return {
+      file: null,
+      reason: "Blob or File constructor is unavailable."
+    };
+  }
+
+  try {
+    const hoses = getFrictionLossChartHoses(selectedHoseIds);
+    if (!hoses.length) {
+      return {
+        file: null,
+        reason: "No hose sizes selected."
+      };
+    }
+
+    const canvas = await renderFrictionLossChartCanvas(hoses);
+    const blob = await exportCanvasToPngBlob(canvas, "friction-loss-chart");
+    if (!blob) {
+      return {
+        file: null,
+        reason: "PNG renderer did not return a blob."
+      };
+    }
+
+    const file = new File(
+      [blob],
+      "reverse-flow-friction-loss-chart.png",
+      { type: "image/png" }
+    );
+
+    logPumpChartShareStep("friction-loss-chart-file-created", {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
+
+    return {
+      file,
+      reason: ""
+    };
+  } catch (error) {
+    logPumpChartShareFallback(`Friction Loss Chart PNG export failed: ${error?.message || String(error)}`);
+    return {
+      file: null,
+      reason: `Friction Loss Chart PNG export failed: ${error?.message || String(error)}`
+    };
+  }
+}
+
+function getFrictionLossChartHoses(selectedHoseIds = []) {
+  const selected = new Set(selectedHoseIds.map(id => String(id)));
+  const optionsById = new Map();
+
+  [...(typeof HOSE_OPTIONS !== "undefined" ? HOSE_OPTIONS : []), ...(typeof RELAY_HOSE_OPTIONS !== "undefined" ? RELAY_HOSE_OPTIONS : [])]
+    .forEach(hose => {
+      if (!hose?.id || optionsById.has(hose.id)) return;
+      const coefficient = getActiveHoseCoefficient(hose.id);
+      if (!(coefficient > 0)) return;
+      optionsById.set(hose.id, {
+        id: hose.id,
+        label: formatFrictionLossChartHoseLabel(hose),
+        coefficient
+      });
+    });
+
+  return [...optionsById.values()].filter(hose => selected.has(hose.id));
+}
+
+async function renderFrictionLossChartCanvas(hoses) {
+  const width = 1100;
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const margin = 52;
+  const contentWidth = width - margin * 2;
+  const flows = Array.from({ length: 21 }, (_, index) => index * 50);
+  const tableTop = 270;
+  const tableHeaderHeight = 88;
+  const rowHeight = 45;
+  const tableHeight = tableHeaderHeight + flows.length * rowHeight;
+  const coefficientsTop = tableTop + tableHeight + 22;
+  const coefficientLayout = getFrictionLossCoefficientLayout(hoses);
+  const coefficientsHeight = coefficientLayout.height;
+  const height = Math.ceil(coefficientsTop + coefficientsHeight + 76);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width * pixelRatio);
+  canvas.height = Math.ceil(height * pixelRatio);
+
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas context unavailable.");
+
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  drawGeneratedPngCanvasBackground(context, width, height);
+
+  drawGeneratedPngHeader(context, {
+    x: margin,
+    y: 52,
+    width: contentWidth,
+    title: "FRICTION LOSS CHART",
+    subtitle: "Per 100 Feet of Hose",
+    profileName: getGeneratedPngProfileName(),
+    generatedDate: `Generated ${formatPumpChartDate(new Date().toISOString())}`
+  });
+
+  drawFrictionLossTable(context, {
+    x: margin,
+    y: tableTop,
+    width: contentWidth,
+    headerHeight: tableHeaderHeight,
+    rowHeight,
+    hoses,
+    flows
+  });
+
+  drawFrictionLossCoefficientBox(context, {
+    x: margin,
+    y: coefficientsTop,
+    width: contentWidth,
+    height: coefficientsHeight,
+    hoses,
+    layout: coefficientLayout
+  });
+
+  await drawGeneratedPngBrandLogo(canvas, getGeneratedPngCanvasBrandOptions("wide", width, margin, 50));
+
+  return canvas;
+}
+
+function drawGeneratedPngHeader(context, options) {
+  const brandReserve = 390;
+  const textWidth = options.width - brandReserve;
+
+  context.fillStyle = "#05070c";
+  context.font = "900 48px Arial, sans-serif";
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+  context.fillText(options.title, options.x, options.y + 44, textWidth);
+
+  context.fillStyle = "#4b5563";
+  context.font = "800 25px Arial, sans-serif";
+  context.fillText(options.subtitle, options.x, options.y + 86, textWidth);
+
+  let nextY = options.y + 142;
+  if (options.profileName) {
+    context.fillStyle = "#111827";
+    context.font = "900 28px Arial, sans-serif";
+    context.fillText(options.profileName, options.x, nextY, textWidth);
+    nextY += 38;
+  }
+
+  context.fillStyle = "#4b5563";
+  context.font = "750 22px Arial, sans-serif";
+  context.fillText(options.generatedDate, options.x, nextY, textWidth);
+
+  context.strokeStyle = "#cbd5e1";
+  context.beginPath();
+  context.moveTo(options.x, options.y + 205.5);
+  context.lineTo(options.x + options.width, options.y + 205.5);
+  context.stroke();
+}
+
+function drawFrictionLossTable(context, options) {
+  const firstColumnWidth = 118;
+  const hoseColumnWidth = (options.width - firstColumnWidth) / options.hoses.length;
+  const tableHeight = options.headerHeight + options.flows.length * options.rowHeight;
+  const bottom = options.y + tableHeight;
+
+  drawCanvasRoundedRect(context, options.x, options.y, options.width, tableHeight, 8);
+  context.fillStyle = "#ffffff";
+  context.fill();
+  context.strokeStyle = "#cbd5e1";
+  context.stroke();
+
+  context.fillStyle = "#f8fafc";
+  context.fillRect(options.x + 1, options.y + 1, options.width - 2, options.headerHeight - 1);
+
+  context.strokeStyle = "#d8dee7";
+  context.lineWidth = 1;
+  for (let rowIndex = 0; rowIndex <= options.flows.length; rowIndex += 1) {
+    const y = options.y + options.headerHeight + rowIndex * options.rowHeight + 0.5;
+    context.beginPath();
+    context.moveTo(options.x, y);
+    context.lineTo(options.x + options.width, y);
+    context.stroke();
+  }
+
+  context.beginPath();
+  context.moveTo(options.x + firstColumnWidth + 0.5, options.y);
+  context.lineTo(options.x + firstColumnWidth + 0.5, bottom);
+  context.stroke();
+
+  options.hoses.forEach((hose, index) => {
+    const x = options.x + firstColumnWidth + index * hoseColumnWidth;
+    context.beginPath();
+    context.moveTo(x + 0.5, options.y + options.headerHeight);
+    context.lineTo(x + 0.5, bottom);
+    context.stroke();
+  });
+
+  context.fillStyle = "#111827";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.font = "900 22px Arial, sans-serif";
+  context.fillText("FLOW", options.x + firstColumnWidth / 2, options.y + 31, firstColumnWidth - 18);
+  context.fillText("(GPM)", options.x + firstColumnWidth / 2, options.y + 60, firstColumnWidth - 18);
+
+  context.font = "900 23px Arial, sans-serif";
+  context.fillText("HOSE SIZE", options.x + firstColumnWidth + (options.width - firstColumnWidth) / 2, options.y + 29, options.width - firstColumnWidth);
+
+  context.font = getTableFontForColumnCount(options.hoses.length, true);
+  options.hoses.forEach((hose, index) => {
+    const centerX = options.x + firstColumnWidth + index * hoseColumnWidth + hoseColumnWidth / 2;
+    context.fillText(hose.label, centerX, options.y + 66, hoseColumnWidth - 10);
+  });
+
+  context.font = "900 22px Arial, sans-serif";
+  options.flows.forEach((flow, rowIndex) => {
+    const centerY = options.y + options.headerHeight + rowIndex * options.rowHeight + options.rowHeight / 2;
+    context.fillStyle = "#111827";
+    context.fillText(String(flow), options.x + firstColumnWidth / 2, centerY, firstColumnWidth - 16);
+
+    context.fillStyle = "#0f172a";
+    context.font = getTableFontForColumnCount(options.hoses.length, false);
+    options.hoses.forEach((hose, colIndex) => {
+      const loss = calculateFrictionLossPerHundred(hose.coefficient, flow);
+      const centerX = options.x + firstColumnWidth + colIndex * hoseColumnWidth + hoseColumnWidth / 2;
+      context.fillText(formatFrictionLossCell(loss), centerX, centerY, hoseColumnWidth - 10);
+    });
+    context.font = "900 22px Arial, sans-serif";
+  });
+}
+
+function drawFrictionLossCoefficientBox(context, options) {
+  const layout = options.layout || getFrictionLossCoefficientLayout(options.hoses);
+
+  drawCanvasRoundedRect(context, options.x, options.y, options.width, options.height, 8);
+  context.fillStyle = "#ffffff";
+  context.fill();
+  context.strokeStyle = "#cbd5e1";
+  context.stroke();
+
+  context.fillStyle = "#111827";
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+  context.font = "900 18px Arial, sans-serif";
+  context.fillText("COEFFICIENTS USED", options.x + 22, options.y + 32, options.width - 44);
+
+  const columnWidth = (options.width - 44) / layout.columnCount;
+
+  context.font = "700 18px Arial, sans-serif";
+  options.hoses.forEach((hose, index) => {
+    const column = Math.floor(index / layout.rowsPerColumn);
+    const row = index % layout.rowsPerColumn;
+    const x = options.x + 22 + column * columnWidth;
+    const y = options.y + layout.rowStart + row * layout.rowGap;
+    context.fillStyle = "#111827";
+    context.fillText(`${hose.label} = ${formatCoefficientForChart(hose.coefficient)}`, x, y, columnWidth - 14);
+  });
+
+}
+
+function getFrictionLossCoefficientLayout(hoses) {
+  const count = Math.max(1, hoses.length);
+  const columnCount = count >= 7 ? 3 : count >= 4 ? 2 : 1;
+  const rowsPerColumn = Math.ceil(count / columnCount);
+  const rowStart = 62;
+  const rowGap = 27;
+  const contentBottom = rowStart + rowsPerColumn * rowGap + 8;
+
+  return {
+    columnCount,
+    rowsPerColumn,
+    rowStart,
+    rowGap,
+    height: contentBottom + 16
+  };
+}
+
+function formatFrictionLossChartHoseLabel(hose) {
+  const id = String(hose?.id || "").trim();
+  if (!id) return String(hose?.chartName || hose?.label || "").replace(/"/g, "").trim();
+  if (id === "dual3") return "Dual 3";
+  return id;
+}
+
+function getTableFontForColumnCount(columnCount, isHeader) {
+  if (columnCount > 10) return isHeader ? "900 17px Arial, sans-serif" : "700 18px Arial, sans-serif";
+  if (columnCount > 8) return isHeader ? "900 19px Arial, sans-serif" : "700 19px Arial, sans-serif";
+  return isHeader ? "900 22px Arial, sans-serif" : "700 22px Arial, sans-serif";
+}
+
+function calculateFrictionLossPerHundred(coefficient, gpm) {
+  return coefficient * Math.pow(gpm / 100, 2);
+}
+
+function formatFrictionLossCell(value) {
+  return Number.isFinite(value) ? value.toFixed(1) : "-";
+}
+
+function formatCoefficientForChart(value) {
+  if (!Number.isFinite(value)) return "-";
+  return value < 1 ? value.toFixed(2) : value.toFixed(1);
+}
+
+function getGeneratedPngProfileName() {
+  try {
+    const data = loadPumpCharts();
+    const lastChart = findPumpChart(getLastViewedPumpChartId());
+    const chart = lastChart || data.charts.find(item => item.department);
+    return chart?.department || "";
+  } catch {
+    return "";
+  }
 }
 
 function createPumpChartExportRenderElement(source) {
@@ -6157,43 +6543,97 @@ function preparePumpChartExportContent(element) {
     node.style.gap = "0";
   });
 
+  applyGeneratedPngDocumentTopBorder(element);
+  prepareGeneratedPumpChartHeader(element);
   addPumpChartExportBranding(element);
   element.dataset.removedModeBadges = String(removedModeBadges);
 }
 
+function prepareGeneratedPumpChartHeader(element) {
+  const header = element.querySelector(".pump-chart-document-header");
+  if (!header) return;
+
+  const label = header.querySelector("p");
+  if (label) {
+    label.textContent = getGeneratedPumpChartHeaderLabel(label.textContent);
+  }
+
+  let meta = header.querySelector(".pump-chart-document-meta");
+  if (!meta) {
+    meta = document.createElement("div");
+    meta.className = "pump-chart-document-meta";
+    header.appendChild(meta);
+  }
+
+  meta.querySelectorAll("span").forEach(span => {
+    span.textContent = stripGeneratedPumpChartUpdatedDate(span.textContent);
+    if (!span.textContent.trim()) {
+      span.remove();
+    }
+  });
+
+  if (meta.querySelector("[data-generated-png-date]")) return;
+
+  const generated = document.createElement("span");
+  generated.dataset.generatedPngDate = "true";
+  generated.textContent = `Generated ${formatPumpChartDate(new Date().toISOString())}`;
+  meta.appendChild(generated);
+}
+
+function getGeneratedPumpChartHeaderLabel(value) {
+  const text = String(value || "").trim();
+  return text.toUpperCase() === "REVERSE FLOW PUMP CHART" ? "PUMP CHART" : text;
+}
+
+function stripGeneratedPumpChartUpdatedDate(value) {
+  return String(value || "")
+    .split("•")
+    .map(part => part.trim())
+    .filter(part => part && !/^Updated\b/i.test(part))
+    .join(" • ");
+}
+
 function addPumpChartExportBranding(element) {
-  if (element.querySelector(".pump-chart-export-brand")) return;
+  element.querySelectorAll(".pump-chart-export-brand").forEach(node => node.remove());
+
+  const header = element.querySelector(".pump-chart-document-header");
+  if (!header) return;
 
   const brand = document.createElement("div");
   brand.className = "pump-chart-export-brand";
   brand.setAttribute("aria-hidden", "true");
+  brand.style.position = "absolute";
+  brand.style.top = "0";
+  brand.style.right = "0";
   brand.style.display = "flex";
   brand.style.alignItems = "center";
   brand.style.justifyContent = "flex-end";
-  brand.style.gap = "7px";
-  brand.style.marginTop = "18px";
-  brand.style.paddingTop = "12px";
-  brand.style.borderTop = "1px solid rgba(100, 116, 139, 0.22)";
-  brand.style.color = "rgba(71, 85, 105, 0.72)";
-  brand.style.font = "800 11px Arial, sans-serif";
-  brand.style.letterSpacing = "0.04em";
-  brand.style.textTransform = "uppercase";
+  brand.style.gap = `${GENERATED_PNG_STYLE.brand.compact.gap}px`;
+  brand.style.color = "#111827";
+  brand.style.fontFamily = "Arial, sans-serif";
+  brand.style.lineHeight = "1.02";
 
   const mark = document.createElement("img");
-  mark.src = "/icons/reverse-flow-logo.png";
+  mark.src = getPumpChartExportLogoSrc();
   mark.alt = "";
   mark.style.display = "block";
-  mark.style.width = "24px";
-  mark.style.height = "24px";
-  mark.style.borderRadius = "5px";
+  mark.style.width = `${GENERATED_PNG_STYLE.brand.compact.logoSize}px`;
+  mark.style.height = `${GENERATED_PNG_STYLE.brand.compact.logoSize}px`;
+  mark.style.borderRadius = `${Math.round(GENERATED_PNG_STYLE.brand.compact.logoSize * GENERATED_PNG_STYLE.brand.borderRadiusRatio)}px`;
   mark.style.objectFit = "cover";
-  mark.style.opacity = "0.72";
 
   const text = document.createElement("span");
-  text.textContent = "Reverse Flow";
+  text.style.display = "grid";
+  text.style.gap = "2px";
+  text.innerHTML = `
+    <strong style="display:block;font-size:${GENERATED_PNG_STYLE.brand.compact.primarySize};font-weight:900;color:#111827;text-transform:none;letter-spacing:0;">Reverse Flow</strong>
+    <span style="display:block;font-size:${GENERATED_PNG_STYLE.brand.compact.secondarySize};font-weight:900;color:#111827;text-transform:none;letter-spacing:0.02em;">Fire Hydraulics</span>
+  `;
 
   brand.append(mark, text);
-  element.appendChild(brand);
+  header.style.position = "relative";
+  header.style.paddingRight = `${GENERATED_PNG_STYLE.brand.compact.blockWidth + 15}px`;
+  header.appendChild(brand);
   element.dataset.exportBranding = "true";
 }
 
@@ -6537,6 +6977,7 @@ function renderPumpChartDocumentToCanvas(source) {
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   const horizontalPadding = 32;
   const contentWidth = width - horizontalPadding * 2;
+  const headerTextWidth = contentWidth - 260;
   const measureCanvas = document.createElement("canvas");
   const measureContext = measureCanvas.getContext("2d");
   if (!measureContext) throw new Error("Canvas context unavailable.");
@@ -6566,31 +7007,40 @@ function renderPumpChartDocumentToCanvas(source) {
   };
 
   const header = source.querySelector(".pump-chart-document-header");
-  pushText(header?.querySelector("p")?.textContent || "REVERSE FLOW PUMP CHART", {
+  pushText(getGeneratedPumpChartHeaderLabel(header?.querySelector("p")?.textContent || "PUMP CHART"), {
     font: "900 11px Arial, sans-serif",
     lineHeight: 16,
-    color: "#d95c13",
+    color: "#475569",
     letterSpacing: 0.08,
+    maxWidth: headerTextWidth,
     marginBottom: 6
   });
   pushText(header?.querySelector("h2")?.textContent || "Pump Chart", {
     font: "900 34px Arial, sans-serif",
     lineHeight: 39,
     color: "#111827",
+    maxWidth: headerTextWidth,
     marginBottom: 6
   });
   pushText(header?.querySelector("strong")?.textContent || "", {
     font: "800 17px Arial, sans-serif",
     lineHeight: 22,
     color: "#334155",
+    maxWidth: headerTextWidth,
     marginBottom: 5
   });
-  pushText(Array.from(header?.querySelectorAll(".pump-chart-document-meta span") || [])
-    .map(item => item.textContent.trim())
-    .join(" • "), {
+  const headerMetaItems = Array.from(header?.querySelectorAll(".pump-chart-document-meta span") || [])
+    .map(item => stripGeneratedPumpChartUpdatedDate(item.textContent))
+    .filter(Boolean);
+  if (!headerMetaItems.some(item => item.startsWith("Generated "))) {
+    headerMetaItems.push(`Generated ${formatPumpChartDate(new Date().toISOString())}`);
+  }
+
+  pushText(headerMetaItems.join(" • "), {
     font: "800 15px Arial, sans-serif",
     lineHeight: 20,
     color: "#64748b",
+    maxWidth: headerTextWidth,
     marginBottom: 7
   });
   pushText(header?.querySelector(".pump-chart-document-notes")?.textContent || "", {
@@ -6634,16 +7084,6 @@ function renderPumpChartDocumentToCanvas(source) {
     y += 8;
   });
 
-  pushRule(8, 12, "#e2e8f0");
-  drawItems.push({
-    type: "brand",
-    x: horizontalPadding,
-    y,
-    width: contentWidth,
-    generated: `Generated ${formatPumpChartDate(new Date().toISOString())}`
-  });
-  y += 28;
-
   const height = Math.ceil(y + 30);
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(width * pixelRatio);
@@ -6653,13 +7093,7 @@ function renderPumpChartDocumentToCanvas(source) {
   if (!context) throw new Error("Canvas context unavailable.");
 
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, width, height);
-  context.strokeStyle = "#cbd5e1";
-  context.lineWidth = 1;
-  context.strokeRect(0.5, 0.5, width - 1, height - 1);
-  context.fillStyle = "#d95c13";
-  context.fillRect(0, 0, width, 6);
+  drawGeneratedPngCanvasBackground(context, width, height);
 
   drawItems.forEach(item => {
     if (item.type === "rule") {
@@ -6957,36 +7391,77 @@ function drawCanvasExportBrand(context, item) {
   context.restore();
 }
 
-async function drawPumpChartCanvasBrandLogo(canvas) {
+function applyGeneratedPngDocumentTopBorder(element) {
+  element.style.borderTop = GENERATED_PNG_STYLE.documentTopBorder;
+}
+
+function drawGeneratedPngCanvasBackground(context, width, height) {
+  context.fillStyle = GENERATED_PNG_STYLE.background;
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = GENERATED_PNG_STYLE.borderColor;
+  context.lineWidth = 1;
+  context.strokeRect(0.5, 0.5, width - 1, height - 1);
+  context.fillStyle = GENERATED_PNG_STYLE.accentColor;
+  context.fillRect(0, 0, width, GENERATED_PNG_STYLE.canvasTopBorderHeight);
+}
+
+function getGeneratedPngCanvasBrandOptions(size, width, margin, y) {
+  const preset = GENERATED_PNG_STYLE.brand[size] || GENERATED_PNG_STYLE.brand.compact;
+
+  return {
+    x: width - margin - preset.blockWidth,
+    y,
+    logoSize: preset.logoSize,
+    gap: preset.gap,
+    primaryFont: preset.primaryFont,
+    secondaryFont: preset.secondaryFont,
+    textWidth: preset.textWidth
+  };
+}
+
+async function drawGeneratedPngBrandLogo(canvas, options = {}) {
   try {
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    const width = canvas.width / pixelRatio;
-    const height = canvas.height / pixelRatio;
     const context = canvas.getContext("2d");
     if (!context) return;
 
     const logo = await loadImage(getPumpChartExportLogoSrc());
-    const horizontalPadding = 32;
-    const contentWidth = width - horizontalPadding * 2;
-    const markSize = 24;
-    const generated = `Generated ${formatPumpChartDate(new Date().toISOString())}`;
-    context.font = "800 11px Arial, sans-serif";
-    const textWidth = context.measureText("Reverse Flow").width;
-    context.font = "700 10px Arial, sans-serif";
-    const generatedWidth = context.measureText(generated).width;
-    const brandWidth = markSize + 7 + Math.max(textWidth, generatedWidth);
-    const x = horizontalPadding + contentWidth - brandWidth;
-    const y = height - 58;
+    const x = options.x || 0;
+    const y = options.y || 0;
+    const logoSize = options.logoSize || GENERATED_PNG_STYLE.brand.compact.logoSize;
+    const gap = options.gap || GENERATED_PNG_STYLE.brand.compact.gap;
+    const textX = x + logoSize + gap;
+    const primaryFont = options.primaryFont || GENERATED_PNG_STYLE.brand.compact.primaryFont;
+    const secondaryFont = options.secondaryFont || GENERATED_PNG_STYLE.brand.compact.secondaryFont;
 
     context.save();
-    context.globalAlpha = 0.72;
-    context.drawImage(logo, x, y, markSize, markSize);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    drawCanvasRoundedRect(context, x, y, logoSize, logoSize, Math.max(8, logoSize * GENERATED_PNG_STYLE.brand.borderRadiusRatio));
+    context.clip();
+    context.drawImage(logo, x, y, logoSize, logoSize);
+    context.restore();
+
+    context.save();
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.fillStyle = "#111827";
+    context.textAlign = "left";
+    context.textBaseline = "alphabetic";
+    context.font = primaryFont;
+    context.fillText("Reverse Flow", textX, y + logoSize * 0.43, options.textWidth || 260);
+    context.font = secondaryFont;
+    context.fillText("Fire Hydraulics", textX, y + logoSize * 0.78, options.textWidth || 260);
     context.restore();
   } catch (error) {
     logPumpChartShareStep("png-brand-logo-fallback", {
       message: error?.message || String(error)
     });
   }
+}
+
+async function drawPumpChartCanvasBrandLogo(canvas) {
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const width = canvas.width / pixelRatio;
+  await drawGeneratedPngBrandLogo(canvas, getGeneratedPngCanvasBrandOptions("compact", width, 32, 32));
 }
 
 function stripPumpChartCategoryCount(value) {
