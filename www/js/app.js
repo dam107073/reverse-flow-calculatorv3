@@ -263,6 +263,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       requiredPdpFormula: document.getElementById("requiredPdpFormula"),
       relayFormula: document.getElementById("relayFormula"),
       splitLayFormula: document.getElementById("splitLayFormula"),
+      formulaCard: document.getElementById("formulaCard"),
+      formulaCardSummary: document.getElementById("formulaCardSummary"),
       
       versionFooter: document.getElementById("versionFooter"),
     };
@@ -695,8 +697,15 @@ logStoreEvent("initialize-start", {
     updateToolsGate();
     bindSupportPageEvents();
 
-    if (els.toolsPage && !isProUser()) {
-      openProModal();
+    if (
+      els.toolsPage &&
+      typeof guardToolsAccess === "function" &&
+      !guardToolsAccess({
+        safeUrl: "index.html",
+        redirectDelayMs: 250,
+        reason: "tools-page-load"
+      })
+    ) {
       return;
     }
 
@@ -756,16 +765,24 @@ function updateAccessBadge() {
 function updateToolsGate() {
   if (!els.toolsPage) return;
 
-  const hasProAccess =
-    isProUser() ||
-    document.body.classList.contains("pro-user");
+  const hasProAccess = isProUser();
 
-  if (els.toolsProContent) {
-    els.toolsProContent.hidden = !hasProAccess;
-  }
+  if (typeof guardToolsAccess === "function") {
+    guardToolsAccess({
+      showModal: false,
+      redirect: false,
+      reason: "tools-gate-sync"
+    });
+  } else {
+    if (els.toolsProContent) {
+      els.toolsProContent.hidden = !hasProAccess;
+      els.toolsProContent.inert = !hasProAccess;
+      els.toolsProContent.setAttribute("aria-hidden", hasProAccess ? "false" : "true");
+    }
 
-  if (els.toolsProLockedMessage) {
-    els.toolsProLockedMessage.hidden = hasProAccess;
+    if (els.toolsProLockedMessage) {
+      els.toolsProLockedMessage.hidden = hasProAccess;
+    }
   }
 
   if (hasProAccess && els.proModal) {
@@ -4217,6 +4234,17 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
       const isSettings = viewName === "settings";
       const isTools = viewName === "tools";
 
+      if (
+        isTools &&
+        typeof guardToolsAccess === "function" &&
+        !guardToolsAccess({
+          redirect: false,
+          reason: "in-app-tools-view"
+        })
+      ) {
+        return;
+      }
+
       els.calculatorView.hidden = isSettings || isTools;
       els.settingsView.hidden = !isSettings;
       els.toolsView.hidden = !isTools;
@@ -4231,6 +4259,50 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
       }
 
       els.proModal.hidden = false;
+    }
+
+    function syncFormulaCardExpandedState() {
+      if (!els.formulaCard || !els.formulaCardSummary) return;
+
+      els.formulaCardSummary.setAttribute(
+        "aria-expanded",
+        els.formulaCard.open ? "true" : "false"
+      );
+    }
+
+    function isToolsNavigationHref(href) {
+      try {
+        const url = new URL(href, window.location.href);
+        return (
+          url.origin === window.location.origin &&
+          /\/tools\.html$/i.test(url.pathname)
+        );
+      } catch {
+        return false;
+      }
+    }
+
+    function bindToolsNavigationGuard() {
+      if (document.body.dataset.toolsNavigationGuard === "ready") return;
+
+      document.body.dataset.toolsNavigationGuard = "ready";
+      document.addEventListener("click", event => {
+        const link = event.target.closest?.("a[href]");
+        if (!link || !isToolsNavigationHref(link.href) || isProUser()) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (typeof guardToolsAccess === "function") {
+          guardToolsAccess({
+            redirect: false,
+            reason: "tools-link-click"
+          });
+          return;
+        }
+
+        openProModal();
+      });
     }
 
     function getReverseFlowStoreForSupportPage() {
@@ -4395,6 +4467,7 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
     }
 
 	    function bindSupportPageEvents() {
+      bindToolsNavigationGuard();
 	      els.hoseLibraryManufacturerFilter?.addEventListener("change", renderHoseLibrary);
       els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
       els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
@@ -4454,6 +4527,9 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
     }
 
     function bindEvents() {
+    bindToolsNavigationGuard();
+    syncFormulaCardExpandedState();
+    els.formulaCard?.addEventListener("toggle", syncFormulaCardExpandedState);
     if (els.presetSelect) {
   els.presetSelect.addEventListener("change", e => applyPreset(e.target.value));
 }
@@ -6138,26 +6214,51 @@ const GENERATED_PNG_STYLE = {
   accentColor: "#d95c13",
   documentTopBorder: "6px solid rgba(217, 92, 19, 0.84)",
   canvasTopBorderHeight: 8,
+  card: {
+    background: "#ffffff",
+    border: "1px solid #cbd5e1",
+    borderRadius: 8,
+    padding: 24
+  },
+  header: {
+    minHeight: 146,
+    gap: 22,
+    dividerColor: "#cbd5e1",
+    labelFont: "900 13px Arial, sans-serif",
+    labelSize: "12px",
+    titleFont: "900 29px Arial, sans-serif",
+    titleSize: "25px",
+    subtitleFont: "900 18px Arial, sans-serif",
+    subtitleSize: "16px",
+    detailFont: "800 16px Arial, sans-serif",
+    detailSize: "14px",
+    mutedColor: "#64748b",
+    titleColor: "#111827",
+    detailColor: "#334155"
+  },
   brand: {
     logoSrc: "/icons/reverse-flow-logo.png",
     borderRadiusRatio: 0.22,
     compact: {
-      logoSize: 54,
-      gap: 11,
-      primaryFont: "900 22px Arial, sans-serif",
-      secondaryFont: "900 15px Arial, sans-serif",
-      primarySize: "18px",
-      secondarySize: "13px",
-      textWidth: 165,
-      blockWidth: 230
+      logoSize: 42,
+      gap: 6,
+      primaryFont: "900 18px Arial, sans-serif",
+      secondaryFont: "900 12px Arial, sans-serif",
+      primarySize: "15px",
+      secondarySize: "11px",
+      textWidth: 108,
+      blockWidth: 154,
+      cardHeight: 58,
+      paddingX: 0,
+      paddingY: 0
     },
     wide: {
-      logoSize: 90,
-      gap: 14,
-      primaryFont: "900 34px Arial, sans-serif",
-      secondaryFont: "900 25px Arial, sans-serif",
-      textWidth: 300,
-      blockWidth: 410
+      logoSize: 82,
+      gap: 13,
+      primaryFont: "900 31px Arial, sans-serif",
+      secondaryFont: "900 22px Arial, sans-serif",
+      textWidth: 250,
+      blockWidth: 350
     }
   }
 };
@@ -6252,7 +6353,9 @@ async function renderFrictionLossChartCanvas(hoses) {
   const margin = 52;
   const contentWidth = width - margin * 2;
   const flows = Array.from({ length: 21 }, (_, index) => index * 50);
-  const tableTop = 270;
+  const headerTop = 52;
+  const headerHeight = GENERATED_PNG_STYLE.header.minHeight;
+  const tableTop = headerTop + headerHeight + 32;
   const tableHeaderHeight = 88;
   const rowHeight = 45;
   const tableHeight = tableHeaderHeight + flows.length * rowHeight;
@@ -6270,14 +6373,17 @@ async function renderFrictionLossChartCanvas(hoses) {
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   drawGeneratedPngCanvasBackground(context, width, height);
 
-  drawGeneratedPngHeader(context, {
+  await drawGeneratedPngCanvasHeader(canvas, context, {
     x: margin,
-    y: 52,
+    y: headerTop,
     width: contentWidth,
-    title: "FRICTION LOSS CHART",
+    label: "FRICTION LOSS CHART",
+    title: "Friction Loss Chart",
     subtitle: "Per 100 Feet of Hose",
-    profileName: getGeneratedPngProfileName(),
-    generatedDate: `Generated ${formatPumpChartDate(new Date().toISOString())}`
+    metadata: getGeneratedPngMetadataLine([
+      getGeneratedPngProfileName(),
+      `Generated ${formatPumpChartDate(new Date().toISOString())}`
+    ])
   });
 
   drawFrictionLossTable(context, {
@@ -6299,42 +6405,84 @@ async function renderFrictionLossChartCanvas(hoses) {
     layout: coefficientLayout
   });
 
-  await drawGeneratedPngBrandLogo(canvas, getGeneratedPngCanvasBrandOptions("wide", width, margin, 50));
-
   return canvas;
 }
 
-function drawGeneratedPngHeader(context, options) {
-  const brandReserve = 390;
-  const textWidth = options.width - brandReserve;
+async function drawGeneratedPngCanvasHeader(canvas, context, options) {
+  const layout = getGeneratedPngHeaderLayout(options);
+  const headerStyle = GENERATED_PNG_STYLE.header;
 
-  context.fillStyle = "#05070c";
-  context.font = "900 48px Arial, sans-serif";
+  context.fillStyle = headerStyle.mutedColor;
+  context.font = headerStyle.labelFont;
   context.textAlign = "left";
   context.textBaseline = "alphabetic";
-  context.fillText(options.title, options.x, options.y + 44, textWidth);
+  context.fillText(String(options.label || "").toUpperCase(), layout.textX, options.y + 18, layout.textWidth);
 
-  context.fillStyle = "#4b5563";
-  context.font = "800 25px Arial, sans-serif";
-  context.fillText(options.subtitle, options.x, options.y + 86, textWidth);
+  context.fillStyle = headerStyle.titleColor;
+  context.font = headerStyle.titleFont;
+  const titleLines = wrapCanvasText(context, options.title || "", layout.textWidth).slice(0, 2);
+  let nextY = options.y + 52;
+  titleLines.forEach((line, index) => {
+    context.fillText(line, layout.textX, nextY + index * 34, layout.textWidth);
+  });
+  nextY += Math.max(1, titleLines.length) * 34 + 2;
 
-  let nextY = options.y + 142;
-  if (options.profileName) {
-    context.fillStyle = "#111827";
-    context.font = "900 28px Arial, sans-serif";
-    context.fillText(options.profileName, options.x, nextY, textWidth);
-    nextY += 38;
+  if (options.subtitle) {
+    context.fillStyle = headerStyle.detailColor;
+    context.font = headerStyle.subtitleFont;
+    const subtitleLines = wrapCanvasText(context, options.subtitle, layout.textWidth).slice(0, 2);
+    subtitleLines.forEach((line, index) => {
+      context.fillText(line, layout.textX, nextY + index * 23, layout.textWidth);
+    });
+    nextY += subtitleLines.length * 23 + 2;
   }
 
-  context.fillStyle = "#4b5563";
-  context.font = "750 22px Arial, sans-serif";
-  context.fillText(options.generatedDate, options.x, nextY, textWidth);
+  context.fillStyle = headerStyle.detailColor;
+  context.font = headerStyle.detailFont;
+  const detailLines = wrapCanvasMetadataLine(context, options.metadata || "", layout.textWidth)
+    .slice(0, 4);
 
-  context.strokeStyle = "#cbd5e1";
+  detailLines.forEach((line, index) => {
+    context.fillText(line, layout.textX, nextY + index * 22, layout.textWidth);
+  });
+
+  await drawGeneratedPngBrandLogo(canvas, {
+    x: layout.brandLogoX,
+    y: layout.brandLogoY,
+    logoSize: GENERATED_PNG_STYLE.brand.compact.logoSize,
+    gap: GENERATED_PNG_STYLE.brand.compact.gap,
+    primaryFont: GENERATED_PNG_STYLE.brand.compact.primaryFont,
+    secondaryFont: GENERATED_PNG_STYLE.brand.compact.secondaryFont,
+    textWidth: GENERATED_PNG_STYLE.brand.compact.textWidth
+  });
+
+  context.strokeStyle = headerStyle.dividerColor;
   context.beginPath();
-  context.moveTo(options.x, options.y + 205.5);
-  context.lineTo(options.x + options.width, options.y + 205.5);
+  context.moveTo(options.x, options.y + headerStyle.minHeight + 0.5);
+  context.lineTo(options.x + options.width, options.y + headerStyle.minHeight + 0.5);
   context.stroke();
+}
+
+function getGeneratedPngHeaderLayout(options) {
+  const brand = GENERATED_PNG_STYLE.brand.compact;
+  const brandCardWidth = brand.blockWidth;
+  const brandCardHeight = brand.cardHeight;
+  const gap = GENERATED_PNG_STYLE.header.gap;
+  const brandCardX = options.x + options.width - brandCardWidth;
+  const brandCardY = options.y + 46;
+  const brandLogoX = brandCardX + brand.paddingX;
+  const brandLogoY = brandCardY + Math.round((brandCardHeight - brand.logoSize) / 2);
+
+  return {
+    textX: options.x,
+    textWidth: Math.max(220, options.width - brandCardWidth - gap),
+    brandCardX,
+    brandCardY,
+    brandCardWidth,
+    brandCardHeight,
+    brandLogoX,
+    brandLogoY
+  };
 }
 
 function drawFrictionLossTable(context, options) {
@@ -6543,9 +6691,8 @@ function preparePumpChartExportContent(element) {
     node.style.gap = "0";
   });
 
-  applyGeneratedPngDocumentTopBorder(element);
+  applyGeneratedPngExportCardStyle(element);
   prepareGeneratedPumpChartHeader(element);
-  addPumpChartExportBranding(element);
   element.dataset.removedModeBadges = String(removedModeBadges);
 }
 
@@ -6553,31 +6700,148 @@ function prepareGeneratedPumpChartHeader(element) {
   const header = element.querySelector(".pump-chart-document-header");
   if (!header) return;
 
-  const label = header.querySelector("p");
-  if (label) {
-    label.textContent = getGeneratedPumpChartHeaderLabel(label.textContent);
+  const headerData = getGeneratedPumpChartExportHeaderData(header);
+  header.dataset.generatedPngLabel = headerData.label;
+  header.dataset.generatedPngTitle = headerData.title;
+  header.dataset.generatedPngSubtitle = headerData.subtitle;
+  header.dataset.generatedPngMetadata = headerData.metadata;
+  header.dataset.generatedPngNotes = headerData.notes;
+  header.innerHTML = "";
+  header.style.display = "grid";
+  header.style.gridTemplateColumns = `minmax(0, 1fr) ${GENERATED_PNG_STYLE.brand.compact.blockWidth}px`;
+  header.style.alignItems = "center";
+  header.style.gap = `${GENERATED_PNG_STYLE.header.gap}px`;
+  header.style.minHeight = `${GENERATED_PNG_STYLE.header.minHeight}px`;
+  header.style.marginBottom = "14px";
+  header.style.paddingBottom = "14px";
+  header.style.borderBottom = `1px solid ${GENERATED_PNG_STYLE.header.dividerColor}`;
+  header.style.color = GENERATED_PNG_STYLE.header.titleColor;
+  header.style.fontFamily = "Arial, sans-serif";
+
+  const textBlock = document.createElement("div");
+  textBlock.style.minWidth = "0";
+
+  const label = document.createElement("p");
+  label.textContent = headerData.label;
+  label.style.margin = "0 0 7px";
+  label.style.color = GENERATED_PNG_STYLE.header.mutedColor;
+  label.style.fontSize = GENERATED_PNG_STYLE.header.labelSize;
+  label.style.fontWeight = "900";
+  label.style.letterSpacing = "0.08em";
+  label.style.textTransform = "uppercase";
+
+  const title = document.createElement("h2");
+  title.textContent = headerData.title;
+  title.style.margin = "0 0 7px";
+  title.style.color = GENERATED_PNG_STYLE.header.titleColor;
+  title.style.fontSize = GENERATED_PNG_STYLE.header.titleSize;
+  title.style.fontWeight = "900";
+  title.style.lineHeight = "1.08";
+  title.style.letterSpacing = "0";
+
+  textBlock.append(label, title);
+
+  if (headerData.subtitle) {
+    const subtitle = document.createElement("p");
+    subtitle.textContent = headerData.subtitle;
+    subtitle.style.margin = "0 0 3px";
+    subtitle.style.color = GENERATED_PNG_STYLE.header.detailColor;
+    subtitle.style.fontSize = GENERATED_PNG_STYLE.header.subtitleSize;
+    subtitle.style.fontWeight = "900";
+    subtitle.style.lineHeight = "1.25";
+    subtitle.style.letterSpacing = "0";
+    subtitle.style.textTransform = "none";
+    textBlock.appendChild(subtitle);
   }
 
-  let meta = header.querySelector(".pump-chart-document-meta");
-  if (!meta) {
-    meta = document.createElement("div");
-    meta.className = "pump-chart-document-meta";
-    header.appendChild(meta);
+  if (headerData.metadata) {
+    const metadata = document.createElement("p");
+    metadata.style.margin = "0";
+    metadata.style.color = GENERATED_PNG_STYLE.header.detailColor;
+    metadata.style.fontSize = GENERATED_PNG_STYLE.header.detailSize;
+    metadata.style.fontWeight = "800";
+    metadata.style.lineHeight = "1.32";
+    metadata.style.letterSpacing = "0";
+    metadata.style.textTransform = "none";
+    appendGeneratedPngMetadataParts(metadata, headerData.metadata);
+    textBlock.appendChild(metadata);
   }
 
-  meta.querySelectorAll("span").forEach(span => {
-    span.textContent = stripGeneratedPumpChartUpdatedDate(span.textContent);
-    if (!span.textContent.trim()) {
-      span.remove();
+  if (headerData.notes) {
+    const notes = document.createElement("p");
+    notes.textContent = headerData.notes;
+    notes.className = "pump-chart-document-notes";
+    notes.style.margin = "8px 0 0";
+    notes.style.color = "#475569";
+    notes.style.fontSize = "13px";
+    notes.style.fontWeight = "650";
+    notes.style.lineHeight = "1.35";
+    notes.style.letterSpacing = "0";
+    notes.style.textTransform = "none";
+    textBlock.appendChild(notes);
+  }
+
+  header.append(textBlock, createGeneratedPngBrandLockupElement());
+  element.dataset.exportBranding = "true";
+}
+
+function getGeneratedPumpChartExportHeaderData(header) {
+  if (header?.dataset?.generatedPngTitle) {
+    return {
+      label: header.dataset.generatedPngLabel || "PUMP CHART",
+      title: header.dataset.generatedPngTitle || "Pump Chart",
+      subtitle: header.dataset.generatedPngSubtitle || "",
+      metadata: header.dataset.generatedPngMetadata || "",
+      notes: header.dataset.generatedPngNotes || ""
+    };
+  }
+
+  const label = getGeneratedPumpChartHeaderLabel(header?.querySelector("p")?.textContent || "PUMP CHART");
+  const title = header?.querySelector("h2")?.textContent?.trim() || "Pump Chart";
+  const department = header?.querySelector("strong")?.textContent?.trim() || "";
+  const metaItems = Array.from(header?.querySelectorAll(".pump-chart-document-meta span") || [])
+    .map(item => stripGeneratedPumpChartUpdatedDate(item.textContent))
+    .filter(Boolean);
+
+  if (!metaItems.some(item => item.startsWith("Generated "))) {
+    metaItems.push(`Generated ${formatPumpChartDate(new Date().toISOString())}`);
+  }
+
+  return {
+    label,
+    title,
+    subtitle: "",
+    metadata: getGeneratedPngMetadataLine([department, ...metaItems]),
+    notes: header?.querySelector(".pump-chart-document-notes")?.textContent?.trim() || ""
+  };
+}
+
+function getGeneratedPngMetadataLine(items = []) {
+  return items
+    .map(item => String(item || "").trim())
+    .filter(Boolean)
+    .join(" • ");
+}
+
+function appendGeneratedPngMetadataParts(element, metadata) {
+  const parts = String(metadata || "")
+    .split("•")
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  parts.forEach((part, index) => {
+    if (index > 0) {
+      const separator = document.createElement("span");
+      separator.textContent = " • ";
+      separator.style.whiteSpace = "normal";
+      element.appendChild(separator);
     }
+
+    const span = document.createElement("span");
+    span.textContent = part;
+    span.style.whiteSpace = index === 0 && !/^Generated\b/i.test(part) ? "normal" : "nowrap";
+    element.appendChild(span);
   });
-
-  if (meta.querySelector("[data-generated-png-date]")) return;
-
-  const generated = document.createElement("span");
-  generated.dataset.generatedPngDate = "true";
-  generated.textContent = `Generated ${formatPumpChartDate(new Date().toISOString())}`;
-  meta.appendChild(generated);
 }
 
 function getGeneratedPumpChartHeaderLabel(value) {
@@ -6593,22 +6857,17 @@ function stripGeneratedPumpChartUpdatedDate(value) {
     .join(" • ");
 }
 
-function addPumpChartExportBranding(element) {
-  element.querySelectorAll(".pump-chart-export-brand").forEach(node => node.remove());
-
-  const header = element.querySelector(".pump-chart-document-header");
-  if (!header) return;
-
+function createGeneratedPngBrandLockupElement() {
   const brand = document.createElement("div");
   brand.className = "pump-chart-export-brand";
   brand.setAttribute("aria-hidden", "true");
-  brand.style.position = "absolute";
-  brand.style.top = "0";
-  brand.style.right = "0";
   brand.style.display = "flex";
   brand.style.alignItems = "center";
   brand.style.justifyContent = "flex-end";
   brand.style.gap = `${GENERATED_PNG_STYLE.brand.compact.gap}px`;
+  brand.style.width = `${GENERATED_PNG_STYLE.brand.compact.blockWidth}px`;
+  brand.style.minHeight = `${GENERATED_PNG_STYLE.brand.compact.cardHeight}px`;
+  brand.style.boxSizing = "border-box";
   brand.style.color = "#111827";
   brand.style.fontFamily = "Arial, sans-serif";
   brand.style.lineHeight = "1.02";
@@ -6631,10 +6890,7 @@ function addPumpChartExportBranding(element) {
   `;
 
   brand.append(mark, text);
-  header.style.position = "relative";
-  header.style.paddingRight = `${GENERATED_PNG_STYLE.brand.compact.blockWidth + 15}px`;
-  header.appendChild(brand);
-  element.dataset.exportBranding = "true";
+  return brand;
 }
 
 async function tryRenderElementToPngBlob(element, method) {
@@ -6977,7 +7233,7 @@ function renderPumpChartDocumentToCanvas(source) {
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   const horizontalPadding = 32;
   const contentWidth = width - horizontalPadding * 2;
-  const headerTextWidth = contentWidth - 260;
+  const headerTextWidth = contentWidth - GENERATED_PNG_STYLE.brand.compact.blockWidth - GENERATED_PNG_STYLE.header.gap;
   const measureCanvas = document.createElement("canvas");
   const measureContext = measureCanvas.getContext("2d");
   if (!measureContext) throw new Error("Canvas context unavailable.");
@@ -7007,43 +7263,38 @@ function renderPumpChartDocumentToCanvas(source) {
   };
 
   const header = source.querySelector(".pump-chart-document-header");
-  pushText(getGeneratedPumpChartHeaderLabel(header?.querySelector("p")?.textContent || "PUMP CHART"), {
-    font: "900 11px Arial, sans-serif",
+  const headerData = getGeneratedPumpChartExportHeaderData(header);
+  pushText(headerData.label || "PUMP CHART", {
+    font: GENERATED_PNG_STYLE.header.labelFont,
     lineHeight: 16,
-    color: "#475569",
+    color: GENERATED_PNG_STYLE.header.mutedColor,
     letterSpacing: 0.08,
     maxWidth: headerTextWidth,
     marginBottom: 6
   });
-  pushText(header?.querySelector("h2")?.textContent || "Pump Chart", {
-    font: "900 34px Arial, sans-serif",
-    lineHeight: 39,
-    color: "#111827",
+  pushText(headerData.title || "Pump Chart", {
+    font: GENERATED_PNG_STYLE.header.titleFont,
+    lineHeight: 36,
+    color: GENERATED_PNG_STYLE.header.titleColor,
     maxWidth: headerTextWidth,
     marginBottom: 6
   });
-  pushText(header?.querySelector("strong")?.textContent || "", {
-    font: "800 17px Arial, sans-serif",
-    lineHeight: 22,
-    color: "#334155",
+  pushText(headerData.subtitle || "", {
+    font: GENERATED_PNG_STYLE.header.subtitleFont,
+    lineHeight: 26,
+    color: GENERATED_PNG_STYLE.header.detailColor,
     maxWidth: headerTextWidth,
-    marginBottom: 5
+    marginBottom: 4
   });
-  const headerMetaItems = Array.from(header?.querySelectorAll(".pump-chart-document-meta span") || [])
-    .map(item => stripGeneratedPumpChartUpdatedDate(item.textContent))
-    .filter(Boolean);
-  if (!headerMetaItems.some(item => item.startsWith("Generated "))) {
-    headerMetaItems.push(`Generated ${formatPumpChartDate(new Date().toISOString())}`);
-  }
-
-  pushText(headerMetaItems.join(" • "), {
-    font: "800 15px Arial, sans-serif",
+  pushText(headerData.metadata || "", {
+    font: GENERATED_PNG_STYLE.header.detailFont,
     lineHeight: 20,
-    color: "#64748b",
+    color: GENERATED_PNG_STYLE.header.detailColor,
     maxWidth: headerTextWidth,
-    marginBottom: 7
+    marginBottom: 7,
+    metadataWrap: true
   });
-  pushText(header?.querySelector(".pump-chart-document-notes")?.textContent || "", {
+  pushText(headerData.notes || "", {
     font: "650 14px Arial, sans-serif",
     lineHeight: 20,
     color: "#475569",
@@ -7227,7 +7478,9 @@ function createCanvasTextItem(context, text, options = {}) {
   const font = options.font || "700 14px Arial, sans-serif";
   const maxWidth = options.maxWidth || 300;
   context.font = font;
-  const lines = wrapCanvasText(context, cleanText, maxWidth);
+  const lines = options.metadataWrap
+    ? wrapCanvasMetadataLine(context, cleanText, maxWidth)
+    : wrapCanvasText(context, cleanText, maxWidth);
   if (!lines.length) return null;
 
   return {
@@ -7319,6 +7572,36 @@ function wrapCanvasText(context, text, maxWidth) {
     .filter(Boolean);
 }
 
+function wrapCanvasMetadataLine(context, text, maxWidth) {
+  const cleanText = String(text || "").trim();
+  if (!cleanText) return [];
+  if (context.measureText(cleanText).width <= maxWidth) return [cleanText];
+
+  const parts = cleanText
+    .split("•")
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  if (parts.length <= 1) return wrapCanvasText(context, cleanText, maxWidth);
+
+  const lines = [];
+  let currentLine = "";
+
+  parts.forEach(part => {
+    const candidate = currentLine ? `${currentLine} • ${part}` : part;
+    if (!currentLine || context.measureText(candidate).width <= maxWidth) {
+      currentLine = candidate;
+      return;
+    }
+
+    lines.push(currentLine);
+    currentLine = part;
+  });
+
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
 function wrapCanvasLine(context, text, maxWidth) {
   if (!text) return [];
 
@@ -7391,8 +7674,13 @@ function drawCanvasExportBrand(context, item) {
   context.restore();
 }
 
-function applyGeneratedPngDocumentTopBorder(element) {
+function applyGeneratedPngExportCardStyle(element) {
+  element.style.background = GENERATED_PNG_STYLE.card.background;
+  element.style.border = GENERATED_PNG_STYLE.card.border;
   element.style.borderTop = GENERATED_PNG_STYLE.documentTopBorder;
+  element.style.borderRadius = `${GENERATED_PNG_STYLE.card.borderRadius}px`;
+  element.style.padding = `${GENERATED_PNG_STYLE.card.padding}px`;
+  element.style.color = GENERATED_PNG_STYLE.header.titleColor;
 }
 
 function drawGeneratedPngCanvasBackground(context, width, height) {
@@ -7461,7 +7749,20 @@ async function drawGeneratedPngBrandLogo(canvas, options = {}) {
 async function drawPumpChartCanvasBrandLogo(canvas) {
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   const width = canvas.width / pixelRatio;
-  await drawGeneratedPngBrandLogo(canvas, getGeneratedPngCanvasBrandOptions("compact", width, 32, 32));
+  const brand = GENERATED_PNG_STYLE.brand.compact;
+  const x = width - 32 - brand.blockWidth;
+  const y = 32;
+  const brandHeight = brand.cardHeight;
+
+  await drawGeneratedPngBrandLogo(canvas, {
+    x: x + brand.paddingX,
+    y: y + Math.round((brandHeight - brand.logoSize) / 2),
+    logoSize: brand.logoSize,
+    gap: brand.gap,
+    primaryFont: brand.primaryFont,
+    secondaryFont: brand.secondaryFont,
+    textWidth: brand.textWidth
+  });
 }
 
 function stripPumpChartCategoryCount(value) {

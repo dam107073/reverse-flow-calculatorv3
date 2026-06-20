@@ -907,6 +907,18 @@
       background: var(--surface);
     }
 
+    .formula summary {
+      cursor: pointer;
+      color: var(--ink);
+      font-weight: 800;
+      font-size: 16px;
+      margin-bottom: 0;
+    }
+
+    .formula[open] summary {
+      margin-bottom: 10px;
+    }
+
     .formula-divider {
       margin: 20px 0;
       border: none;

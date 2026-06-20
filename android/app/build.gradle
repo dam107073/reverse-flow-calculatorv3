@@ -7,7 +7,7 @@ android {
         applicationId "app.reverseflow.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 122
+        versionCode 123
         versionName "1.1.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -44,11 +44,11 @@ dependencies {
 
 def removeDuplicateGeneratedConfigFiles = tasks.register("removeDuplicateGeneratedConfigFiles") {
     doLast {
-        delete fileTree(dir: "$projectDir/src/main/res/xml") {
+        delete fileTree(project.file("src/main/res/xml")) {
             include "config *.xml"
             include ".DS_Store"
         }
-        delete fileTree(dir: "$projectDir/build/intermediates/packaged_res") {
+        delete fileTree(project.file("build/intermediates/packaged_res")) {
             include "**/config *.xml"
             include "**/.DS_Store"
         }

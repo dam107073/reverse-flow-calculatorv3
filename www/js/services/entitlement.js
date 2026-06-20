@@ -70,6 +70,98 @@ function isProUser() {
   return userAccessLevel === ACCESS_LEVELS.PRO;
 }
 
+function getToolsSafeRedirectUrl() {
+  try {
+    const referrer = document.referrer ? new URL(document.referrer, window.location.href) : null;
+    const currentOrigin = window.location.origin;
+    const currentPath = window.location.pathname;
+
+    if (
+      referrer &&
+      referrer.origin === currentOrigin &&
+      !/\/(?:tools|references)\.html$/i.test(referrer.pathname) &&
+      referrer.pathname !== currentPath
+    ) {
+      return `${referrer.pathname}${referrer.search}${referrer.hash}`;
+    }
+  } catch (error) {
+    console.warn("[Reverse Flow Pro Access]", {
+      event: "tools-safe-redirect-referrer-failed",
+      error
+    });
+  }
+
+  return "index.html";
+}
+
+function setToolsContentLocked(locked) {
+  [
+    document.getElementById("toolsProContent"),
+    document.getElementById("referencesList")
+  ].forEach(element => {
+    if (!element) return;
+    element.hidden = locked;
+    element.inert = locked;
+    element.setAttribute("aria-hidden", locked ? "true" : "false");
+  });
+
+  const lockedMessage = document.getElementById("toolsProLockedMessage");
+  if (lockedMessage) {
+    lockedMessage.hidden = !locked;
+  }
+}
+
+function openToolsProModal() {
+  const modal = document.getElementById("proModal");
+  if (modal) {
+    modal.hidden = false;
+    return;
+  }
+
+  alert("Reverse Flow Pro is required for Tools.");
+}
+
+function redirectFromLockedTools(options = {}) {
+  const redirect = () => {
+    if (isProUser()) return;
+    window.location.replace(options.safeUrl || getToolsSafeRedirectUrl());
+  };
+
+  const delayMs = Number.isFinite(options.redirectDelayMs)
+    ? Math.max(0, options.redirectDelayMs)
+    : 0;
+
+  window.setTimeout(redirect, delayMs);
+}
+
+function guardToolsAccess(options = {}) {
+  const hasAccess = isProUser();
+  setToolsContentLocked(!hasAccess);
+
+  if (hasAccess) {
+    const modal = document.getElementById("proModal");
+    if (modal) modal.hidden = true;
+    return true;
+  }
+
+  if (options.showModal !== false) {
+    openToolsProModal();
+  }
+
+  if (options.redirect !== false) {
+    redirectFromLockedTools(options);
+  }
+
+  logProAccessEvent("tools-access-blocked", {
+    page: window.location.pathname,
+    search: window.location.search,
+    hash: window.location.hash,
+    reason: options.reason || "missing Pro entitlement"
+  });
+
+  return false;
+}
+
 function setAccessLevel(level, grantDetails = {}) {
   if (
     level === ACCESS_LEVELS.PRO &&
@@ -171,4 +263,3 @@ function canAccessFeature(featureKey) {
 }
 
 console.log(`Reverse Flow Calculator v${APP_VERSION}`);
-

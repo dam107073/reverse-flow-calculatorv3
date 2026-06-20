@@ -42,7 +42,7 @@
   <link rel="stylesheet" href="css/base.css?v=build-7" />
   <link rel="stylesheet" href="css/components.css?v=flash-4" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=build-13" />
+  <link rel="stylesheet" href="css/support.css?v=build-14" />
   <link rel="stylesheet" href="css/responsive.css?v=build-11" />
 </head>
   
@@ -962,7 +962,10 @@ Select a hydraulic calculation mode.
   </button>
 </div>
 
-    <section class="card formula" id="formulaCard">
+    <details class="card formula" id="formulaCard">
+      <summary id="formulaCardSummary" aria-expanded="false">
+        Formula / Hydraulic Reference
+      </summary>
 
   <div id="reverseFormula">
     <p><strong>Reverse Flow Formula</strong></p>
@@ -998,8 +1001,8 @@ Select a hydraulic calculation mode.
     1.5" = 24,
     1.75” = 15.5,
     1.88” = 8,
-    2” = 4,
-    2.25” = 3,
+    2” = 6,
+    2.25” = 3.5,
     2.5” = 2,
     3” = 0.8,
     Dual 3” = 0.2,
@@ -1007,27 +1010,78 @@ Select a hydraulic calculation mode.
     5” = 0.08
   </p>
 
-</section>
+</details>
 
     <section class="card">
   <details class="about">
     <summary>About / How to Use</summary>
 
-    <p><strong>Reverse Flow Mode</strong> estimates GPM by working backwards from pump discharge pressure, nozzle pressure, hose length, hose coefficient, and appliance/elevation loss.</p>
+    <h3>What is Reverse Flow?</h3>
+    <p>
+      Reverse Flow is a fire hydraulics calculator and reference platform designed for firefighters, pump operators, company officers, and instructors.
+    </p>
+    <p>
+      It combines operational hydraulic calculators, department reference tools, pump chart management, and training resources into a single application.
+    </p>
 
-    <p><strong>Required PDP Mode</strong> calculates the pump discharge pressure needed to achieve a target flow.</p>
+    <h3>Calculator Modes</h3>
 
-    <p><strong>Relay Pumping Mode</strong> calculates the required discharge pressure for a relay pumper to supply a receiving engine with a target flow and residual pressure.</p>
+    <h4>Reverse Flow Mode</h4>
+    <p>
+      Estimates achievable flow by working backward from available pump discharge pressure and hydraulic losses.
+    </p>
 
-    <p><strong>Split Lay Mode</strong> models split-supply and split-attack hose layouts with dynamic pressure balancing, recalculated nozzle pressures, delivered flow, and appliance loss handling.</p>
+    <h4>Required PDP Mode</h4>
+    <p>
+      Calculates the pump discharge pressure required to achieve a desired flow.
+    </p>
 
-    <p>When unequal attack lines are supplied from a common source, lower-demand lines may become overpressured. Reverse Flow dynamically recalculates nozzle pressure, flow, friction loss, and nozzle reaction to better reflect real-world hydraulic behavior.</p>
+    <h4>Apparatus Mounted Mode</h4>
+    <p>
+      Supports apparatus-mounted and master stream hydraulic calculations, including elevation and appliance losses.
+    </p>
 
-    <p>Smoothbore tip size is selected manually. In Reverse Flow and Split Lay modes, nozzle pressure and delivered flow may be dynamically recalculated based on available pressure, hose configuration, and hydraulic demand.</p>
+    <h4>Relay Pumping Mode</h4>
+    <p>
+      Calculates relay pumper discharge pressure needed to supply a receiving engine while maintaining residual pressure.
+    </p>
 
-    <p>Actual pump discharge pressure may vary due to internal plumbing, apparatus piping, valves, appliances, intake restrictions, and other system-specific factors not automatically accounted for by the calculators.</p>
+    <h4>Split Lay Mode</h4>
+    <p>
+      Models split-supply and split-attack hose layouts, including appliance losses, multiple attack lines, delivered flow, and pressure balancing.
+    </p>
 
-    <p>This application is intended for training, reference, and operational decision support. Always follow local pump charts, equipment testing, department policy, and instructor guidance.</p>
+    <h3>Pump Charts</h3>
+    <p>
+      Pump Charts allow departments and individual users to save, manage, update, and export commonly used operational hose and nozzle configurations.
+    </p>
+
+    <h3>Tools &amp; References (Pro)</h3>
+    <p>
+      The Tools workspace provides additional hydraulic resources, calculators, hose management tools, department defaults, and reference materials.
+    </p>
+    <p>
+      Current tools may include Smoothbore Flow, Nozzle Reaction, Tank Time, Water Velocity, Hose Coefficient Calculator, Wye Operations, and the Friction Loss Chart Generator.
+    </p>
+
+    <h3>Reference Library</h3>
+    <p>
+      Reference content may include the Hose Library, manufacturer resources, training partners, and training resources.
+    </p>
+    <p>
+      Reference material is intended for informational purposes and may vary by manufacturer, department testing, and local policy.
+    </p>
+
+    <h3>Disclaimer</h3>
+    <p>
+      Reverse Flow is intended for training, planning, reference, and operational decision support.
+    </p>
+    <p>
+      Actual pump discharge pressure requirements may vary based on apparatus plumbing, valves, appliances, intake conditions, hose characteristics, equipment testing, and local operating procedures.
+    </p>
+    <p>
+      Always follow department policy, manufacturer guidance, verified pump charts, and instructor direction.
+    </p>
   </details>
 </section>
     </div>
@@ -1127,9 +1181,9 @@ Select a hydraulic calculation mode.
        APPLICATION SCRIPT
   ========================================= -->
   <script src="js/constants.js?v=build-6"></script>
-  <script src="js/services/entitlement.js"></script>
-  <script src="js/data/hydraulics.js?v=build-6"></script>
-  <script src="js/app.js?v=build-17"></script>
+  <script src="js/services/entitlement.js?v=build-2"></script>
+  <script src="js/data/hydraulics.js?v=build-7"></script>
+  <script src="js/app.js?v=build-27"></script>
 
   <script type="module" src="js/analytics.js"></script>
 

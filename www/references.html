@@ -37,7 +37,7 @@
   <link rel="stylesheet" href="css/base.css?v=build-6" />
   <link rel="stylesheet" href="css/components.css?v=flash-3" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=build-13" />
+  <link rel="stylesheet" href="css/support.css?v=build-14" />
   <link rel="stylesheet" href="css/responsive.css?v=build-11" />
 </head>
 
@@ -78,8 +78,20 @@
     </p>
   </main>
 
+  <script src="js/constants.js?v=build-6"></script>
+  <script src="js/services/entitlement.js?v=build-2"></script>
+  <script>
+    window.__reverseFlowReferencesLocked =
+      typeof guardToolsAccess === "function" &&
+      !guardToolsAccess({
+        safeUrl: "index.html",
+        redirectDelayMs: 250,
+        reason: "references-page-load"
+      });
+  </script>
   <script src="js/data/references.js"></script>
   <script>
+    if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
 
     function escapeHtml(value) {
@@ -555,6 +567,7 @@
     }
 
     renderReferences();
+    }
   </script>
   <script type="module" src="js/analytics.js"></script>
 </body>

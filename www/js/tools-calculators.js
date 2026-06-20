@@ -1,4 +1,15 @@
 (function () {
+  if (
+    typeof guardToolsAccess === "function" &&
+    !guardToolsAccess({
+      safeUrl: "index.html",
+      redirectDelayMs: 250,
+      reason: "tools-calculator-init"
+    })
+  ) {
+    return;
+  }
+
   const calculatorPage = document.getElementById("fieldCalculatorPage");
   const overviewContent = document.getElementById("toolsOverviewContent");
   const toolsProContent = document.getElementById("toolsProContent");
@@ -29,6 +40,11 @@
       title: "Tank Time",
       description: "Estimate onboard water duration at a known flow.",
       render: renderTankTime
+    },
+    "water-velocity": {
+      title: "Water Velocity",
+      description: "Calculate water velocity from hose ID and flow.",
+      render: renderWaterVelocity
     },
     coefficient: {
       title: "Coefficient Calculator",
@@ -1239,6 +1255,66 @@
     };
 
     [hoseSize, flow, gaugeOne, gaugeTwo].forEach(input => {
+      input.addEventListener("input", update);
+      input.addEventListener("change", update);
+    });
+    update();
+  }
+
+  function renderWaterVelocity() {
+    const hoseOptions = getHoseOptions()
+      .filter(hose => Number(hose.id) > 0)
+      .map(hose => `<option value="${escapeHtml(hose.id)}"${hose.id === "2.5" ? " selected" : ""}>${escapeHtml(hose.label)}</option>`)
+      .join("");
+
+    calculatorBody.innerHTML = `
+      <div class="field-calculator-form">
+        <div class="field">
+          <label for="waterVelocityHoseId">Hose Size / ID</label>
+          <select id="waterVelocityHoseId">
+            ${hoseOptions}
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+
+        <div class="field" id="waterVelocityCustomIdField" hidden>
+          <label for="waterVelocityCustomId">Custom Charged ID</label>
+          <input id="waterVelocityCustomId" type="text" inputmode="decimal" placeholder="Inches" />
+        </div>
+
+        <div class="field">
+          <label for="waterVelocityFlow">Flow</label>
+          <input id="waterVelocityFlow" type="text" inputmode="decimal" placeholder="GPM" />
+        </div>
+      </div>
+
+      <div id="waterVelocityResults" hidden></div>
+    `;
+
+    const hoseId = document.getElementById("waterVelocityHoseId");
+    const customIdField = document.getElementById("waterVelocityCustomIdField");
+    const customId = document.getElementById("waterVelocityCustomId");
+    const flow = document.getElementById("waterVelocityFlow");
+    const results = document.getElementById("waterVelocityResults");
+
+    const update = () => {
+      const isCustom = hoseId.value === "custom";
+      customIdField.hidden = !isCustom;
+
+      const id = isCustom ? numberOrNull(customId.value) : numberOrNull(hoseId.value);
+      const gpm = numberOrNull(flow.value);
+      const isValid = id !== null && gpm !== null && id > 0 && gpm >= 0;
+
+      results.hidden = !isValid;
+      if (!isValid) return;
+
+      const velocity = 0.408 * gpm / (id * id);
+      results.innerHTML = createResultRows([
+        ["Water Velocity", `${formatNumber(velocity, 1)} ft/sec`]
+      ]);
+    };
+
+    [hoseId, customId, flow].forEach(input => {
       input.addEventListener("input", update);
       input.addEventListener("change", update);
     });
