@@ -800,10 +800,8 @@
       branchPressure
     );
     const totalFlow = actualAttack1.flow + actualAttack2.flow;
-    const applianceLoss = totalFlow > 350 ? 10 : 0;
-    const warnings = applianceLoss > 0
-      ? ["Estimated appliance loss applied: 10 psi at flows >350 GPM."]
-      : [];
+    const applianceLoss = getWyeApplianceLoss(totalFlow);
+    const warnings = getWyeScenarioWarnings({ ok: true, applianceLoss });
     const supplyLoss = calculateFrictionLoss(supplyHose, supplyLength, totalFlow);
 
     if (supplyLoss === null) {
@@ -1056,6 +1054,7 @@
     const closure = calculateWyeClosureLine(result, remainingLine);
     controls.currentResults.hidden = true;
     controls.closureResults.hidden = false;
+    renderWyeOperationWarnings(getWyeScenarioWarnings(closure), controls.operationWarnings);
 
     if (!closure.ok) {
       controls.closureResults.innerHTML = `
@@ -1105,21 +1104,16 @@
     document.getElementById("wyeBackToCurrentButton")?.addEventListener("click", () => {
       controls.closureResults.hidden = true;
       controls.currentResults.hidden = false;
+      renderWyeOperationWarnings(result.warnings, controls.operationWarnings);
     });
   }
 
   function calculateWyeClosureLine(result, line) {
-    const targetPressureBudget = result.fixedPdp - result.applianceLoss;
-
-    if (!(targetPressureBudget > 0)) {
-      return { ok: false, message: "Fixed PDP does not leave usable pressure after appliance loss." };
-    }
-
     const solve = solveWyeRemainingNozzlePressure({
       line,
       supplyHose: result.supplyHose,
       supplyLength: result.supplyLength,
-      targetPressureBudget
+      fixedPdp: result.fixedPdp
     });
 
     if (!solve.ok) return solve;
@@ -1132,21 +1126,24 @@
       ok: true,
       nozzlePressure: solve.nozzlePressure,
       flow: solve.flow,
+      applianceLoss: solve.applianceLoss,
       reaction
     };
   }
 
-  function solveWyeRemainingNozzlePressure({ line, supplyHose, supplyLength, targetPressureBudget }) {
+  function solveWyeRemainingNozzlePressure({ line, supplyHose, supplyLength, fixedPdp }) {
     const pressureDemand = nozzlePressure => {
       const flow = getWyeFlowAtPressure(line, nozzlePressure);
       const supplyLoss = calculateFrictionLoss(supplyHose, supplyLength, flow);
       const attackLoss = calculateFrictionLoss(line.hose, line.length, flow);
+      const applianceLoss = getWyeApplianceLoss(flow);
 
       if (supplyLoss === null || attackLoss === null) return null;
 
       return {
         flow,
-        totalPressure: nozzlePressure + supplyLoss + attackLoss
+        applianceLoss,
+        totalPressure: nozzlePressure + supplyLoss + attackLoss + applianceLoss
       };
     };
 
@@ -1154,12 +1151,12 @@
     let high = Math.max(line.nozzlePressure, 50);
     let highDemand = pressureDemand(high);
 
-    while (highDemand && highDemand.totalPressure < targetPressureBudget && high < 2000) {
+    while (highDemand && highDemand.totalPressure < fixedPdp && high < 2000) {
       high *= 2;
       highDemand = pressureDemand(high);
     }
 
-    if (!highDemand || highDemand.totalPressure < targetPressureBudget) {
+    if (!highDemand || highDemand.totalPressure < fixedPdp) {
       return { ok: false, message: "Unable to solve remaining line pressure from the fixed PDP." };
     }
 
@@ -1171,7 +1168,7 @@
         return { ok: false, message: "Unable to solve remaining line pressure from the selected hose setup." };
       }
 
-      if (midDemand.totalPressure > targetPressureBudget) {
+      if (midDemand.totalPressure > fixedPdp) {
         high = mid;
       } else {
         low = mid;
@@ -1180,18 +1177,29 @@
 
     const nozzlePressure = (low + high) / 2;
     const flow = getWyeFlowAtPressure(line, nozzlePressure);
+    const applianceLoss = getWyeApplianceLoss(flow);
 
     if (!(nozzlePressure > 0) || !(flow > 0)) {
       return { ok: false, message: "Closure scenario does not leave valid flow for the remaining line." };
     }
 
-    return { ok: true, nozzlePressure, flow };
+    return { ok: true, nozzlePressure, flow, applianceLoss };
   }
 
   function getWyeFlowAtPressure(line, nozzlePressure) {
     return line.nozzleType === "smoothbore"
       ? calculateSmoothboreFlow(line.diameter, nozzlePressure)
       : calculateFogFlow(line.targetFlow, line.targetPressure, nozzlePressure);
+  }
+
+  function getWyeApplianceLoss(flow) {
+    return flow > 350 ? 10 : 0;
+  }
+
+  function getWyeScenarioWarnings(scenario) {
+    return scenario.ok && scenario.applianceLoss > 0
+      ? ["Estimated appliance loss applied: 10 psi at flows >350 GPM."]
+      : [];
   }
 
   function renderCoefficientCalculator() {
