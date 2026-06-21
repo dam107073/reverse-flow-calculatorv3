@@ -2737,6 +2737,9 @@ function getSetupHydraulicSummary(setup) {
   const pdp = result.pdpSummary || getSetupPdpSummary(setup);
 
   if (setup.mode === "splitLay") {
+    const splitLayFlow = getSplitLayTotalFlowSummary(setup);
+    if (splitLayFlow && pdp) return `${splitLayFlow} • PDP ${pdp}`;
+    if (splitLayFlow) return splitLayFlow;
     return pdp ? `PDP ${pdp}` : getSetupPrimarySummary(setup);
   }
 
@@ -2770,6 +2773,15 @@ function getSplitLayOperationalSummary(splitLay = {}, result = {}) {
   }
 
   return "";
+}
+
+function getSplitLayTotalFlowSummary(setup = {}) {
+  const result = setup.result || {};
+  return formatGpmValue(
+    result.splitSupplyFlow ||
+    result.calculatedFlow ||
+    result.flowSummary
+  );
 }
 
 function getSplitSupplySummary(splitLay = {}) {
