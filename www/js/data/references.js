@@ -193,13 +193,115 @@ const hoseManufacturerReferences = [
       { model: "HFX50", tradeSize: "5\"", chargedId50: "", chargedId150: "", coefficient: "0.04", referenceUrl: "https://www.snaptitehose.com/resources/friction-loss-calculator" },
       { model: "HFX60", tradeSize: "6\"", chargedId50: "", chargedId150: "", coefficient: "0.04", referenceUrl: "https://www.snaptitehose.com/resources/friction-loss-calculator" }
     ]
+  },
+  {
+    id: "north-american-fire-hose",
+    name: "North American Fire Hose",
+    shortName: "NAFH",
+    websiteUrl: "https://www.nafhc.com/",
+    sourceUrl: "https://www.nafhc.com/",
+    about: "North American Fire Hose manufactures municipal and industrial fire hose products. This page organizes published hose data for quick field reference within Reverse Flow.",
+    notes: "Published hose data is provided for reference only. Departments should verify hose performance against their own equipment, testing, and SOPs. Friction loss coefficients and charged IDs may vary based on hose construction, age, condition, couplings, and test method.",
+    sourceNote: "Hose data shown here is based on published manufacturer/reference data. Use the source link for the latest official information.",
+    hoseData: [
+      { model: "True Hero", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "DBAK 800", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "DBAK 800", tradeSize: "2\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Built 800", tradeSize: "1\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Built 800", tradeSize: "1.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Built 800", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Built 800", tradeSize: "2\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Built 800", tradeSize: "2.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Built 800", tradeSize: "3\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Flow 800", tradeSize: "1.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Flow 800", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Flow 800", tradeSize: "2\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Flow 800", tradeSize: "2.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Flow 800", tradeSize: "3\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800", tradeSize: "1\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800", tradeSize: "1.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800", tradeSize: "2\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800", tradeSize: "2.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800", tradeSize: "3\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800 Lite", tradeSize: "1.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800 Lite", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800 Lite", tradeSize: "2.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 800 Lite", tradeSize: "3\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Flow 800", tradeSize: "1.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Flow 800", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Flow 800", tradeSize: "2\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Flow 800", tradeSize: "2.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Flow 800", tradeSize: "3\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Ploy-Flow 800 Lite", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Ploy-Flow 800 Lite", tradeSize: "2.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Ploy-Flow 800 Lite", tradeSize: "3\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "True-Diameter 800", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Tri-Flow 600 LDH", tradeSize: "4\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Tri-Flow 600 LDH", tradeSize: "5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Built 600 LDH", tradeSize: "4\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Dura-Built 600 LDH", tradeSize: "5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Flow 600 LDH", tradeSize: "4\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Flow 600 LDH", tradeSize: "5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 600 LDH", tradeSize: "4\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Poly-Tuff 600 LDH", tradeSize: "5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Hi-Flow 400 LDH", tradeSize: "4\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Hi-Flow 400 LDH", tradeSize: "5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Hi-Tech 600", tradeSize: "1.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Hi-Tech 600", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Hi-Tech 600", tradeSize: "2.5\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
+      { model: "Hi-Tech 600", tradeSize: "3\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" }
+    ]
+  }
+];
+
+const equipmentManufacturerReferences = [
+  {
+    id: "hen",
+    name: "HEN",
+    websiteUrl: "https://www.hennozzles.com/",
+    sourceUrl: "https://www.hennozzles.com/",
+    about: "HEN manufactures nozzles, appliances, and fireground equipment for structural and wildland firefighting. HEN is best known for their proprietary blade nozzles, which produce a \"blade\" pattern resulting in increased surface area distribution of large droplets. HEN is also known for their revolutionary Turbo devices, which act as back pressure increasers to improve mechanics of the hoseline, while maintaining a low pressure nozzle.",
+    sourceNote: "Product information shown here is based on published manufacturer/reference data. Use the source link for the latest official information.",
+    categories: [
+      {
+        name: "Blade Series",
+        helper: "Supported HEN Blade models represented in Reverse Flow.",
+        columns: ["Model", "Rated Flow"],
+        rows: [
+          ["Blade 20", "20 GPM"],
+          ["Blade 45", "45 GPM"],
+          ["Blade 95", "95 GPM"],
+          ["Blade 160", "160 GPM"],
+          ["Blade 185", "185 GPM"],
+          ["Blade 265", "265 GPM"]
+        ],
+        notes: [
+          "Supported within Reverse Flow calculations.",
+          "Flow calculations assume solid-stream operation."
+        ]
+      },
+      {
+        name: "Turbo Devices",
+        helper: "Published Turbo device flow ranges represented for reference.",
+        columns: ["Device", "Published Flow Range"],
+        rows: [
+          ["Turbo 1.5", "150-190 GPM"]
+        ],
+        notes: [
+          "Turbo 1.5 is currently supported within Reverse Flow.",
+          "Turbo calculations use published manufacturer performance data.",
+          "Calculations outside published operating ranges are not displayed."
+        ]
+      }
+    ]
   }
 ];
 
 const referencesData = {
   manufacturers: {
     hose: hoseManufacturerReferences,
-    equipment: []
+    equipment: equipmentManufacturerReferences
   },
   // Real training partners should only be added after review and approval by the Reverse Flow owner.
   // Do not invent partner listings.

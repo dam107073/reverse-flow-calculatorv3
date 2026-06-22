@@ -86,7 +86,8 @@
       .reference-nav-card,
       .reference-empty-card,
       .reference-category-card,
-      .reference-hose-data-card {
+      .reference-hose-data-card,
+      .reference-equipment-category-card {
         border-color: rgba(51, 65, 85, 0.9);
         background:
           linear-gradient(180deg, rgba(17,24,39,0.94), rgba(15,23,42,0.86));
@@ -100,11 +101,25 @@
         background: rgba(255,255,255,0.06);
       }
 
+      .reference-equipment-table-wrap,
+      .reference-equipment-notes {
+        border-color: rgba(148, 163, 184, 0.26);
+        background: rgba(255,255,255,0.06);
+      }
+
       .reference-hose-data-row small {
         color: #cbd5e1;
       }
 
-      .reference-hose-data-row strong {
+      .reference-equipment-table th,
+      .reference-equipment-table td::before,
+      .reference-equipment-notes ul {
+        color: #cbd5e1;
+      }
+
+      .reference-hose-data-row strong,
+      .reference-equipment-table td,
+      .reference-equipment-notes strong {
         color: #f8fafc;
       }
 
@@ -789,6 +804,48 @@
   .reference-hose-data-source-missing {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+
+  .reference-equipment-table {
+    min-width: 0;
+  }
+
+  .reference-equipment-table thead {
+    display: none;
+  }
+
+  .reference-equipment-table,
+  .reference-equipment-table tbody,
+  .reference-equipment-table tr,
+  .reference-equipment-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .reference-equipment-table tr {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .reference-equipment-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .reference-equipment-table td {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: none;
+  }
+
+  .reference-equipment-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.15;
+    text-transform: uppercase;
   }
 
   .reference-partner-header {

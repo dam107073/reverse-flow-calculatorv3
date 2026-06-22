@@ -89,7 +89,7 @@
         reason: "references-page-load"
       });
   </script>
-  <script src="js/data/references.js"></script>
+  <script src="js/data/references.js?v=manufacturers-2"></script>
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
@@ -344,7 +344,7 @@
         <article class="hose-library-card reference-card reference-nav-card">
           <div>
             <strong>Manufacturers</strong>
-            <p class="helper">Hose manufacturer references are available now. Equipment manufacturer references are planned for a future update.</p>
+            <p class="helper">Hose and equipment manufacturer references for supported Reverse Flow products.</p>
           </div>
           <a class="reset-button reference-open-button" href="references.html?section=manufacturers">
             Open
@@ -378,7 +378,7 @@
         createCollapsedSection(
           "Manufacturers",
           manufacturerCount
-            ? `${manufacturerCount} manufacturer resource page`
+            ? `${manufacturerCount} manufacturer resource ${manufacturerCount === 1 ? "page" : "pages"}`
             : "Manufacturer reference materials coming soon",
           manufacturerBody
         )
@@ -494,19 +494,161 @@
       });
     }
 
-    function renderEquipmentManufacturers() {
+    function createEquipmentSpecificationTable(category) {
+      const columns = Array.isArray(category.columns) ? category.columns : [];
+      const rows = Array.isArray(category.rows) ? category.rows : [];
+
+      if (!columns.length || !rows.length) {
+        return `<p class="helper">Product specifications coming soon.</p>`;
+      }
+
+      return `
+        <div class="reference-equipment-table-wrap">
+          <table class="reference-equipment-table">
+            <thead>
+              <tr>
+                ${columns.map(column => `<th>${escapeHtml(column)}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  ${columns.map((column, index) => `
+                    <td data-label="${escapeHtml(column)}">${escapeHtml(formatReferenceValue(row[index]))}</td>
+                  `).join("")}
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function createEquipmentNotes(notes) {
+      if (!Array.isArray(notes) || notes.length === 0) {
+        return "";
+      }
+
+      return `
+        <div class="reference-equipment-notes">
+          <strong>Reverse Flow Notes</strong>
+          <ul>
+            ${notes.map(note => `<li>${escapeHtml(note)}</li>`).join("")}
+          </ul>
+        </div>
+      `;
+    }
+
+    function createEquipmentCategoryCards(manufacturer) {
+      const categories = Array.isArray(manufacturer.categories)
+        ? manufacturer.categories
+        : [];
+
+      if (!categories.length) {
+        return `<p class="helper">Product categories coming soon.</p>`;
+      }
+
+      return categories.map(category => `
+        <details class="hose-library-card reference-equipment-category-card collapsible-settings-card">
+          <summary>
+            <span>
+              <strong>${escapeHtml(category.name)}</strong>
+              <span class="helper">${escapeHtml(category.helper || "Product specifications")}</span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body reference-equipment-category-body">
+            ${createEquipmentSpecificationTable(category)}
+            ${createEquipmentNotes(category.notes)}
+          </div>
+        </details>
+      `).join("");
+    }
+
+    function renderEquipmentManufacturers(data) {
+      const equipmentManufacturers = getEquipmentManufacturers(data);
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=manufacturers">
             Back to Manufacturers
           </a>
           <h2>Equipment Manufacturers</h2>
+          <p class="helper">Published product references and Reverse Flow integration notes by manufacturer.</p>
         </div>
-        <article class="hose-library-card reference-card reference-empty-card">
+      `;
+
+      if (!equipmentManufacturers.length) {
+        referencesList.insertAdjacentHTML(
+          "beforeend",
+          `
+            <article class="hose-library-card reference-card reference-empty-card">
+              <div>
+                <strong>Equipment Manufacturers Coming Soon</strong>
+                <p class="helper">Equipment manufacturer reference pages have not been added yet.</p>
+              </div>
+            </article>
+          `
+        );
+        return;
+      }
+
+      equipmentManufacturers.forEach(manufacturer => {
+        referencesList.appendChild(
+          createReferenceLinkCard(
+            manufacturer.name,
+            `${manufacturer.categories.length} product ${manufacturer.categories.length === 1 ? "category" : "categories"}`,
+            getReferenceUrl("equipment-manufacturer", manufacturer.id),
+            "View Products"
+          )
+        );
+      });
+    }
+
+    function renderEquipmentManufacturer(data, id) {
+      const manufacturer = getEquipmentManufacturers(data).find(item => item.id === id);
+
+      if (!manufacturer) {
+        renderEquipmentManufacturers(data);
+        return;
+      }
+
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=equipment-manufacturers">
+            Back to Equipment Manufacturers
+          </a>
+          <h2>${escapeHtml(manufacturer.name)}</h2>
+        </div>
+
+        <article class="hose-library-card reference-card reference-category-card reference-partner-detail-card">
+          <strong>About</strong>
+          <p class="helper">${escapeHtml(manufacturer.about)}</p>
+        </article>
+
+        ${createManufacturerWebsiteCard(manufacturer)}
+
+        <div class="references-group">
+          <h2>Product Categories</h2>
+          <p class="helper">${escapeHtml(manufacturer.categories.length)} published product ${manufacturer.categories.length === 1 ? "category" : "categories"}.</p>
+        </div>
+
+        <div class="reference-equipment-category-list">
+          ${createEquipmentCategoryCards(manufacturer)}
+        </div>
+
+        <article class="hose-library-card reference-card reference-website-card">
           <div>
-            <strong>Equipment Manufacturers Coming Soon</strong>
-            <p class="helper">Equipment manufacturer reference pages have not been added yet.</p>
+            <strong>Source/reference note</strong>
+            <p class="helper">${escapeHtml(manufacturer.sourceNote)}</p>
+            <p class="helper">${escapeHtml(manufacturer.sourceUrl)}</p>
           </div>
+          <a
+            class="reset-button reference-open-button"
+            href="${escapeHtml(manufacturer.sourceUrl)}"
+            target="_blank"
+            rel="noopener"
+          >
+            Open Source
+          </a>
         </article>
       `;
     }
@@ -682,6 +824,11 @@
         return;
       }
 
+      if (getEquipmentManufacturers(data).some(item => item.id === id)) {
+        renderEquipmentManufacturer(data, id);
+        return;
+      }
+
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=manufacturers">
@@ -752,6 +899,11 @@
 
       if (route.section === "hose-manufacturer") {
         renderHoseManufacturer(data, route.id);
+        return;
+      }
+
+      if (route.section === "equipment-manufacturer") {
+        renderEquipmentManufacturer(data, route.id);
         return;
       }
 
