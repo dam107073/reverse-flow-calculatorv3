@@ -97,11 +97,15 @@
       hoseLibraryList: document.getElementById("hoseLibraryList"),
       defaultHoseSelectionsList: document.getElementById("defaultHoseSelectionsList"),
       defaultHoseCoefficientsList: document.getElementById("defaultHoseCoefficientsList"),
+      customHoseProfileName: document.getElementById("customHoseProfileName"),
       customHoseManufacturer: document.getElementById("customHoseManufacturer"),
       customHoseModel: document.getElementById("customHoseModel"),
       customHoseSize: document.getElementById("customHoseSize"),
       customHoseUse: document.getElementById("customHoseUse"),
       customHoseCoefficient: document.getElementById("customHoseCoefficient"),
+      customHoseChargedId50: document.getElementById("customHoseChargedId50"),
+      customHoseChargedId150: document.getElementById("customHoseChargedId150"),
+      customHoseNotes: document.getElementById("customHoseNotes"),
       createCustomHoseButton: document.getElementById("createCustomHoseButton"),
       resetHoseCoefficientsButton: document.getElementById("resetHoseCoefficientsButton"),
       resetButton: document.getElementById("resetButton"),
@@ -1312,8 +1316,10 @@ function saveHoseLibrarySelection(hoseId, libraryHose) {
 
   savedSelections[hoseId] = {
     id: libraryHose.id,
+    profileName: libraryHose.profileName || "",
     manufacturer: libraryHose.manufacturer,
     model: libraryHose.model,
+    sourceModel: libraryHose.sourceModel || libraryHose.model || "",
     coefficient: libraryHose.coefficient
   };
 
@@ -1335,35 +1341,20 @@ function clearHoseLibrarySelection(hoseId) {
 }
 
 async function loadHoseLibraryData() {
-  if (hoseLibraryRows.length) return;
-
-  try {
-    const response = await fetch("js/data/hose-library.js?v=3");
-
-    if (!response.ok) {
-      throw new Error(`Hose library request failed: ${response.status}`);
-    }
-
-    const rows = await response.json();
-
-    hoseLibraryRows = Array.isArray(rows) ? rows : [];
-  } catch (error) {
-    console.warn("[Reverse Flow] Hose library failed to load.", error);
-    hoseLibraryRows = [];
-  }
+  hoseLibraryRows = [];
 }
 
 function getHoseLibraryRows() {
-  return [
-    ...hoseLibraryRows,
-    ...loadCustomHoseProfiles()
-  ];
+  return loadCustomHoseProfiles();
 }
 
 function loadCustomHoseProfiles() {
   try {
     const saved = localStorage.getItem(CUSTOM_HOSE_PROFILES_KEY);
-    return saved ? JSON.parse(saved) : [];
+    const profiles = saved ? JSON.parse(saved) : [];
+    return Array.isArray(profiles)
+      ? profiles.map(normalizeHoseProfile)
+      : [];
   } catch {
     return [];
   }
@@ -1372,8 +1363,46 @@ function loadCustomHoseProfiles() {
 function saveCustomHoseProfiles(customHoses) {
   localStorage.setItem(
     CUSTOM_HOSE_PROFILES_KEY,
-    JSON.stringify(customHoses)
+    JSON.stringify(customHoses.map(normalizeHoseProfile))
   );
+}
+
+function normalizeHoseProfile(profile = {}) {
+  const manufacturer = String(profile.manufacturer || "").trim();
+  const model = String(profile.model || profile.sourceModel || "").trim();
+  const profileName = String(
+    profile.profileName ||
+    profile.name ||
+    [manufacturer, model].filter(Boolean).join(" ") ||
+    "Custom Hose Profile"
+  ).trim();
+
+  return {
+    ...profile,
+    id: profile.id || `custom-hose-${Date.now()}`,
+    profileName,
+    manufacturer,
+    model,
+    sourceModel: String(profile.sourceModel || model || "").trim(),
+    tradeSize: profile.tradeSize || "",
+    appHoseId: profile.appHoseId || "",
+    chargedId50: profile.chargedId50 ?? null,
+    chargedId150: profile.chargedId150 ?? null,
+    coefficient: profile.coefficient ?? null,
+    referenceUrl: profile.referenceUrl || "",
+    notes: profile.notes || "",
+    custom: true,
+    customUse: profile.customUse || profile.use || "both",
+    sourceType: profile.sourceType || (profile.referenceUrl ? "manufacturer-reference" : "custom")
+  };
+}
+
+function getHoseProfileDisplayName(profile = {}) {
+  return String(
+    profile.profileName ||
+    [profile.manufacturer, profile.model].filter(Boolean).join(" ") ||
+    "Custom Hose Profile"
+  ).trim();
 }
 
 function getCustomHoseUseLabel(useValue) {
@@ -1397,22 +1426,30 @@ function populateCustomHoseSizeOptions() {
 }
 
 function clearCustomHoseForm() {
+  if (els.customHoseProfileName) els.customHoseProfileName.value = "";
   if (els.customHoseManufacturer) els.customHoseManufacturer.value = "";
   if (els.customHoseModel) els.customHoseModel.value = "";
   if (els.customHoseCoefficient) els.customHoseCoefficient.value = "";
+  if (els.customHoseChargedId50) els.customHoseChargedId50.value = "";
+  if (els.customHoseChargedId150) els.customHoseChargedId150.value = "";
+  if (els.customHoseNotes) els.customHoseNotes.value = "";
   if (els.customHoseUse) els.customHoseUse.value = "both";
 }
 
 function createCustomHoseProfile() {
   const selectedHose = getHoseOptionById(els.customHoseSize?.value);
+  const profileName = els.customHoseProfileName?.value.trim();
   const manufacturer =
-    els.customHoseManufacturer?.value.trim() || "Custom";
+    els.customHoseManufacturer?.value.trim() || "";
   const model = els.customHoseModel?.value.trim();
   const coefficient = numberOrNull(els.customHoseCoefficient?.value);
+  const chargedId50 = numberOrNull(els.customHoseChargedId50?.value);
+  const chargedId150 = numberOrNull(els.customHoseChargedId150?.value);
+  const notes = els.customHoseNotes?.value.trim() || "";
   const useValue = els.customHoseUse?.value || "both";
 
-  if (!selectedHose || !model) {
-    alert("Enter a custom hose name and size.");
+  if (!selectedHose || !profileName) {
+    alert("Enter a profile name and hose size.");
     return;
   }
 
@@ -1424,16 +1461,20 @@ function createCustomHoseProfile() {
   const customHoses = loadCustomHoseProfiles();
   const newHose = {
     id: `custom-hose-${Date.now()}`,
+    profileName,
     manufacturer,
     model,
+    sourceModel: model,
     tradeSize: selectedHose.label,
     appHoseId: selectedHose.id,
-    chargedId50: null,
-    chargedId150: null,
+    chargedId50,
+    chargedId150,
     coefficient,
     referenceUrl: "",
+    notes,
     custom: true,
-    customUse: useValue
+    customUse: useValue,
+    sourceType: "custom"
   };
 
   customHoses.push(newHose);
@@ -1443,7 +1484,7 @@ function createCustomHoseProfile() {
   renderHoseLibrary();
   renderDefaultHoseSelections();
 
-  alert(`${manufacturer} ${model} was added to the Hose Library.`);
+  alert(`${profileName} was added to My Hose Profiles.`);
 }
 
 function deleteCustomHoseProfile(customHoseId) {
@@ -1451,12 +1492,12 @@ function deleteCustomHoseProfile(customHoseId) {
   const customHose = customHoses.find(hose => hose.id === customHoseId);
 
   if (!customHose) {
-    alert("This custom hose could not be found.");
+    alert("This hose profile could not be found.");
     return;
   }
 
   const confirmed = confirm(
-    `Delete ${customHose.manufacturer} ${customHose.model} from the Hose Library?`
+    `Delete ${getHoseProfileDisplayName(customHose)} from My Hose Profiles?`
   );
 
   if (!confirmed) return;
@@ -1485,7 +1526,83 @@ function deleteCustomHoseProfile(customHoseId) {
   renderHoseLibrary();
   renderDefaultHoseSelections();
 
-  alert(`${customHose.manufacturer} ${customHose.model} was deleted.`);
+  alert(`${getHoseProfileDisplayName(customHose)} was deleted.`);
+}
+
+function editCustomHoseProfile(customHoseId) {
+  const customHoses = loadCustomHoseProfiles();
+  const customHoseIndex = customHoses.findIndex(hose => hose.id === customHoseId);
+
+  if (customHoseIndex === -1) {
+    alert("This hose profile could not be found.");
+    return;
+  }
+
+  const currentHose = customHoses[customHoseIndex];
+  const profileName = prompt("Profile name:", getHoseProfileDisplayName(currentHose));
+  if (profileName === null) return;
+
+  const coefficientText = prompt("Coefficient:", currentHose.coefficient ?? "");
+  if (coefficientText === null) return;
+
+  const coefficient = numberOrNull(coefficientText);
+  if (coefficient === null || coefficient <= 0) {
+    alert("Enter a valid hose coefficient greater than 0.");
+    return;
+  }
+
+  const manufacturer = prompt("Manufacturer:", currentHose.manufacturer || "");
+  if (manufacturer === null) return;
+
+  const sourceModel = prompt("Source product / model:", currentHose.sourceModel || currentHose.model || "");
+  if (sourceModel === null) return;
+
+  const chargedId50Text = prompt("Charged ID @50:", currentHose.chargedId50 ?? "");
+  if (chargedId50Text === null) return;
+
+  const chargedId150Text = prompt("Charged ID @150:", currentHose.chargedId150 ?? "");
+  if (chargedId150Text === null) return;
+
+  const notes = prompt("Notes:", currentHose.notes || "");
+  if (notes === null) return;
+
+  const updatedHose = normalizeHoseProfile({
+    ...currentHose,
+    profileName: profileName.trim() || getHoseProfileDisplayName(currentHose),
+    manufacturer: manufacturer.trim(),
+    model: sourceModel.trim(),
+    sourceModel: sourceModel.trim(),
+    coefficient,
+    chargedId50: numberOrNull(chargedId50Text),
+    chargedId150: numberOrNull(chargedId150Text),
+    notes: notes.trim()
+  });
+
+  customHoses[customHoseIndex] = updatedHose;
+  saveCustomHoseProfiles(customHoses);
+
+  if (updatedHose.appHoseId) {
+    const defaultProfile = getDefaultHoseProfile(updatedHose.appHoseId);
+
+    if (defaultProfile?.id === updatedHose.id) {
+      saveHoseLibrarySelection(updatedHose.appHoseId, updatedHose);
+      saveDefaultHoseProfile(updatedHose.appHoseId, {
+        ...updatedHose,
+        use: getHoseLibraryUseLabel(updatedHose)
+      });
+    }
+  }
+
+  if (els.calculatorView) {
+    populateHoseOptions();
+    els.hoseSize.value = state.hoseSize;
+    syncCoefficientUi();
+    updateCalculator();
+  }
+
+  renderHoseLibrary();
+  renderDefaultHoseSelections();
+  alert(`${getHoseProfileDisplayName(updatedHose)} was updated.`);
 }
 
 const SUPPLY_HOSE_IDS =
@@ -1499,7 +1616,7 @@ const ATTACK_HOSE_IDS =
   const defaultProfile = getDefaultHoseProfile(hose.id);
 
   if (defaultProfile) {
-    return `${hose.label} — ${defaultProfile.manufacturer} ${defaultProfile.model} — Calculation C ${activeCoefficient}`;
+    return `${hose.label} — ${getHoseProfileDisplayName(defaultProfile)} — Calculation C ${activeCoefficient}`;
   }
 
   const coefficientLabel = isModifiedHoseCoefficient(hose.id)
@@ -1670,8 +1787,9 @@ function getHoseLibraryUseLabel(hose) {
 function getDefaultHoseDisplaySource(hoseId) {
   const defaultProfile = getDefaultHoseProfile(hoseId);
 
-  if (defaultProfile?.custom) return "Custom hose";
-  if (defaultProfile) return "Catalog";
+  if (defaultProfile?.sourceType === "manufacturer-reference") return "Manufacturer-derived profile";
+  if (defaultProfile?.custom) return "My Hose Profiles";
+  if (defaultProfile) return "My Hose Profiles";
 
   const savedCoefficients = loadSavedHoseCoefficients();
 
@@ -1684,7 +1802,7 @@ function getDefaultHoseDisplayName(hose) {
   const defaultProfile = getDefaultHoseProfile(hose.id);
 
   if (defaultProfile) {
-    return `${defaultProfile.manufacturer} ${defaultProfile.model}`;
+    return getHoseProfileDisplayName(defaultProfile);
   }
 
   if (getDefaultHoseDisplaySource(hose.id) === "Custom override") {
@@ -1741,10 +1859,10 @@ function renderDefaultHoseSelections() {
       const calculationCoefficient = getActiveHoseCoefficient(hose.id);
       const publishedCoefficient = getPublishedHoseCoefficient(defaultProfile);
       const profileMeta = defaultProfile
-        ? `<p class="helper">Use: ${escapeHtml(defaultProfile.use || "Catalog")} • Catalog ID: ${escapeHtml(defaultProfile.id)}</p>`
+        ? `<p class="helper">Use: ${escapeHtml(defaultProfile.use || "Profile")} • Profile ID: ${escapeHtml(defaultProfile.id)}</p>`
         : "";
       const defaultHoseText = defaultProfile
-        ? `${defaultProfile.manufacturer} ${defaultProfile.model}`
+        ? getHoseProfileDisplayName(defaultProfile)
         : "Built-in default";
       const publishedCoefficientText = defaultProfile
         ? formatLibraryValue(publishedCoefficient)
@@ -1955,21 +2073,25 @@ function renderHoseLibraryCard(hose) {
       ? `Set as Default for ${appHose.label}`
       : "Reference Only";
   const useLabel = getHoseLibraryUseLabel(hose);
-  const sourceLink = hose.custom
-    ? "Custom Hose"
-    : hose.referenceUrl
-      ? `<a href="${escapeHtml(hose.referenceUrl)}" target="_blank" rel="noopener">Source</a>`
-      : "Source —";
+  const sourceLink = hose.referenceUrl
+    ? `<a href="${escapeHtml(hose.referenceUrl)}" target="_blank" rel="noopener">Source</a>`
+    : "Local Profile";
   const coefficientText = hose.coefficient === null
     ? "Still gathering data"
-    : `Published C ${formatLibraryValue(hose.coefficient)}`;
+    : `C ${formatLibraryValue(hose.coefficient)}`;
+  const sourceMeta = [
+    hose.manufacturer,
+    hose.sourceModel || hose.model
+  ].filter(Boolean).join(" ");
 
   return `
     <article class="hose-library-card${isSelected ? " active" : ""}">
       <div class="hose-library-card-header">
         <div>
-          <strong>${escapeHtml(hose.manufacturer)} ${escapeHtml(hose.model)}</strong>
+          <strong>${escapeHtml(getHoseProfileDisplayName(hose))}</strong>
           <p class="helper">${escapeHtml(hose.tradeSize)}${appHose ? ` maps to ${escapeHtml(appHose.label)}` : " reference only"}</p>
+          ${sourceMeta ? `<p class="helper">Source: ${escapeHtml(sourceMeta)}</p>` : ""}
+          ${hose.notes ? `<p class="helper">Notes: ${escapeHtml(hose.notes)}</p>` : ""}
         </div>
         <span class="hose-library-coefficient">
           ${escapeHtml(coefficientText)}
@@ -1993,6 +2115,13 @@ function renderHoseLibraryCard(hose) {
           ${escapeHtml(buttonText)}
         </button>
         ${hose.custom ? `
+          <button
+            class="small-button hose-library-edit-button"
+            type="button"
+            data-custom-hose-edit-id="${escapeHtml(hose.id)}"
+          >
+            Edit
+          </button>
           <button
             class="small-button hose-library-delete-button"
             type="button"
@@ -2030,17 +2159,21 @@ function renderHoseLibrary() {
   ).length;
 
   els.hoseLibrarySummary.textContent =
-    `${libraryRows.length} hose profiles shown. ${selectableCount} can be set as a local default.`;
+    `${libraryRows.length} hose ${libraryRows.length === 1 ? "profile" : "profiles"} shown. ${selectableCount} can be set as a local default.`;
 
   try {
-    els.hoseLibraryList.innerHTML = libraryRows
-      .map(renderHoseLibraryCard)
-      .join("");
+    els.hoseLibraryList.innerHTML = libraryRows.length
+      ? libraryRows.map(renderHoseLibraryCard).join("")
+      : `
+        <div class="disabled-note">
+          Create a custom hose, or select one from the Hose Manufacturer reference library to add.
+        </div>
+      `;
   } catch (error) {
-    console.error("[Reverse Flow] Hose library render failed.", error);
+    console.error("[Reverse Flow] My Hose Profiles render failed.", error);
     els.hoseLibraryList.innerHTML = `
       <div class="disabled-note">
-        Hose Library could not render.
+        My Hose Profiles could not render.
       </div>
     `;
   }
@@ -2050,6 +2183,14 @@ function renderHoseLibrary() {
     .forEach(button => {
       button.addEventListener("click", () => {
         applyHoseLibraryDefault(button.dataset.hoseLibraryId);
+      });
+    });
+
+  els.hoseLibraryList
+    .querySelectorAll("[data-custom-hose-edit-id]")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        editCustomHoseProfile(button.dataset.customHoseEditId);
       });
     });
 
@@ -2067,13 +2208,13 @@ function applyHoseLibraryDefault(libraryId) {
     .find(hose => hose.id === libraryId);
 
   if (!libraryHose || !libraryHose.appHoseId) {
-    alert("This hose library entry cannot be selected as an app default.");
+    alert("This hose profile cannot be selected as an app default.");
     return;
   }
 
   const appHose = getHoseOptionById(libraryHose.appHoseId);
   const confirmed = confirm(
-    `Set ${libraryHose.manufacturer} ${libraryHose.model} as the default reference profile for ${appHose.label} hose? Calculation coefficients will not change.`
+    `Set ${getHoseProfileDisplayName(libraryHose)} as the default profile name for ${appHose.label} hose? Calculation coefficients will not change.`
   );
 
   if (!confirmed) return;
@@ -4228,7 +4369,7 @@ els.customCoefficient.placeholder = String(activeCoefficient);
 els.coefficientHelper.textContent = state.useCustomCoefficient
   ? "Using temporary custom coefficient for this calculation only."
   : getDefaultHoseProfile(selectedHose.id)
-    ? `Using default hose reference: ${getDefaultHoseProfile(selectedHose.id).manufacturer} ${getDefaultHoseProfile(selectedHose.id).model}. Calculation coefficient: ${activeCoefficient}.${modifiedText}`
+    ? `Using default hose profile: ${getHoseProfileDisplayName(getDefaultHoseProfile(selectedHose.id))}. Calculation coefficient: ${activeCoefficient}.${modifiedText}`
     : `Using hose default coefficient: ${activeCoefficient}.${modifiedText}`;
 
     }

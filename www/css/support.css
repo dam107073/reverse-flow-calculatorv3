@@ -906,7 +906,7 @@
 
     .reference-hose-data-row {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) auto auto;
       gap: 8px;
       align-items: stretch;
       padding: 10px;
@@ -948,6 +948,11 @@
       color: var(--accent);
       -webkit-text-fill-color: var(--accent);
       text-decoration: none;
+    }
+
+    .reference-add-profile-button {
+      align-self: center;
+      white-space: nowrap;
     }
 
     .reference-hose-data-source-missing {

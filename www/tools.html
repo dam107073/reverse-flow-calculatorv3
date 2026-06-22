@@ -37,8 +37,8 @@
   <link rel="stylesheet" href="css/base.css?v=build-7" />
   <link rel="stylesheet" href="css/components.css?v=flash-4" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=build-14" />
-  <link rel="stylesheet" href="css/responsive.css?v=build-11" />
+  <link rel="stylesheet" href="css/support.css?v=build-15" />
+  <link rel="stylesheet" href="css/responsive.css?v=build-12" />
 </head>
 
 <body>
@@ -204,23 +204,23 @@
               <span>
                 <strong>Hose Management</strong>
                 <span class="helper">
-                  Hose reference profiles and department-specific hose entries.
+                  User-owned hose profiles and default hose names.
                 </span>
               </span>
             </summary>
             <div class="collapsible-card-body">
-              <details class="tool-subsection collapsible-settings-card hose-library-panel" data-tools-section="hose-library" data-tools-title="Hose Library" data-tools-path="Tools / Hose Management / Hose Library">
+              <details class="tool-subsection collapsible-settings-card hose-library-panel" data-tools-section="hose-library" data-tools-title="My Hose Profiles" data-tools-path="Tools / Hose Management / My Hose Profiles">
                 <summary>
                   <span>
-                    <strong>Hose Library</strong>
+                    <strong>My Hose Profiles</strong>
                     <span class="helper">
-                      Manufacturer hose reference profiles for hydraulic planning and default hose selection.
+                      Department, custom, and manufacturer-derived hose profiles for default hose naming.
                     </span>
                   </span>
                 </summary>
                 <div class="collapsible-card-body">
                   <p class="helper hose-library-disclaimer">
-                    Hose Library is a work in progress and is provided for reference only. Entries are added when published manufacturer references are available, so coverage is limited by what manufacturers publish and can verify. Actual hydraulic performance may vary due to hose age, condition, manufacturing revision, testing methods, and department practices.
+                    My Hose Profiles contains user-created hose profiles. Manufacturer reference data stays read-only under References, and any manufacturer-derived profile here is a local copy you can edit for your department.
                   </p>
                   <div class="hose-library-filters">
                     <div class="field">
@@ -250,22 +250,27 @@
               <details class="tool-subsection collapsible-settings-card custom-hose-panel" data-tools-section="create-custom-hose" data-tools-title="Create Custom Hose" data-tools-path="Tools / Hose Management / Create Custom Hose">
                 <summary>
                   <span>
-                    <strong>Create Custom Hose</strong>
+                    <strong>Create Hose Profile</strong>
                     <span class="helper">
-                      Add a department-specific hose profile to the Hose Library.
+                      Add a department-specific or custom hose profile to My Hose Profiles.
                     </span>
                   </span>
                 </summary>
                 <div class="collapsible-card-body">
                   <div class="custom-hose-form">
                     <div class="field">
+                      <label for="customHoseProfileName">Profile Name</label>
+                      <input id="customHoseProfileName" type="text" placeholder="Henry County Attack Hose" />
+                    </div>
+
+                    <div class="field">
                       <label for="customHoseManufacturer">Manufacturer</label>
                       <input id="customHoseManufacturer" type="text" placeholder="Department / Manufacturer" />
                     </div>
 
                     <div class="field">
-                      <label for="customHoseModel">Model / Name</label>
-                      <input id="customHoseModel" type="text" placeholder="Custom hose name" />
+                      <label for="customHoseModel">Source Product / Model</label>
+                      <input id="customHoseModel" type="text" placeholder="Optional source model" />
                     </div>
 
                     <div class="field">
@@ -287,8 +292,23 @@
                       <input id="customHoseCoefficient" type="text" inputmode="decimal" placeholder="C value" />
                     </div>
 
+                    <div class="field">
+                      <label for="customHoseChargedId50">Charged ID @50</label>
+                      <input id="customHoseChargedId50" type="text" inputmode="decimal" placeholder="Optional" />
+                    </div>
+
+                    <div class="field">
+                      <label for="customHoseChargedId150">Charged ID @150</label>
+                      <input id="customHoseChargedId150" type="text" inputmode="decimal" placeholder="Optional" />
+                    </div>
+
+                    <div class="field full">
+                      <label for="customHoseNotes">Notes</label>
+                      <input id="customHoseNotes" type="text" placeholder="Optional department notes" />
+                    </div>
+
                     <button id="createCustomHoseButton" class="reset-button" type="button">
-                      Add to Hose Library
+                      Add to My Hose Profiles
                     </button>
                   </div>
                 </div>
@@ -311,7 +331,7 @@
                   <span>
                     <strong>Default Hose Selections</strong>
                     <span class="helper">
-                      Manufacturer hose references selected from the Hose Library.
+                      Hose profile names selected from My Hose Profiles.
                     </span>
                   </span>
                 </summary>
@@ -383,7 +403,7 @@
 
           <section class="pro-summary-item">
             <h3>Resources &amp; Tools</h3>
-            <p>Hose Library, hydraulic tools, and future additions.</p>
+            <p>My Hose Profiles, hydraulic tools, and future additions.</p>
           </section>
         </div>
 
@@ -408,8 +428,8 @@
 
   <script src="js/constants.js?v=build-6"></script>
   <script src="js/services/entitlement.js?v=build-2"></script>
-  <script src="js/data/hydraulics.js?v=build-7"></script>
-  <script src="js/app.js?v=build-25"></script>
+  <script src="js/data/hydraulics.js?v=build-8"></script>
+  <script src="js/app.js?v=build-28"></script>
   <script src="js/tools-calculators.js?v=build-7"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>

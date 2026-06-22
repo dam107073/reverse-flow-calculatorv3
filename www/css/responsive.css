@@ -801,6 +801,7 @@
   }
 
   .reference-hose-data-row a,
+  .reference-add-profile-button,
   .reference-hose-data-source-missing {
     grid-column: 1 / -1;
     justify-self: start;

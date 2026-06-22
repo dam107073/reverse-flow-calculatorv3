@@ -37,8 +37,8 @@
   <link rel="stylesheet" href="css/base.css?v=build-6" />
   <link rel="stylesheet" href="css/components.css?v=flash-3" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=build-14" />
-  <link rel="stylesheet" href="css/responsive.css?v=build-11" />
+  <link rel="stylesheet" href="css/support.css?v=build-15" />
+  <link rel="stylesheet" href="css/responsive.css?v=build-12" />
 </head>
 
 <body>
@@ -667,6 +667,100 @@
         : `<span class="reference-hose-data-source-missing">Not published</span>`;
     }
 
+    function getProfileHoseIdFromTradeSize(tradeSize) {
+      const normalized = String(tradeSize || "")
+        .replaceAll('"', "")
+        .trim();
+      const tradeSizeMap = {
+        "1": "1",
+        "1.5": "1.5",
+        "1.75": "1.75",
+        "1.88": "1.88",
+        "2": "2",
+        "2.25": "2.25",
+        "2.5": "2.5",
+        "3": "3",
+        "4": "4",
+        "5": "5"
+      };
+
+      return tradeSizeMap[normalized] || "";
+    }
+
+    function numberOrNull(value) {
+      const numberValue = Number(value);
+      return Number.isFinite(numberValue) ? numberValue : null;
+    }
+
+    function loadMyHoseProfiles() {
+      try {
+        const saved = localStorage.getItem(CUSTOM_HOSE_PROFILES_KEY);
+        const profiles = saved ? JSON.parse(saved) : [];
+        return Array.isArray(profiles) ? profiles : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveMyHoseProfiles(profiles) {
+      localStorage.setItem(CUSTOM_HOSE_PROFILES_KEY, JSON.stringify(profiles));
+    }
+
+    function addHoseReferenceToProfiles(button) {
+      const manufacturerName = button.dataset.manufacturerName || "";
+      const model = button.dataset.model || "";
+      const tradeSize = button.dataset.tradeSize || "";
+      const coefficient = numberOrNull(button.dataset.coefficient);
+
+      if (!model || coefficient === null || coefficient <= 0) {
+        alert("This hose reference row does not have enough published data to create a profile.");
+        return;
+      }
+
+      const profileName = `${manufacturerName} ${model} ${tradeSize}`.replace(/\s+/g, " ").trim();
+      const profiles = loadMyHoseProfiles();
+      const duplicateProfile = profiles.find(profile =>
+        profile.sourceType === "manufacturer-reference" &&
+        profile.manufacturer === manufacturerName &&
+        profile.model === model &&
+        profile.tradeSize === tradeSize &&
+        Number(profile.coefficient) === coefficient
+      );
+
+      if (duplicateProfile) {
+        const confirmed = confirm(`${profileName} already exists in My Hose Profiles. Add another copy?`);
+        if (!confirmed) return;
+      }
+
+      profiles.push({
+        id: `profile-from-reference-${Date.now()}`,
+        profileName,
+        manufacturer: manufacturerName,
+        model,
+        sourceModel: model,
+        tradeSize,
+        appHoseId: getProfileHoseIdFromTradeSize(tradeSize),
+        chargedId50: numberOrNull(button.dataset.chargedId50),
+        chargedId150: numberOrNull(button.dataset.chargedId150),
+        coefficient,
+        referenceUrl: button.dataset.referenceUrl || "",
+        notes: "Created from manufacturer reference data.",
+        custom: true,
+        customUse: "both",
+        sourceType: "manufacturer-reference"
+      });
+
+      saveMyHoseProfiles(profiles);
+      alert(`${profileName} was added to My Hose Profiles.`);
+    }
+
+    referencesList.addEventListener("click", event => {
+      const button = event.target.closest("[data-add-hose-profile]");
+      if (!button) return;
+
+      addHoseReferenceToProfiles(button);
+    });
+
     function groupHoseDataByModel(rows) {
       return rows.reduce((groups, row) => {
         if (!groups[row.model]) {
@@ -677,7 +771,7 @@
       }, {});
     }
 
-    function createHoseDataRows(rows) {
+    function createHoseDataRows(rows, manufacturer) {
       return rows.map(row => `
         <div class="reference-hose-data-row">
           <span>
@@ -697,6 +791,20 @@
             <strong>${escapeHtml(formatReferenceValue(row.coefficient))}</strong>
           </span>
           ${createHoseDataSourceLink(row)}
+          <button
+            class="small-button reference-add-profile-button"
+            type="button"
+            data-add-hose-profile
+            data-manufacturer-name="${escapeHtml(manufacturer.name)}"
+            data-model="${escapeHtml(row.model)}"
+            data-trade-size="${escapeHtml(formatReferenceValue(row.tradeSize))}"
+            data-charged-id50="${escapeHtml(formatReferenceValue(row.chargedId50))}"
+            data-charged-id150="${escapeHtml(formatReferenceValue(row.chargedId150))}"
+            data-coefficient="${escapeHtml(formatReferenceValue(row.coefficient))}"
+            data-reference-url="${escapeHtml(row.referenceUrl || "")}"
+          >
+            Add to My Hose Profiles
+          </button>
         </div>
       `).join("");
     }
@@ -712,7 +820,7 @@
             </span>
           </summary>
           <div class="collapsible-card-body reference-hose-data-grid">
-            ${createHoseDataRows(rows)}
+            ${createHoseDataRows(rows, manufacturer)}
           </div>
         </details>
       `).join("");

@@ -113,13 +113,16 @@ function saveDefaultHoseProfile(hoseId, libraryHose) {
 
   profiles[hoseId] = {
     id: libraryHose.id,
+    profileName: libraryHose.profileName || libraryHose.name || "",
     manufacturer: libraryHose.manufacturer,
     model: libraryHose.model,
+    sourceModel: libraryHose.sourceModel || libraryHose.model || "",
     size: libraryHose.appHoseId,
     publishedCoefficient: libraryHose.coefficient,
     coefficient: libraryHose.coefficient,
     use: libraryHose.use || "",
-    custom: !!libraryHose.custom
+    custom: !!libraryHose.custom,
+    sourceType: libraryHose.sourceType || ""
   };
 
   localStorage.setItem(
