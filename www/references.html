@@ -515,6 +515,16 @@
       return value === null || value === undefined || value === "" ? "Not published" : value;
     }
 
+    function createHoseDataSourceLink(row) {
+      return row.referenceUrl
+        ? `
+          <a href="${escapeHtml(row.referenceUrl)}" target="_blank" rel="noopener">
+            Source
+          </a>
+        `
+        : `<span class="reference-hose-data-source-missing">Not published</span>`;
+    }
+
     function groupHoseDataByModel(rows) {
       return rows.reduce((groups, row) => {
         if (!groups[row.model]) {
@@ -544,9 +554,7 @@
             <small>FL Coefficient</small>
             <strong>${escapeHtml(formatReferenceValue(row.coefficient))}</strong>
           </span>
-          <a href="${escapeHtml(row.referenceUrl)}" target="_blank" rel="noopener">
-            Source
-          </a>
+          ${createHoseDataSourceLink(row)}
         </div>
       `).join("");
     }

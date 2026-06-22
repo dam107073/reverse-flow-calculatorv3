@@ -936,13 +936,23 @@
       overflow-wrap: anywhere;
     }
 
-    .reference-hose-data-row a {
+    .reference-hose-data-row a,
+    .reference-hose-data-source-missing {
       align-self: center;
-      color: var(--accent);
-      -webkit-text-fill-color: var(--accent);
       font-size: 13px;
       font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .reference-hose-data-row a {
+      color: var(--accent);
+      -webkit-text-fill-color: var(--accent);
       text-decoration: none;
+    }
+
+    .reference-hose-data-source-missing {
+      color: var(--muted);
+      -webkit-text-fill-color: var(--muted);
       white-space: nowrap;
     }
 
