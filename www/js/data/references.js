@@ -130,7 +130,7 @@ const hoseManufacturerReferences = [
   {
     id: "snap-tite",
     name: "Snap-Tite",
-    websiteUrl: "https://www.snap-tite.com/",
+    websiteUrl: "https://www.snaptitehose.com/",
     sourceUrl: "https://www.snaptitehose.com/resources/friction-loss-calculator",
     about: "Snap-Tite manufactures fire hose and related hose products. This reference page organizes published hose data for quick field reference inside Reverse Flow.",
     notes: "Published hose data is provided for reference only. Departments should verify hose performance against their own equipment, testing, and SOPs. Friction loss coefficients and charged IDs may vary based on hose construction, age, condition, couplings, and test method.",
