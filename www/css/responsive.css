@@ -85,13 +85,27 @@
 
       .reference-nav-card,
       .reference-empty-card,
-      .reference-category-card {
+      .reference-category-card,
+      .reference-hose-data-card {
         border-color: rgba(51, 65, 85, 0.9);
         background:
           linear-gradient(180deg, rgba(17,24,39,0.94), rgba(15,23,42,0.86));
         box-shadow:
           inset 3px 0 0 rgba(251, 146, 60, 0.22),
           0 4px 14px rgba(0, 0, 0, 0.18);
+      }
+
+      .reference-hose-data-row {
+        border-color: rgba(148, 163, 184, 0.26);
+        background: rgba(255,255,255,0.06);
+      }
+
+      .reference-hose-data-row small {
+        color: #cbd5e1;
+      }
+
+      .reference-hose-data-row strong {
+        color: #f8fafc;
       }
 
       .field-calculator-note {
@@ -765,6 +779,15 @@
   .reference-website-card,
   .reference-category-list {
     grid-template-columns: 1fr;
+  }
+
+  .reference-hose-data-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reference-hose-data-row a {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .reference-partner-header {

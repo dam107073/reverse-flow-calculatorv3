@@ -106,11 +106,11 @@
     function getReferenceData() {
       return typeof referencesData === "object" && referencesData
         ? {
-            manufacturers: referencesData.manufacturers || [],
+            manufacturers: referencesData.manufacturers || { hose: [], equipment: [] },
             trainingPartners: referencesData.trainingPartners || [],
             trainingResources: referencesData.trainingResources || []
           }
-        : { manufacturers: [], trainingPartners: [], trainingResources: [] };
+        : { manufacturers: { hose: [], equipment: [] }, trainingPartners: [], trainingResources: [] };
     }
 
     function getRoute() {
@@ -165,11 +165,27 @@
           <div>
             <strong>Manufacturer References Coming Soon</strong>
             <p class="helper">
-              Manufacturer reference materials will be added here as permissions are approved. This section is intended to provide direct access to official manufacturer resources and documentation.
+              Manufacturer reference materials will be added here as published source data is reviewed.
             </p>
           </div>
         </article>
       `;
+    }
+
+    function getHoseManufacturers(data) {
+      return Array.isArray(data.manufacturers && data.manufacturers.hose)
+        ? data.manufacturers.hose
+        : [];
+    }
+
+    function getEquipmentManufacturers(data) {
+      return Array.isArray(data.manufacturers && data.manufacturers.equipment)
+        ? data.manufacturers.equipment
+        : [];
+    }
+
+    function getManufacturerCount(data) {
+      return getHoseManufacturers(data).length + getEquipmentManufacturers(data).length;
     }
 
     function createCollapsedSection(title, helper, bodyHtml) {
@@ -323,17 +339,18 @@
 
     function renderOverview(data) {
       referencesList.innerHTML = "";
-      const manufacturerBody = data.manufacturers.length
-        ? createReferenceLinkList(
-            data.manufacturers.map(manufacturer => ({
-              id: manufacturer.id,
-              name: manufacturer.name,
-              helper: manufacturer.categories.join(", "),
-              actionText: "View Manufacturer"
-            })),
-            "manufacturer"
-          )
-        : createManufacturerEmptyStateHtml();
+      const manufacturerCount = getManufacturerCount(data);
+      const manufacturerBody = `
+        <article class="hose-library-card reference-card reference-nav-card">
+          <div>
+            <strong>Manufacturers</strong>
+            <p class="helper">Hose manufacturer references are available now. Equipment manufacturer references are planned for a future update.</p>
+          </div>
+          <a class="reset-button reference-open-button" href="references.html?section=manufacturers">
+            Open
+          </a>
+        </article>
+      `;
 
       const trainingPartnersBody = data.trainingPartners.length
         ? createReferenceLinkList(
@@ -360,8 +377,8 @@
       referencesList.appendChild(
         createCollapsedSection(
           "Manufacturers",
-          data.manufacturers.length
-            ? `${data.manufacturers.length} manufacturer resource pages`
+          manufacturerCount
+            ? `${manufacturerCount} manufacturer resource page`
             : "Manufacturer reference materials coming soon",
           manufacturerBody
         )
@@ -413,33 +430,197 @@
     }
 
     function renderManufacturers(data) {
+      const hoseManufacturers = getHoseManufacturers(data);
+      const equipmentManufacturers = getEquipmentManufacturers(data);
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html">
             Back to References
           </a>
           <h2>Manufacturers</h2>
+          <p class="helper">Browse manufacturer reference pages by category.</p>
         </div>
       `;
 
-      if (!data.manufacturers.length) {
-        referencesList.insertAdjacentHTML(
-          "beforeend",
-          createManufacturerEmptyStateHtml()
-        );
+      referencesList.appendChild(
+        createReferenceLinkCard(
+          "Hose Manufacturers",
+          hoseManufacturers.length
+            ? `${hoseManufacturers.length} hose manufacturer reference page`
+            : "Hose manufacturer references coming soon",
+          "references.html?section=hose-manufacturers",
+          "Open"
+        )
+      );
+
+      referencesList.appendChild(
+        createReferenceLinkCard(
+          "Equipment Manufacturers",
+          equipmentManufacturers.length
+            ? `${equipmentManufacturers.length} equipment manufacturer reference page`
+            : "Equipment manufacturer references coming soon",
+          "references.html?section=equipment-manufacturers",
+          "Open"
+        )
+      );
+    }
+
+    function renderHoseManufacturers(data) {
+      const hoseManufacturers = getHoseManufacturers(data);
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=manufacturers">
+            Back to Manufacturers
+          </a>
+          <h2>Hose Manufacturers</h2>
+          <p class="helper">Published hose data and source links by manufacturer.</p>
+        </div>
+      `;
+
+      if (!hoseManufacturers.length) {
+        referencesList.insertAdjacentHTML("beforeend", createManufacturerEmptyStateHtml());
         return;
       }
 
-      data.manufacturers.forEach(manufacturer => {
+      hoseManufacturers.forEach(manufacturer => {
         referencesList.appendChild(
           createReferenceLinkCard(
             manufacturer.name,
-            manufacturer.categories.join(", "),
-            getReferenceUrl("manufacturer", manufacturer.id),
-            "View Manufacturer"
+            `${manufacturer.hoseData.length} published hose data rows`,
+            getReferenceUrl("hose-manufacturer", manufacturer.id),
+            "View Data"
           )
         );
       });
+    }
+
+    function renderEquipmentManufacturers() {
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=manufacturers">
+            Back to Manufacturers
+          </a>
+          <h2>Equipment Manufacturers</h2>
+        </div>
+        <article class="hose-library-card reference-card reference-empty-card">
+          <div>
+            <strong>Equipment Manufacturers Coming Soon</strong>
+            <p class="helper">Equipment manufacturer reference pages have not been added yet.</p>
+          </div>
+        </article>
+      `;
+    }
+
+    function formatReferenceValue(value) {
+      return value === null || value === undefined || value === "" ? "Not published" : value;
+    }
+
+    function groupHoseDataByModel(rows) {
+      return rows.reduce((groups, row) => {
+        if (!groups[row.model]) {
+          groups[row.model] = [];
+        }
+        groups[row.model].push(row);
+        return groups;
+      }, {});
+    }
+
+    function createHoseDataRows(rows) {
+      return rows.map(row => `
+        <div class="reference-hose-data-row">
+          <span>
+            <small>Trade Size</small>
+            <strong>${escapeHtml(formatReferenceValue(row.tradeSize))}</strong>
+          </span>
+          <span>
+            <small>Charged ID @50</small>
+            <strong>${escapeHtml(formatReferenceValue(row.chargedId50))}</strong>
+          </span>
+          <span>
+            <small>Charged ID @150</small>
+            <strong>${escapeHtml(formatReferenceValue(row.chargedId150))}</strong>
+          </span>
+          <span>
+            <small>FL Coefficient</small>
+            <strong>${escapeHtml(formatReferenceValue(row.coefficient))}</strong>
+          </span>
+          <a href="${escapeHtml(row.referenceUrl)}" target="_blank" rel="noopener">
+            Source
+          </a>
+        </div>
+      `).join("");
+    }
+
+    function createHoseDataCards(manufacturer) {
+      const groupedRows = groupHoseDataByModel(manufacturer.hoseData || []);
+      return Object.entries(groupedRows).map(([model, rows]) => `
+        <details class="hose-library-card reference-hose-data-card collapsible-settings-card">
+          <summary>
+            <span>
+              <strong>${escapeHtml(model)}</strong>
+              <span class="helper">${rows.length} ${rows.length === 1 ? "entry" : "entries"}</span>
+            </span>
+          </summary>
+          <div class="collapsible-card-body reference-hose-data-grid">
+            ${createHoseDataRows(rows)}
+          </div>
+        </details>
+      `).join("");
+    }
+
+    function renderHoseManufacturer(data, id) {
+      const manufacturer = getHoseManufacturers(data).find(item => item.id === id);
+
+      if (!manufacturer) {
+        renderHoseManufacturers(data);
+        return;
+      }
+
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=hose-manufacturers">
+            Back to Hose Manufacturers
+          </a>
+          <h2>${escapeHtml(manufacturer.name)}</h2>
+        </div>
+
+        <article class="hose-library-card reference-card reference-category-card reference-partner-detail-card">
+          <strong>About</strong>
+          <p class="helper">${escapeHtml(manufacturer.about)}</p>
+        </article>
+
+        ${createManufacturerWebsiteCard(manufacturer)}
+
+        <div class="references-group">
+          <h2>Published Hose Data</h2>
+          <p class="helper">${escapeHtml(manufacturer.hoseData.length)} rows from the published source data.</p>
+        </div>
+
+        <div class="reference-hose-data-list">
+          ${createHoseDataCards(manufacturer)}
+        </div>
+
+        <article class="hose-library-card reference-card reference-category-card reference-partner-detail-card">
+          <strong>Reverse Flow Notes</strong>
+          <p class="helper">${escapeHtml(manufacturer.notes)}</p>
+        </article>
+
+        <article class="hose-library-card reference-card reference-website-card">
+          <div>
+            <strong>Source/reference note</strong>
+            <p class="helper">${escapeHtml(manufacturer.sourceNote)}</p>
+            <p class="helper">${escapeHtml(manufacturer.sourceUrl)}</p>
+          </div>
+          <a
+            class="reset-button reference-open-button"
+            href="${escapeHtml(manufacturer.sourceUrl)}"
+            target="_blank"
+            rel="noopener"
+          >
+            Open Source
+          </a>
+        </article>
+      `;
     }
 
     function renderTrainingPartners(data) {
@@ -478,10 +659,18 @@
     }
 
     function renderManufacturer(data, id) {
-      const manufacturer = data.manufacturers.find(item => item.id === id);
+      const manufacturer = [
+        ...getHoseManufacturers(data),
+        ...getEquipmentManufacturers(data)
+      ].find(item => item.id === id);
 
       if (!manufacturer) {
         renderOverview(data);
+        return;
+      }
+
+      if (getHoseManufacturers(data).some(item => item.id === id)) {
+        renderHoseManufacturer(data, id);
         return;
       }
 
@@ -540,6 +729,21 @@
 
       if (route.section === "manufacturers") {
         renderManufacturers(data);
+        return;
+      }
+
+      if (route.section === "hose-manufacturers") {
+        renderHoseManufacturers(data);
+        return;
+      }
+
+      if (route.section === "equipment-manufacturers") {
+        renderEquipmentManufacturers(data);
+        return;
+      }
+
+      if (route.section === "hose-manufacturer") {
+        renderHoseManufacturer(data, route.id);
         return;
       }
 

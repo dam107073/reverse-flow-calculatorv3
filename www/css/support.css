@@ -887,6 +887,65 @@
       margin-top: 6px;
     }
 
+    .reference-hose-data-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .reference-hose-data-card {
+      border-color: rgba(184, 195, 209, 0.8);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.78));
+      box-shadow: 0 3px 10px rgba(17, 24, 39, 0.05);
+    }
+
+    .reference-hose-data-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .reference-hose-data-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+      gap: 8px;
+      align-items: stretch;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .reference-hose-data-row span {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .reference-hose-data-row small {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+
+    .reference-hose-data-row strong {
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .reference-hose-data-row a {
+      align-self: center;
+      color: var(--accent);
+      -webkit-text-fill-color: var(--accent);
+      font-size: 13px;
+      font-weight: 900;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
     .reference-back-link {
       justify-self: start;
       min-height: 36px;
