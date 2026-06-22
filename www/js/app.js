@@ -2765,9 +2765,6 @@ function getSplitLayConfigurationSummary(splitLay = {}, result = {}) {
 }
 
 function getSplitLayOperationalSummary(splitLay = {}, result = {}) {
-  const totalFlow = formatGpmValue(result.splitSupplyFlow || result.calculatedFlow);
-  if (totalFlow) return `${totalFlow} Total`;
-
   if (String(splitLay.attackLines || "1") === "2") {
     return "2 Attack Lines";
   }
@@ -2874,11 +2871,8 @@ function getApparatusMountedConfigurationSummary(setupOrInputs = {}) {
     ? setupOrInputs
     : { inputs: setupOrInputs, result: {} };
   const stream = getApparatusMountedStreamSummary(setup);
-  const flowSummary = getApparatusMountedFlowSummary(setup);
 
-  if (stream && flowSummary) return `Deck Gun ${stream}\n${flowSummary}`;
   if (stream) return `Deck Gun ${stream}`;
-  if (flowSummary) return `Deck Gun\n${flowSummary}`;
 
   return "Apparatus Mounted";
 }
