@@ -7,7 +7,7 @@ const hoseManufacturerReferences = [
     sourceUrl: "https://www.knowyourhose.com/hose-specs",
     about: "Mercedes Textiles manufactures fire hose and related hose products. This reference page organizes published hose data for quick field reference inside Reverse Flow.",
     notes: "Published hose data is provided for reference only. Departments should verify hose performance against their own equipment, testing, and SOPs. Friction loss coefficients and charged IDs may vary based on hose construction, age, condition, couplings, and test method.",
-    sourceNote: "Hose data shown here is based on published manufacturer/reference data. Use the source link for the latest official information.",
+    sourceNote: "Reference information shown on this page is based on publicly available manufacturer information and published reference resources. Use the source links below for the most current information directly from the manufacturer.",
     hoseData: [
       { model: "KrakenExo LPX", tradeSize: "1.5\"", chargedId50: "1.73", chargedId150: "1.75", coefficient: "13.8", referenceUrl: "https://www.knowyourhose.com/hose-specs" },
       { model: "ExoMetro LPX", tradeSize: "1.75\"", chargedId50: "1.79", chargedId150: "2.07", coefficient: "13.7", referenceUrl: "https://www.knowyourhose.com/hose-specs" },
@@ -72,7 +72,7 @@ const hoseManufacturerReferences = [
     sourceUrl: "https://www.keyhose.com/Municipal/",
     about: "Key Hose manufactures fire hose and related hose products. This reference page organizes published hose data for quick field reference inside Reverse Flow.",
     notes: "Published hose data is provided for reference only. Departments should verify hose performance against their own equipment, testing, and SOPs. Friction loss coefficients and charged IDs may vary based on hose construction, age, condition, couplings, and test method.",
-    sourceNote: "Hose data shown here is based on published manufacturer/reference data. Use the source link for the latest official information.",
+    sourceNote: "Reference information shown on this page is based on publicly available information from the Key Hose Friction Loss Calculator and other published Key Hose resources. Use the official Key Hose resources for the most current information.",
     hoseData: [
       { model: "Combat Ready", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "6.59", referenceUrl: "https://www.keyhose.com/Municipal/" },
       { model: "Combat Ready 2x2.5", tradeSize: "2\"", chargedId50: "", chargedId150: "", coefficient: "4.13", referenceUrl: "https://www.keyhose.com/Municipal/" },
@@ -134,7 +134,7 @@ const hoseManufacturerReferences = [
     sourceUrl: "https://www.snaptitehose.com/resources/friction-loss-calculator",
     about: "Snap-Tite manufactures fire hose and related hose products. This reference page organizes published hose data for quick field reference inside Reverse Flow.",
     notes: "Published hose data is provided for reference only. Departments should verify hose performance against their own equipment, testing, and SOPs. Friction loss coefficients and charged IDs may vary based on hose construction, age, condition, couplings, and test method.",
-    sourceNote: "Hose data shown here is based on published manufacturer/reference data. Use the source link for the latest official information.",
+    sourceNote: "Reference information shown on this page is based on publicly available manufacturer information and published reference resources. Use the source links below for the most current information directly from the manufacturer.",
     hoseData: [
       { model: "Warrior FW15", tradeSize: "1.5\"", chargedId50: "", chargedId150: "", coefficient: "7.24", referenceUrl: "https://www.snaptitehose.com/resources/friction-loss-calculator" },
       { model: "Warrior FW17", tradeSize: "1.75\"", chargedId50: "2.23", chargedId150: "2.24", coefficient: "9.94", referenceUrl: "https://www.snaptitehose.com/resources/friction-loss-calculator" },
@@ -202,7 +202,7 @@ const hoseManufacturerReferences = [
     sourceUrl: "https://www.nafhc.com/",
     about: "North American Fire Hose manufactures municipal and industrial fire hose products. This page organizes published hose data for quick field reference within Reverse Flow.",
     notes: "Published hose data is provided for reference only. Departments should verify hose performance against their own equipment, testing, and SOPs. Friction loss coefficients and charged IDs may vary based on hose construction, age, condition, couplings, and test method.",
-    sourceNote: "Hose data shown here is based on published manufacturer/reference data. Use the source link for the latest official information.",
+    sourceNote: "Reference information shown on this page is based on publicly available manufacturer information and published reference resources. Use the source links below for the most current information directly from the manufacturer.",
     hoseData: [
       { model: "True Hero", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
       { model: "DBAK 800", tradeSize: "1.75\"", chargedId50: "", chargedId150: "", coefficient: "", referenceUrl: "" },
@@ -262,7 +262,7 @@ const equipmentManufacturerReferences = [
     websiteUrl: "https://www.hennozzles.com/",
     sourceUrl: "https://www.hennozzles.com/",
     about: "HEN manufactures nozzles, appliances, and fireground equipment for structural and wildland firefighting. HEN is best known for their proprietary blade nozzles, which produce a \"blade\" pattern resulting in increased surface area distribution of large droplets. HEN is also known for their revolutionary Turbo devices, which act as back pressure increasers to improve mechanics of the hoseline, while maintaining a low pressure nozzle.",
-    sourceNote: "Product information shown here is based on published manufacturer/reference data. Use the source link for the latest official information.",
+    sourceNote: "Reference information shown on this page is based on publicly available manufacturer information and published reference resources. Use the source links below for the most current information directly from the manufacturer.",
     categories: [
       {
         name: "Blade Series",

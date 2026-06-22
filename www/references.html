@@ -89,7 +89,7 @@
         reason: "references-page-load"
       });
   </script>
-  <script src="js/data/references.js?v=manufacturers-2"></script>
+  <script src="js/data/references.js?v=manufacturers-3"></script>
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
@@ -627,7 +627,7 @@
         ${createManufacturerWebsiteCard(manufacturer)}
 
         <div class="references-group">
-          <h2>Product Categories</h2>
+          <h2>Reference Specifications</h2>
           <p class="helper">${escapeHtml(manufacturer.categories.length)} published product ${manufacturer.categories.length === 1 ? "category" : "categories"}.</p>
         </div>
 
@@ -637,7 +637,7 @@
 
         <article class="hose-library-card reference-card reference-website-card">
           <div>
-            <strong>Source/reference note</strong>
+            <strong>Source</strong>
             <p class="helper">${escapeHtml(manufacturer.sourceNote)}</p>
             <p class="helper">${escapeHtml(manufacturer.sourceUrl)}</p>
           </div>
@@ -850,8 +850,8 @@
         ${createManufacturerWebsiteCard(manufacturer)}
 
         <div class="references-group">
-          <h2>Published Hose Data</h2>
-          <p class="helper">${escapeHtml(manufacturer.hoseData.length)} rows from the published source data.</p>
+          <h2>Reference Hose Data</h2>
+          <p class="helper">${escapeHtml(manufacturer.hoseData.length)} rows from the reference source data.</p>
         </div>
 
         <div class="reference-hose-data-list">
@@ -865,7 +865,7 @@
 
         <article class="hose-library-card reference-card reference-website-card">
           <div>
-            <strong>Source/reference note</strong>
+            <strong>Source</strong>
             <p class="helper">${escapeHtml(manufacturer.sourceNote)}</p>
             <p class="helper">${escapeHtml(manufacturer.sourceUrl)}</p>
           </div>
