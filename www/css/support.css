@@ -474,6 +474,20 @@
       border-radius: 10px;
     }
 
+    .reference-info-card {
+      gap: 6px;
+      padding: 12px 14px;
+      border-color: var(--border);
+      background: var(--surface);
+      box-shadow: none;
+    }
+
+    .reference-info-card .helper {
+      margin-top: 4px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
     .reference-nav-card {
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;

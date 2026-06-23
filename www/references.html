@@ -463,6 +463,18 @@
           "Open"
         )
       );
+
+      const referenceInfo = document.createElement("article");
+      referenceInfo.className = "hose-library-card reference-card reference-info-card";
+      referenceInfo.innerHTML = `
+        <div>
+          <strong>Reference Information</strong>
+          <p class="helper">
+            Manufacturer reference information is compiled from publicly available sources, including manufacturer websites, product literature, and published reference materials. Reference content is continuously reviewed and updated as additional information becomes available.
+          </p>
+        </div>
+      `;
+      referencesList.appendChild(referenceInfo);
     }
 
     function renderHoseManufacturers(data) {

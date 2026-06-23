@@ -313,7 +313,7 @@ const referencesData = {
       subtitle: "Coming soon",
       description: "Reverse Flow is building a directory of fire service training organizations and instructors focused on pump operations, fire hydraulics, water supply, driver/operator training, and related disciplines.",
       websiteUrl: null,
-      contactEmail: "reverse.flow.dev@gmail.com",
+      contactEmail: "support@reverse-flow.app",
       serviceArea: "Local, regional, and nationwide training organizations",
       specialties: [
         "Pump Operations",
