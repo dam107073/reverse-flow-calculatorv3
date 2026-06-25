@@ -125,6 +125,8 @@
         document.getElementById("updatePumpChartSetupButton"),
       updatePumpChartSetupButtonSplit:
         document.getElementById("updatePumpChartSetupButtonSplit"),
+      updatePumpChartSetupButtonStandpipe:
+        document.getElementById("updatePumpChartSetupButtonStandpipe"),
       calculatorView: document.getElementById("calculatorView"),
       toolsPage: document.getElementById("toolsPage"),
       settingsPage: document.getElementById("settingsPage"),
@@ -1078,7 +1080,8 @@ function setPumpChartEditState(chartId, setupId) {
 function setLoadedSetupUpdateButtonsVisible(visible) {
   [
     els.updatePumpChartSetupButton,
-    els.updatePumpChartSetupButtonSplit
+    els.updatePumpChartSetupButtonSplit,
+    els.updatePumpChartSetupButtonStandpipe
   ].forEach(button => {
     if (button) button.hidden = !visible;
   });
@@ -5507,7 +5510,8 @@ function openProModal() {
 });
       [
         els.updatePumpChartSetupButton,
-        els.updatePumpChartSetupButtonSplit
+        els.updatePumpChartSetupButtonSplit,
+        els.updatePumpChartSetupButtonStandpipe
       ].forEach(button => {
         button?.addEventListener("click", updateActivePumpChartSetup);
       });
