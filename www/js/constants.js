@@ -2,7 +2,7 @@
 // APP CONFIG
 // ========================================
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.2.1";
     const BUILD_DATE = "2026-06-23";
 
     const REVERSE_FLOW_PRO_PRODUCT_ID =
