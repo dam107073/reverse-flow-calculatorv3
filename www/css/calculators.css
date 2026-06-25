@@ -110,6 +110,45 @@
   background: #16a34a;
   color: white;
 }
+
+.standpipe-ops-fields[hidden],
+.standpipe-results-card[hidden] {
+  display: none;
+}
+
+.standpipe-outlet-toggle {
+  margin: 2px 0 4px;
+}
+
+.standpipe-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.standpipe-card-title-row .reset-button {
+  width: auto;
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.standpipe-line-warnings,
+.standpipe-advisories {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.standpipe-line-warnings[hidden] {
+  display: none;
+}
+
+.standpipe-advisory-section .warning-item {
+  margin: 0;
+}
     .split-section-divider {
   padding: 8px 12px 4px;
   font-size: 11px;

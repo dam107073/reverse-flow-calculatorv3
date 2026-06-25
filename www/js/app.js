@@ -60,12 +60,57 @@
   attack2SmoothboreTip: "",
   attack2BladeModel: "blade160"
 },
+      standpipeOps: {
+        attack2Enabled: false,
+        attack1Floor: "1",
+        attack1Length: "",
+        attack1HoseSize: "1.75",
+        attack1NozzleType: "fog",
+        attack1NozzlePressure: "50",
+        attack1Flow: "",
+        attack1SmoothboreTip: "",
+        attack1BladeModel: "blade160",
+        attack2Floor: "1",
+        attack2Length: "",
+        attack2HoseSize: "1.75",
+        attack2NozzleType: "fog",
+        attack2NozzlePressure: "50",
+        attack2Flow: "",
+        attack2SmoothboreTip: "",
+        attack2BladeModel: "blade160",
+        supplyLength: "",
+        supplyHoseSize: "3",
+        standpipeLoss: "25",
+        dualSupply: false
+      },
       useCustomCoefficient: false,
       customCoefficient: "",
     };
 
+    const SESSION_ACTIVE_MODE_KEY = "reverse-flow-active-mode-session-v1";
+    const VALID_CALCULATOR_MODES = new Set([
+      "apparatusMounted",
+      "relay",
+      "requiredPdp",
+      "reverse",
+      "splitLay",
+      "standpipeOps"
+    ]);
+    const PRO_GATED_CALCULATOR_MODES = new Set([
+      "apparatusMounted",
+      "relay",
+      "splitLay",
+      "standpipeOps"
+    ]);
     let state = getFreshLaunchState();
     let hoseLibraryRows = [];
+    let modeCarouselInitialized = false;
+    let modeCarouselSuppressAutoCenter = false;
+    let modeCarouselPointerDown = false;
+    let modeCarouselDragging = false;
+    let modeCarouselPointerStartX = 0;
+    let modeCarouselPointerStartY = 0;
+    let modeCarouselIgnoreClickUntil = 0;
 
     // ========================================
     // DOM ELEMENTS
@@ -74,6 +119,8 @@
       presetSelect: document.getElementById("presetSelect"),
       savePresetButton: document.getElementById("savePresetButton"),
       savePresetButtonSplit: document.getElementById("savePresetButtonSplit"),
+      savePresetButtonStandpipe:
+        document.getElementById("savePresetButtonStandpipe"),
       updatePumpChartSetupButton:
         document.getElementById("updatePumpChartSetupButton"),
       updatePumpChartSetupButtonSplit:
@@ -129,6 +176,7 @@
       pdpModeButton: document.getElementById("pdpModeButton"),
       relayModeButton: document.getElementById("relayModeButton"),
       apparatusMountedModeButton: document.getElementById("apparatusMountedModeButton"),
+      standpipeOpsButton: document.getElementById("standpipeOpsButton"),
       modeHelper: document.getElementById("modeHelper"),
 
       pdpLabel: document.getElementById("pdpLabel"),
@@ -255,6 +303,50 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       splitAttack2FlResult: document.getElementById("splitAttack2FlResult"),
       splitAttack2ReactionResult:
         document.getElementById("splitAttack2ReactionResult"),
+      standpipeOpsFields: document.getElementById("standpipeOpsFields"),
+      standpipeAddOutletButton: document.getElementById("standpipeAddOutletButton"),
+      standpipeRemoveOutletButton: document.getElementById("standpipeRemoveOutletButton"),
+      standpipeAttack2Section: document.getElementById("standpipeAttack2Section"),
+      standpipeDualSupplyToggle: document.getElementById("standpipeDualSupplyToggle"),
+      standpipeResultsCard: document.getElementById("standpipeResultsCard"),
+      standpipePrimaryPdp: document.getElementById("standpipePrimaryPdp"),
+      standpipeTotalFlow: document.getElementById("standpipeTotalFlow"),
+      standpipeSupplyLoss: document.getElementById("standpipeSupplyLoss"),
+      standpipeLossResult: document.getElementById("standpipeLossResult"),
+      standpipeDrivingLine: document.getElementById("standpipeDrivingLine"),
+      standpipeAttack1ResultSection:
+        document.getElementById("standpipeAttack1ResultSection"),
+      standpipeAttack2ResultSection:
+        document.getElementById("standpipeAttack2ResultSection"),
+      standpipeAttack1PressureTag:
+        document.getElementById("standpipeAttack1PressureTag"),
+      standpipeAttack2PressureTag:
+        document.getElementById("standpipeAttack2PressureTag"),
+      standpipeAttack1FlowResult:
+        document.getElementById("standpipeAttack1FlowResult"),
+      standpipeAttack1FlResult:
+        document.getElementById("standpipeAttack1FlResult"),
+      standpipeAttack1ElevationResult:
+        document.getElementById("standpipeAttack1ElevationResult"),
+      standpipeAttack1NpResult:
+        document.getElementById("standpipeAttack1NpResult"),
+      standpipeAttack1ReactionResult:
+        document.getElementById("standpipeAttack1ReactionResult"),
+      standpipeAttack1Warnings:
+        document.getElementById("standpipeAttack1Warnings"),
+      standpipeAttack2FlowResult:
+        document.getElementById("standpipeAttack2FlowResult"),
+      standpipeAttack2FlResult:
+        document.getElementById("standpipeAttack2FlResult"),
+      standpipeAttack2ElevationResult:
+        document.getElementById("standpipeAttack2ElevationResult"),
+      standpipeAttack2NpResult:
+        document.getElementById("standpipeAttack2NpResult"),
+      standpipeAttack2ReactionResult:
+        document.getElementById("standpipeAttack2ReactionResult"),
+      standpipeAttack2Warnings:
+        document.getElementById("standpipeAttack2Warnings"),
+      standpipeAdvisories: document.getElementById("standpipeAdvisories"),
 
       splitLayButton: document.getElementById("splitLayButton"),
       proModal: document.getElementById("proModal"),
@@ -267,6 +359,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       requiredPdpFormula: document.getElementById("requiredPdpFormula"),
       relayFormula: document.getElementById("relayFormula"),
       splitLayFormula: document.getElementById("splitLayFormula"),
+      standpipeFormula: document.getElementById("standpipeFormula"),
       formulaCard: document.getElementById("formulaCard"),
       formulaCardSummary: document.getElementById("formulaCardSummary"),
       
@@ -727,6 +820,8 @@ logStoreEvent("initialize-start", {
   populateSmoothboreTips();
   renderPresetOptions();
   syncInputsFromState();
+  setupModeCarousel();
+  enforceRestoredSessionModeAccess();
 
   syncReverseSupplyUi();
 
@@ -805,11 +900,44 @@ function renderSupportPageToolsContent() {
     // ========================================
     // STORAGE
     // ========================================
+    function isValidCalculatorMode(mode) {
+      return VALID_CALCULATOR_MODES.has(mode);
+    }
+
+    function isProGatedCalculatorMode(mode) {
+      return PRO_GATED_CALCULATOR_MODES.has(mode);
+    }
+
+    function getSessionActiveMode() {
+      try {
+        const mode = sessionStorage.getItem(SESSION_ACTIVE_MODE_KEY);
+        return isValidCalculatorMode(mode) ? mode : DEFAULT_STATE.mode;
+      } catch {
+        return DEFAULT_STATE.mode;
+      }
+    }
+
+    function saveSessionActiveMode(mode) {
+      if (!isValidCalculatorMode(mode)) return;
+
+      try {
+        sessionStorage.setItem(SESSION_ACTIVE_MODE_KEY, mode);
+      } catch {}
+    }
+
     function getFreshLaunchState() {
+  const sessionMode = getSessionActiveMode();
   const freshState = {
     ...DEFAULT_STATE,
+    mode:
+      isProGatedCalculatorMode(sessionMode) && !isProUser()
+        ? DEFAULT_STATE.mode
+        : sessionMode,
     splitLay: {
       ...DEFAULT_STATE.splitLay
+    },
+    standpipeOps: {
+      ...DEFAULT_STATE.standpipeOps
     }
   };
 
@@ -823,9 +951,36 @@ function renderSupportPageToolsContent() {
     function loadState() {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) return { ...DEFAULT_STATE, ...JSON.parse(saved) };
+        const sessionMode = getSessionActiveMode();
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return {
+            ...DEFAULT_STATE,
+            ...parsed,
+            mode:
+              isProGatedCalculatorMode(sessionMode) && !isProUser()
+                ? DEFAULT_STATE.mode
+                : sessionMode,
+            splitLay: {
+              ...DEFAULT_STATE.splitLay,
+              ...(parsed.splitLay || {})
+            },
+            standpipeOps: {
+              ...DEFAULT_STATE.standpipeOps,
+              ...(parsed.standpipeOps || {})
+            }
+          };
+        }
       } catch {}
-      return { ...DEFAULT_STATE };
+      return {
+        ...DEFAULT_STATE,
+        splitLay: {
+          ...DEFAULT_STATE.splitLay
+        },
+        standpipeOps: {
+          ...DEFAULT_STATE.standpipeOps
+        }
+      };
     }
 
     function saveState() {
@@ -972,6 +1127,15 @@ function getComparablePumpChartInputs(inputs = {}) {
     return {
       ...commonInputs,
       splitLay: normalizePumpChartComparableValue(inputs.splitLay || DEFAULT_STATE.splitLay)
+    };
+  }
+
+  if (mode === "standpipeOps") {
+    return {
+      ...commonInputs,
+      standpipeOps: normalizePumpChartComparableValue(
+        inputs.standpipeOps || DEFAULT_STATE.standpipeOps
+      )
     };
   }
 
@@ -1122,7 +1286,10 @@ function normalizePumpChartSetup(setup) {
   const mode = setup.mode || inputs.mode || "";
   const normalizedInputs = {
     ...inputs,
-    mode
+    mode,
+    ...(mode === "standpipeOps" && !inputs.standpipeOps && setup.standpipeOps
+      ? { standpipeOps: JSON.parse(JSON.stringify(setup.standpipeOps)) }
+      : {})
   };
 
   return {
@@ -1233,7 +1400,8 @@ function extractInputsFromLegacyPreset(preset = {}) {
     reverseSupplyAppliance: preset.reverseSupplyAppliance || "gateValve",
     useCustomCoefficient: !!preset.useCustomCoefficient,
     customCoefficient: preset.customCoefficient || "",
-    splitLay: JSON.parse(JSON.stringify(preset.splitLay || DEFAULT_STATE.splitLay))
+    splitLay: JSON.parse(JSON.stringify(preset.splitLay || DEFAULT_STATE.splitLay)),
+    standpipeOps: JSON.parse(JSON.stringify(preset.standpipeOps || DEFAULT_STATE.standpipeOps))
   };
 }
 
@@ -1251,6 +1419,7 @@ function getModeLabel(mode) {
   if (mode === "requiredPdp") return "Required PDP";
   if (mode === "relay") return "Relay Pumping";
   if (mode === "splitLay") return "Split Lay";
+  if (mode === "standpipeOps") return "Standpipe Ops";
   if (mode === "apparatusMounted") return "Apparatus Mounted";
   return "Reverse Flow";
 }
@@ -1650,6 +1819,15 @@ const splitAttack1Hose =
 const splitAttack2Hose =
   document.getElementById("splitAttack2Hose");
 
+const standpipeSupplyHose =
+  document.getElementById("standpipeSupplyHose");
+
+const standpipeAttack1Hose =
+  document.getElementById("standpipeAttack1Hose");
+
+const standpipeAttack2Hose =
+  document.getElementById("standpipeAttack2Hose");
+
 const supplyOptions = HOSE_OPTIONS.filter(hose =>
   SUPPLY_HOSE_IDS.includes(hose.id)
 );
@@ -1701,6 +1879,33 @@ if (splitAttack2Hose) {
 
   splitAttack2Hose.value =
     state.splitLay.attack2HoseSize;
+}
+
+if (standpipeSupplyHose) {
+  standpipeSupplyHose.innerHTML = supplyOptions.map(hose => (
+    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  )).join("");
+
+  standpipeSupplyHose.value =
+    state.standpipeOps.supplyHoseSize;
+}
+
+if (standpipeAttack1Hose) {
+  standpipeAttack1Hose.innerHTML = attackOptions.map(hose => (
+    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  )).join("");
+
+  standpipeAttack1Hose.value =
+    state.standpipeOps.attack1HoseSize;
+}
+
+if (standpipeAttack2Hose) {
+  standpipeAttack2Hose.innerHTML = attackOptions.map(hose => (
+    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  )).join("");
+
+  standpipeAttack2Hose.value =
+    state.standpipeOps.attack2HoseSize;
 }
 }
 
@@ -2241,8 +2446,7 @@ function applyHoseLibraryDefault(libraryId) {
 }
 
     function populateSmoothboreTips() {
-  const tips = isMasterStream()
-    || isApparatusMountedMode()
+  const tips = isMasterStream() || isApparatusMountedMode()
     ? SMOOTHBORE_TIPS.filter(tip =>
         tip.diameter >= 1.25 &&
         tip.diameter <= 3
@@ -2760,6 +2964,16 @@ function captureCurrentResultSnapshot(presetData) {
     splitAttack2NpResult: els.splitAttack2NpResult?.textContent || "",
     splitAttack2FlResult: els.splitAttack2FlResult?.textContent || "",
     splitAttack2ReactionResult: els.splitAttack2ReactionResult?.textContent || "",
+    standpipeTotalFlow: els.standpipeTotalFlow?.textContent || "",
+    standpipeSupplyLoss: els.standpipeSupplyLoss?.textContent || "",
+    standpipeLossResult: els.standpipeLossResult?.textContent || "",
+    standpipeDrivingLine: els.standpipeDrivingLine?.textContent || "",
+    standpipeAttack1FlowResult: els.standpipeAttack1FlowResult?.textContent || "",
+    standpipeAttack1NpResult: els.standpipeAttack1NpResult?.textContent || "",
+    standpipeAttack1FlResult: els.standpipeAttack1FlResult?.textContent || "",
+    standpipeAttack2FlowResult: els.standpipeAttack2FlowResult?.textContent || "",
+    standpipeAttack2NpResult: els.standpipeAttack2NpResult?.textContent || "",
+    standpipeAttack2FlResult: els.standpipeAttack2FlResult?.textContent || "",
     summary: buildLegacyPresetSummary(presetData)
   };
 }
@@ -2767,6 +2981,10 @@ function captureCurrentResultSnapshot(presetData) {
 function getCurrentPrimaryResult() {
   if (isSplitLayMode()) {
     return els.splitPrimaryPdp?.textContent || "";
+  }
+
+  if (isStandpipeOpsMode()) {
+    return els.standpipePrimaryPdp?.textContent || "";
   }
 
   const value = els.roundedGpm?.textContent || "";
@@ -2777,6 +2995,10 @@ function getCurrentPrimaryResult() {
 function getCurrentFlowSummary(presetData = {}) {
   if (state.mode === "splitLay") {
     return "";
+  }
+
+  if (state.mode === "standpipeOps") {
+    return formatGpmValue(presetData.calculatedFlow || els.standpipeTotalFlow?.textContent);
   }
 
   const flowValue = state.mode === "reverse"
@@ -2795,13 +3017,19 @@ function getCurrentPdpSummary(presetData = {}) {
     return formatPsiValue(els.splitPrimaryPdp?.textContent || presetData.calculatedPdp);
   }
 
+  if (state.mode === "standpipeOps") {
+    return formatPsiValue(els.standpipePrimaryPdp?.textContent || presetData.calculatedPdp);
+  }
+
   return formatPsiValue(presetData.calculatedPdp || els.roundedGpm?.textContent);
 }
 
 function hasValidRenderedCalculation() {
   const value = isSplitLayMode()
     ? els.splitPrimaryPdp?.textContent || ""
-    : els.roundedGpm?.textContent || "";
+    : isStandpipeOpsMode()
+      ? els.standpipePrimaryPdp?.textContent || ""
+      : els.roundedGpm?.textContent || "";
 
   const normalizedValue = String(value).trim();
 
@@ -2843,6 +3071,10 @@ function getSetupConfigurationSummary(setup) {
 
   if (setup.mode === "splitLay") {
     return getSplitLayConfigurationSummary(inputs.splitLay || {}, setup.result || {});
+  }
+
+  if (setup.mode === "standpipeOps") {
+    return getStandpipeOpsConfigurationSummary(setup);
   }
 
   if (setup.mode === "apparatusMounted") {
@@ -2920,6 +3152,97 @@ function getSplitLayTotalFlowSummary(setup = {}) {
     result.calculatedFlow ||
     result.flowSummary
   );
+}
+
+function getStandpipeOpsData(setup = {}) {
+  return setup.inputs?.standpipeOps ||
+    setup.standpipeOps ||
+    setup.inputs?.standpipe ||
+    {};
+}
+
+function getStandpipeTipLabel(tipId) {
+  const tip = SMOOTHBORE_TIPS.find(item => item.id === tipId);
+  if (tip?.label) return tip.label;
+
+  const normalized = String(tipId || "").trim();
+  if (!normalized) return "";
+  return normalized.includes('"') ? normalized : `${normalized}"`;
+}
+
+function getStandpipeBladeLabel(modelId) {
+  const blade = BLADE_MODELS.find(item => item.id === modelId);
+  return blade?.label || "Blade";
+}
+
+function getStandpipeNozzleSummary(standpipe = {}, lineNumber) {
+  const nozzleType = standpipe[`attack${lineNumber}NozzleType`];
+
+  if (nozzleType === "smoothbore") {
+    return ["SB", getStandpipeTipLabel(standpipe[`attack${lineNumber}SmoothboreTip`])]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  if (nozzleType === "blade") {
+    return getStandpipeBladeLabel(standpipe[`attack${lineNumber}BladeModel`]);
+  }
+
+  const flow = formatGpmValue(standpipe[`attack${lineNumber}Flow`]);
+  return ["Fog", flow].filter(Boolean).join(" ");
+}
+
+function getStandpipeAttackLineSummary(standpipe = {}, lineNumber, options = {}) {
+  const line = [
+    formatLengthAndHose(
+      standpipe[`attack${lineNumber}Length`],
+      standpipe[`attack${lineNumber}HoseSize`]
+    ),
+    getStandpipeNozzleSummary(standpipe, lineNumber)
+  ].filter(Boolean).join(" ");
+  const floor = String(standpipe[`attack${lineNumber}Floor`] || "").trim();
+  const withFloor = floor ? [`Floor ${floor}`, line].filter(Boolean).join(" • ") : line;
+
+  if (!withFloor) return "";
+  return options.label ? `${options.label}: ${withFloor}` : withFloor;
+}
+
+function getStandpipeFdcSummary(standpipe = {}) {
+  const supply = formatSupplyDescription(
+    standpipe.supplyLength,
+    standpipe.supplyHoseSize
+  );
+
+  if (!supply) return "";
+
+  return standpipe.dualSupply
+    ? `FDC: 2 x ${supply}`
+    : `FDC: ${supply}`;
+}
+
+function getStandpipeLossSummary(standpipe = {}) {
+  const loss = formatPsiValue(standpipe.standpipeLoss);
+  return loss ? `Standpipe Loss ${loss}` : "";
+}
+
+function getStandpipeOpsConfigurationSummary(setup = {}) {
+  const standpipe = getStandpipeOpsData(setup);
+  const attack2Enabled = !!standpipe.attack2Enabled;
+  const line1 = getStandpipeAttackLineSummary(standpipe, "1", {
+    label: attack2Enabled ? "L1" : ""
+  });
+  const line2 = attack2Enabled
+    ? getStandpipeAttackLineSummary(standpipe, "2", { label: "L2" })
+    : "";
+  const outletSummary = attack2Enabled ? "2 Outlets" : "";
+
+  return [
+    outletSummary,
+    line1,
+    line2,
+    getStandpipeFdcSummary(standpipe),
+    getStandpipeLossSummary(standpipe)
+  ].filter(Boolean).join("\n") || "Standpipe Ops";
 }
 
 function getSplitSupplySummary(splitLay = {}) {
@@ -3131,6 +3454,10 @@ function getSetupReferenceSections(setup) {
     return getSplitLayReferenceSections(setup);
   }
 
+  if (setup.mode === "standpipeOps") {
+    return getStandpipeOpsReferenceSections(setup);
+  }
+
   const inputs = setup.inputs || {};
   const result = setup.result || {};
   const configurationRows = [];
@@ -3274,6 +3601,65 @@ function getSplitLayReferenceSections(setup) {
   ].filter(section => section.rows.length);
 }
 
+function getStandpipeOpsReferenceSections(setup) {
+  const standpipe = getStandpipeOpsData(setup);
+  const result = setup.result || {};
+  const attackRows = [
+    {
+      label: "Attack 1",
+      value: getStandpipeAttackLineSummary(standpipe, "1")
+    }
+  ];
+
+  if (standpipe.attack2Enabled) {
+    attackRows.push({
+      label: "Attack 2",
+      value: getStandpipeAttackLineSummary(standpipe, "2")
+    });
+  }
+
+  return [
+    {
+      title: "Attack",
+      rows: attackRows.filter(row => row.value)
+    },
+    {
+      title: "Supply",
+      rows: [
+        {
+          label: "FDC",
+          value: getStandpipeFdcSummary(standpipe).replace(/^FDC:\s*/, "")
+        },
+        {
+          label: "Standpipe Loss",
+          value: formatPsiValue(standpipe.standpipeLoss)
+        }
+      ].filter(row => row.value)
+    },
+    {
+      title: "Operational",
+      rows: [
+        {
+          label: "Total Flow",
+          value: result.standpipeTotalFlow || result.flowSummary || result.calculatedFlow
+        },
+        {
+          label: "Required PDP",
+          value: result.pdpSummary || formatPsiValue(result.calculatedPdp)
+        },
+        {
+          label: "Driving Line",
+          value: result.standpipeDrivingLine
+        },
+        {
+          label: "Supply Loss",
+          value: result.standpipeSupplyLoss
+        }
+      ].filter(row => row.value && row.value !== "—")
+    }
+  ].filter(section => section.rows.length);
+}
+
 function getTargetFlowSummary(inputs = {}) {
   if (inputs.apparatusFogFlow === "custom") {
     return formatGpmValue(inputs.apparatusCustomFogFlow);
@@ -3379,6 +3765,7 @@ function buildLegacyPresetSummary(preset = {}) {
 
 function getSetupInputRows(setup) {
   const inputs = setup.inputs || {};
+  const standpipe = inputs.standpipeOps || {};
   const rows = [
     ["Mode", setup.modeLabel || getModeLabel(setup.mode)],
     ["Hose Length", inputs.hoseLength ? `${inputs.hoseLength} ft` : ""],
@@ -3397,6 +3784,15 @@ function getSetupInputRows(setup) {
       ["Supply 1", `${split.supplyLength || "-"} ft ${split.supplyHoseSize || ""}`.trim()],
       ["Attack 1", `${split.attack1Length || "-"} ft ${split.attack1HoseSize || ""}`.trim()],
       ["Attack Lines", split.attackLines || "1"]
+    );
+  }
+
+  if (setup.mode === "standpipeOps") {
+    rows.push(
+      ["Attack 1", getStandpipeAttackLineSummary(standpipe, "1")],
+      ["Attack 2", standpipe.attack2Enabled ? getStandpipeAttackLineSummary(standpipe, "2") : ""],
+      ["FDC", getStandpipeFdcSummary(standpipe).replace(/^FDC:\s*/, "")],
+      ["Standpipe Loss", formatPsiValue(standpipe.standpipeLoss)]
     );
   }
 
@@ -3423,7 +3819,17 @@ function getSetupBreakdownRows(setup) {
     ["Attack 1 FL", result.splitAttack1FlResult],
     ["Attack 2 Flow", result.splitAttack2FlowResult],
     ["Attack 2 NP", result.splitAttack2NpResult],
-    ["Attack 2 FL", result.splitAttack2FlResult]
+    ["Attack 2 FL", result.splitAttack2FlResult],
+    ["Standpipe Total Flow", result.standpipeTotalFlow],
+    ["Standpipe Supply Loss", result.standpipeSupplyLoss],
+    ["Standpipe Loss", result.standpipeLossResult],
+    ["Standpipe Driving Line", result.standpipeDrivingLine],
+    ["Standpipe Attack 1 Flow", result.standpipeAttack1FlowResult],
+    ["Standpipe Attack 1 NP", result.standpipeAttack1NpResult],
+    ["Standpipe Attack 1 FL", result.standpipeAttack1FlResult],
+    ["Standpipe Attack 2 Flow", result.standpipeAttack2FlowResult],
+    ["Standpipe Attack 2 NP", result.standpipeAttack2NpResult],
+    ["Standpipe Attack 2 FL", result.standpipeAttack2FlResult]
   ].filter(([, value]) => value && value !== "—");
 }
 
@@ -3617,9 +4023,280 @@ if (usingCustomPressure) {
   enforceHenTurboAvailability();
   syncHenTurboUi();
   syncReverseSupplyUi();
+  syncStandpipeInputsFromState();
   syncCoefficientUi();
   syncSmoothboreUi();
   syncModeUi();
+}
+
+function syncStandpipeInputsFromState() {
+  const standpipe = state.standpipeOps;
+  if (!standpipe) return;
+
+  [
+    ["standpipeAttack1Floor", "attack1Floor"],
+    ["standpipeAttack1Length", "attack1Length"],
+    ["standpipeAttack1Hose", "attack1HoseSize"],
+    ["standpipeAttack1NozzleType", "attack1NozzleType"],
+    ["standpipeAttack1NozzlePressure", "attack1NozzlePressure"],
+    ["standpipeAttack1Flow", "attack1Flow"],
+    ["standpipeAttack1SmoothboreTip", "attack1SmoothboreTip"],
+    ["standpipeAttack1BladeModel", "attack1BladeModel"],
+    ["standpipeAttack2Floor", "attack2Floor"],
+    ["standpipeAttack2Length", "attack2Length"],
+    ["standpipeAttack2Hose", "attack2HoseSize"],
+    ["standpipeAttack2NozzleType", "attack2NozzleType"],
+    ["standpipeAttack2NozzlePressure", "attack2NozzlePressure"],
+    ["standpipeAttack2Flow", "attack2Flow"],
+    ["standpipeAttack2SmoothboreTip", "attack2SmoothboreTip"],
+    ["standpipeAttack2BladeModel", "attack2BladeModel"],
+    ["standpipeSupplyLength", "supplyLength"],
+    ["standpipeSupplyHose", "supplyHoseSize"],
+    ["standpipeLoss", "standpipeLoss"]
+  ].forEach(([elementId, stateKey]) => {
+    const element = document.getElementById(elementId);
+    if (element) element.value = standpipe[stateKey] || "";
+  });
+
+  if (els.standpipeDualSupplyToggle) {
+    els.standpipeDualSupplyToggle.checked = !!standpipe.dualSupply;
+  }
+}
+
+function syncStandpipeNozzleUi(lineNumber) {
+  const standpipe = state.standpipeOps;
+  const nozzleType = document.getElementById(`standpipeAttack${lineNumber}NozzleType`);
+  const pressureSelect = document.getElementById(`standpipeAttack${lineNumber}NozzlePressure`);
+  const flowField = document.getElementById(`standpipeAttack${lineNumber}FlowField`);
+  const tipField = document.getElementById(`standpipeAttack${lineNumber}SmoothboreTipField`);
+  const bladeField = document.getElementById(`standpipeAttack${lineNumber}BladeModelField`);
+
+  if (!standpipe || !nozzleType || !pressureSelect || !flowField || !tipField || !bladeField) {
+    return;
+  }
+
+  const isSmoothboreLine = nozzleType.value === "smoothbore";
+  const isBladeLine = nozzleType.value === "blade";
+  const usesSolidStreamOptions = isSmoothboreLine || isBladeLine;
+  const bladeKey = `attack${lineNumber}BladeModel`;
+  const pressureKey = `attack${lineNumber}NozzlePressure`;
+  const selectedBladeModel = standpipe[bladeKey] || "blade160";
+  const pressures = isBladeLine
+    ? getBladeNozzlePressures(selectedBladeModel)
+    : usesSolidStreamOptions
+      ? [40, 50, 60]
+      : [50, 55, 75, 100];
+
+  pressureSelect.innerHTML = pressures.map(pressure => (
+    `<option value="${pressure}">${pressure} psi</option>`
+  )).join("");
+
+  if (![...pressureSelect.options].some(option => option.value === standpipe[pressureKey])) {
+    standpipe[pressureKey] = isBladeLine
+      ? getBladeDefaultNozzlePressure(selectedBladeModel)
+      : usesSolidStreamOptions
+        ? "50"
+        : "50";
+  }
+
+  pressureSelect.value = standpipe[pressureKey];
+  flowField.hidden = usesSolidStreamOptions;
+  flowField.style.display = usesSolidStreamOptions ? "none" : "";
+  tipField.hidden = !isSmoothboreLine;
+  tipField.style.display = isSmoothboreLine ? "" : "none";
+  bladeField.hidden = !isBladeLine;
+  bladeField.style.display = isBladeLine ? "" : "none";
+}
+
+function syncStandpipeUi() {
+  const standpipe = state.standpipeOps;
+  if (!standpipe) return;
+
+  if (els.standpipeOpsFields) {
+    els.standpipeOpsFields.hidden = !isStandpipeOpsMode();
+    els.standpipeOpsFields.style.display = isStandpipeOpsMode() ? "grid" : "none";
+  }
+
+  if (els.standpipeAttack2Section) {
+    els.standpipeAttack2Section.hidden = !standpipe.attack2Enabled;
+    els.standpipeAttack2Section.style.display = standpipe.attack2Enabled ? "grid" : "none";
+  }
+
+  if (els.standpipeAddOutletButton) {
+    els.standpipeAddOutletButton.hidden = !!standpipe.attack2Enabled;
+    els.standpipeAddOutletButton.style.display = standpipe.attack2Enabled ? "none" : "";
+  }
+
+  if (els.standpipeDualSupplyToggle) {
+    els.standpipeDualSupplyToggle.checked = !!standpipe.dualSupply;
+  }
+
+  if (els.standpipeAttack2ResultSection) {
+    els.standpipeAttack2ResultSection.hidden = !standpipe.attack2Enabled;
+    els.standpipeAttack2ResultSection.style.display = standpipe.attack2Enabled ? "" : "none";
+  }
+
+  syncStandpipeNozzleUi("1");
+  syncStandpipeNozzleUi("2");
+}
+
+function getActiveModeId() {
+  return state.mode || DEFAULT_STATE.mode;
+}
+
+function getModeCarousel() {
+  return document.querySelector(".mode-carousel");
+}
+
+function getCanonicalModeButtons() {
+  const carousel = getModeCarousel();
+  if (!carousel) return [];
+
+  return [...carousel.querySelectorAll(":scope > button[data-mode]")];
+}
+
+function syncModeCarouselActiveState() {
+  const carousel = getModeCarousel();
+  if (!carousel) return;
+
+  const activeMode = getActiveModeId();
+  carousel.querySelectorAll("button[data-mode]").forEach(button => {
+    button.classList.toggle("active", button.dataset.mode === activeMode);
+  });
+}
+
+function getModeCarouselCenterTarget(button) {
+  const carousel = getModeCarousel();
+  if (!carousel || !button) return null;
+
+  return Math.max(
+    0,
+    button.offsetLeft -
+      (carousel.clientWidth - button.offsetWidth) / 2
+  );
+}
+
+function centerModeCarouselButton(button, options = {}) {
+  const carousel = getModeCarousel();
+  const targetLeft = getModeCarouselCenterTarget(button);
+
+  if (!carousel || targetLeft === null) return;
+
+  const behavior = options.behavior || "smooth";
+
+  carousel.scrollTo({
+    left: targetLeft,
+    behavior
+  });
+}
+
+function startModeCarouselGesture(x, y) {
+  modeCarouselPointerDown = true;
+  modeCarouselDragging = false;
+  modeCarouselPointerStartX = x ?? 0;
+  modeCarouselPointerStartY = y ?? 0;
+}
+
+function updateModeCarouselGesture(x, y) {
+  if (!modeCarouselPointerDown) return;
+
+  const deltaX = Math.abs((x ?? 0) - modeCarouselPointerStartX);
+  const deltaY = Math.abs((y ?? 0) - modeCarouselPointerStartY);
+
+  if (deltaX > 8 && deltaX > deltaY) {
+    modeCarouselDragging = true;
+    modeCarouselIgnoreClickUntil = Date.now() + 420;
+  }
+}
+
+function finishModeCarouselGesture() {
+  if (modeCarouselDragging) {
+    modeCarouselIgnoreClickUntil = Date.now() + 420;
+  }
+  modeCarouselPointerDown = false;
+  modeCarouselDragging = false;
+}
+
+function handleModeCarouselPointerDown(event) {
+  startModeCarouselGesture(event.clientX, event.clientY);
+}
+
+function handleModeCarouselPointerMove(event) {
+  if (!modeCarouselPointerDown) return;
+
+  updateModeCarouselGesture(event.clientX, event.clientY);
+}
+
+function handleModeCarouselPointerEnd() {
+  if (!modeCarouselPointerDown) return;
+  finishModeCarouselGesture();
+}
+
+function handleModeCarouselTouchStart(event) {
+  if (window.PointerEvent) return;
+
+  const touch = event.touches?.[0];
+  if (!touch) return;
+
+  startModeCarouselGesture(touch.clientX, touch.clientY);
+}
+
+function handleModeCarouselTouchMove(event) {
+  if (window.PointerEvent) return;
+
+  const touch = event.touches?.[0];
+  if (!touch) return;
+
+  updateModeCarouselGesture(touch.clientX, touch.clientY);
+}
+
+function handleModeCarouselTouchEnd() {
+  if (window.PointerEvent || !modeCarouselPointerDown) return;
+
+  finishModeCarouselGesture();
+}
+
+function setupModeCarousel() {
+  const carousel = getModeCarousel();
+
+  if (!carousel || modeCarouselInitialized) return;
+
+  const canonicalButtons = getCanonicalModeButtons();
+  if (!canonicalButtons.length) return;
+
+  carousel.addEventListener("click", event => {
+    const button = event.target.closest?.("button[data-mode]");
+    if (
+      button &&
+      button.closest?.(".mode-carousel") &&
+      Date.now() < modeCarouselIgnoreClickUntil
+    ) {
+      event.preventDefault();
+    }
+  });
+
+  carousel.addEventListener("pointerdown", handleModeCarouselPointerDown, { passive: true });
+  carousel.addEventListener("pointermove", handleModeCarouselPointerMove, { passive: true });
+  carousel.addEventListener("pointerup", handleModeCarouselPointerEnd, { passive: true });
+  carousel.addEventListener("pointercancel", handleModeCarouselPointerEnd, { passive: true });
+  carousel.addEventListener("touchstart", handleModeCarouselTouchStart, { passive: true });
+  carousel.addEventListener("touchmove", handleModeCarouselTouchMove, { passive: true });
+  carousel.addEventListener("touchend", handleModeCarouselTouchEnd, { passive: true });
+  carousel.addEventListener("touchcancel", handleModeCarouselTouchEnd, { passive: true });
+
+  modeCarouselInitialized = true;
+  syncModeCarouselActiveState();
+  centerActiveModeCard({ behavior: "auto" });
+}
+
+function centerActiveModeCard(options = {}) {
+  const carousel = document.getElementById("modeButtons");
+  const activeMode = getActiveModeId();
+  const activeButton =
+    carousel?.querySelector(`button[data-mode="${activeMode}"]`);
+  if (!carousel || !activeButton) return;
+
+  centerModeCarouselButton(activeButton, options);
 }
 
     function syncModeUi() {
@@ -3630,6 +4307,8 @@ if (usingCustomPressure) {
       els.apparatusMountedModeButton?.classList.toggle("active", isApparatusMountedMode());
       els.relayModeButton.classList.toggle("active",isRelayMode());
       els.splitLayButton.classList.toggle("active", isSplitLayMode());
+      els.standpipeOpsButton?.classList.toggle("active", isStandpipeOpsMode());
+      syncModeCarouselActiveState();
 
       els.pdpLabel.textContent =
         isApparatusMountedMode()
@@ -3652,20 +4331,20 @@ if (usingCustomPressure) {
       els.pdp.disabled = smoothboreRequiredPdp || isApparatusMountedMode();
 
       els.pdp.closest(".field").style.display =
-        (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
+        (isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
       els.hoseLength.closest(".field").style.display =
-        (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
+        (isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
       els.hoseSize.closest(".field").style.display =
-        (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
+        (isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
 
       els.nozzleType.closest(".field").style.display =
-  (isSplitLayMode() || isRelayMode())
+  (isSplitLayMode() || isStandpipeOpsMode() || isRelayMode())
     ? "none"
     : "";
       els.applianceLoss.closest(".field").style.display =
-        isApparatusMountedMode() ? "none" : "";
+        (isApparatusMountedMode() || isStandpipeOpsMode()) ? "none" : "";
       els.customCoefficient.closest(".field").style.display =
-        (isSplitLayMode() || isApparatusMountedMode()) ? "none" : "";
+        (isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
       enforceHenTurboAvailability();
       syncHenTurboUi();
 
@@ -3682,7 +4361,14 @@ document.querySelector('label[for="hoseSize"]').textContent =
 
 document.querySelector('label[for="applianceLoss"]').textContent =
   "Appliance / Elevation Loss";
-    if (isSplitLayMode()) {
+    if (isStandpipeOpsMode()) {
+
+  document.documentElement.style.setProperty(
+    "--mode-glow",
+    "rgba(20, 184, 166, 0.34)"
+  );
+
+} else if (isSplitLayMode()) {
 
   document.documentElement.style.setProperty(
     "--mode-glow",
@@ -3720,6 +4406,8 @@ document.querySelector('label[for="applianceLoss"]').textContent =
 }
     els.modeHelper.textContent = isSplitLayMode()
   ? "Split Lay: Calculate longer deployments using separate supply and attack sections joined by an appliance."
+  : isStandpipeOpsMode()
+    ? "Standpipe Ops: calculate engine PDP for standpipe stretches using attack demand, elevation, standpipe loss, and FDC supply loss."
   : isApparatusMountedMode()
     ? "Apparatus Mounted: calculate master stream flow, reaction, elevation loss, and required PDP without hose friction."
   : isRelayMode()
@@ -3734,10 +4422,15 @@ document.querySelector('label[for="applianceLoss"]').textContent =
       els.requiredPdpFormula.hidden = !isRequiredPdpMode();
       els.relayFormula.hidden = !isRelayMode();
       els.splitLayFormula.hidden = !isSplitLayMode();
+      if (els.standpipeFormula) {
+        els.standpipeFormula.hidden = !isStandpipeOpsMode();
+      }
 
       els.primaryResultLabel.textContent =
   isSplitLayMode()
     ? "Split Lay PDP"
+    : isStandpipeOpsMode()
+      ? "Standpipe Ops PDP"
     : isApparatusMountedMode()
       ? "Required PDP"
     : isRelayMode()
@@ -3747,7 +4440,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
         : "Rounded Flow";
 
   els.primaryResultUnit.textContent =
-  isRelayMode() || isRequiredPdpMode() || isSplitLayMode() || isApparatusMountedMode()
+  isRelayMode() || isRequiredPdpMode() || isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()
     ? "PSI"
     : "GPM";
      if (isRelayMode()) {
@@ -3821,7 +4514,7 @@ if (
 els.nozzleType.value = state.nozzleType;
 
 els.nozzlePressureLabel.closest(".field").style.display =
-  (isRelayMode() || isSplitLayMode())
+  (isRelayMode() || isSplitLayMode() || isStandpipeOpsMode())
     ? "none"
     : "";
 
@@ -3836,19 +4529,29 @@ if (splitLayFields) {
   splitLayFields.style.display = isSplitLayMode() ? "grid" : "none";
 }
 
+syncStandpipeUi();
+
 if (els.splitResultsCard) {
   els.splitResultsCard.hidden = !isSplitLayMode();
+}
+
+if (els.standpipeResultsCard) {
+  els.standpipeResultsCard.hidden = !isStandpipeOpsMode();
 }
 
 if (!isSplitLayMode()) {
   resetSplitLayResultCard();
 }
 
+if (!isStandpipeOpsMode()) {
+  resetStandpipeResults();
+}
+
 if (els.standardResultsCard) {
-  els.standardResultsCard.hidden = isSplitLayMode();
+  els.standardResultsCard.hidden = isSplitLayMode() || isStandpipeOpsMode();
 }
 if (els.standardResultsCard) {
-  els.standardResultsCard.hidden = isSplitLayMode();
+  els.standardResultsCard.hidden = isSplitLayMode() || isStandpipeOpsMode();
 }
 
 if (els.reverseSupplyToggleField) {
@@ -3862,13 +4565,18 @@ if (!isReverseMode()) {
 }
 
 syncSplitLayUi();
+syncStandpipeUi();
 syncHenTurboUi();
+
+if (!modeCarouselSuppressAutoCenter) {
+  setTimeout(centerActiveModeCard, 0);
+}
 
 }
 
 function syncSmoothboreUi() {
 
-  if (isRelayMode() || isSplitLayMode()) {
+  if (isRelayMode() || isSplitLayMode() || isStandpipeOpsMode()) {
 
     els.smoothboreTipField.hidden = true;
     els.smoothboreTipField.style.display = "none";
@@ -4399,13 +5107,104 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    function openProModal() {
+function openProModal() {
       if (!els.proModal) {
         alert("Reverse Flow Pro is required for this feature.");
         return;
       }
 
       els.proModal.hidden = false;
+    }
+
+    function enforceRestoredSessionModeAccess() {
+      const sessionMode = getSessionActiveMode();
+
+      if (!isProGatedCalculatorMode(sessionMode) || isProUser()) return;
+
+      saveSessionActiveMode(DEFAULT_STATE.mode);
+      openProModal();
+    }
+
+    function activateCarouselMode(mode, options = {}) {
+      if (!isValidCalculatorMode(mode)) return;
+
+      if (isProGatedCalculatorMode(mode) && !isProUser()) {
+        openProModal();
+        return;
+      }
+
+      const targetButton = options.targetButton || null;
+      const shouldPreserveCarouselTarget =
+        !!targetButton && !!targetButton.closest?.(".mode-carousel");
+      let activated = false;
+
+      if (
+        shouldPreserveCarouselTarget &&
+        Date.now() < modeCarouselIgnoreClickUntil
+      ) {
+        return;
+      }
+
+      if (shouldPreserveCarouselTarget) {
+        modeCarouselSuppressAutoCenter = true;
+      }
+
+      if (mode === "reverse") {
+        setMode("reverse");
+        resetSplitLayInputs();
+        syncSplitLayInputsFromState();
+        resetSplitLayResultCard();
+        activated = true;
+      }
+
+      if (mode === "requiredPdp") {
+        setMode("requiredPdp");
+        resetSplitLayInputs();
+        syncSplitLayInputsFromState();
+        resetSplitLayResultCard();
+        activated = true;
+      }
+
+      if (mode === "apparatusMounted") {
+        setMode("apparatusMounted");
+        resetSplitLayInputs();
+        syncSplitLayInputsFromState();
+        resetSplitLayResultCard();
+        activated = true;
+      }
+
+      if (mode === "relay") {
+        setMode("relay");
+        resetSplitLayInputs();
+        syncSplitLayInputsFromState();
+        resetSplitLayResultCard();
+        activated = true;
+      }
+
+      if (mode === "splitLay") {
+        resetSplitLayInputs();
+        resetSplitLayResultCard();
+        setMode("splitLay");
+        syncSplitLayInputsFromState();
+        resetSplitLayResultCard();
+        activated = true;
+      }
+
+      if (mode === "standpipeOps") {
+        setMode("standpipeOps");
+        syncStandpipeInputsFromState();
+        resetStandpipeResults();
+        activated = true;
+      }
+
+      modeCarouselSuppressAutoCenter = false;
+
+      if (activated && shouldPreserveCarouselTarget) {
+        syncModeCarouselActiveState();
+        centerModeCarouselButton(targetButton, {
+          behavior: options.behavior || "smooth"
+        });
+      }
     }
 
     function syncFormulaCardExpandedState() {
@@ -4680,7 +5479,7 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
     if (els.presetSelect) {
   els.presetSelect.addEventListener("change", e => applyPreset(e.target.value));
 }
-  [els.savePresetButton, els.savePresetButtonSplit].forEach(button => {
+  [els.savePresetButton, els.savePresetButtonSplit, els.savePresetButtonStandpipe].forEach(button => {
     button?.addEventListener("click", event => {
   event.preventDefault();
   event.stopPropagation();
@@ -4746,42 +5545,20 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
   alert("Hose coefficients reset to app defaults.");
 });
 
-      els.reverseModeButton.addEventListener("click", () => {
-  setMode("reverse");
-  resetSplitLayInputs();
-  syncSplitLayInputsFromState();
-  resetSplitLayResultCard();
+      els.reverseModeButton.addEventListener("click", event => {
+  activateCarouselMode("reverse", { targetButton: event.currentTarget });
 });
 
-els.pdpModeButton.addEventListener("click", () => {
-  setMode("requiredPdp");
-  resetSplitLayInputs();
-  syncSplitLayInputsFromState();
-  resetSplitLayResultCard();
+els.pdpModeButton.addEventListener("click", event => {
+  activateCarouselMode("requiredPdp", { targetButton: event.currentTarget });
 });
 
-els.apparatusMountedModeButton?.addEventListener("click", () => {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
-  setMode("apparatusMounted");
-  resetSplitLayInputs();
-  syncSplitLayInputsFromState();
-  resetSplitLayResultCard();
+els.apparatusMountedModeButton?.addEventListener("click", event => {
+  activateCarouselMode("apparatusMounted", { targetButton: event.currentTarget });
 });
 
-els.relayModeButton.addEventListener("click", () => {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
-  setMode("relay");
-  resetSplitLayInputs();
-  syncSplitLayInputsFromState();
-  resetSplitLayResultCard();
+els.relayModeButton.addEventListener("click", event => {
+  activateCarouselMode("relay", { targetButton: event.currentTarget });
 });
 
 els.relayResidualPressure.addEventListener("change", e => {
@@ -4789,18 +5566,12 @@ els.relayResidualPressure.addEventListener("change", e => {
   updateCalculator();
 });
 
-els.splitLayButton.addEventListener("click", () => {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
+els.splitLayButton.addEventListener("click", event => {
+  activateCarouselMode("splitLay", { targetButton: event.currentTarget });
+});
 
-  resetSplitLayInputs();
-  resetSplitLayResultCard();
-  setMode("splitLay");
-  syncSplitLayInputsFromState();
-  resetSplitLayResultCard();
-
+els.standpipeOpsButton?.addEventListener("click", event => {
+  activateCarouselMode("standpipeOps", { targetButton: event.currentTarget });
 });
 
 
@@ -5268,6 +6039,92 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
     calculateAndRender();
   });
 });
+
+els.standpipeAddOutletButton?.addEventListener("click", () => {
+  const standpipe = state.standpipeOps;
+
+  standpipe.attack2Enabled = true;
+  [
+    "Floor",
+    "Length",
+    "HoseSize",
+    "NozzleType",
+    "NozzlePressure",
+    "Flow",
+    "SmoothboreTip",
+    "BladeModel"
+  ].forEach(suffix => {
+    standpipe[`attack2${suffix}`] = standpipe[`attack1${suffix}`];
+  });
+
+  saveState();
+  syncStandpipeInputsFromState();
+  syncStandpipeUi();
+  calculateAndRender();
+});
+
+els.standpipeRemoveOutletButton?.addEventListener("click", () => {
+  state.standpipeOps.attack2Enabled = false;
+
+  saveState();
+  syncStandpipeUi();
+  calculateAndRender();
+});
+
+[
+  ["standpipeAttack1Floor", "attack1Floor"],
+  ["standpipeAttack1Length", "attack1Length"],
+  ["standpipeAttack1Hose", "attack1HoseSize"],
+  ["standpipeAttack1NozzleType", "attack1NozzleType"],
+  ["standpipeAttack1NozzlePressure", "attack1NozzlePressure"],
+  ["standpipeAttack1Flow", "attack1Flow"],
+  ["standpipeAttack1SmoothboreTip", "attack1SmoothboreTip"],
+  ["standpipeAttack1BladeModel", "attack1BladeModel"],
+  ["standpipeAttack2Floor", "attack2Floor"],
+  ["standpipeAttack2Length", "attack2Length"],
+  ["standpipeAttack2Hose", "attack2HoseSize"],
+  ["standpipeAttack2NozzleType", "attack2NozzleType"],
+  ["standpipeAttack2NozzlePressure", "attack2NozzlePressure"],
+  ["standpipeAttack2Flow", "attack2Flow"],
+  ["standpipeAttack2SmoothboreTip", "attack2SmoothboreTip"],
+  ["standpipeAttack2BladeModel", "attack2BladeModel"],
+  ["standpipeSupplyLength", "supplyLength"],
+  ["standpipeSupplyHose", "supplyHoseSize"],
+  ["standpipeLoss", "standpipeLoss"]
+].forEach(([elementId, stateKey]) => {
+  const element = document.getElementById(elementId);
+
+  if (!element) return;
+
+  element.addEventListener("input", e => {
+    state.standpipeOps[stateKey] = e.target.tagName === "INPUT"
+      ? wholeNumber(e.target.value)
+      : e.target.value;
+
+    e.target.value = state.standpipeOps[stateKey];
+
+    saveState();
+    syncStandpipeUi();
+    calculateAndRender();
+  });
+
+  element.addEventListener("change", e => {
+    state.standpipeOps[stateKey] = e.target.value;
+
+    saveState();
+    syncStandpipeUi();
+    calculateAndRender();
+  });
+});
+
+els.standpipeDualSupplyToggle?.addEventListener("change", () => {
+  state.standpipeOps.dualSupply =
+    els.standpipeDualSupplyToggle.checked;
+
+  saveState();
+  syncStandpipeUi();
+  calculateAndRender();
+});
       els.customNozzlePressure.addEventListener("input", e => {
 
   state.customNozzlePressure =
@@ -5337,10 +6194,14 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   const leavingSplitLay =
     state.mode === "splitLay" && mode !== "splitLay";
 
+  const leavingStandpipeOps =
+    state.mode === "standpipeOps" && mode !== "standpipeOps";
+
     const leavingReverseFlow =
   state.mode === "reverse" && mode !== "reverse";
 
   state.mode = mode;
+  saveSessionActiveMode(mode);
   state.customNozzlePressure = "";
   clearCustomCoefficient();
 
@@ -5350,6 +6211,14 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
     };
 
     resetSplitLayResultCard();
+  }
+
+  if (leavingStandpipeOps) {
+    state.standpipeOps = {
+      ...DEFAULT_STATE.standpipeOps
+    };
+
+    resetStandpipeResults();
   }
 
   if (leavingReverseFlow) {
@@ -5430,12 +6299,33 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   state.henTurboEnabled = false;
 }
 
+  if (mode === "standpipeOps") {
+    state.pdp = "";
+    state.targetGpm = "";
+    state.hoseLength = "";
+    state.hoseSize = "1.88";
+    state.nozzleType = "fog";
+    state.masterStreamType = "fog";
+    state.masterStreamLoss = "25";
+    state.dualLineSupply = false;
+    state.apparatusFogFlow = "1000";
+    state.apparatusCustomFogFlow = "";
+    state.apparatusElevation = "";
+    state.nozzlePressure = "55";
+    state.smoothboreTip = "";
+    state.bladeModel = "blade160";
+    state.applianceLoss = "0";
+    state.henTurboEnabled = false;
+  }
+
   populateHoseOptions();
+  populateSmoothboreTips();
 
   saveState();
 
   syncInputsFromState();
   syncSplitLayInputsFromState();
+  syncStandpipeInputsFromState();
   syncSmoothboreUi();
   syncModeUi();
 
@@ -5454,6 +6344,9 @@ function resetCalculator() {
     ...DEFAULT_STATE,
     splitLay: {
       ...DEFAULT_STATE.splitLay
+    },
+    standpipeOps: {
+      ...DEFAULT_STATE.standpipeOps
     }
   };
 
@@ -5465,6 +6358,8 @@ function resetCalculator() {
   populateHoseOptions();
   syncInputsFromState();
   resetSplitLayInputs();
+  syncStandpipeInputsFromState();
+  resetStandpipeResults();
   renderPressureButtons();
   saveState();
   calculateAndRender();
@@ -5519,6 +6414,7 @@ function resetCalculator() {
 
     function buildPresetData() {
   const isSplit = isSplitLayMode();
+  const isStandpipe = isStandpipeOpsMode();
 
   return {
     mode: state.mode || "",
@@ -5568,6 +6464,8 @@ function resetCalculator() {
     calculatedPdp:
   isSplit
     ? els.splitPrimaryPdp.textContent.replace(" PSI", "")
+    : isStandpipe
+      ? els.standpipePrimaryPdp.textContent.replace(" PSI", "")
     : isReverseMode()
       ? state.pdp || ""
       : isRequiredPdpMode() || isRelayMode()
@@ -5577,11 +6475,14 @@ function resetCalculator() {
     calculatedFlow:
       isSplit
         ? "Split Lay"
+        : isStandpipe
+          ? els.standpipeTotalFlow.textContent
         : isReverseMode()
           ? `${els.roundedGpm.textContent} GPM`
           : els.calculatedGpm.textContent,
 
-    splitLay: JSON.parse(JSON.stringify(state.splitLay))
+    splitLay: JSON.parse(JSON.stringify(state.splitLay)),
+    standpipeOps: JSON.parse(JSON.stringify(state.standpipeOps))
   };
 }
 
@@ -5710,13 +6611,20 @@ function applyPreset(presetId) {
     splitLay: {
       ...DEFAULT_STATE.splitLay,
       ...(preset.splitLay || {})
+    },
+
+    standpipeOps: {
+      ...DEFAULT_STATE.standpipeOps,
+      ...(preset.standpipeOps || {})
     }
   };
 
   populateHoseOptions();
+  populateSmoothboreTips();
   enforceHenTurboAvailability();
   syncInputsFromState();
   syncSplitLayInputsFromState();
+  syncStandpipeInputsFromState();
   syncReverseSupplyUi();
   syncSmoothboreUi();
   syncModeUi();
@@ -5812,13 +6720,20 @@ function applyPumpChartSetup(chartId, setupId) {
     splitLay: {
       ...DEFAULT_STATE.splitLay,
       ...(preset.splitLay || {})
+    },
+
+    standpipeOps: {
+      ...DEFAULT_STATE.standpipeOps,
+      ...(preset.standpipeOps || {})
     }
   };
 
   populateHoseOptions();
+  populateSmoothboreTips();
   enforceHenTurboAvailability();
   syncInputsFromState();
   syncSplitLayInputsFromState();
+  syncStandpipeInputsFromState();
   syncReverseSupplyUi();
   syncSmoothboreUi();
   syncModeUi();
@@ -8168,11 +9083,18 @@ function buildPumpChartPrintHtml(chart) {
 
       setResult("—", "—", "—", "—", getNozzleDisplay(), getSetupDisplay());
       resetSplitResults();
+      resetStandpipeResults();
 
       
       
       if (isSplitLayMode()) {
   calculateSplitLay(warnings);
+  syncLoadedSetupUpdateUi();
+  return;
+}
+
+if (isStandpipeOpsMode()) {
+  calculateStandpipeOps(warnings);
   syncLoadedSetupUpdateUi();
   return;
 }
@@ -9141,8 +10063,223 @@ function calculateRelayPdp({
   "—"
 );
 
-  renderWarnings(warnings);
+      renderWarnings(warnings);
 }
+    // ========================================
+// STANDPIPE OPS CALCULATIONS
+// ========================================
+
+function getStandpipeHydraulicSmoothboreModel(lineNumber) {
+  const nozzleType = state.standpipeOps[`attack${lineNumber}NozzleType`];
+
+  if (nozzleType === "blade") {
+    return BLADE_MODELS.find(
+      item => item.id === state.standpipeOps[`attack${lineNumber}BladeModel`]
+    ) || BLADE_MODELS[0];
+  }
+
+  return SMOOTHBORE_TIPS.find(
+    item => item.id === state.standpipeOps[`attack${lineNumber}SmoothboreTip`]
+  );
+}
+
+function calculateStandpipeFogReaction(flow, nozzlePressure) {
+  if (!flow || !nozzlePressure) return "—";
+
+  return `${Math.round(
+    0.0505 * flow * Math.sqrt(nozzlePressure)
+  )} lb`;
+}
+
+function calculateStandpipeSmoothboreReaction(lineNumber, nozzlePressure) {
+  const tip = getStandpipeHydraulicSmoothboreModel(lineNumber);
+  const nozzleType = state.standpipeOps[`attack${lineNumber}NozzleType`];
+
+  if (!tip || !nozzlePressure) return "—";
+
+  const reaction = Math.round(
+    1.57 *
+    tip.diameter *
+    tip.diameter *
+    nozzlePressure
+  );
+
+  return nozzleType === "blade"
+    ? `${reaction} lb (solid stream)`
+    : `${reaction} lb`;
+}
+
+function calculateStandpipeAttackLine(lineNumber, warnings) {
+  const standpipe = state.standpipeOps;
+  const hose = HOSE_OPTIONS.find(
+    item => item.id === standpipe[`attack${lineNumber}HoseSize`]
+  );
+  const floor = numberOrNull(standpipe[`attack${lineNumber}Floor`]);
+  const length = numberOrNull(standpipe[`attack${lineNumber}Length`]);
+  const nozzleType = standpipe[`attack${lineNumber}NozzleType`];
+  const nozzlePressure = numberOrNull(standpipe[`attack${lineNumber}NozzlePressure`]);
+
+  if (!hose || floor === null || length === null || nozzlePressure === null) {
+    warnings.push(`Complete Attack Line ${lineNumber} configuration.`);
+    renderWarnings(warnings);
+    return null;
+  }
+
+  if (floor < 1) {
+    warnings.push(`Attack Line ${lineNumber} outlet floor must be Floor 1 or higher.`);
+    renderWarnings(warnings);
+    return null;
+  }
+
+  if (length <= 0) {
+    warnings.push(`Attack Line ${lineNumber} hose length must be greater than 0 feet.`);
+    renderWarnings(warnings);
+    return null;
+  }
+
+  let flow = 0;
+
+  if (nozzleType === "smoothbore" || nozzleType === "blade") {
+    const tip = getStandpipeHydraulicSmoothboreModel(lineNumber);
+
+    if (!tip) {
+      warnings.push(
+        nozzleType === "blade"
+          ? `Select a Blade model for Attack Line ${lineNumber}.`
+          : `Select a smoothbore tip for Attack Line ${lineNumber}.`
+      );
+      renderWarnings(warnings);
+      return null;
+    }
+
+    flow = smoothboreGpm(tip.diameter, nozzlePressure);
+  } else {
+    flow = numberOrNull(standpipe[`attack${lineNumber}Flow`]);
+
+    if (flow === null || flow <= 0) {
+      warnings.push(`Enter target flow for Attack Line ${lineNumber}.`);
+      renderWarnings(warnings);
+      return null;
+    }
+  }
+
+  const coefficient = getActiveHoseCoefficient(hose.id);
+  const flPer100 = coefficient * Math.pow(flow / 100, 2);
+  const totalFl = flPer100 * (length / 100);
+  const elevationLoss = (floor - 1) * 5;
+  const requiredPdp = nozzlePressure + totalFl + elevationLoss;
+  const reaction =
+    nozzleType === "smoothbore" || nozzleType === "blade"
+      ? calculateStandpipeSmoothboreReaction(lineNumber, nozzlePressure)
+      : calculateStandpipeFogReaction(flow, nozzlePressure);
+  const lineWarnings = [];
+
+  if (flow > 250) {
+    lineWarnings.push(
+      "Flow exceeds 250 GPM from a single standpipe outlet. Verify outlet capability, system condition, and local SOP."
+    );
+  }
+
+  return {
+    lineNumber,
+    hose,
+    floor,
+    length,
+    nozzleType,
+    nozzlePressure,
+    flow,
+    flPer100,
+    totalFl,
+    elevationLoss,
+    requiredPdp,
+    reaction,
+    warnings: lineWarnings
+  };
+}
+
+function calculateStandpipeOps(warnings) {
+  const standpipe = state.standpipeOps;
+  const supplyLength = numberOrNull(standpipe.supplyLength);
+  const supplyHose = HOSE_OPTIONS.find(hose => hose.id === standpipe.supplyHoseSize);
+  const standpipeLoss = numberOrNull(standpipe.standpipeLoss) ?? 25;
+
+  const line1 = calculateStandpipeAttackLine("1", warnings);
+  if (!line1) return;
+
+  const line2 = standpipe.attack2Enabled
+    ? calculateStandpipeAttackLine("2", warnings)
+    : null;
+
+  if (standpipe.attack2Enabled && !line2) return;
+
+  if (!supplyHose || supplyLength === null || supplyLength <= 0) {
+    warnings.push("Enter a valid supply hose size and supply hose length.");
+    renderWarnings(warnings);
+    return;
+  }
+
+  if (standpipeLoss < 0) {
+    warnings.push("Standpipe loss must be 0 psi or greater.");
+    renderWarnings(warnings);
+    return;
+  }
+
+  const totalFlow = line1.flow + (line2 ? line2.flow : 0);
+  const supplyFlowPerLine = standpipe.dualSupply ? totalFlow / 2 : totalFlow;
+  const supplyCoefficient = getActiveHoseCoefficient(supplyHose.id);
+  const supplyTotalFl =
+    supplyCoefficient *
+    Math.pow(supplyFlowPerLine / 100, 2) *
+    (supplyLength / 100);
+  const drivingLine =
+    line2 && line2.requiredPdp > line1.requiredPdp
+      ? line2
+      : line1;
+  const requiredPdp =
+    drivingLine.requiredPdp +
+    standpipeLoss +
+    supplyTotalFl;
+  const systemWarnings = [];
+
+  if (totalFlow > 500) {
+    systemWarnings.push(
+      "Total standpipe flow exceeds 500 GPM. Verify riser/system capacity, preplan information, and local procedures."
+    );
+  }
+
+  if (requiredPdp > 250) {
+    systemWarnings.push(
+      "High required discharge pressure. Confirm hose, FDC, standpipe system, pressure zones, and department operating limits before pumping this pressure."
+    );
+  }
+
+  setStandpipeResults({
+    requiredPdp,
+    totalFlow,
+    supplyTotalFl,
+    supplyFlowPerLine,
+    standpipeLoss,
+    drivingLine,
+    line1,
+    line2,
+    systemWarnings
+  });
+
+  setResult(
+    Math.round(requiredPdp),
+    `${Math.round(totalFlow)} GPM`,
+    `${supplyTotalFl.toFixed(1)} psi supply`,
+    standpipe.dualSupply
+      ? `Dual @ ${Math.round(supplyFlowPerLine)} GPM per line`
+      : `${Math.round(supplyFlowPerLine)} GPM supply`,
+    `Standpipe loss ${Math.round(standpipeLoss)} psi`,
+    `Attack Line ${drivingLine.lineNumber} drives PDP`,
+    drivingLine.reaction
+  );
+
+  renderWarnings([]);
+}
+
     // ========================================
 // SPLIT LAY CALCULATIONS
 // ========================================
@@ -9681,6 +10818,147 @@ function getSplitNozzleDisplay(line) {
     // ========================================
     // RESULT RENDERING
     // ========================================
+    function resetStandpipeResults() {
+  [
+    "standpipePrimaryPdp",
+    "standpipeTotalFlow",
+    "standpipeSupplyLoss",
+    "standpipeLossResult",
+    "standpipeDrivingLine",
+    "standpipeAttack1FlowResult",
+    "standpipeAttack1FlResult",
+    "standpipeAttack1ElevationResult",
+    "standpipeAttack1NpResult",
+    "standpipeAttack1ReactionResult",
+    "standpipeAttack2FlowResult",
+    "standpipeAttack2FlResult",
+    "standpipeAttack2ElevationResult",
+    "standpipeAttack2NpResult",
+    "standpipeAttack2ReactionResult"
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = "—";
+  });
+
+  [els.standpipeAttack1PressureTag, els.standpipeAttack2PressureTag].forEach(tag => {
+    if (!tag) return;
+    tag.textContent = "—";
+    tag.className = "pressure-path-tag";
+  });
+
+  [els.standpipeAttack1Warnings, els.standpipeAttack2Warnings].forEach(container => {
+    if (!container) return;
+    container.hidden = true;
+    container.innerHTML = "";
+  });
+
+  if (els.standpipeAdvisories) {
+    els.standpipeAdvisories.innerHTML = "";
+  }
+}
+
+function renderStandpipeLineWarnings(container, warnings) {
+  if (!container) return;
+
+  container.hidden = !warnings.length;
+  container.innerHTML = warnings.map(warning => (
+    `<div class="warning-item"><span>⚠️</span><span>${escapeHtml(warning)}</span></div>`
+  )).join("");
+}
+
+function renderStandpipeAdvisories(warnings) {
+  if (!els.standpipeAdvisories) return;
+
+  const advisoryText =
+    "Standpipe outlet pressure is estimated. PRVs, pressure-restricting devices, valve position, system condition, and building piping can affect actual pressure at the outlet. Confirm with an inline gauge whenever possible.";
+
+  const advisoryItems = [advisoryText, ...warnings];
+
+  els.standpipeAdvisories.innerHTML = advisoryItems.map(item => (
+    `<div class="warning-item"><span>⚠️</span><span>${escapeHtml(item)}</span></div>`
+  )).join("");
+}
+
+function setStandpipeLineTag(tag, isDriving, isSingle) {
+  if (!tag) return;
+
+  tag.textContent = isSingle
+    ? "SINGLE LINE"
+    : isDriving
+      ? "PDP DRIVING LINE"
+      : "SECONDARY";
+  tag.className = `pressure-path-tag ${isSingle ? "balanced" : isDriving ? "driver" : "recalculated"}`;
+}
+
+function setStandpipeResults({
+  requiredPdp,
+  totalFlow,
+  supplyTotalFl,
+  supplyFlowPerLine,
+  standpipeLoss,
+  drivingLine,
+  line1,
+  line2,
+  systemWarnings
+}) {
+  if (!els.standpipeResultsCard) return;
+
+  els.standpipePrimaryPdp.textContent =
+    `${Math.round(requiredPdp)} PSI`;
+  els.standpipeTotalFlow.textContent =
+    `${Math.round(totalFlow)} GPM`;
+  els.standpipeSupplyLoss.textContent =
+    state.standpipeOps.dualSupply
+      ? `${supplyTotalFl.toFixed(1)} psi per line @ ${Math.round(supplyFlowPerLine)} GPM`
+      : `${supplyTotalFl.toFixed(1)} psi`;
+  els.standpipeLossResult.textContent =
+    `${Math.round(standpipeLoss)} psi`;
+  els.standpipeDrivingLine.textContent =
+    `Attack Line ${drivingLine.lineNumber}`;
+
+  const renderLine = (line, elements) => {
+    elements.flow.textContent = `${Math.round(line.flow)} GPM`;
+    elements.fl.textContent = `${line.totalFl.toFixed(1)} psi`;
+    elements.elevation.textContent = `${Math.round(line.elevationLoss)} psi`;
+    elements.nozzlePressure.textContent = `${Math.round(line.nozzlePressure)} psi`;
+    elements.reaction.textContent = line.reaction;
+    renderStandpipeLineWarnings(elements.warnings, line.warnings);
+  };
+
+  renderLine(line1, {
+    flow: els.standpipeAttack1FlowResult,
+    fl: els.standpipeAttack1FlResult,
+    elevation: els.standpipeAttack1ElevationResult,
+    nozzlePressure: els.standpipeAttack1NpResult,
+    reaction: els.standpipeAttack1ReactionResult,
+    warnings: els.standpipeAttack1Warnings
+  });
+
+  if (line2) {
+    renderLine(line2, {
+      flow: els.standpipeAttack2FlowResult,
+      fl: els.standpipeAttack2FlResult,
+      elevation: els.standpipeAttack2ElevationResult,
+      nozzlePressure: els.standpipeAttack2NpResult,
+      reaction: els.standpipeAttack2ReactionResult,
+      warnings: els.standpipeAttack2Warnings
+    });
+  }
+
+  setStandpipeLineTag(
+    els.standpipeAttack1PressureTag,
+    drivingLine.lineNumber === "1",
+    !line2
+  );
+  setStandpipeLineTag(
+    els.standpipeAttack2PressureTag,
+    line2 && drivingLine.lineNumber === "2",
+    false
+  );
+
+  renderStandpipeAdvisories(systemWarnings);
+}
+
     function resetSplitResults() {
   if (!els.splitResultsCard) return;
 
@@ -10060,6 +11338,10 @@ return `Fog @ ${displayPressure} psi`;
     function isSplitLayMode() {
       return state.mode === "splitLay";
 }
+
+    function isStandpipeOpsMode() {
+      return state.mode === "standpipeOps";
+    }
 
     function isSmoothbore() {
   return (

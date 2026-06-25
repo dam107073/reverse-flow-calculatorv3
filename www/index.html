@@ -40,10 +40,10 @@
        STYLES
   ========================================= -->
   <link rel="stylesheet" href="css/base.css?v=build-7" />
-  <link rel="stylesheet" href="css/components.css?v=flash-4" />
-  <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
+  <link rel="stylesheet" href="css/components.css?v=standpipe-3" />
+  <link rel="stylesheet" href="css/calculators.css?v=standpipe-1" />
   <link rel="stylesheet" href="css/support.css?v=build-15" />
-  <link rel="stylesheet" href="css/responsive.css?v=build-12" />
+  <link rel="stylesheet" href="css/responsive.css?v=standpipe-3" />
 </head>
   
   <body>
@@ -99,29 +99,45 @@
 Select a hydraulic calculation mode.
 </p>
 
-          <div class="mode-buttons" id="modeButtons">
-  <button id="reverseModeButton" type="button">
-    Reverse Flow
+          <div class="mode-carousel" id="modeButtons" aria-label="Operations module carousel">
+  <button id="apparatusMountedModeButton" type="button" class="mode-card-pro" data-mode="apparatusMounted">
+    <span>App</span>
+    <span>Mounted</span>
   </button>
 
-  <button id="pdpModeButton" type="button">
-    Required PDP
+  <button id="relayModeButton" type="button" class="mode-card-pro" data-mode="relay">
+    <span>Relay</span>
+    <span>Pumping</span>
   </button>
 
-  <button id="apparatusMountedModeButton" type="button" class="mode-card-pro">
-    Apparatus Mounted
+  <button id="pdpModeButton" type="button" data-mode="requiredPdp">
+    <span>Required</span>
+    <span>PDP</span>
   </button>
 
-  <button id="relayModeButton" type="button" class="mode-card-pro">
-  Relay Pumping
-</button>
+  <button id="reverseModeButton" type="button" data-mode="reverse">
+    <span>Reverse</span>
+    <span>Flow</span>
+  </button>
 
   <button
     id="splitLayButton"
     type="button"
     class="mode-card-pro"
+    data-mode="splitLay"
   >
-    Split Lay
+    <span>Split</span>
+    <span>Lay</span>
+  </button>
+
+  <button
+    id="standpipeOpsButton"
+    type="button"
+    class="mode-card-pro"
+    data-mode="standpipeOps"
+  >
+    <span>Standpipe</span>
+    <span>Ops</span>
   </button>
 </div>
           <p class="helper" id="modeHelper">Reverse Flow Mode: Enter PDP to estimate GPM and Nozzle Pressure based on hose and nozzle characteristics.</p>
@@ -434,6 +450,196 @@ Select a hydraulic calculation mode.
           <label for="pdp" id="pdpLabel">Pump Discharge Pressure</label>
           <input id="pdp" inputmode="numeric" placeholder="PDP" />
         </div>
+
+<div id="standpipeOpsFields" class="field full standpipe-ops-fields" hidden>
+  <div class="split-lay-panel">
+    <div class="split-lay-grid section-card attack-card attack-1-card">
+      <div class="field full">
+        <strong>Attack Line 1</strong>
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack1Floor">Outlet Floor</label>
+        <input id="standpipeAttack1Floor" inputmode="numeric" placeholder="Floor" />
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack1Hose">Hose Size</label>
+        <select id="standpipeAttack1Hose"></select>
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack1Length">Hose Length</label>
+        <div class="input-with-button">
+          <input id="standpipeAttack1Length" inputmode="numeric" placeholder="Feet" />
+          <button type="button" class="inline-add-button" onclick="addFiftyFeet('standpipeAttack1Length')">
+            +50
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack1NozzleType">Nozzle Type</label>
+        <select id="standpipeAttack1NozzleType">
+          <option value="fog">Fog</option>
+          <option value="smoothbore">Smoothbore</option>
+          <option value="blade">Blade</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack1NozzlePressure">Nozzle Pressure</label>
+        <select id="standpipeAttack1NozzlePressure"></select>
+      </div>
+
+      <div class="field" id="standpipeAttack1FlowField">
+        <label for="standpipeAttack1Flow">Target Flow</label>
+        <input id="standpipeAttack1Flow" inputmode="numeric" placeholder="GPM" />
+      </div>
+
+      <div class="field" id="standpipeAttack1SmoothboreTipField" hidden>
+        <label for="standpipeAttack1SmoothboreTip">Smoothbore Tip</label>
+        <select id="standpipeAttack1SmoothboreTip">
+          <option value="3/4">3/4&quot;</option>
+          <option value="7/8">7/8&quot;</option>
+          <option value="15/16">15/16&quot;</option>
+          <option value="1">1&quot;</option>
+          <option value="1-1/8">1 1/8&quot;</option>
+          <option value="1-3/16">1 3/16&quot;</option>
+          <option value="1-1/4">1 1/4&quot;</option>
+        </select>
+      </div>
+
+      <div class="field" id="standpipeAttack1BladeModelField" hidden>
+        <label for="standpipeAttack1BladeModel">Blade Model</label>
+        <select id="standpipeAttack1BladeModel">
+          <option value="blade20">Blade 20</option>
+          <option value="blade45">Blade 45</option>
+          <option value="blade95">Blade 95</option>
+          <option value="blade160">Blade 160</option>
+          <option value="blade185">Blade 185</option>
+          <option value="blade265">Blade 265</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field full standpipe-outlet-toggle">
+      <button id="standpipeAddOutletButton" type="button" class="toggle-button">
+        Hook to 2nd outlet?
+      </button>
+    </div>
+
+    <div
+      class="split-lay-grid section-card attack-card attack-2-card"
+      id="standpipeAttack2Section"
+      hidden
+    >
+      <div class="field full standpipe-card-title-row">
+        <strong>Attack Line 2</strong>
+        <button id="standpipeRemoveOutletButton" type="button" class="reset-button">
+          Remove 2nd outlet
+        </button>
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack2Floor">Outlet Floor</label>
+        <input id="standpipeAttack2Floor" inputmode="numeric" placeholder="Floor" />
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack2Hose">Hose Size</label>
+        <select id="standpipeAttack2Hose"></select>
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack2Length">Hose Length</label>
+        <div class="input-with-button">
+          <input id="standpipeAttack2Length" inputmode="numeric" placeholder="Feet" />
+          <button type="button" class="inline-add-button" onclick="addFiftyFeet('standpipeAttack2Length')">
+            +50
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack2NozzleType">Nozzle Type</label>
+        <select id="standpipeAttack2NozzleType">
+          <option value="fog">Fog</option>
+          <option value="smoothbore">Smoothbore</option>
+          <option value="blade">Blade</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="standpipeAttack2NozzlePressure">Nozzle Pressure</label>
+        <select id="standpipeAttack2NozzlePressure"></select>
+      </div>
+
+      <div class="field" id="standpipeAttack2FlowField">
+        <label for="standpipeAttack2Flow">Target Flow</label>
+        <input id="standpipeAttack2Flow" inputmode="numeric" placeholder="GPM" />
+      </div>
+
+      <div class="field" id="standpipeAttack2SmoothboreTipField" hidden>
+        <label for="standpipeAttack2SmoothboreTip">Smoothbore Tip</label>
+        <select id="standpipeAttack2SmoothboreTip">
+          <option value="3/4">3/4&quot;</option>
+          <option value="7/8">7/8&quot;</option>
+          <option value="15/16">15/16&quot;</option>
+          <option value="1">1&quot;</option>
+          <option value="1-1/8">1 1/8&quot;</option>
+          <option value="1-3/16">1 3/16&quot;</option>
+          <option value="1-1/4">1 1/4&quot;</option>
+        </select>
+      </div>
+
+      <div class="field" id="standpipeAttack2BladeModelField" hidden>
+        <label for="standpipeAttack2BladeModel">Blade Model</label>
+        <select id="standpipeAttack2BladeModel">
+          <option value="blade20">Blade 20</option>
+          <option value="blade45">Blade 45</option>
+          <option value="blade95">Blade 95</option>
+          <option value="blade160">Blade 160</option>
+          <option value="blade185">Blade 185</option>
+          <option value="blade265">Blade 265</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="split-lay-grid section-card supply-card supply-1-card">
+      <div class="field full">
+        <strong>Supply Line</strong>
+      </div>
+
+      <div class="field">
+        <label for="standpipeSupplyHose">Supply Hose Size</label>
+        <select id="standpipeSupplyHose"></select>
+      </div>
+
+      <div class="field">
+        <label for="standpipeSupplyLength">Supply Hose Length</label>
+        <div class="input-with-button">
+          <input id="standpipeSupplyLength" inputmode="numeric" placeholder="Feet" />
+          <button type="button" class="inline-add-button" onclick="addFiftyFeet('standpipeSupplyLength')">
+            +50
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="standpipeLoss">Standpipe Loss</label>
+        <input id="standpipeLoss" inputmode="numeric" placeholder="PSI" />
+      </div>
+
+      <div class="field full">
+        <label class="split-inline-toggle">
+          <input type="checkbox" id="standpipeDualSupplyToggle" />
+          <span>Split supply into dual matching lines?</span>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
 
         <div class="field">
   <label for="hoseLength">Hose Length</label>
@@ -883,6 +1089,140 @@ Select a hydraulic calculation mode.
   </div>
 
 </section>
+<section
+  id="standpipeResultsCard"
+  class="card split-results-card standpipe-results-card"
+  hidden
+>
+  <div class="split-results-header">
+    <p>Standpipe Ops PDP</p>
+    <strong id="standpipePrimaryPdp">— PSI</strong>
+  </div>
+
+  <div class="split-results-grid">
+    <div class="split-result-section">
+      <div class="split-section-divider">
+        SYSTEM
+      </div>
+
+      <div class="split-result-title supply-1-title">
+        Standpipe Supply
+      </div>
+
+      <div class="split-result-details">
+        <div class="split-result-item">
+          <p>Total Flow</p>
+          <strong id="standpipeTotalFlow">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Supply Line FL</p>
+          <strong id="standpipeSupplyLoss">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Standpipe Loss</p>
+          <strong id="standpipeLossResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Driving Line</p>
+          <strong id="standpipeDrivingLine">—</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="split-result-section" id="standpipeAttack1ResultSection">
+      <div class="split-result-title attack-1-title">
+        <span>Attack Line 1</span>
+        <span id="standpipeAttack1PressureTag" class="pressure-path-tag">—</span>
+      </div>
+
+      <div class="split-result-details">
+        <div class="split-result-item">
+          <p>Flow</p>
+          <strong id="standpipeAttack1FlowResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Friction Loss</p>
+          <strong id="standpipeAttack1FlResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Elevation Loss</p>
+          <strong id="standpipeAttack1ElevationResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Nozzle Pressure</p>
+          <strong id="standpipeAttack1NpResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Nozzle Reaction</p>
+          <strong id="standpipeAttack1ReactionResult">—</strong>
+        </div>
+      </div>
+
+      <div id="standpipeAttack1Warnings" class="standpipe-line-warnings" hidden></div>
+    </div>
+
+    <div class="split-result-section" id="standpipeAttack2ResultSection" hidden>
+      <div class="split-result-title attack-2-title">
+        <span>Attack Line 2</span>
+        <span id="standpipeAttack2PressureTag" class="pressure-path-tag">—</span>
+      </div>
+
+      <div class="split-result-details">
+        <div class="split-result-item">
+          <p>Flow</p>
+          <strong id="standpipeAttack2FlowResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Friction Loss</p>
+          <strong id="standpipeAttack2FlResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Elevation Loss</p>
+          <strong id="standpipeAttack2ElevationResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Nozzle Pressure</p>
+          <strong id="standpipeAttack2NpResult">—</strong>
+        </div>
+
+        <div class="split-result-item">
+          <p>Nozzle Reaction</p>
+          <strong id="standpipeAttack2ReactionResult">—</strong>
+        </div>
+      </div>
+
+      <div id="standpipeAttack2Warnings" class="standpipe-line-warnings" hidden></div>
+    </div>
+
+    <div class="split-result-section standpipe-advisory-section">
+      <div class="split-result-title supply-2-title">
+        Standpipe Advisory
+      </div>
+
+      <div id="standpipeAdvisories" class="standpipe-advisories"></div>
+    </div>
+  </div>
+
+  <div class="result-actions">
+    <button
+      id="savePresetButtonStandpipe"
+      type="button"
+      class="mode-card-pro"
+    >
+      Save to Pump Chart
+    </button>
+  </div>
+</section>
    <section id="standardResultsCard" class="card result-empty">
       <div class="result-top">
         <p class="result-label" id="primaryResultLabel">Rounded Flow</p>
@@ -990,6 +1330,17 @@ Select a hydraulic calculation mode.
   <p>For unequal attack lines, the higher-demand line drives PDP. Lower-demand lines are recalculated to show actual delivered nozzle pressure, flow, friction loss, and nozzle reaction.</p>
   <p>Fog nozzle actual flow = target flow × √(actual nozzle pressure ÷ target nozzle pressure).</p>
   <p>Smoothbore flow = 29.7 × tip diameter² × √nozzle pressure.</p>
+</div>
+
+      <div id="standpipeFormula" hidden>
+  <p><strong>Standpipe Ops Formula</strong></p>
+  <p>Required PDP = highest-demand attack line + standpipe loss + supply friction loss.</p>
+  <p>Line requirement = nozzle pressure + attack hose friction loss + elevation loss.</p>
+  <p>Supply FL = C × (supply flow ÷ 100)² × (supply length ÷ 100).</p>
+  <p>Elevation is estimated at 5 PSI per floor above Floor 1. Floor 1 is treated as the FDC/pump reference level.</p>
+  <p>Default standpipe loss allowance is 25 PSI.</p>
+  <p>When dual matching supply lines are selected, total standpipe flow is divided evenly between both supply lines.</p>
+  <p>Standpipe outlet pressure is estimated and should be confirmed with an inline gauge whenever possible.</p>
 </div>
 
   <hr class="formula-divider">
@@ -1183,7 +1534,7 @@ Select a hydraulic calculation mode.
   <script src="js/constants.js?v=build-6"></script>
   <script src="js/services/entitlement.js?v=build-2"></script>
   <script src="js/data/hydraulics.js?v=build-8"></script>
-  <script src="js/app.js?v=build-28"></script>
+  <script src="js/app.js?v=standpipe-4"></script>
 
   <script type="module" src="js/analytics.js"></script>
 

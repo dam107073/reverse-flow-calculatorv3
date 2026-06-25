@@ -4,14 +4,30 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 18px;
       padding: 22px 20px 20px;
+      min-width: 0;
+      max-width: 100%;
       background:
         linear-gradient(180deg, rgba(248,250,252,0.78), rgba(255,255,255,0.38));
     }
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+main,
+.card {
+  max-width: 100%;
+  min-width: 0;
+}
 
     .field {
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-width: 0;
+      max-width: 100%;
     }
 
     .input-with-button {
@@ -171,37 +187,78 @@
   overflow: hidden;
 }
 
-#modeButtons {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding-top: 2px;
+.mode-carousel {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 4px max(12px, calc(50% - 58px)) 8px;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: calc(50% - 58px);
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
 }
 
-#modeButtons button {
-  width: 100%;
-  min-height: 42px;
-  padding: 7px 8px;
+.mode-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.mode-carousel button {
+  width: 116px;
+  flex: 0 0 116px;
+  min-height: 64px;
+  padding: 9px 10px;
 
   font-size: 13px;
-  line-height: 1.1;
+  line-height: 1.05;
 
-  border-radius: 9px;
-}
-
-#modeButtons button:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
-#modeButtons button.active {
-  background: var(--button);
-  color: var(--button-text);
+  border-radius: 10px;
+  scroll-snap-align: center;
+  opacity: 0.68;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  white-space: normal;
+  background:
+    linear-gradient(180deg, #ffffff, #f4f7fa);
+  border-color: #c7d1de;
+  color: #111827;
+  -webkit-text-fill-color: #111827;
   box-shadow:
-    inset 0 0 0 2px var(--accent),
-    var(--accent-glow);
-  z-index: 2;
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 2px 5px rgba(17, 24, 39, 0.06);
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
-#modeButtons button {
+.mode-carousel button.active {
+  background:
+    linear-gradient(180deg, #172033, #0b1220);
+  color: var(--button-text);
+  -webkit-text-fill-color: var(--button-text);
+  border-color: #f97316;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -3px 0 var(--accent),
+    0 10px 22px rgba(11, 18, 32, 0.18),
+    0 0 0 4px rgba(249, 115, 22, 0.12);
+  z-index: 2;
+  opacity: 1;
+  transform: translateY(-1px) scale(1.045);
+}
+
+.mode-carousel button {
   position: relative;
 }
 
@@ -317,7 +374,6 @@
   box-shadow: var(--shadow-soft);
 }
 
-#modeButtons button,
 .pressure-buttons button {
   background:
     linear-gradient(180deg, #ffffff, #f4f7fa);
@@ -333,13 +389,12 @@
   min-height: 48px;
 }
 
-#modeButtons button.active,
 .pressure-buttons button.active {
   background:
     linear-gradient(180deg, #172033, #0b1220);
   color: var(--button-text);
   -webkit-text-fill-color: var(--button-text);
-  border-color: #0b1220;
+  border-color: #f97316;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.08),
     inset 0 -3px 0 var(--accent),
@@ -1029,6 +1084,19 @@ body.pro-user .mode-card-pro.active {
   color: var(--button-text);
   border-color: var(--button);
   box-shadow: var(--accent-glow);
+}
+
+.mode-carousel button.mode-card-pro.active {
+  background:
+    linear-gradient(180deg, #172033, #0b1220);
+  color: var(--button-text);
+  -webkit-text-fill-color: var(--button-text);
+  border-color: #f97316;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -3px 0 var(--accent),
+    0 10px 22px rgba(11, 18, 32, 0.18),
+    0 0 0 4px rgba(249, 115, 22, 0.12);
 }
 
 .pro-modal {

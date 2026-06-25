@@ -300,7 +300,6 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      #modeButtons button,
       .pressure-buttons button {
         background:
           linear-gradient(180deg, #172033, #111827);
@@ -312,8 +311,32 @@
           0 2px 8px rgba(0,0,0,0.18);
       }
 
-      #modeButtons button.active,
       .pressure-buttons button.active {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
+          linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
+        color: #f8fafc;
+        -webkit-text-fill-color: #f8fafc;
+        border-color: #fb923c;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 0 -3px 0 rgba(251,146,60,0.68),
+          0 0 0 3px rgba(251, 146, 60, 0.15),
+          0 8px 18px rgba(0, 0, 0, 0.28);
+      }
+
+      .mode-carousel button {
+        background:
+          linear-gradient(180deg, #172033, #111827);
+        border-color: rgba(148, 163, 184, 0.28);
+        color: #f8fafc;
+        -webkit-text-fill-color: #f8fafc;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.04),
+          0 2px 8px rgba(0,0,0,0.18);
+      }
+
+      .mode-carousel button.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -355,6 +378,20 @@
           inset 0 -3px 0 rgba(251,146,60,0.72),
           0 0 0 3px rgba(251, 146, 60, 0.14),
           0 8px 18px rgba(0, 0, 0, 0.26);
+      }
+
+      .mode-carousel button.mode-card-pro.active {
+        background:
+          linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
+          linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
+        color: #f8fafc;
+        -webkit-text-fill-color: #f8fafc;
+        border-color: #fb923c;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 0 -3px 0 rgba(251,146,60,0.68),
+          0 0 0 3px rgba(251, 146, 60, 0.15),
+          0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
       button:disabled {
@@ -659,20 +696,22 @@
     grid-template-columns: 1fr;
   }
 
-  #modeButtons {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+  .mode-carousel {
+    display: flex;
+    gap: 12px;
+    padding-inline: max(12px, calc(50% - 56px));
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
-  #modeButtons button {
-    min-height: 42px;
-    padding: 7px 8px;
+  .mode-carousel button {
+    width: 112px;
+    flex: 0 0 112px;
+    min-height: 64px;
+    padding: 9px 8px;
     font-size: 13px;
-    line-height: 1.1;
-  }
-
-  #modeButtons button:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
+    line-height: 1.05;
   }
 
   .detail {
@@ -917,17 +956,21 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #modeButtons {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  .mode-carousel {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
-#modeButtons button {
-  width: 100%;
-  min-height: 42px;
-  padding: 7px 8px;
+.mode-carousel button {
+  width: 112px;
+  flex: 0 0 112px;
+  min-height: 64px;
+  padding: 9px 8px;
   font-size: 13px;
-  line-height: 1.1;
+  line-height: 1.05;
 }
 
 }
