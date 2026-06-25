@@ -65,7 +65,7 @@
         <div class="field full">
           <label>References</label>
           <p class="helper">
-            Manufacturer information, training partners, and training resources for fire hydraulics.
+            Manufacturer information, reviewed training resources, and instructor listings for fire hydraulics.
           </p>
         </div>
 
@@ -89,7 +89,7 @@
         reason: "references-page-load"
       });
   </script>
-  <script src="js/data/references.js?v=manufacturers-3"></script>
+  <script src="js/data/references.js?v=training-directory-1"></script>
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
@@ -159,6 +159,18 @@
       return card;
     }
 
+    function createTrainingDirectoryEmptyCard() {
+      const card = document.createElement("article");
+      card.className = "hose-library-card reference-card reference-empty-card";
+      card.innerHTML = `
+        <div>
+          <strong>Training Directory listings are coming soon.</strong>
+          <p class="helper">This section will help users discover reviewed fire service training resources and instructor listings.</p>
+        </div>
+      `;
+      return card;
+    }
+
     function createManufacturerEmptyStateHtml() {
       return `
         <article class="hose-library-card reference-card reference-empty-card">
@@ -186,6 +198,12 @@
 
     function getManufacturerCount(data) {
       return getHoseManufacturers(data).length + getEquipmentManufacturers(data).length;
+    }
+
+    function getTrainingDirectoryListings(data) {
+      return Array.isArray(data.trainingPartners)
+        ? data.trainingPartners.filter(item => item.status !== "placeholder")
+        : [];
     }
 
     function createCollapsedSection(title, helper, bodyHtml) {
@@ -267,7 +285,7 @@
             <strong>Contact</strong>
             <p class="helper">
               ${hasEmail
-                ? `Interested training organizations can email ${escapeHtml(partner.contactEmail)}.`
+                ? `Training organizations and instructors can email ${escapeHtml(partner.contactEmail)} for listing review.`
                 : "Contact information has not been added yet."}
             </p>
           </div>
@@ -305,7 +323,7 @@
       }
 
       return `
-        <div class="reference-specialty-tags" aria-label="Training partner specialties">
+        <div class="reference-specialty-tags" aria-label="Training directory specialties">
           ${partner.specialties.map(specialty => `
             <span>${escapeHtml(specialty)}</span>
           `).join("")}
@@ -340,6 +358,7 @@
     function renderOverview(data) {
       referencesList.innerHTML = "";
       const manufacturerCount = getManufacturerCount(data);
+      const trainingDirectoryListings = getTrainingDirectoryListings(data);
       const manufacturerBody = `
         <article class="hose-library-card reference-card reference-nav-card">
           <div>
@@ -352,21 +371,21 @@
         </article>
       `;
 
-      const trainingPartnersBody = data.trainingPartners.length
+      const trainingPartnersBody = trainingDirectoryListings.length
         ? createReferenceLinkList(
-            data.trainingPartners.map(partner => ({
+            trainingDirectoryListings.map(partner => ({
               id: partner.id,
               name: partner.name,
               helper: partner.subtitle || "Coming soon",
-              actionText: "View Partner"
+              actionText: "View Listing"
             })),
             "training-partner"
           )
         : `
             <article class="hose-library-card reference-card reference-empty-card">
               <div>
-                <strong>Training Partners Coming Soon</strong>
-                <p class="helper">Fire service training organizations and instructors will be added here after review.</p>
+                <strong>Training Directory listings are coming soon.</strong>
+                <p class="helper">This section will help users discover reviewed fire service training resources and instructor listings.</p>
               </div>
               <a class="reset-button reference-open-button" href="references.html?section=training-partners">
                 Open
@@ -386,8 +405,8 @@
 
       referencesList.appendChild(
         createCollapsedSection(
-          "Training Partners",
-          "Fire service training organizations and instructors focused on pump operations, hydraulics, water supply, and related disciplines.",
+          "Training Directory",
+          "Curated fire service training resources reviewed by Reverse Flow.",
           trainingPartnersBody
         )
       );
@@ -899,17 +918,26 @@
           <a class="reset-button reference-open-button reference-back-link" href="references.html">
             Back to References
           </a>
-          <h2>Training Partners</h2>
+          <h2>Training Directory</h2>
+          <p class="helper">The Training Directory helps firefighters discover quality fire service training organizations and instructors. Listings are reviewed by Reverse Flow for relevance before being included.</p>
+          <p class="helper">Inclusion in the Training Directory does not imply formal partnership, sponsorship, endorsement, employment, affiliation, or operational control by Reverse Flow.</p>
         </div>
       `;
 
-      data.trainingPartners.forEach(partner => {
+      const trainingDirectoryListings = getTrainingDirectoryListings(data);
+
+      if (!trainingDirectoryListings.length) {
+        referencesList.appendChild(createTrainingDirectoryEmptyCard());
+        return;
+      }
+
+      trainingDirectoryListings.forEach(partner => {
         referencesList.appendChild(
           createReferenceLinkCard(
             partner.name,
             partner.subtitle || "Coming soon",
             getReferenceUrl("training-partner", partner.id),
-            "View Partner"
+            "View Listing"
           )
         );
       });
@@ -973,13 +1001,14 @@
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=training-partners">
-            Back to Training Partners
+            Back to Training Directory
           </a>
           <div class="reference-partner-header${partner.logo ? "" : " reference-partner-header-no-logo"}">
             ${createTrainingPartnerLogo(partner)}
             <div class="reference-partner-title-copy">
               <h2>${escapeHtml(partner.name)}</h2>
               <p class="helper">${escapeHtml(partner.description)}</p>
+              <p class="helper">Inclusion in the Training Directory does not imply formal partnership, sponsorship, endorsement, employment, affiliation, or operational control by Reverse Flow.</p>
             </div>
           </div>
         </div>

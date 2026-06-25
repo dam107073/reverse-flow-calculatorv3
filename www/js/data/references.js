@@ -303,15 +303,15 @@ const referencesData = {
     hose: hoseManufacturerReferences,
     equipment: equipmentManufacturerReferences
   },
-  // Real training partners should only be added after review and approval by the Reverse Flow owner.
-  // Do not invent partner listings.
-  // Placeholder data should be replaced or supplemented only when real partner information has been submitted.
+  // Training Directory listings should only be added after review and approval by the Reverse Flow owner.
+  // Do not invent directory listings.
+  // Placeholder data should be replaced or supplemented only when real listing information has been submitted.
   trainingPartners: [
     {
       id: "training-partner-directory",
-      name: "Training Partner Directory",
-      subtitle: "Coming soon",
-      description: "Reverse Flow is building a directory of fire service training organizations and instructors focused on pump operations, fire hydraulics, water supply, driver/operator training, and related disciplines.",
+      name: "Training Directory",
+      subtitle: "Reviewed fire service training resources.",
+      description: "The Training Directory helps firefighters discover quality fire service training organizations and instructors. Listings are reviewed by Reverse Flow for relevance before being included.",
       websiteUrl: null,
       contactEmail: "support@reverse-flow.app",
       serviceArea: "Local, regional, and nationwide training organizations",
