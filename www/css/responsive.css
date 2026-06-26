@@ -160,6 +160,13 @@
         -webkit-text-fill-color: #cbd5e1;
       }
 
+      .reference-topic-tags span {
+        border-color: rgba(148, 163, 184, 0.26);
+        background: rgba(255,255,255,0.06);
+        color: #cbd5e1;
+        -webkit-text-fill-color: #cbd5e1;
+      }
+
       .reference-open-button {
         color: #fed7aa;
         -webkit-text-fill-color: #fed7aa;
@@ -898,9 +905,18 @@
   }
 
   .reference-nav-card,
-  .reference-empty-card {
+  .reference-empty-card,
+  .reference-filter-card {
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 12px 13px;
+  }
+
+  .reference-filter-card {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-filter-fields {
+    grid-template-columns: 1fr;
   }
 
 	  .custom-hose-form .reset-button,

@@ -308,6 +308,53 @@ const referencesData = {
   // Placeholder data should be replaced or supplemented only when real listing information has been submitted.
   trainingPartners: [
     {
+      id: "603-fire-service-consulting-training",
+      name: "603 Fire Service Consulting & Training, LLC",
+      subtitle: "Dave Quick - Nationwide - Engine Company Operations - Standpipe Operations - Pump Operations",
+      established: "2020",
+      contactName: "Dave Quick",
+      contactTitle: "Owner",
+      phone: "603.264.3887",
+      phoneHref: "+16032643887",
+      websiteUrl: null,
+      contactEmail: "603fireserviceconsulting@gmail.com",
+      serviceArea: "Nationwide",
+      locations: [
+        "Nationwide"
+      ],
+      topics: [
+        "Fire Attack Package Design",
+        "Standpipe Operations",
+        "Engine Company Operations",
+        "Engine Officer Development",
+        "Pump Operations"
+      ],
+      specialties: [
+        "Fire Attack Package Design (Hose/Nozzles from Apparatus)",
+        "Standpipe System Attack Package Design (Hose/Nozzles)",
+        "Standpipe System Design and Operations",
+        "Engine Co. Operations",
+        "Engine Boss Fire Ground Supervision & Responsibilities (Not Strategies)",
+        "Pump Operations"
+      ],
+      description: "603 Fire Service Consulting & Training, LLC is a private firm focused on Engine Company Operations, including equipment design and evaluation, fireground operations, and Engine Company officer development. Owner Dave Quick has consulted with numerous national and international fire hose and nozzle manufacturers and is a technical committee member of NFPA 1960 and NFPA 1930 for hose and nozzles, UL 19 for lined fire hose, and the current UL FSRI study on Fires In Multi-Story Buildings. 603 Fire Service Consulting & Training has presented at FDIC, including HOT and lecture programs, and has had articles published in major trade publications.",
+      logo: "assets/references/603-fire-service-logo.jpg",
+      socialLinks: [
+        {
+          label: "Instagram",
+          url: "https://www.instagram.com/thehosenerd/"
+        },
+        {
+          label: "TikTok",
+          url: "https://www.tiktok.com/@thehosenerd"
+        },
+        {
+          label: "Facebook",
+          url: "https://www.facebook.com/david.quick.864870/"
+        }
+      ]
+    },
+    {
       id: "training-partner-directory",
       name: "Training Directory",
       subtitle: "Reviewed fire service training resources.",

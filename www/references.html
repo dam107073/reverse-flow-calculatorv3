@@ -37,8 +37,8 @@
   <link rel="stylesheet" href="css/base.css?v=build-6" />
   <link rel="stylesheet" href="css/components.css?v=flash-3" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=build-15" />
-  <link rel="stylesheet" href="css/responsive.css?v=build-12" />
+  <link rel="stylesheet" href="css/support.css?v=build-17" />
+  <link rel="stylesheet" href="css/responsive.css?v=build-13" />
 </head>
 
 <body>
@@ -89,10 +89,14 @@
         reason: "references-page-load"
       });
   </script>
-  <script src="js/data/references.js?v=training-directory-1"></script>
+  <script src="js/data/references.js?v=training-directory-filters-1"></script>
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
+    const trainingDirectoryFilterState = {
+      topic: "",
+      location: ""
+    };
 
     function escapeHtml(value) {
       return String(value)
@@ -171,6 +175,21 @@
       return card;
     }
 
+    function createTrainingDirectoryNoResultsCard() {
+      const card = document.createElement("article");
+      card.className = "hose-library-card reference-card reference-empty-card";
+      card.innerHTML = `
+        <div>
+          <strong>No training providers match those filters.</strong>
+          <p class="helper">Clear the filters to return to all Training Directory listings.</p>
+        </div>
+        <button class="reset-button reference-open-button" type="button" data-training-filter-reset>
+          Reset
+        </button>
+      `;
+      return card;
+    }
+
     function createManufacturerEmptyStateHtml() {
       return `
         <article class="hose-library-card reference-card reference-empty-card">
@@ -204,6 +223,98 @@
       return Array.isArray(data.trainingPartners)
         ? data.trainingPartners.filter(item => item.status !== "placeholder")
         : [];
+    }
+
+    function getUniqueTrainingFilterOptions(listings, field) {
+      return [...new Set(
+        listings.flatMap(listing => Array.isArray(listing[field]) ? listing[field] : [])
+          .map(value => String(value).trim())
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b));
+    }
+
+    function createFilterOptionList(options, selectedValue, allLabel) {
+      return `
+        <option value="">${escapeHtml(allLabel)}</option>
+        ${options.map(option => `
+          <option value="${escapeHtml(option)}"${option === selectedValue ? " selected" : ""}>
+            ${escapeHtml(option)}
+          </option>
+        `).join("")}
+      `;
+    }
+
+    function filterTrainingDirectoryListings(listings) {
+      const selectedTopic = trainingDirectoryFilterState.topic;
+      const selectedLocation = trainingDirectoryFilterState.location;
+
+      return listings.filter(listing => {
+        const topics = Array.isArray(listing.topics) ? listing.topics : [];
+        const locations = Array.isArray(listing.locations) ? listing.locations : [];
+        const matchesTopic = !selectedTopic || topics.includes(selectedTopic);
+        const matchesLocation = !selectedLocation || locations.includes(selectedLocation);
+        return matchesTopic && matchesLocation;
+      });
+    }
+
+    function createTrainingDirectoryFilterCard(listings) {
+      const topicOptions = getUniqueTrainingFilterOptions(listings, "topics");
+      const locationOptions = getUniqueTrainingFilterOptions(listings, "locations");
+      const hasActiveFilters = !!trainingDirectoryFilterState.topic || !!trainingDirectoryFilterState.location;
+      const card = document.createElement("article");
+      card.className = "hose-library-card reference-card reference-filter-card";
+      card.innerHTML = `
+        <div class="reference-filter-fields">
+          <label>
+            <span>Topic</span>
+            <select data-training-filter="topic">
+              ${createFilterOptionList(topicOptions, trainingDirectoryFilterState.topic, "All Topics")}
+            </select>
+          </label>
+          <label>
+            <span>Location</span>
+            <select data-training-filter="location">
+              ${createFilterOptionList(locationOptions, trainingDirectoryFilterState.location, "All Locations")}
+            </select>
+          </label>
+        </div>
+        <button
+          class="reset-button reference-open-button${hasActiveFilters ? "" : " disabled"}"
+          type="button"
+          data-training-filter-reset
+          ${hasActiveFilters ? "" : "disabled"}
+        >
+          Clear
+        </button>
+      `;
+      return card;
+    }
+
+    function createTrainingDirectoryListingCard(partner) {
+      const card = document.createElement("article");
+      card.className = "hose-library-card reference-card reference-nav-card reference-directory-card";
+      const visibleTopics = Array.isArray(partner.topics) ? partner.topics.slice(0, 3) : [];
+      const hiddenTopicCount = Array.isArray(partner.topics)
+        ? Math.max(0, partner.topics.length - visibleTopics.length)
+        : 0;
+      card.innerHTML = `
+        <div>
+          <strong>${escapeHtml(partner.name)}</strong>
+          <p class="helper">${escapeHtml(partner.subtitle || partner.serviceArea || "Training provider listing.")}</p>
+          ${visibleTopics.length
+            ? `
+              <div class="reference-topic-tags" aria-label="Training topics">
+                ${visibleTopics.map(topic => `<span>${escapeHtml(topic)}</span>`).join("")}
+                ${hiddenTopicCount ? `<span>+${hiddenTopicCount}</span>` : ""}
+              </div>
+            `
+            : ""}
+        </div>
+        <a class="reset-button reference-open-button" href="${escapeHtml(getReferenceUrl("training-partner", partner.id))}">
+          View Listing
+        </a>
+      `;
+      return card;
     }
 
     function createCollapsedSection(title, helper, bodyHtml) {
@@ -278,16 +389,58 @@
     function createTrainingPartnerContactCard(partner) {
       const hasEmail = !!partner.contactEmail;
       const hasWebsite = !!partner.websiteUrl;
+      const hasPhone = !!partner.phone;
+      const hasContactName = !!partner.contactName;
+      const hasSocialLinks = Array.isArray(partner.socialLinks) && partner.socialLinks.length > 0;
+      const isPlaceholder = partner.status === "placeholder";
+
+      const contactRows = [
+        hasContactName
+          ? `
+            <span>
+              <strong>Primary Contact</strong>
+              ${escapeHtml(partner.contactTitle ? `${partner.contactName} - ${partner.contactTitle}` : partner.contactName)}
+            </span>
+          `
+          : "",
+        partner.established
+          ? `
+            <span>
+              <strong>Established</strong>
+              ${escapeHtml(partner.established)}
+            </span>
+          `
+          : "",
+        hasPhone
+          ? `
+            <span>
+              <strong>Phone</strong>
+              <a href="tel:${escapeHtml(partner.phoneHref || partner.phone)}">${escapeHtml(partner.phone)}</a>
+            </span>
+          `
+          : "",
+        hasEmail
+          ? `
+            <span>
+              <strong>Email</strong>
+              <a href="mailto:${escapeHtml(partner.contactEmail)}">${escapeHtml(partner.contactEmail)}</a>
+            </span>
+          `
+          : ""
+      ].filter(Boolean).join("");
 
       return `
         <article class="hose-library-card reference-card reference-website-card reference-partner-contact-card">
           <div>
             <strong>Contact</strong>
             <p class="helper">
-              ${hasEmail
+              ${isPlaceholder && hasEmail
                 ? `Training organizations and instructors can email ${escapeHtml(partner.contactEmail)} for listing review.`
-                : "Contact information has not been added yet."}
+                : hasEmail || hasPhone || hasContactName
+                  ? "Contact information submitted for this Training Directory listing."
+                  : "Contact information has not been added yet."}
             </p>
+            ${contactRows ? `<div class="reference-contact-details">${contactRows}</div>` : ""}
           </div>
           <div class="reference-partner-actions">
             ${hasEmail
@@ -296,7 +449,17 @@
                   class="reset-button reference-open-button"
                   href="mailto:${escapeHtml(partner.contactEmail)}"
                 >
-                  Contact Reverse Flow
+                  ${isPlaceholder ? "Contact Reverse Flow" : "Email"}
+                </a>
+              `
+              : ""}
+            ${hasPhone
+              ? `
+                <a
+                  class="reset-button reference-open-button"
+                  href="tel:${escapeHtml(partner.phoneHref || partner.phone)}"
+                >
+                  Call
                 </a>
               `
               : ""}
@@ -311,6 +474,18 @@
                   Visit Website
                 </a>
               `
+              : ""}
+            ${hasSocialLinks
+              ? partner.socialLinks.map(link => `
+                <a
+                  class="reset-button reference-open-button"
+                  href="${escapeHtml(link.url)}"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  ${escapeHtml(link.label)}
+                </a>
+              `).join("")
               : ""}
           </div>
         </article>
@@ -786,10 +961,33 @@
     }
 
     referencesList.addEventListener("click", event => {
+      const resetButton = event.target.closest("[data-training-filter-reset]");
+      if (resetButton) {
+        trainingDirectoryFilterState.topic = "";
+        trainingDirectoryFilterState.location = "";
+        renderTrainingPartners(getReferenceData());
+        return;
+      }
+
       const button = event.target.closest("[data-add-hose-profile]");
       if (!button) return;
 
       addHoseReferenceToProfiles(button);
+    });
+
+    referencesList.addEventListener("change", event => {
+      const filter = event.target.closest("[data-training-filter]");
+      if (!filter) return;
+
+      const filterType = filter.dataset.trainingFilter;
+      if (filterType === "topic") {
+        trainingDirectoryFilterState.topic = filter.value;
+      }
+      if (filterType === "location") {
+        trainingDirectoryFilterState.location = filter.value;
+      }
+
+      renderTrainingPartners(getReferenceData());
     });
 
     function groupHoseDataByModel(rows) {
@@ -931,15 +1129,17 @@
         return;
       }
 
-      trainingDirectoryListings.forEach(partner => {
-        referencesList.appendChild(
-          createReferenceLinkCard(
-            partner.name,
-            partner.subtitle || "Coming soon",
-            getReferenceUrl("training-partner", partner.id),
-            "View Listing"
-          )
-        );
+      referencesList.appendChild(createTrainingDirectoryFilterCard(trainingDirectoryListings));
+
+      const filteredListings = filterTrainingDirectoryListings(trainingDirectoryListings);
+
+      if (!filteredListings.length) {
+        referencesList.appendChild(createTrainingDirectoryNoResultsCard());
+        return;
+      }
+
+      filteredListings.forEach(partner => {
+        referencesList.appendChild(createTrainingDirectoryListingCard(partner));
       });
     }
 
@@ -1008,7 +1208,6 @@
             <div class="reference-partner-title-copy">
               <h2>${escapeHtml(partner.name)}</h2>
               <p class="helper">${escapeHtml(partner.description)}</p>
-              <p class="helper">Inclusion in the Training Directory does not imply formal partnership, sponsorship, endorsement, employment, affiliation, or operational control by Reverse Flow.</p>
             </div>
           </div>
         </div>
