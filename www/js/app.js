@@ -474,6 +474,38 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	
 	    return Number.isFinite(expiryTime) && expiryTime <= Date.now();
 	  }
+
+	  async function logMetaProPurchaseEvent(grantSource) {
+	    const capacitor = window.Capacitor;
+	    const metaAppEvents = capacitor?.Plugins?.MetaAppEvents;
+
+	    if (
+	      capacitor?.getPlatform?.() !== "ios" ||
+	      typeof metaAppEvents?.logProPurchase !== "function"
+	    ) {
+	      return;
+	    }
+
+	    try {
+	      await metaAppEvents.logProPurchase({
+	        productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	        amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
+	        currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
+	      });
+
+	      logStoreEvent("meta-pro-purchase-logged", {
+	        productId: grantSource.productId,
+	        amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
+	        currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
+	      });
+	    } catch (error) {
+	      console.warn("[Reverse Flow Meta App Events]", {
+	        event: "meta-pro-purchase-log-failed",
+	        productId: grantSource.productId,
+	        error
+	      });
+	    }
+	  }
 	
 	  function inspectVerifiedEntitlement(sourceObject) {
 	    const candidates = [];
@@ -682,6 +714,9 @@ logStoreEvent("initialize-start", {
 	      });
 	
 	      if (!wasAlreadyPro) {
+	        if (!reverseFlowRestoreInProgress) {
+	          logMetaProPurchaseEvent(grantSource);
+	        }
 	        alert("Reverse Flow Pro Unlocked");
       }
 
