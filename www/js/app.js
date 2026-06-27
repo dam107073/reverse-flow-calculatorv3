@@ -400,6 +400,12 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  } else if (state === "processing") {
 	    els.buyProButton.disabled = true;
 	    els.buyProButton.textContent = "Processing purchase...";
+	  } else if (state === "owned") {
+	    els.buyProButton.disabled = true;
+	    els.buyProButton.textContent = "Pro Active";
+	  } else if (state === "restoreRequired") {
+	    els.buyProButton.disabled = true;
+	    els.buyProButton.textContent = "Pro Owned - Restore to Activate";
 	  } else if (state === "web") {
 	    els.buyProButton.disabled = true;
 	    els.buyProButton.textContent = "Purchase in Mobile App";
@@ -418,25 +424,289 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    ...details
 	  });
 	}
+
+	function summarizeVerifiedPurchase(purchase, fallbackPath = null) {
+	  if (!purchase || typeof purchase !== "object") return null;
+	
+	  return {
+	    path: fallbackPath,
+	    id: purchase.id || null,
+	    platform: purchase.platform || null,
+	    purchaseId: purchase.purchaseId || null,
+	    transactionId: purchase.transactionId || null,
+	    purchaseDate: purchase.purchaseDate || null,
+	    expiryDate: purchase.expiryDate || null,
+	    isExpired: Boolean(purchase.isExpired),
+	    isAcknowledged: purchase.isAcknowledged,
+	    isConsumed: purchase.isConsumed
+	  };
+	}
+
+	function summarizeVerifiedReceipt(receipt, index = null) {
+	  if (!receipt || typeof receipt !== "object") return null;
+	
+	  const collection = Array.isArray(receipt.collection)
+	    ? receipt.collection
+	    : [];
+	
+	  return {
+	    index,
+	    className: receipt.className || null,
+	    platform: receipt.platform || null,
+	    id: receipt.id || null,
+	    latestReceipt: receipt.latestReceipt,
+	    validationDate: receipt.validationDate || null,
+	    collectionCount: collection.length,
+	    collection: collection.map((purchase, purchaseIndex) =>
+	      summarizeVerifiedPurchase(
+	        purchase,
+	        `store.verifiedReceipts[${index}].collection[${purchaseIndex}].id`
+	      )
+	    )
+	  };
+	}
+
+	function getReverseFlowProStoreSnapshot(store) {
+	  const purchasePlatform = getReverseFlowPurchasePlatform();
+	  const proProduct = purchasePlatform && typeof store?.get === "function"
+	    ? store.get(REVERSE_FLOW_PRO_PRODUCT_ID, purchasePlatform)
+	    : null;
+	  const verifiedReceipts = Array.isArray(store?.verifiedReceipts)
+	    ? store.verifiedReceipts
+	    : [];
+	  const verifiedPurchases = Array.isArray(store?.verifiedPurchases)
+	    ? store.verifiedPurchases
+	    : [];
+	  const verifiedReceiptMatch =
+	    proProduct && typeof store?.findInVerifiedReceipts === "function"
+	      ? store.findInVerifiedReceipts(proProduct)
+	      : null;
+	
+	  return {
+	    platform: purchasePlatform || null,
+	    validatorConfigured: Boolean(store?.validator),
+	    product: proProduct
+	      ? {
+	          id: proProduct.id || null,
+	          platform: proProduct.platform || null,
+	          type: proProduct.type || null,
+	          canPurchase: proProduct.canPurchase,
+	          owned: proProduct.owned,
+	          state: proProduct.state || null
+	        }
+	      : null,
+	    storeOwnsPro:
+	      typeof store?.owned === "function" &&
+	      store.owned(REVERSE_FLOW_PRO_PRODUCT_ID),
+	    findInVerifiedReceipts: summarizeVerifiedPurchase(
+	      verifiedReceiptMatch,
+	      "store.findInVerifiedReceipts(reverse_flow_pro_lifetime)"
+	    ),
+	    verifiedPurchases: verifiedPurchases.map((purchase, index) =>
+	      summarizeVerifiedPurchase(
+	        purchase,
+	        `store.verifiedPurchases[${index}].id`
+	      )
+	    ),
+	    verifiedReceipts: verifiedReceipts.map((receipt, index) =>
+	      summarizeVerifiedReceipt(receipt, index)
+	    )
+	  };
+	}
+
+	function logReverseFlowRestoreDiagnostic(event, store, details = {}) {
+	  console.info("[Reverse Flow IAP]", {
+	    event,
+	    productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	    ...details,
+	    ...(IAP_DEBUG_DIAGNOSTICS
+	      ? { storeSnapshot: getReverseFlowProStoreSnapshot(store) }
+	      : {})
+	  });
+	}
+
+	function getIapDiagnosticPayload(details = {}) {
+	  return IAP_DEBUG_DIAGNOSTICS ? details : {};
+	}
+
+	async function logMetaProPurchaseEvent(grantSource) {
+	  const capacitor = window.Capacitor;
+	  const metaAppEvents = capacitor?.Plugins?.MetaAppEvents;
+	  const platform = capacitor?.getPlatform?.() || "web";
+	
+	  if (
+	    platform !== "ios" ||
+	    typeof metaAppEvents?.logProPurchase !== "function"
+	  ) {
+	    return;
+	  }
+	
+	  try {
+	    await metaAppEvents.logProPurchase({
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
+	      currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
+	    });
+	
+	    console.info("[Reverse Flow IAP]", {
+	      event: "meta-pro-purchase-logged",
+	      productId: grantSource.productId,
+	      amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
+	      currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
+	    });
+	  } catch (error) {
+	    console.info("[Reverse Flow IAP]", {
+	      event: "meta-pro-purchase-log-failed",
+	      productId: grantSource.productId,
+	      message: error?.message || String(error)
+	    });
+	  }
+	}
+
+	function ownsProViaSdkStore(store) {
+	  if (REVERSE_FLOW_PRO_PRODUCT_ID !== "reverse_flow_pro_lifetime") {
+	    return {
+	      ownsPro: false,
+	      source: null,
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      productOwned: false,
+	      storeOwned: false,
+	      product: null
+	    };
+	  }
+	
+	  const purchasePlatform = getReverseFlowPurchasePlatform();
+	  const product = purchasePlatform && typeof store?.get === "function"
+	    ? store.get(REVERSE_FLOW_PRO_PRODUCT_ID, purchasePlatform)
+	    : null;
+	  const storeOwned =
+	    typeof store?.owned === "function" &&
+	    store.owned(REVERSE_FLOW_PRO_PRODUCT_ID) === true;
+	  const productOwned =
+	    product?.id === REVERSE_FLOW_PRO_PRODUCT_ID &&
+	    product.owned === true;
+	
+	  return {
+	    ownsPro: storeOwned || productOwned,
+	    source: storeOwned ? "store-owned" : productOwned ? "product-owned" : null,
+	    productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	    productOwned,
+	    storeOwned,
+	    product: product
+	      ? {
+	          id: product.id || null,
+	          platform: product.platform || null,
+	          canPurchase: product.canPurchase,
+	          owned: product.owned,
+	          state: product.state || null
+	        }
+	      : null
+	  };
+	}
+
+	function grantProFromSdkOwnership(store, options = {}) {
+	  const ownership = ownsProViaSdkStore(store);
+	  if (!ownership.ownsPro) return false;
+	
+	  const wasAlreadyPro = isProUser();
+	  const trigger = options.trigger || "sdk-owned";
+	  const grantWasRestore = Boolean(options.restore);
+	  const grantWasPurchase = Boolean(options.purchase);
+
+	  if (!grantWasRestore && !grantWasPurchase) {
+	    if (wasAlreadyPro) {
+	      updateBuyProButtonState("owned", {
+	        reason: "stored Pro entitlement is already active",
+	        trigger,
+	        source: ownership.source
+	      });
+	      return true;
+	    }
+
+	    logProAccessEvent("sdk-owned-startup-grant-suppressed", {
+	      trigger,
+	      source: ownership.source,
+	      productId: ownership.productId,
+	      ...(IAP_DEBUG_DIAGNOSTICS
+	        ? {
+	            ownership,
+	            storeSnapshot: getReverseFlowProStoreSnapshot(store)
+	          }
+	        : {}),
+	      reason: "explicit purchase or restore is required to activate Pro on this device"
+	    });
+
+	    updateBuyProButtonState("restoreRequired", {
+	      reason: "SDK reports exact Pro product ownership but local entitlement is not active",
+	      trigger,
+	      source: ownership.source
+	    });
+	    return false;
+	  }
+	
+	  logProAccessEvent("sdk-owned-detected-pro", {
+	    trigger,
+	    source: ownership.source,
+	    productId: ownership.productId,
+	    restoreInProgress: reverseFlowRestoreInProgress,
+	    purchaseInProgress: reverseFlowPurchaseInProgress,
+	    wasAlreadyPro,
+	    sourceDetail: ownership.source,
+	    ...(IAP_DEBUG_DIAGNOSTICS
+	      ? {
+	          ownership,
+	          storeSnapshot: getReverseFlowProStoreSnapshot(store)
+	        }
+	      : {})
+	  });
+	
+	  const proWasGranted = setAccessLevel(ACCESS_LEVELS.PRO, {
+	    trigger,
+	    source: "purchase",
+	    productId: ownership.productId
+	  });
+	
+	  if (!proWasGranted) return false;
+	
+	  updateBuyProButtonState("owned", {
+	    reason: "exact Pro product is owned by SDK store",
+	    trigger,
+	    source: ownership.source
+	  });
+
+	  if (grantWasRestore) {
+	    reverseFlowRestoreInProgress = false;
+	    if (els.restorePurchaseButton) {
+	      els.restorePurchaseButton.disabled = false;
+	      els.restorePurchaseButton.textContent = "Restore Complete";
+	    }
+	  }
+	
+	  if (els.proModal) {
+	    els.proModal.hidden = true;
+	  }
+	
+	  if (!wasAlreadyPro && grantWasPurchase && !grantWasRestore) {
+	    logMetaProPurchaseEvent({
+	      productId: ownership.productId
+	    });
+	  }
+	
+	  if (grantWasPurchase || grantWasRestore) {
+	    reverseFlowPurchaseInProgress = false;
+	  }
+
+	  if (!wasAlreadyPro && grantWasPurchase && !grantWasRestore) {
+	    alert("Reverse Flow Pro Unlocked");
+	  }
+	
+	  return true;
+	}
 	
 	function initializeReverseFlowStore() {
 	  const store = window.CdvPurchase.store;
 	  const ProductType = window.CdvPurchase.ProductType;
 	  const Platform = window.CdvPurchase.Platform;
-	
-	  const trustedProductIdFields = new Set([
-	    "id",
-	    "productId",
-	    "product_id",
-	    "productIdentifier",
-	    "identifier"
-	  ]);
-	  const trustedProductContainers = new Set([
-	    "collection",
-	    "products",
-	    "purchase",
-	    "purchases"
-	  ]);
 	
 	  function logStoreEvent(event, details = {}) {
 	    console.info("[Reverse Flow IAP]", {
@@ -448,17 +718,6 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	
 	  function setBuyProButtonState(state, details = {}) {
 	    updateBuyProButtonState(state, details);
-	  }
-	
-	  function isTrustedProductIdLocation(path) {
-	    const lastSegment = path[path.length - 1];
-	    if (trustedProductIdFields.has(lastSegment)) return true;
-	
-	    const previousSegment = path[path.length - 2];
-	    return (
-	      trustedProductContainers.has(previousSegment) &&
-	      /^\d+$/.test(lastSegment)
-	    );
 	  }
 	
 	  function isExpiredPurchaseObject(value) {
@@ -475,52 +734,39 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    return Number.isFinite(expiryTime) && expiryTime <= Date.now();
 	  }
 
-	  async function logMetaProPurchaseEvent(grantSource) {
-	    const capacitor = window.Capacitor;
-	    const metaAppEvents = capacitor?.Plugins?.MetaAppEvents;
+	  function formatReceiptPath(path) {
+	    return path.reduce((formatted, segment, index) => {
+	      if (index === 0) return String(segment);
+	      if (/^\d+$/.test(segment)) return `${formatted}[${segment}]`;
+	      if (/^[A-Za-z_$][\w$]*$/.test(segment)) return `${formatted}.${segment}`;
+	      return `${formatted}[${JSON.stringify(segment)}]`;
+	    }, "");
+	  }
 
-	    if (
-	      capacitor?.getPlatform?.() !== "ios" ||
-	      typeof metaAppEvents?.logProPurchase !== "function"
-	    ) {
-	      return;
-	    }
-
+	  function getReceiptPropertyValue(value, key) {
 	    try {
-	      await metaAppEvents.logProPurchase({
-	        productId: REVERSE_FLOW_PRO_PRODUCT_ID,
-	        amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
-	        currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
-	      });
-
-	      logStoreEvent("meta-pro-purchase-logged", {
-	        productId: grantSource.productId,
-	        amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
-	        currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
-	      });
+	      return value[key];
 	    } catch (error) {
-	      console.warn("[Reverse Flow Meta App Events]", {
-	        event: "meta-pro-purchase-log-failed",
-	        productId: grantSource.productId,
-	        error
-	      });
+	      return undefined;
 	    }
 	  }
-	
-	  function inspectVerifiedEntitlement(sourceObject) {
-	    const candidates = [];
+
+	  function findVerifiedReceiptValuePaths(receipt) {
+	    const targets = new Set([
+	      REVERSE_FLOW_PRO_PRODUCT_ID,
+	      "app.reverseflow.mobile"
+	    ]);
+	    const matches = {};
+	    targets.forEach(target => {
+	      matches[target] = [];
+	    });
 	    const seen = new WeakSet();
 	
-	    function visit(value, path = [], parent = null) {
+	    function visit(value, path = ["receipt"]) {
 	      if (typeof value === "string") {
-	        const trustedLocation = isTrustedProductIdLocation(path);
-	        candidates.push({
-	          path: path.join("."),
-	          value,
-	          trustedLocation,
-	          exactMatch: value === REVERSE_FLOW_PRO_PRODUCT_ID,
-	          expired: isExpiredPurchaseObject(parent)
-	        });
+	        if (targets.has(value)) {
+	          matches[value].push(formatReceiptPath(path));
+	        }
 	        return;
 	      }
 	
@@ -530,29 +776,44 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	
 	      if (Array.isArray(value)) {
 	        value.forEach((item, index) => {
-	          visit(item, path.concat(String(index)), parent);
+	          visit(item, path.concat(String(index)));
 	        });
 	        return;
 	      }
 	
-	      Object.keys(value).forEach(key => {
-	        visit(value[key], path.concat(key), value);
+	      Object.getOwnPropertyNames(value).forEach(key => {
+	        if (targets.has(key)) {
+	          matches[key].push(formatReceiptPath(path.concat(key)));
+	        }
+	        visit(getReceiptPropertyValue(value, key), path.concat(key));
 	      });
 	    }
 	
-	    visit(sourceObject);
+	    visit(receipt);
 	
-	    const matchingCandidate = candidates.find(candidate =>
-	      candidate.value === REVERSE_FLOW_PRO_PRODUCT_ID &&
-	      candidate.trustedLocation &&
-	      !candidate.expired
+	    return matches;
+	  }
+
+	  function inspectVerifiedEntitlement(receipt) {
+	    const collection = Array.isArray(receipt?.collection)
+	      ? receipt.collection
+	      : [];
+	    const purchases = collection.map((purchase, index) => ({
+	      path: `receipt.collection[${index}].id`,
+	      productId: purchase?.id || null,
+	      expired: isExpiredPurchaseObject(purchase)
+	    }));
+	    const matchingPurchase = purchases.find(purchase =>
+	      purchase.productId === REVERSE_FLOW_PRO_PRODUCT_ID &&
+	      !purchase.expired
 	    );
 	
 	    return {
-	      grantsPro: Boolean(matchingCandidate),
-	      productId: matchingCandidate?.value || null,
-	      matchingCandidate,
-	      candidates
+	      grantsPro: Boolean(matchingPurchase),
+	      productId: matchingPurchase?.productId || null,
+	      matchingCandidate: matchingPurchase || null,
+	      canonicalPath: matchingPurchase?.path || null,
+	      purchases
 	    };
 	  }
 	
@@ -573,7 +834,10 @@ if (!purchasePlatform) {
 logStoreEvent("initialize-start", {
   hasStore: Boolean(store),
   productType: ProductType.NON_CONSUMABLE,
-  platform: purchasePlatform
+  platform: purchasePlatform,
+  ...getIapDiagnosticPayload({
+    validatorConfigured: Boolean(store.validator)
+  })
 });
 	
 	  setBuyProButtonState("loading", {
@@ -591,13 +855,15 @@ logStoreEvent("initialize-start", {
 	    });
 	  }, 15000);
 	
-	  logStoreEvent("product-registering", {
-	    registration: {
-	      id: REVERSE_FLOW_PRO_PRODUCT_ID,
-	      type: ProductType.NON_CONSUMABLE,
-	      platform: purchasePlatform
-	    }
-	  });
+	  if (IAP_DEBUG_DIAGNOSTICS) {
+	    logStoreEvent("product-registering", {
+	      registration: {
+	        id: REVERSE_FLOW_PRO_PRODUCT_ID,
+	        type: ProductType.NON_CONSUMABLE,
+	        platform: purchasePlatform
+	      }
+	    });
+	  }
 	
 	  store.register([
 	    {
@@ -610,15 +876,27 @@ logStoreEvent("initialize-start", {
 	  store.when()
 	  .productUpdated(product => {
 	    logStoreEvent("product-updated", {
-	      rawProduct: product,
 	      id: product?.id,
 	      productId: product?.productId,
 	      canPurchase: product?.canPurchase,
 	      owned: product?.owned,
-	      state: product?.state
+	      state: product?.state,
+	      ...getIapDiagnosticPayload({
+	        rawProduct: product
+	      })
 	    });
 	
 	    if (product.id === REVERSE_FLOW_PRO_PRODUCT_ID) {
+	      if (product.owned === true) {
+	        reverseFlowProProductReady = false;
+	        grantProFromSdkOwnership(store, {
+	          trigger: "product-updated",
+	          purchase: reverseFlowPurchaseInProgress,
+	          restore: reverseFlowRestoreInProgress
+	        });
+	        return;
+	      }
+
 	      if (product.canPurchase) {
 	  reverseFlowProProductReady = true;
 	  if (reverseFlowProLoadTimeout) {
@@ -632,8 +910,10 @@ logStoreEvent("initialize-start", {
 	  });
 	
 	  logStoreEvent("product-ready", {
-	    rawProduct: product,
-	    canPurchase: product.canPurchase
+	    canPurchase: product.canPurchase,
+	    ...getIapDiagnosticPayload({
+	      rawProduct: product
+	    })
 	  });
 	} else {
 	  reverseFlowProProductReady = false;
@@ -648,48 +928,98 @@ logStoreEvent("initialize-start", {
 	  store.when()
 	    .approved(transaction => {
 	      logStoreEvent("transaction-approved", {
-	        rawTransaction: transaction,
-	        entitlementInspection: inspectVerifiedEntitlement(transaction)
+	        transactionId: transaction?.transactionId || null,
+	        state: transaction?.state || null,
+	        productIds: Array.isArray(transaction?.products)
+	          ? transaction.products.map(product => product?.id).filter(Boolean)
+	          : [],
+	        ...getIapDiagnosticPayload({
+	          rawTransaction: transaction
+	        })
 	      });
 	
 	      transaction.verify();
 	    })
 	    .verified(receipt => {
 	      const receiptInspection = inspectVerifiedEntitlement(receipt);
-	      const transactionInspection = inspectVerifiedEntitlement(receipt?.transaction);
+	      const verifiedReceiptValuePaths = findVerifiedReceiptValuePaths(receipt);
 	      const receiptCollection = Array.isArray(receipt?.collection)
 	        ? receipt.collection
 	        : null;
 	
-	      logStoreEvent("receipt-verified", {
-	        rawReceipt: receipt,
-	        rawTransaction: receipt?.transaction || null,
-	        receiptCollection,
-	        receiptInspection,
-	        transactionInspection
-	      });
+	      if (IAP_DEBUG_DIAGNOSTICS) {
+	        logStoreEvent("receipt-verified", {
+	          receiptSummary: summarizeVerifiedReceipt(receipt),
+	          receiptCollection,
+	          receiptInspection,
+	          verifiedReceiptValuePaths,
+	          storeSnapshot: getReverseFlowProStoreSnapshot(store)
+	        });
+	      }
 	
 	      const storeOwnsPro =
 	        typeof store.owned === "function" &&
 	        store.owned(REVERSE_FLOW_PRO_PRODUCT_ID);
+	      const receiptWasRestore = reverseFlowRestoreInProgress;
 	
-	      if (!receiptInspection.grantsPro && !transactionInspection.grantsPro) {
-	        logProAccessEvent("verified-receipt-did-not-grant-pro", {
+	      if (!receiptInspection.grantsPro) {
+	        if (IAP_DEBUG_DIAGNOSTICS) {
+	          logProAccessEvent("validator-backed-receipt-not-available", {
+	            trigger: "store.when().verified",
+	            source: receiptWasRestore ? "restore" : "purchase",
+	            productId: null,
+	            canonicalPurchases: receiptInspection.purchases,
+	            verifiedReceiptValuePaths,
+	            storeOwnsPro,
+	            storeSnapshot: getReverseFlowProStoreSnapshot(store),
+	            reason: "no validator-backed receipt collection contained the exact lifetime product"
+	          });
+	        }
+	        grantProFromSdkOwnership(store, {
 	          trigger: "store.when().verified",
-	          source: "purchase",
-	          productId: null,
-	          receiptProductCandidates: receiptInspection.candidates,
-	          transactionProductCandidates: transactionInspection.candidates,
-	          storeOwnsPro,
-	          reason: "verified receipt did not contain the exact lifetime product in a trusted product or transaction field"
+	          purchase: reverseFlowPurchaseInProgress,
+	          restore: receiptWasRestore
 	        });
 	        return;
 	      }
 	
 	      const wasAlreadyPro = isProUser();
-	      const grantSource = receiptInspection.grantsPro
-	        ? receiptInspection
-	        : transactionInspection;
+	      const grantWasRestore = receiptWasRestore;
+	      const grantSource = receiptInspection;
+
+	      if (!wasAlreadyPro && !grantWasRestore && !reverseFlowPurchaseInProgress) {
+	        logProAccessEvent("verified-receipt-startup-grant-suppressed", {
+	          trigger: "store.when().verified",
+	          source: "verified-receipt",
+	          productId: grantSource.productId,
+	          matchingPath: grantSource.canonicalPath,
+	          storeOwnsPro,
+	          ...getIapDiagnosticPayload({
+	            matchingCandidate: grantSource.matchingCandidate,
+	            verifiedReceiptValuePaths,
+	            storeSnapshot: getReverseFlowProStoreSnapshot(store)
+	          }),
+	          reason: "explicit purchase or restore is required to activate Pro on this device"
+	        });
+	        updateBuyProButtonState("restoreRequired", {
+	          reason: "verified receipt contains Pro but local entitlement is not active",
+	          trigger: "store.when().verified"
+	        });
+	        return;
+	      }
+
+	      logProAccessEvent("verified-receipt-detected-pro", {
+	        trigger: "store.when().verified",
+	        source: grantWasRestore ? "restore" : "purchase",
+	        productId: grantSource.productId,
+	        matchingPath: grantSource.canonicalPath,
+	        storeOwnsPro,
+	        ...getIapDiagnosticPayload({
+	          matchingCandidate: grantSource.matchingCandidate,
+	          verifiedReceiptValuePaths,
+	          storeSnapshot: getReverseFlowProStoreSnapshot(store)
+	        })
+	      });
 	
 	      const proWasGranted = setAccessLevel(ACCESS_LEVELS.PRO, {
 	        trigger: "store.when().verified",
@@ -707,32 +1037,58 @@ logStoreEvent("initialize-start", {
 	
 	      logProAccessEvent("pro-grant-succeeded", {
 	        trigger: "store.when().verified",
-	        source: "purchase",
+	        source: grantWasRestore ? "restore" : "purchase",
 	        productId: grantSource.productId,
-	        reason: "verified receipt contained the exact lifetime product in a trusted field",
+	        reason: "verified receipt collection contained the exact lifetime product",
+	        restoreInProgress: grantWasRestore,
+	        wasAlreadyPro,
+	        matchingPath: grantSource.canonicalPath,
 	        matchingCandidate: grantSource.matchingCandidate
 	      });
 	
 	      if (!wasAlreadyPro) {
-	        if (!reverseFlowRestoreInProgress) {
+	        if (reverseFlowPurchaseInProgress && !grantWasRestore) {
 	          logMetaProPurchaseEvent(grantSource);
 	        }
 	        alert("Reverse Flow Pro Unlocked");
       }
+
+      reverseFlowPurchaseInProgress = false;
 
       if (els.proModal) {
         els.proModal.hidden = true;
       }
 
 	      if (typeof receipt.finish === "function") {
-	        receipt.finish();
+	        logStoreEvent("receipt-finish-start", {
+	          matchingPath: grantSource.canonicalPath
+	        });
+	        Promise.resolve(receipt.finish())
+	          .then(() => {
+	            logStoreEvent("receipt-finish-complete", {
+	              matchingPath: grantSource.canonicalPath,
+	              ...getIapDiagnosticPayload({
+	                storeSnapshot: getReverseFlowProStoreSnapshot(store)
+	              })
+	            });
+	          })
+	          .catch(error => {
+	            console.warn("[Reverse Flow IAP]", {
+	              event: "receipt-finish-failed",
+	              productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	              matchingPath: grantSource.canonicalPath,
+	              error
+	            });
+	          });
 	      }
 	    })
 	    .unverified(unverifiedReceipt => {
 	      console.warn("[Reverse Flow IAP]", {
 	        event: "receipt-unverified",
-	        rawReceipt: unverifiedReceipt,
-	        entitlementInspection: inspectVerifiedEntitlement(unverifiedReceipt)
+	        ...getIapDiagnosticPayload({
+	          rawReceipt: unverifiedReceipt,
+	          entitlementInspection: inspectVerifiedEntitlement(unverifiedReceipt)
+	        })
 	      });
 	    });
 	
@@ -749,16 +1105,40 @@ logStoreEvent("initialize-start", {
 	    }
 	  });
 	
-	  const initializeResult = store.initialize([
-      purchasePlatform
-    ]);
+	  const initializeOptions = purchasePlatform === Platform.APPLE_APPSTORE
+	    ? [{
+	        platform: Platform.APPLE_APPSTORE,
+	        options: {
+	          needAppReceipt: true
+	        }
+	      }]
+	    : [purchasePlatform];
+
+	  if (IAP_DEBUG_DIAGNOSTICS) {
+	    logStoreEvent("initialize-options", {
+	      initializeOptions,
+	      validatorConfigured: Boolean(store.validator),
+	      note: store.validator
+	        ? "receipt validator configured before initialize"
+	        : "no receipt validator configured before initialize"
+	    });
+	  }
+
+	  const initializeResult = store.initialize(initializeOptions);
 	
 	  if (initializeResult && typeof initializeResult.then === "function") {
 	    initializeResult
 	      .then(() => {
 	        reverseFlowProStoreInitialized = true;
 	        logStoreEvent("initialize-complete", {
-	          returnedPromise: true
+	          returnedPromise: true,
+	          ...getIapDiagnosticPayload({
+	            validatorConfigured: Boolean(store.validator),
+	            storeSnapshot: getReverseFlowProStoreSnapshot(store)
+	          })
+	        });
+	        grantProFromSdkOwnership(store, {
+	          trigger: "initialize-complete"
 	        });
 	      })
 	      .catch(error => {
@@ -774,7 +1154,14 @@ logStoreEvent("initialize-start", {
 	  } else {
 	    reverseFlowProStoreInitialized = true;
 	    logStoreEvent("initialize-complete", {
-	      returnedPromise: false
+	      returnedPromise: false,
+	      ...getIapDiagnosticPayload({
+	        validatorConfigured: Boolean(store.validator),
+	        storeSnapshot: getReverseFlowProStoreSnapshot(store)
+	      })
+	    });
+	    grantProFromSdkOwnership(store, {
+	      trigger: "initialize-complete"
 	    });
 	  }
 	}
@@ -5317,6 +5704,23 @@ function openProModal() {
       const store = getReverseFlowStoreForSupportPage();
       if (!store) return;
 
+      const supportPurchaseOwnership = ownsProViaSdkStore(store);
+      if (supportPurchaseOwnership.ownsPro) {
+        grantProFromSdkOwnership(store, {
+          trigger: "support-page-purchase-click",
+          purchase: false,
+          restore: false
+        });
+        console.info("[Reverse Flow IAP]", {
+          event: "support-page-purchase-skipped-owned-restore-required",
+          productId: REVERSE_FLOW_PRO_PRODUCT_ID
+        });
+        if (!isProUser()) {
+          alert("Reverse Flow Pro is already owned by this Apple ID. Tap Restore Purchase to activate it on this device.");
+        }
+        return;
+      }
+
       if (!reverseFlowProProductReady) {
         console.warn("[Reverse Flow IAP]", {
           event: "support-page-purchase-denied-product-not-ready",
@@ -5348,18 +5752,36 @@ function openProModal() {
         return;
       }
 
+      if (product.owned === true) {
+        grantProFromSdkOwnership(store, {
+          trigger: "support-page-purchase-product-owned",
+          purchase: false,
+          restore: false
+        });
+        if (!isProUser()) {
+          alert("Reverse Flow Pro is already owned by this Apple ID. Tap Restore Purchase to activate it on this device.");
+        }
+        return;
+      }
+
       const offer = product.getOffer();
 
       if (!offer) {
         console.warn("[Reverse Flow IAP]", {
           event: "support-page-purchase-denied-offer-missing",
-          rawProduct: product
+          productId: product?.id || REVERSE_FLOW_PRO_PRODUCT_ID,
+          canPurchase: product?.canPurchase,
+          owned: product?.owned,
+          ...getIapDiagnosticPayload({
+            rawProduct: product
+          })
         });
         alert("Reverse Flow Pro purchase offer is not available yet.");
         return;
       }
 
       try {
+        reverseFlowPurchaseInProgress = true;
         updateBuyProButtonState("processing", {
           reason: "support page purchase order started"
         });
@@ -5367,6 +5789,7 @@ function openProModal() {
         const error = await offer.order();
 
         if (error) {
+          reverseFlowPurchaseInProgress = false;
           console.warn("[Reverse Flow IAP]", {
             event: "support-page-purchase-order-error",
             error
@@ -5378,6 +5801,7 @@ function openProModal() {
           });
         }
       } catch (error) {
+        reverseFlowPurchaseInProgress = false;
         console.error("[Reverse Flow IAP]", {
           event: "support-page-purchase-order-failed",
           error
@@ -5408,6 +5832,11 @@ function openProModal() {
       if (!store) return;
 
       try {
+        logReverseFlowRestoreDiagnostic("support-page-restore-start", store, {
+          ready: reverseFlowProProductReady,
+          initialized: reverseFlowProStoreInitialized
+        });
+
         reverseFlowRestoreInProgress = true;
         if (els.restorePurchaseButton) {
           els.restorePurchaseButton.disabled = true;
@@ -5415,13 +5844,27 @@ function openProModal() {
         }
 
         await store.restorePurchases();
-        console.info("[Reverse Flow IAP]", {
-          event: "support-page-restore-request-complete",
-          isPro: isProUser()
+        logReverseFlowRestoreDiagnostic("support-page-restore-complete", store, {
+          isPro: isProUser(),
+          restoreInProgress: reverseFlowRestoreInProgress
+        });
+        grantProFromSdkOwnership(store, {
+          trigger: "support-page-restore-complete",
+          restore: true
         });
 
         setTimeout(() => {
           if (!reverseFlowRestoreInProgress) return;
+          logReverseFlowRestoreDiagnostic("support-page-restore-postcheck", store, {
+            isPro: isProUser(),
+            restoreInProgress: reverseFlowRestoreInProgress
+          });
+          if (grantProFromSdkOwnership(store, {
+            trigger: "support-page-restore-postcheck",
+            restore: true
+          })) {
+            return;
+          }
           reverseFlowRestoreInProgress = false;
           if (els.restorePurchaseButton) {
             els.restorePurchaseButton.disabled = false;
@@ -5442,8 +5885,7 @@ function openProModal() {
           els.restorePurchaseButton.disabled = false;
           els.restorePurchaseButton.textContent = "Restore Purchase";
         }
-        console.error("[Reverse Flow IAP]", {
-          event: "support-page-restore-failed",
+        logReverseFlowRestoreDiagnostic("support-page-restore-failed", store, {
           error
         });
         alert("Purchases could not be restored.");
@@ -5652,6 +6094,23 @@ async function purchaseReverseFlowPro() {
   const store = getReverseFlowStore();
   if (!store) return;
 
+  const purchaseOwnership = ownsProViaSdkStore(store);
+  if (purchaseOwnership.ownsPro) {
+    grantProFromSdkOwnership(store, {
+      trigger: "purchase-click",
+      purchase: false,
+      restore: false
+    });
+    console.info("[Reverse Flow IAP]", {
+      event: "purchase-skipped-owned-restore-required",
+      productId: REVERSE_FLOW_PRO_PRODUCT_ID
+    });
+    if (!isProUser()) {
+      alert("Reverse Flow Pro is already owned by this Apple ID. Tap Restore Purchase to activate it on this device.");
+    }
+    return;
+  }
+
   if (!reverseFlowProProductReady) {
 	  console.warn("[Reverse Flow IAP]", {
 	    event: "purchase-denied-product-not-ready",
@@ -5684,14 +6143,28 @@ const product =
 	    return;
 	  }
 
+  if (product.owned === true) {
+    grantProFromSdkOwnership(store, {
+      trigger: "purchase-product-owned",
+      purchase: false,
+      restore: false
+    });
+    if (!isProUser()) {
+      alert("Reverse Flow Pro is already owned by this Apple ID. Tap Restore Purchase to activate it on this device.");
+    }
+    return;
+  }
+
   console.info("[Reverse Flow IAP]", {
     event: "purchase-product-found",
-    rawProduct: product,
     id: product?.id,
     productId: product?.productId,
     canPurchase: product?.canPurchase,
     owned: product?.owned,
-    state: product?.state
+    state: product?.state,
+    ...getIapDiagnosticPayload({
+      rawProduct: product
+    })
   });
 
 	  const offer = product.getOffer();
@@ -5699,13 +6172,19 @@ const product =
 	  if (!offer) {
 	    console.warn("[Reverse Flow IAP]", {
 	      event: "purchase-denied-offer-missing",
-	      rawProduct: product
+	      productId: product?.id || REVERSE_FLOW_PRO_PRODUCT_ID,
+	      canPurchase: product?.canPurchase,
+	      owned: product?.owned,
+	      ...getIapDiagnosticPayload({
+	        rawProduct: product
+	      })
 	    });
 	  alert("Reverse Flow Pro purchase offer is not available yet.");
 	  return;
 	}
 
 	  try {
+	    reverseFlowPurchaseInProgress = true;
 	    updateBuyProButtonState("processing", {
 	      reason: "purchase order started"
     });
@@ -5713,6 +6192,7 @@ const product =
 	    const error = await offer.order();
 
 	    if (error) {
+	      reverseFlowPurchaseInProgress = false;
 	      console.warn("[Reverse Flow IAP]", {
 	        event: "purchase-order-error",
 	        error
@@ -5724,6 +6204,7 @@ const product =
 	      });
 	    }
 	  } catch (error) {
+	    reverseFlowPurchaseInProgress = false;
 	    console.error("[Reverse Flow IAP]", {
 	      event: "purchase-order-failed",
 	      error
@@ -5754,6 +6235,11 @@ const product =
   if (!store) return;
 
 	  try {
+	    logReverseFlowRestoreDiagnostic("restore-start", store, {
+	      ready: reverseFlowProProductReady,
+	      initialized: reverseFlowProStoreInitialized
+	    });
+
 	    reverseFlowRestoreInProgress = true;
 	    if (els.restorePurchaseButton) {
 	      els.restorePurchaseButton.disabled = true;
@@ -5761,13 +6247,27 @@ const product =
 	    }
 
 	    await store.restorePurchases();
-	    console.info("[Reverse Flow IAP]", {
-	      event: "restore-request-complete",
-	      isPro: isProUser()
+	    logReverseFlowRestoreDiagnostic("restore-complete", store, {
+	      isPro: isProUser(),
+	      restoreInProgress: reverseFlowRestoreInProgress
+	    });
+	    grantProFromSdkOwnership(store, {
+	      trigger: "restore-complete",
+	      restore: true
 	    });
 
 	    setTimeout(() => {
 	      if (!reverseFlowRestoreInProgress) return;
+	      logReverseFlowRestoreDiagnostic("restore-postcheck", store, {
+	        isPro: isProUser(),
+	        restoreInProgress: reverseFlowRestoreInProgress
+	      });
+	      if (grantProFromSdkOwnership(store, {
+	        trigger: "restore-postcheck",
+	        restore: true
+	      })) {
+	        return;
+	      }
 	      reverseFlowRestoreInProgress = false;
 	      if (els.restorePurchaseButton) {
 	        els.restorePurchaseButton.disabled = false;
@@ -5788,8 +6288,7 @@ const product =
 	      els.restorePurchaseButton.disabled = false;
 	      els.restorePurchaseButton.textContent = "Restore Purchase";
 	    }
-	    console.error("[Reverse Flow IAP]", {
-	      event: "restore-failed",
+	    logReverseFlowRestoreDiagnostic("restore-failed", store, {
 	      error
 	    });
 	    alert("Purchases could not be restored.");

@@ -13,7 +13,7 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>fb251883659520</string>
+				<string>fb2518836595207186</string>
 			</array>
 		</dict>
 	</array>
@@ -34,9 +34,9 @@
 	<key>FacebookAdvertiserIDCollectionEnabled</key>
 	<false/>
 	<key>FacebookAppID</key>
-	<string>251883659520</string>
+	<string>2518836595207186</string>
 	<key>FacebookAutoLogAppEventsEnabled</key>
-	<false/>
+	<true/>
 	<key>FacebookClientToken</key>
 	<string>08be517d9e6e2d5b6797e65af712def5</string>
 	<key>FacebookDisplayName</key>

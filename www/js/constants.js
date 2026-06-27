@@ -9,11 +9,13 @@ const APP_VERSION = "1.2.1";
 	  "reverse_flow_pro_lifetime";
 const REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT = 4.99;
 const REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY = "USD";
+const IAP_DEBUG_DIAGNOSTICS = false;
 	
 	  let reverseFlowProProductReady = false;
 	  let reverseFlowProStoreInitialized = false;
 	  let reverseFlowProLoadTimeout = null;
 	  let reverseFlowRestoreInProgress = false;
+	  let reverseFlowPurchaseInProgress = false;
 
 const STORAGE_KEY = "reverse-flow-calculator-v3";
 const PRESETS_KEY = "reverse-flow-calculator-presets-v1";

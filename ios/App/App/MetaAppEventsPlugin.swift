@@ -11,13 +11,14 @@ public class MetaAppEventsPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     @objc func logProPurchase(_ call: CAPPluginCall) {
-        guard call.getString("productId") == "reverse_flow_pro_lifetime" else {
+        let productId = call.getString("productId")
+        let amount = call.getDouble("amount") ?? 0
+        let currency = call.getString("currency") ?? "USD"
+
+        guard productId == "reverse_flow_pro_lifetime" else {
             call.reject("Invalid productId")
             return
         }
-
-        let amount = call.getDouble("amount") ?? 0
-        let currency = call.getString("currency") ?? "USD"
 
         guard amount > 0 else {
             call.reject("Invalid amount")
@@ -25,6 +26,7 @@ public class MetaAppEventsPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         AppEvents.shared.logPurchase(amount: amount, currency: currency)
+        AppEvents.shared.flush()
         call.resolve()
     }
 }
