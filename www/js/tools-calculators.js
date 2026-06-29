@@ -344,6 +344,28 @@
     return 0.0505 * flow * Math.sqrt(pressure);
   }
 
+  function normalizeNozzleType(value) {
+    return value === "fog" ? "automaticFog" : value;
+  }
+
+  function isFixedFogType(value) {
+    return normalizeNozzleType(value) === "fixedFog";
+  }
+
+  function isAutomaticFogType(value) {
+    return normalizeNozzleType(value) === "automaticFog";
+  }
+
+  function fixedFogPressureForFlow(ratedFlow, ratedPressure, targetFlow) {
+    if (!(ratedFlow > 0) || !(ratedPressure > 0) || !(targetFlow > 0)) return null;
+    return ratedPressure * Math.pow(targetFlow / ratedFlow, 2);
+  }
+
+  function fixedFogFlowAtPressure(ratedFlow, ratedPressure, actualPressure) {
+    if (!(ratedFlow > 0) || !(ratedPressure > 0) || !(actualPressure > 0)) return null;
+    return ratedFlow * Math.sqrt(actualPressure / ratedPressure);
+  }
+
   function getSelectedTipDiameter(select, customInput) {
     if (select.value === "custom") {
       return numberOrNull(customInput.value);
@@ -424,7 +446,8 @@
           <label for="nozzleReactionType">Nozzle Type</label>
           <select id="nozzleReactionType">
             <option value="smoothbore">Smoothbore</option>
-            <option value="fog">Fog</option>
+            <option value="automaticFog">Automatic Fog</option>
+            <option value="fixedFog">Fixed Fog</option>
           </select>
         </div>
 
@@ -443,6 +466,19 @@
           <input id="nozzleReactionFlow" type="text" inputmode="decimal" placeholder="GPM" />
         </div>
 
+        <div id="nozzleReactionFixedFogRatingField" class="field" hidden>
+          <label>Nozzle Rating</label>
+          <div class="nozzle-rating-control">
+            <div class="nozzle-rating-entry">
+              <input id="nozzleReactionRatedFlow" type="text" inputmode="decimal" placeholder="GPM" />
+            </div>
+            <strong>@</strong>
+            <div class="nozzle-rating-entry">
+              <input id="nozzleReactionRatedPressure" type="text" inputmode="decimal" placeholder="PSI" />
+            </div>
+          </div>
+        </div>
+
         <div class="field">
           <label for="nozzleReactionPressure">Nozzle Pressure</label>
           <input id="nozzleReactionPressure" type="text" inputmode="decimal" placeholder="PSI" />
@@ -459,19 +495,32 @@
     const customTipField = document.getElementById("nozzleReactionCustomTipField");
     const flow = document.getElementById("nozzleReactionFlow");
     const flowField = document.getElementById("nozzleReactionFlowField");
+    const fixedFogRatingField = document.getElementById("nozzleReactionFixedFogRatingField");
+    const ratedFlow = document.getElementById("nozzleReactionRatedFlow");
+    const ratedPressure = document.getElementById("nozzleReactionRatedPressure");
     const pressure = document.getElementById("nozzleReactionPressure");
     const results = document.getElementById("nozzleReactionResults");
 
     const update = () => {
       const isSmoothbore = type.value === "smoothbore";
+      const isFixedFog = isFixedFogType(type.value);
       tipField.hidden = !isSmoothbore;
       flowField.hidden = isSmoothbore;
+      fixedFogRatingField.hidden = !isFixedFog;
+      pressure.closest(".field").hidden = isFixedFog;
       syncCustomTipField(tip, customTipField);
       customTipField.hidden = !isSmoothbore || tip.value !== "custom";
 
-      const psi = numberOrNull(pressure.value);
+      let psi = numberOrNull(pressure.value);
       let reaction = null;
-      const rows = [["Nozzle Type", isSmoothbore ? "Smoothbore" : "Fog"]];
+      const rows = [[
+        "Nozzle Type",
+        isSmoothbore
+          ? "Smoothbore"
+          : isFixedFog
+            ? "Fixed Fog"
+            : "Automatic Fog"
+      ]];
 
       if (isSmoothbore) {
         const diameter = getSelectedTipDiameter(tip, customTip);
@@ -482,10 +531,20 @@
         }
       } else {
         const gpm = numberOrNull(flow.value);
+        if (isFixedFog) {
+          psi = fixedFogPressureForFlow(
+            numberOrNull(ratedFlow.value),
+            numberOrNull(ratedPressure.value),
+            gpm
+          );
+        }
         if (gpm > 0 && psi > 0) {
           reaction = 0.0505 * gpm * Math.sqrt(psi);
           rows.push(["Flow", `${formatNumber(gpm, 0)} GPM`]);
           rows.push(["Nozzle Pressure", `${formatNumber(psi, 0)} PSI`]);
+          if (isFixedFog) {
+            rows.push(["Nozzle Rating", `${formatNumber(numberOrNull(ratedFlow.value), 0)} GPM @ ${formatNumber(numberOrNull(ratedPressure.value), 0)} PSI`]);
+          }
         }
       }
 
@@ -498,7 +557,7 @@
       ]);
     };
 
-    [type, tip, customTip, flow, pressure].forEach(input => {
+    [type, tip, customTip, flow, pressure, ratedFlow, ratedPressure].forEach(input => {
       input.addEventListener("input", update);
       input.addEventListener("change", update);
     });
@@ -676,8 +735,9 @@
         <div class="field">
           <label for="wyeAttack${lineNumber}NozzleType">Nozzle ${lineNumber} Style</label>
           <select id="wyeAttack${lineNumber}NozzleType">
-            <option value="fog">Fog</option>
             <option value="smoothbore">Smoothbore</option>
+            <option value="automaticFog">Automatic Fog</option>
+            <option value="fixedFog">Fixed Fog</option>
           </select>
         </div>
 
@@ -689,6 +749,19 @@
         <div id="wyeAttack${lineNumber}FlowField" class="field">
           <label for="wyeAttack${lineNumber}Flow">Target Flow ${lineNumber}</label>
           <input id="wyeAttack${lineNumber}Flow" type="text" inputmode="decimal" placeholder="GPM" />
+        </div>
+
+        <div id="wyeAttack${lineNumber}FixedFogRatingField" class="field" hidden>
+          <label>Nozzle Rating ${lineNumber}</label>
+          <div class="nozzle-rating-control">
+            <div class="nozzle-rating-entry">
+              <input id="wyeAttack${lineNumber}RatedFlow" type="text" inputmode="decimal" placeholder="GPM" />
+            </div>
+            <strong>@</strong>
+            <div class="nozzle-rating-entry">
+              <input id="wyeAttack${lineNumber}RatedPressure" type="text" inputmode="decimal" placeholder="PSI" />
+            </div>
+          </div>
         </div>
 
         <div id="wyeAttack${lineNumber}TipField" class="field" hidden>
@@ -734,6 +807,9 @@
       tipField: document.getElementById(`wyeAttack${lineNumber}TipField`),
       customTip: document.getElementById(`wyeAttack${lineNumber}CustomTip`),
       customTipField: document.getElementById(`wyeAttack${lineNumber}CustomTipField`),
+      fixedFogRatingField: document.getElementById(`wyeAttack${lineNumber}FixedFogRatingField`),
+      ratedFlow: document.getElementById(`wyeAttack${lineNumber}RatedFlow`),
+      ratedPressure: document.getElementById(`wyeAttack${lineNumber}RatedPressure`),
       pressure: document.getElementById(`wyeAttack${lineNumber}Pressure`),
       customPressure: document.getElementById(`wyeAttack${lineNumber}CustomPressure`),
       customPressureField: document.getElementById(`wyeAttack${lineNumber}CustomPressureField`)
@@ -746,6 +822,8 @@
       line.length,
       line.nozzleType,
       line.flow,
+      line.ratedFlow,
+      line.ratedPressure,
       line.tip,
       line.customTip,
       line.pressure,
@@ -754,10 +832,15 @@
   }
 
   function syncWyeLineControls(line) {
-    const isSmoothbore = line.nozzleType.value === "smoothbore";
+    const nozzleType = normalizeNozzleType(line.nozzleType.value);
+    line.nozzleType.value = nozzleType;
+    const isSmoothbore = nozzleType === "smoothbore";
+    const isFixedFog = isFixedFogType(nozzleType);
     line.flowField.hidden = isSmoothbore;
     line.tipField.hidden = !isSmoothbore;
     line.customTipField.hidden = !isSmoothbore || line.tip.value !== "custom";
+    line.fixedFogRatingField.hidden = !isFixedFog;
+    line.pressure.closest(".field").hidden = isFixedFog;
     line.customPressureField.hidden = line.pressure.value !== "custom";
   }
 
@@ -865,17 +948,34 @@
         branchPressure / (1 + frictionMultiplier);
       actualFlow =
         calculateSmoothboreFlow(line.diameter, actualNozzlePressure);
-    } else {
+    } else if (isFixedFogType(line.nozzleType)) {
+      const flowConstant =
+        line.ratedFlow / Math.sqrt(line.ratedPressure);
       const frictionMultiplier =
         coefficient *
-        Math.pow(line.targetFlow / 100, 2) *
-        lengthHundreds /
-        line.targetPressure;
+        Math.pow(flowConstant / 100, 2) *
+        lengthHundreds;
 
       actualNozzlePressure =
         branchPressure / (1 + frictionMultiplier);
       actualFlow =
-        calculateFogFlow(line.targetFlow, line.targetPressure, actualNozzlePressure);
+        fixedFogFlowAtPressure(
+          line.ratedFlow,
+          line.ratedPressure,
+          actualNozzlePressure
+        ) || 0;
+    } else {
+      actualNozzlePressure = line.nozzlePressure;
+
+      const availableFrictionPressure =
+        branchPressure - actualNozzlePressure;
+      actualFlow =
+        availableFrictionPressure > 0
+          ? Math.sqrt(
+              availableFrictionPressure /
+              (coefficient * lengthHundreds)
+            ) * 100
+          : 0;
     }
 
     const actualFrictionLoss = calculateFrictionLoss(line.hose, line.length, actualFlow) ?? 0;
@@ -900,12 +1000,12 @@
     const lineLabel = `Attack ${lineControls.lineNumber}`;
     const hose = findHoseById(getWyeAttackHoseOptions(), lineControls.hose.value);
     const length = numberOrNull(lineControls.length.value);
-    const nozzleType = lineControls.nozzleType.value;
-    const nozzlePressure = getWyePressureValue(lineControls);
+    const nozzleType = normalizeNozzleType(lineControls.nozzleType.value);
+    let nozzlePressure = getWyePressureValue(lineControls);
 
     if (!hose) return { ok: false, message: `Select a hose size for ${lineLabel}.` };
     if (!(length > 0)) return { ok: false, message: `Enter a valid hose length for ${lineLabel}.` };
-    if (!(nozzlePressure > 0)) return { ok: false, message: `Enter a valid nozzle pressure for ${lineLabel}.` };
+    if (!isFixedFogType(nozzleType) && !(nozzlePressure > 0)) return { ok: false, message: `Enter a valid nozzle pressure for ${lineLabel}.` };
 
     if (nozzleType === "smoothbore") {
       const diameter = getSelectedTipDiameter(lineControls.tip, lineControls.customTip);
@@ -937,6 +1037,17 @@
 
     if (!(flow > 0)) return { ok: false, message: `Enter a valid flow for ${lineLabel}.` };
 
+    const ratedFlow = numberOrNull(lineControls.ratedFlow.value);
+    const ratedPressure = numberOrNull(lineControls.ratedPressure.value);
+
+    if (isFixedFogType(nozzleType)) {
+      nozzlePressure = fixedFogPressureForFlow(ratedFlow, ratedPressure, flow);
+
+      if (!(nozzlePressure > 0)) {
+        return { ok: false, message: `Enter a valid Fixed Fog nozzle rating for ${lineLabel}.` };
+      }
+    }
+
     return {
       ok: true,
       lineNumber: lineControls.lineNumber,
@@ -946,6 +1057,8 @@
       nozzlePressure,
       targetPressure: nozzlePressure,
       targetFlow: flow,
+      ratedFlow,
+      ratedPressure,
       flow,
       reaction: calculateFogReaction(flow, nozzlePressure)
     };
@@ -1031,14 +1144,14 @@
 
   function getWyeLineTag(line) {
     if (line.pressurePath === "balanced") {
-      return { className: "balanced", label: "Balanced" };
+      return { className: "balanced", label: "BALANCED" };
     }
 
     if (line.pressurePath === "recalculated" || line.isRecalculated) {
-      return { className: "recalculated", label: "Recalculated" };
+      return { className: "recalculated", label: "RECALCULATED" };
     }
 
-    return { className: "driver", label: "Driver" };
+    return { className: "driver", label: "PDP DRIVING LINE" };
   }
 
   function bindWyeClosureButtons(result, controls) {
@@ -1132,6 +1245,15 @@
   }
 
   function solveWyeRemainingNozzlePressure({ line, supplyHose, supplyLength, fixedPdp }) {
+    if (isAutomaticFogType(line.nozzleType)) {
+      return solveWyeRemainingAutomaticFog({
+        line,
+        supplyHose,
+        supplyLength,
+        fixedPdp
+      });
+    }
+
     const pressureDemand = nozzlePressure => {
       const flow = getWyeFlowAtPressure(line, nozzlePressure);
       const supplyLoss = calculateFrictionLoss(supplyHose, supplyLength, flow);
@@ -1187,9 +1309,73 @@
   }
 
   function getWyeFlowAtPressure(line, nozzlePressure) {
-    return line.nozzleType === "smoothbore"
-      ? calculateSmoothboreFlow(line.diameter, nozzlePressure)
-      : calculateFogFlow(line.targetFlow, line.targetPressure, nozzlePressure);
+    if (line.nozzleType === "smoothbore") {
+      return calculateSmoothboreFlow(line.diameter, nozzlePressure);
+    }
+
+    if (isFixedFogType(line.nozzleType)) {
+      return fixedFogFlowAtPressure(
+        line.ratedFlow,
+        line.ratedPressure,
+        nozzlePressure
+      ) || 0;
+    }
+
+    return calculateFogFlow(line.targetFlow, line.targetPressure, nozzlePressure);
+  }
+
+  function solveWyeRemainingAutomaticFog({ line, supplyHose, supplyLength, fixedPdp }) {
+    const nozzlePressure = line.nozzlePressure;
+    const pressureDemand = flow => {
+      const supplyLoss = calculateFrictionLoss(supplyHose, supplyLength, flow);
+      const attackLoss = calculateFrictionLoss(line.hose, line.length, flow);
+      const applianceLoss = getWyeApplianceLoss(flow);
+
+      if (supplyLoss === null || attackLoss === null) return null;
+
+      return {
+        flow,
+        applianceLoss,
+        totalPressure: nozzlePressure + supplyLoss + attackLoss + applianceLoss
+      };
+    };
+
+    let low = 0;
+    let high = Math.max(line.flow, 50);
+    let highDemand = pressureDemand(high);
+
+    while (highDemand && highDemand.totalPressure < fixedPdp && high < 5000) {
+      high *= 2;
+      highDemand = pressureDemand(high);
+    }
+
+    if (!highDemand || highDemand.totalPressure < fixedPdp) {
+      return { ok: false, message: "Unable to solve remaining line flow from the fixed PDP." };
+    }
+
+    for (let i = 0; i < 60; i += 1) {
+      const mid = (low + high) / 2;
+      const midDemand = pressureDemand(mid);
+
+      if (!midDemand) {
+        return { ok: false, message: "Unable to solve remaining line flow from the selected hose setup." };
+      }
+
+      if (midDemand.totalPressure > fixedPdp) {
+        high = mid;
+      } else {
+        low = mid;
+      }
+    }
+
+    const flow = (low + high) / 2;
+    const applianceLoss = getWyeApplianceLoss(flow);
+
+    if (!(nozzlePressure > 0) || !(flow > 0)) {
+      return { ok: false, message: "Closure scenario does not leave valid flow for the remaining line." };
+    }
+
+    return { ok: true, nozzlePressure, flow, applianceLoss };
   }
 
   function getWyeApplianceLoss(flow) {

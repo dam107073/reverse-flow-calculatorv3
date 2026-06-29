@@ -162,14 +162,16 @@ function isModifiedHoseCoefficient(hoseId) {
     )
   ) {
     return {
-      fog: [50, 60, 70, 80, 90, 100, "custom"],
+      automaticFog: [50, 60, 70, 80, 90, 100, "custom"],
+      fixedFog: [50, 60, 70, 80, 90, 100, "custom"],
       smoothbore: [50, 60, 70, 80, 90, 100, "custom"],
       masterstream: [50, 60, 70, 80, 90, 100, "custom"]
     };
   }
 
   return {
-    fog: [50, 55, 75, 100, "custom"],
+    automaticFog: [50, 55, 75, 100, "custom"],
+    fixedFog: [50, 55, 75, 100, "custom"],
 
     smoothbore: isReverseMode()
       ? [40, 50, 60,]

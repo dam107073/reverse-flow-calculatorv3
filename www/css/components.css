@@ -39,6 +39,39 @@ main,
   padding-right: 82px;
 }
 
+.nozzle-rating-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.nozzle-rating-control > strong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 42px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.nozzle-rating-entry {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nozzle-rating-entry input {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
 .inline-add-button {
   position: absolute;
   top: 50%;

@@ -8,15 +8,16 @@
       targetGpm: "",
       hoseLength: "",
       hoseSize: "1.88",
-      nozzleType: "fog",
-      nozzleType: "fog",
+      nozzleType: "smoothbore",
 
-      masterStreamType: "fog",
+      masterStreamType: "automaticFog",
       masterStreamLoss: "25",
       dualLineSupply: false,
       apparatusFogFlow: "1000",
       apparatusCustomFogFlow: "",
       apparatusElevation: "",
+      ratedFlow: "",
+      ratedPressure: "",
 
       nozzlePressure: "55",
       customNozzlePressure: "",
@@ -46,17 +47,21 @@
 
   attack1Length: "",
   attack1HoseSize: "1.75",
-  attack1NozzleType: "fog",
+  attack1NozzleType: "smoothbore",
   attack1NozzlePressure: "50",
   attack1Flow: "",
+  attack1RatedFlow: "",
+  attack1RatedPressure: "",
   attack1SmoothboreTip: "",
   attack1BladeModel: "blade160",
 
   attack2Length: "",
   attack2HoseSize: "1.75",
-  attack2NozzleType: "fog",
+  attack2NozzleType: "smoothbore",
   attack2NozzlePressure: "50",
   attack2Flow: "",
+  attack2RatedFlow: "",
+  attack2RatedPressure: "",
   attack2SmoothboreTip: "",
   attack2BladeModel: "blade160"
 },
@@ -65,17 +70,21 @@
         attack1Floor: "1",
         attack1Length: "",
         attack1HoseSize: "1.75",
-        attack1NozzleType: "fog",
+        attack1NozzleType: "smoothbore",
         attack1NozzlePressure: "50",
         attack1Flow: "",
+        attack1RatedFlow: "",
+        attack1RatedPressure: "",
         attack1SmoothboreTip: "",
         attack1BladeModel: "blade160",
         attack2Floor: "1",
         attack2Length: "",
         attack2HoseSize: "1.75",
-        attack2NozzleType: "fog",
+        attack2NozzleType: "smoothbore",
         attack2NozzlePressure: "50",
         attack2Flow: "",
+        attack2RatedFlow: "",
+        attack2RatedPressure: "",
         attack2SmoothboreTip: "",
         attack2BladeModel: "blade160",
         supplyLength: "",
@@ -102,6 +111,78 @@
       "splitLay",
       "standpipeOps"
     ]);
+
+    function normalizeNozzleType(value) {
+      return value === "fog" ? "automaticFog" : value;
+    }
+
+    function normalizeStateNozzleTypes(targetState) {
+      if (!targetState || typeof targetState !== "object") return targetState;
+
+      targetState.nozzleType = normalizeNozzleType(targetState.nozzleType);
+      targetState.masterStreamType = normalizeNozzleType(targetState.masterStreamType);
+
+      ["splitLay", "standpipeOps"].forEach(section => {
+        const data = targetState[section];
+        if (!data || typeof data !== "object") return;
+
+        ["1", "2"].forEach(lineNumber => {
+          const key = `attack${lineNumber}NozzleType`;
+          data[key] = normalizeNozzleType(data[key]);
+        });
+      });
+
+      return targetState;
+    }
+
+    function isAutomaticFogType(nozzleType) {
+      return normalizeNozzleType(nozzleType) === "automaticFog";
+    }
+
+    function isFixedFogType(nozzleType) {
+      return normalizeNozzleType(nozzleType) === "fixedFog";
+    }
+
+    function isFogHydraulicType(nozzleType) {
+      return isAutomaticFogType(nozzleType) || isFixedFogType(nozzleType);
+    }
+
+    function fixedFogFlowAtPressure(ratedFlow, ratedPressure, actualPressure) {
+      if (!(ratedFlow > 0) || !(ratedPressure > 0) || !(actualPressure > 0)) return null;
+      return ratedFlow * Math.sqrt(actualPressure / ratedPressure);
+    }
+
+    function fixedFogPressureForFlow(ratedFlow, ratedPressure, targetFlow) {
+      if (!(ratedFlow > 0) || !(ratedPressure > 0) || !(targetFlow > 0)) return null;
+      return ratedPressure * Math.pow(targetFlow / ratedFlow, 2);
+    }
+
+    function getMainNozzleType() {
+      return isMasterStream()
+        ? normalizeNozzleType(state.masterStreamType)
+        : normalizeNozzleType(state.nozzleType);
+    }
+
+    function getMainRatedFlow() {
+      return numberOrNull(state.ratedFlow);
+    }
+
+    function getMainRatedPressure() {
+      return numberOrNull(state.ratedPressure);
+    }
+
+    function getLineNozzleType(section, lineNumber) {
+      return normalizeNozzleType(section?.[`attack${lineNumber}NozzleType`]);
+    }
+
+    function getLineRatedFlow(section, lineNumber) {
+      return numberOrNull(section?.[`attack${lineNumber}RatedFlow`]);
+    }
+
+    function getLineRatedPressure(section, lineNumber) {
+      return numberOrNull(section?.[`attack${lineNumber}RatedPressure`]);
+    }
+
     let state = getFreshLaunchState();
     let hoseLibraryRows = [];
     let modeCarouselInitialized = false;
@@ -199,6 +280,9 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       apparatusFogFlow: document.getElementById("apparatusFogFlow"),
       apparatusCustomFogFlowField: document.getElementById("apparatusCustomFogFlowField"),
       apparatusCustomFogFlow: document.getElementById("apparatusCustomFogFlow"),
+      fixedFogRatingField: document.getElementById("fixedFogRatingField"),
+      ratedFlow: document.getElementById("ratedFlow"),
+      ratedPressure: document.getElementById("ratedPressure"),
 
       dualLineSupplyField:
       document.getElementById("dualLineSupplyField"),
@@ -1365,6 +1449,8 @@ function renderSupportPageToolsContent() {
     }
   };
 
+  normalizeStateNozzleTypes(freshState);
+
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify(freshState)
@@ -1378,7 +1464,7 @@ function renderSupportPageToolsContent() {
         const sessionMode = getSessionActiveMode();
         if (saved) {
           const parsed = JSON.parse(saved);
-          return {
+          return normalizeStateNozzleTypes({
             ...DEFAULT_STATE,
             ...parsed,
             mode:
@@ -1393,10 +1479,10 @@ function renderSupportPageToolsContent() {
               ...DEFAULT_STATE.standpipeOps,
               ...(parsed.standpipeOps || {})
             }
-          };
+          });
         }
       } catch {}
-      return {
+      return normalizeStateNozzleTypes({
         ...DEFAULT_STATE,
         splitLay: {
           ...DEFAULT_STATE.splitLay
@@ -1404,7 +1490,7 @@ function renderSupportPageToolsContent() {
         standpipeOps: {
           ...DEFAULT_STATE.standpipeOps
         }
-      };
+      });
     }
 
     function saveState() {
@@ -1579,12 +1665,14 @@ function getComparablePumpChartInputs(inputs = {}) {
       ...commonInputs,
       hoseLength: inputs.hoseLength || "",
       hoseSize: inputs.hoseSize || "",
-      nozzleType: inputs.nozzleType || "",
+      nozzleType: normalizeNozzleType(inputs.nozzleType) || "",
       nozzlePressure: inputs.nozzlePressure || "",
       customNozzlePressure: inputs.customNozzlePressure || "",
+      ratedFlow: inputs.ratedFlow || "",
+      ratedPressure: inputs.ratedPressure || "",
       smoothboreTip: inputs.smoothboreTip || "",
       bladeModel: inputs.bladeModel || "blade160",
-      masterStreamType: inputs.masterStreamType || "fog",
+      masterStreamType: normalizeNozzleType(inputs.masterStreamType) || "automaticFog",
       masterStreamLoss: inputs.masterStreamLoss || "25",
       apparatusFogFlow: inputs.apparatusFogFlow || "1000",
       apparatusCustomFogFlow: inputs.apparatusCustomFogFlow || "",
@@ -1599,12 +1687,14 @@ function getComparablePumpChartInputs(inputs = {}) {
     targetGpm: inputs.targetGpm || "",
     hoseLength: inputs.hoseLength || "",
     hoseSize: inputs.hoseSize || "",
-    nozzleType: inputs.nozzleType || "",
+    nozzleType: normalizeNozzleType(inputs.nozzleType) || "",
     nozzlePressure: inputs.nozzlePressure || "",
     customNozzlePressure: inputs.customNozzlePressure || "",
+    ratedFlow: inputs.ratedFlow || "",
+    ratedPressure: inputs.ratedPressure || "",
     smoothboreTip: inputs.smoothboreTip || "",
     bladeModel: inputs.bladeModel || "blade160",
-    masterStreamType: inputs.masterStreamType || "fog",
+    masterStreamType: normalizeNozzleType(inputs.masterStreamType) || "automaticFog",
     masterStreamLoss: inputs.masterStreamLoss || "25",
     dualLineSupply: !!inputs.dualLineSupply,
     applianceLoss: inputs.applianceLoss || "0",
@@ -1716,6 +1806,7 @@ function normalizePumpChartSetup(setup) {
       ? { standpipeOps: JSON.parse(JSON.stringify(setup.standpipeOps)) }
       : {})
   };
+  normalizeStateNozzleTypes(normalizedInputs);
 
   return {
     id: setup.id || generatePumpChartId("setup"),
@@ -1806,12 +1897,14 @@ function extractInputsFromLegacyPreset(preset = {}) {
       preset.relayResidualPressure || (preset.mode === "relay" ? "30" : ""),
     hoseLength: preset.hoseLength || "",
     hoseSize: preset.hoseSize || "",
-    nozzleType: preset.nozzleType || "",
+    nozzleType: normalizeNozzleType(preset.nozzleType) || "",
     nozzlePressure: preset.nozzlePressure || "",
     customNozzlePressure: preset.customNozzlePressure || "",
+    ratedFlow: preset.ratedFlow || "",
+    ratedPressure: preset.ratedPressure || "",
     smoothboreTip: preset.smoothboreTip || "",
     bladeModel: preset.bladeModel || "blade160",
-    masterStreamType: preset.masterStreamType || "fog",
+    masterStreamType: normalizeNozzleType(preset.masterStreamType) || "automaticFog",
     masterStreamLoss: preset.masterStreamLoss || "25",
     dualLineSupply: !!preset.dualLineSupply,
     apparatusFogFlow: preset.apparatusFogFlow || "1000",
@@ -3186,7 +3279,7 @@ function renderSavePumpChartForm() {
 
       <div class="field full">
         <label>Setup Name</label>
-        <input id="pumpChartSetupName" type="text" required placeholder="200' 1.88 Fog" />
+        <input id="pumpChartSetupName" type="text" required placeholder="200' 1.88 Automatic Fog" />
       </div>
 
       <div class="field full">
@@ -3613,8 +3706,16 @@ function getStandpipeNozzleSummary(standpipe = {}, lineNumber) {
     return getStandpipeBladeLabel(standpipe[`attack${lineNumber}BladeModel`]);
   }
 
-  const flow = formatGpmValue(standpipe[`attack${lineNumber}Flow`]);
-  return ["Fog", flow].filter(Boolean).join(" ");
+  const nozzleLabel = isFixedFogType(nozzleType)
+    ? "Fixed Fog"
+    : "Automatic Fog";
+  const flow = isFixedFogType(nozzleType)
+    ? formatFixedFogRating(
+        standpipe[`attack${lineNumber}RatedFlow`],
+        standpipe[`attack${lineNumber}RatedPressure`]
+      )
+    : formatGpmValue(standpipe[`attack${lineNumber}Flow`]);
+  return [nozzleLabel, flow].filter(Boolean).join(" ");
 }
 
 function getStandpipeAttackLineSummary(standpipe = {}, lineNumber, options = {}) {
@@ -3733,12 +3834,12 @@ function areSplitSupplyLinesIdentical(supply1, supply2) {
 function areSplitAttackLinesIdentical(splitLay = {}) {
   return normalizeComparableValue(splitLay.attack1Length) === normalizeComparableValue(splitLay.attack2Length) &&
     normalizeComparableValue(splitLay.attack1HoseSize) === normalizeComparableValue(splitLay.attack2HoseSize) &&
-    normalizeComparableValue(splitLay.attack1NozzleType || "fog") === normalizeComparableValue(splitLay.attack2NozzleType || "fog") &&
+    normalizeComparableValue(normalizeNozzleType(splitLay.attack1NozzleType) || "smoothbore") === normalizeComparableValue(normalizeNozzleType(splitLay.attack2NozzleType) || "smoothbore") &&
     normalizeComparableValue(getSplitNozzleDetailValue(splitLay, "1")) === normalizeComparableValue(getSplitNozzleDetailValue(splitLay, "2"));
 }
 
 function getSplitNozzleDetailValue(splitLay = {}, lineNumber) {
-  const type = splitLay[`attack${lineNumber}NozzleType`] || "fog";
+  const type = normalizeNozzleType(splitLay[`attack${lineNumber}NozzleType`]) || "smoothbore";
 
   if (type === "smoothbore") {
     return splitLay[`attack${lineNumber}SmoothboreTip`] || "";
@@ -3777,8 +3878,18 @@ function getRelayConfigurationSummary(inputs = {}) {
 
 function getMasterStreamConfigurationLabel(inputs = {}) {
   if (inputs.masterStreamType === "smoothbore") return "Smoothbore";
-  if (inputs.masterStreamType === "fixedFog") return "Fixed Fog";
-  return "Fog";
+  if (inputs.masterStreamType === "fixedFog") {
+    return [
+      "Fixed Fog",
+      formatFixedFogRating(inputs.ratedFlow, inputs.ratedPressure)
+    ].filter(Boolean).join(" • ");
+  }
+  const flow = formatGpmValue(inputs.targetGpm);
+  const pressure = getNozzlePressureSummary(inputs);
+  const detail = flow && pressure
+    ? `${flow} @ ${pressure}`
+    : flow || pressure;
+  return ["Automatic Fog", detail].filter(Boolean).join(" • ");
 }
 
 function getApparatusMountedStreamSummary(setup = {}) {
@@ -3786,7 +3897,8 @@ function getApparatusMountedStreamSummary(setup = {}) {
 
   if (inputs.nozzleType === "smoothbore") return "Smoothbore";
   if (inputs.nozzleType === "masterstream") return getMasterStreamConfigurationLabel(inputs);
-  if (inputs.nozzleType === "fog") return "Fog";
+  if (isAutomaticFogType(inputs.nozzleType)) return "Automatic Fog";
+  if (isFixedFogType(inputs.nozzleType)) return "Fixed Fog";
 
   return getNozzleConfigurationLabel(inputs);
 }
@@ -3795,7 +3907,7 @@ function getApparatusMountedFlowSummary(setup = {}) {
   const inputs = setup.inputs || {};
   const result = setup.result || {};
 
-  if (inputs.nozzleType === "fog") {
+  if (isAutomaticFogType(inputs.nozzleType) || isFixedFogType(inputs.nozzleType)) {
     const fogFlow = inputs.apparatusFogFlow === "custom"
       ? inputs.apparatusCustomFogFlow
       : inputs.apparatusFogFlow;
@@ -3806,20 +3918,62 @@ function getApparatusMountedFlowSummary(setup = {}) {
 }
 
 function getNozzleConfigurationLabel(inputs = {}) {
-  if (inputs.nozzleType === "smoothbore") return "Smoothbore";
+  if (inputs.nozzleType === "smoothbore") {
+    const tip = getStandpipeTipLabel(inputs.smoothboreTip);
+    return ["Smoothbore", tip].filter(Boolean).join(" • ");
+  }
   if (inputs.nozzleType === "blade") return "Blade";
   if (inputs.nozzleType === "masterstream") {
     return getMasterStreamConfigurationLabel(inputs);
   }
 
-  return "Fog";
+  if (isFixedFogType(inputs.nozzleType)) {
+    return [
+      "Fixed Fog",
+      formatFixedFogRating(inputs.ratedFlow, inputs.ratedPressure)
+    ].filter(Boolean).join(" • ");
+  }
+
+  const automaticFogFlow = formatGpmValue(
+    inputs.targetGpm ||
+    (inputs.apparatusFogFlow === "custom"
+      ? inputs.apparatusCustomFogFlow
+      : inputs.apparatusFogFlow)
+  );
+  const automaticFogPressure = getNozzlePressureSummary(inputs);
+  const automaticFogDetail =
+    automaticFogFlow && automaticFogPressure
+      ? `${automaticFogFlow} @ ${automaticFogPressure}`
+      : automaticFogPressure || automaticFogFlow;
+
+  return ["Automatic Fog", automaticFogDetail].filter(Boolean).join(" • ");
 }
 
 function getSplitNozzleConfigurationLabel(splitLay = {}, lineNumber) {
-  const type = splitLay[`attack${lineNumber}NozzleType`];
+  const type = normalizeNozzleType(splitLay[`attack${lineNumber}NozzleType`]);
   if (type === "smoothbore") return "Smoothbore";
   if (type === "blade") return "Blade";
-  return "Fog";
+  if (type === "fixedFog") {
+    return [
+      "Fixed Fog",
+      formatFixedFogRating(
+        splitLay[`attack${lineNumber}RatedFlow`],
+        splitLay[`attack${lineNumber}RatedPressure`]
+      )
+    ].filter(Boolean).join(" • ");
+  }
+  return "Automatic Fog";
+}
+
+function formatFixedFogRating(flow, pressure) {
+  const flowText = formatGpmValue(flow);
+  const pressureText = formatPsiValue(pressure);
+
+  if (flowText && pressureText) {
+    return `${flowText} @ ${pressureText}`;
+  }
+
+  return flowText || pressureText || "";
 }
 
 function formatLengthAndHose(length, hoseSize, label = "") {
@@ -4121,8 +4275,14 @@ function getNozzlePressureSummary(inputs = {}) {
     return formatPsiValue(inputs.customNozzlePressure);
   }
 
-  if (inputs.nozzleType === "masterstream") {
-    return formatPsiValue(inputs.masterStreamLoss);
+  if (isFixedFogType(inputs.nozzleType) || isFixedFogType(inputs.masterStreamType)) {
+    const requiredPressure = fixedFogPressureForFlow(
+      numberOrNull(inputs.ratedFlow),
+      numberOrNull(inputs.ratedPressure),
+      numberOrNull(inputs.targetGpm)
+    );
+
+    return formatPsiValue(requiredPressure || inputs.ratedPressure);
   }
 
   return formatPsiValue(inputs.nozzlePressure);
@@ -4182,7 +4342,7 @@ function buildLegacyPresetSummary(preset = {}) {
     : preset.nozzleType === "blade"
       ? getBladeModelLabel(preset.bladeModel)
       : preset.nozzlePressure
-        ? `Fog @ ${preset.nozzlePressure} psi`
+        ? `Automatic Fog @ ${preset.nozzlePressure} psi`
         : "";
 
   return [flow, hose, nozzle].filter(Boolean).join(" | ");
@@ -4259,12 +4419,21 @@ function getSetupBreakdownRows(setup) {
 }
 
     function renderPressureButtons() {
+  const hideCustomNozzlePressureField = () => {
+    state.customNozzlePressure = "";
+    els.customNozzlePressureField.hidden = true;
+    els.customNozzlePressureField.style.display = "none";
+    els.customNozzlePressure.disabled = true;
+    els.customNozzlePressure.value = "";
+  };
+
   if (isSplitLayMode()) {
     els.nozzlePressureLabel.closest(".field").style.display = "none";
     els.pressureButtons.hidden = true;
     els.pressureButtons.innerHTML = "";
     els.calculatedNozzlePressure.hidden = true;
     els.disabledPressureExplanations.hidden = true;
+    hideCustomNozzlePressureField();
     return;
   }
 
@@ -4274,8 +4443,18 @@ function getSetupBreakdownRows(setup) {
   els.pressureButtons.innerHTML = "";
   els.calculatedNozzlePressure.hidden = true;
   els.disabledPressureExplanations.hidden = true;
+  hideCustomNozzlePressureField();
   return;
 }
+      if (isFixedFogType(getMainNozzleType())) {
+        els.nozzlePressureLabel.closest(".field").style.display = "none";
+        els.pressureButtons.hidden = true;
+        els.pressureButtons.innerHTML = "";
+        els.calculatedNozzlePressure.hidden = true;
+        els.disabledPressureExplanations.hidden = true;
+        hideCustomNozzlePressureField();
+        return;
+      }
       if (isReverseSmoothbore()) {
         renderCalculatedSmoothborePressure();
         return;
@@ -4369,6 +4548,11 @@ if (usingCustomPressure) {
       els.calculatedNozzlePressureValue.textContent = calculatedPressure === null ? "— psi" : `${calculatedPressure} psi`;
       els.disabledPressureExplanations.hidden = true;
       els.disabledPressureExplanations.innerHTML = "";
+      state.customNozzlePressure = "";
+      els.customNozzlePressureField.hidden = true;
+      els.customNozzlePressureField.style.display = "none";
+      els.customNozzlePressure.disabled = true;
+      els.customNozzlePressure.value = "";
     }
 
     function renderWarnings(warnings) {
@@ -4409,6 +4593,7 @@ if (usingCustomPressure) {
     els.reverseSupplyAppliance.value =
       state.reverseSupplyAppliance || "gateValve";
   }
+  state.nozzleType = normalizeNozzleType(state.nozzleType);
   els.nozzleType.value = state.nozzleType;
 
   els.relayResidualPressure.value =
@@ -4433,6 +4618,14 @@ if (usingCustomPressure) {
   if (els.apparatusElevation) {
     els.apparatusElevation.value =
       state.apparatusElevation || "";
+  }
+
+  if (els.ratedFlow) {
+    els.ratedFlow.value = state.ratedFlow || "";
+  }
+
+  if (els.ratedPressure) {
+    els.ratedPressure.value = state.ratedPressure || "";
   }
 
   els.dualLineSupplyToggle.checked =
@@ -4465,6 +4658,8 @@ function syncStandpipeInputsFromState() {
     ["standpipeAttack1NozzleType", "attack1NozzleType"],
     ["standpipeAttack1NozzlePressure", "attack1NozzlePressure"],
     ["standpipeAttack1Flow", "attack1Flow"],
+    ["standpipeAttack1RatedFlow", "attack1RatedFlow"],
+    ["standpipeAttack1RatedPressure", "attack1RatedPressure"],
     ["standpipeAttack1SmoothboreTip", "attack1SmoothboreTip"],
     ["standpipeAttack1BladeModel", "attack1BladeModel"],
     ["standpipeAttack2Floor", "attack2Floor"],
@@ -4473,6 +4668,8 @@ function syncStandpipeInputsFromState() {
     ["standpipeAttack2NozzleType", "attack2NozzleType"],
     ["standpipeAttack2NozzlePressure", "attack2NozzlePressure"],
     ["standpipeAttack2Flow", "attack2Flow"],
+    ["standpipeAttack2RatedFlow", "attack2RatedFlow"],
+    ["standpipeAttack2RatedPressure", "attack2RatedPressure"],
     ["standpipeAttack2SmoothboreTip", "attack2SmoothboreTip"],
     ["standpipeAttack2BladeModel", "attack2BladeModel"],
     ["standpipeSupplyLength", "supplyLength"],
@@ -4480,7 +4677,11 @@ function syncStandpipeInputsFromState() {
     ["standpipeLoss", "standpipeLoss"]
   ].forEach(([elementId, stateKey]) => {
     const element = document.getElementById(elementId);
-    if (element) element.value = standpipe[stateKey] || "";
+    if (element) {
+      element.value = stateKey.endsWith("NozzleType")
+        ? normalizeNozzleType(standpipe[stateKey]) || "smoothbore"
+        : standpipe[stateKey] || "";
+    }
   });
 
   if (els.standpipeDualSupplyToggle) {
@@ -4493,6 +4694,7 @@ function syncStandpipeNozzleUi(lineNumber) {
   const nozzleType = document.getElementById(`standpipeAttack${lineNumber}NozzleType`);
   const pressureSelect = document.getElementById(`standpipeAttack${lineNumber}NozzlePressure`);
   const flowField = document.getElementById(`standpipeAttack${lineNumber}FlowField`);
+  const fixedFogRatingField = document.getElementById(`standpipeAttack${lineNumber}FixedFogRatingField`);
   const tipField = document.getElementById(`standpipeAttack${lineNumber}SmoothboreTipField`);
   const bladeField = document.getElementById(`standpipeAttack${lineNumber}BladeModelField`);
 
@@ -4500,15 +4702,19 @@ function syncStandpipeNozzleUi(lineNumber) {
     return;
   }
 
-  const isSmoothboreLine = nozzleType.value === "smoothbore";
-  const isBladeLine = nozzleType.value === "blade";
+  const lineType = normalizeNozzleType(nozzleType.value);
+  nozzleType.value = lineType;
+  const isSmoothboreLine = lineType === "smoothbore";
+  const isBladeLine = lineType === "blade";
+  const isFixedFogLine = isFixedFogType(lineType);
+  const isAutomaticFogLine = isAutomaticFogType(lineType);
   const usesSolidStreamOptions = isSmoothboreLine || isBladeLine;
   const bladeKey = `attack${lineNumber}BladeModel`;
   const pressureKey = `attack${lineNumber}NozzlePressure`;
   const selectedBladeModel = standpipe[bladeKey] || "blade160";
   const pressures = isBladeLine
     ? getBladeNozzlePressures(selectedBladeModel)
-    : usesSolidStreamOptions
+      : usesSolidStreamOptions
       ? [40, 50, 60]
       : [50, 55, 75, 100];
 
@@ -4525,8 +4731,14 @@ function syncStandpipeNozzleUi(lineNumber) {
   }
 
   pressureSelect.value = standpipe[pressureKey];
+  pressureSelect.closest(".field").hidden = isFixedFogLine;
+  pressureSelect.closest(".field").style.display = isFixedFogLine ? "none" : "";
   flowField.hidden = usesSolidStreamOptions;
   flowField.style.display = usesSolidStreamOptions ? "none" : "";
+  if (fixedFogRatingField) {
+    fixedFogRatingField.hidden = !isFixedFogLine;
+    fixedFogRatingField.style.display = isFixedFogLine ? "" : "none";
+  }
   tipField.hidden = !isSmoothboreLine;
   tipField.style.display = isSmoothboreLine ? "" : "none";
   bladeField.hidden = !isBladeLine;
@@ -4724,6 +4936,56 @@ function centerActiveModeCard(options = {}) {
   centerModeCarouselButton(activeButton, options);
 }
 
+function getNozzleTypeHelperText() {
+  if (isApparatusMountedMode()) {
+    if (state.nozzleType === "smoothbore") {
+      return "Smoothbore uses the selected tip size and nozzle pressure to calculate deck gun flow and reaction.";
+    }
+
+    if (isFixedFogType(state.nozzleType)) {
+      return "Fixed Fog uses the published GPM @ PSI rating to calculate flow, nozzle pressure, and reaction.";
+    }
+
+    return "Automatic Fog uses the selected rated flow and nozzle pressure for the apparatus-mounted stream.";
+  }
+
+  if (isMasterStream()) {
+    const streamType = normalizeNozzleType(state.masterStreamType);
+
+    if (streamType === "smoothbore") {
+      return "Master Stream Smoothbore uses the selected tip size and nozzle pressure model for solid-stream flow.";
+    }
+
+    if (isFixedFogType(streamType)) {
+      return "Master Stream Fixed Fog uses the published GPM @ PSI rating to calculate required or actual nozzle pressure.";
+    }
+
+    return "Master Stream Automatic Fog holds the selected nozzle pressure while hose and device losses are calculated.";
+  }
+
+  if (isSmoothbore()) {
+    return isReverseMode()
+      ? "Smoothbore uses the selected tip size and solves the achievable nozzle pressure from the available PDP."
+      : "Smoothbore uses the selected tip size and nozzle pressure to calculate target flow.";
+  }
+
+  if (isBlade()) {
+    return isReverseMode()
+      ? "Blade uses the selected model and solves the achievable nozzle pressure from the available PDP."
+      : "Blade uses the selected model and nozzle pressure to calculate target flow.";
+  }
+
+  if (isFixedFogType(state.nozzleType)) {
+    return "Fixed Fog uses the published GPM @ PSI rating to calculate required or actual nozzle pressure.";
+  }
+
+  if (isAutomaticFogType(state.nozzleType)) {
+    return "Automatic Fog holds the selected nozzle pressure while flow is calculated from available hose friction pressure.";
+  }
+
+  return "";
+}
+
     function syncModeUi() {
       const smoothboreRequiredPdp = isRequiredPdpMode() && usesSmoothboreHydraulics();
 
@@ -4906,7 +5168,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
   els.nozzleDisplayLabel.textContent = "Nozzle";
 
   els.reactionLabel.textContent =
-    isRequiredPdpMode() && !isBlade()
+    isRequiredPdpMode() && !isBlade() && !isFogHydraulicType(getMainNozzleType())
       ? "Supply"
       : "Reaction";
 
@@ -4919,24 +5181,33 @@ document.querySelector('label[for="applianceLoss"]').textContent =
 
 els.nozzleType.innerHTML = isApparatusMountedMode()
   ? `
-  <option value="fog">Fog</option>
   <option value="smoothbore">Smoothbore</option>
+  <option value="automaticFog">Automatic Fog</option>
+  <option value="fixedFog">Fixed Fog</option>
 `
   : `
-  <option value="fog">Fog</option>
   <option value="smoothbore">Smoothbore</option>
+  <option value="automaticFog">Automatic Fog</option>
+  <option value="fixedFog">Fixed Fog</option>
   <option value="blade">Blade</option>
   <option value="masterstream">Master Stream</option>
 `;
 
 if (
   isApparatusMountedMode() &&
-  !["fog", "smoothbore"].includes(state.nozzleType)
+  !["automaticFog", "fixedFog", "smoothbore"].includes(normalizeNozzleType(state.nozzleType))
 ) {
-  state.nozzleType = "fog";
+  state.nozzleType = "smoothbore";
 }
 
+state.nozzleType = normalizeNozzleType(state.nozzleType);
 els.nozzleType.value = state.nozzleType;
+
+const nozzleTypeHelperText = getNozzleTypeHelperText();
+if (els.nozzleTypeHelper) {
+  els.nozzleTypeHelper.textContent = nozzleTypeHelperText;
+  els.nozzleTypeHelper.hidden = !nozzleTypeHelperText;
+}
 
 els.nozzlePressureLabel.closest(".field").style.display =
   (isRelayMode() || isSplitLayMode() || isStandpipeOpsMode())
@@ -5029,6 +5300,10 @@ function syncSmoothboreUi() {
       els.apparatusElevationField.hidden = true;
       els.apparatusElevationField.style.display = "none";
     }
+    if (els.fixedFogRatingField) {
+      els.fixedFogRatingField.hidden = true;
+      els.fixedFogRatingField.style.display = "none";
+    }
 
     return;
   }
@@ -5062,6 +5337,9 @@ function syncSmoothboreUi() {
   const showBlade =
     isBlade();
 
+  const showFixedFog =
+    isFixedFogType(getMainNozzleType());
+
   els.smoothboreTipField.hidden =
     !showSmoothbore;
 
@@ -5074,6 +5352,11 @@ function syncSmoothboreUi() {
   els.bladeModelField.style.display =
     showBlade ? "" : "none";
 
+  if (els.fixedFogRatingField) {
+    els.fixedFogRatingField.hidden = !showFixedFog;
+    els.fixedFogRatingField.style.display = showFixedFog ? "" : "none";
+  }
+
   const showDualLines =
     isRequiredPdpMode() &&
     isMasterStream();
@@ -5085,7 +5368,7 @@ function syncSmoothboreUi() {
     showDualLines ? "" : "none";
 
   const showApparatusFogFlow =
-    showApparatusMounted && state.nozzleType === "fog";
+    showApparatusMounted && isAutomaticFogType(state.nozzleType);
 
   if (els.apparatusFogFlowField) {
     els.apparatusFogFlowField.hidden =
@@ -5433,13 +5716,17 @@ function syncSplitNozzleUi(lineNumber) {
   const nozzleType = document.getElementById(`splitAttack${lineNumber}NozzleType`);
   const pressureSelect = document.getElementById(`splitAttack${lineNumber}NozzlePressure`);
   const flowField = document.getElementById(`splitAttack${lineNumber}FlowField`);
+  const fixedFogRatingField = document.getElementById(`splitAttack${lineNumber}FixedFogRatingField`);
   const tipField = document.getElementById(`splitAttack${lineNumber}SmoothboreTipField`);
   const bladeField = document.getElementById(`splitAttack${lineNumber}BladeModelField`);
 
   if (!nozzleType || !pressureSelect || !flowField || !tipField || !bladeField) return;
 
-  const isSmoothboreLine = nozzleType.value === "smoothbore";
-  const isBladeLine = nozzleType.value === "blade";
+  const lineType = normalizeNozzleType(nozzleType.value);
+  nozzleType.value = lineType;
+  const isSmoothboreLine = lineType === "smoothbore";
+  const isBladeLine = lineType === "blade";
+  const isFixedFogLine = isFixedFogType(lineType);
   const usesSolidStreamOptions = isSmoothboreLine || isBladeLine;
   const bladeKey = `attack${lineNumber}BladeModel`;
   const selectedBladeModel = state.splitLay[bladeKey] || "blade160";
@@ -5467,6 +5754,8 @@ function syncSplitNozzleUi(lineNumber) {
   }
 
   pressureSelect.value = state.splitLay[pressureKey];
+  pressureSelect.closest(".field").hidden = isFixedFogLine;
+  pressureSelect.closest(".field").style.display = isFixedFogLine ? "none" : "";
 
   tipField.hidden = !isSmoothboreLine;
   tipField.style.display = isSmoothboreLine ? "" : "none";
@@ -5482,7 +5771,12 @@ function syncSplitNozzleUi(lineNumber) {
     bladeSelect.value = state.splitLay[bladeKey];
   }
 
+  flowField.hidden = usesSolidStreamOptions;
   flowField.style.display = usesSolidStreamOptions ? "none" : "";
+  if (fixedFogRatingField) {
+    fixedFogRatingField.hidden = !isFixedFogLine;
+    fixedFogRatingField.style.display = isFixedFogLine ? "" : "none";
+  }
 }
 
     function syncCoefficientUi() {
@@ -6355,7 +6649,7 @@ document.addEventListener("keydown", event => {
   }
 });
 
-      ["pdp", "hoseLength", "applianceLoss", "reverseSupplyLength", "apparatusElevation", "apparatusCustomFogFlow"].forEach(id => {
+      ["pdp", "hoseLength", "applianceLoss", "reverseSupplyLength", "apparatusElevation", "apparatusCustomFogFlow", "ratedFlow", "ratedPressure"].forEach(id => {
         els[id]?.addEventListener("input", e => handleWholeNumberInput(id, e.target));
       });
 
@@ -6385,7 +6679,7 @@ els.reverseSupplyAppliance?.addEventListener("change", e => {
 });
 
       els.nozzleType.addEventListener("change", e => {
-      state.nozzleType = e.target.value;
+      state.nozzleType = normalizeNozzleType(e.target.value);
       state.customNozzlePressure = "";
       els.customNozzlePressure.value = "";
 
@@ -6425,7 +6719,7 @@ updateCalculator();
       });
 
       els.masterStreamType.addEventListener("change", e => {
-  state.masterStreamType = e.target.value;
+  state.masterStreamType = normalizeNozzleType(e.target.value);
 
   state.customNozzlePressure = "";
   els.customNozzlePressure.value = "";
@@ -6542,6 +6836,8 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   ["splitAttack1NozzleType", "attack1NozzleType"],
   ["splitAttack1NozzlePressure", "attack1NozzlePressure"],
   ["splitAttack1Flow", "attack1Flow"],
+  ["splitAttack1RatedFlow", "attack1RatedFlow"],
+  ["splitAttack1RatedPressure", "attack1RatedPressure"],
   ["splitAttack1SmoothboreTip", "attack1SmoothboreTip"],
   ["splitAttack1BladeModel", "attack1BladeModel"],
 
@@ -6550,6 +6846,8 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   ["splitAttack2NozzleType", "attack2NozzleType"],
   ["splitAttack2NozzlePressure", "attack2NozzlePressure"],
   ["splitAttack2Flow", "attack2Flow"],
+  ["splitAttack2RatedFlow", "attack2RatedFlow"],
+  ["splitAttack2RatedPressure", "attack2RatedPressure"],
   ["splitAttack2SmoothboreTip", "attack2SmoothboreTip"],
   ["splitAttack2BladeModel", "attack2BladeModel"]
 ].forEach(([elementId, stateKey]) => {
@@ -6562,6 +6860,10 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
       ? wholeNumber(e.target.value)
       : e.target.value;
 
+    if (stateKey.endsWith("NozzleType")) {
+      state.splitLay[stateKey] = normalizeNozzleType(state.splitLay[stateKey]);
+    }
+
     e.target.value = state.splitLay[stateKey];
 
     saveState();
@@ -6570,7 +6872,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   });
 
   element.addEventListener("change", e => {
-    state.splitLay[stateKey] = e.target.value;
+    state.splitLay[stateKey] = normalizeNozzleType(e.target.value);
 
     saveState();
     syncSplitLayUi();
@@ -6589,6 +6891,8 @@ els.standpipeAddOutletButton?.addEventListener("click", () => {
     "NozzleType",
     "NozzlePressure",
     "Flow",
+    "RatedFlow",
+    "RatedPressure",
     "SmoothboreTip",
     "BladeModel"
   ].forEach(suffix => {
@@ -6616,6 +6920,8 @@ els.standpipeRemoveOutletButton?.addEventListener("click", () => {
   ["standpipeAttack1NozzleType", "attack1NozzleType"],
   ["standpipeAttack1NozzlePressure", "attack1NozzlePressure"],
   ["standpipeAttack1Flow", "attack1Flow"],
+  ["standpipeAttack1RatedFlow", "attack1RatedFlow"],
+  ["standpipeAttack1RatedPressure", "attack1RatedPressure"],
   ["standpipeAttack1SmoothboreTip", "attack1SmoothboreTip"],
   ["standpipeAttack1BladeModel", "attack1BladeModel"],
   ["standpipeAttack2Floor", "attack2Floor"],
@@ -6624,6 +6930,8 @@ els.standpipeRemoveOutletButton?.addEventListener("click", () => {
   ["standpipeAttack2NozzleType", "attack2NozzleType"],
   ["standpipeAttack2NozzlePressure", "attack2NozzlePressure"],
   ["standpipeAttack2Flow", "attack2Flow"],
+  ["standpipeAttack2RatedFlow", "attack2RatedFlow"],
+  ["standpipeAttack2RatedPressure", "attack2RatedPressure"],
   ["standpipeAttack2SmoothboreTip", "attack2SmoothboreTip"],
   ["standpipeAttack2BladeModel", "attack2BladeModel"],
   ["standpipeSupplyLength", "supplyLength"],
@@ -6639,6 +6947,10 @@ els.standpipeRemoveOutletButton?.addEventListener("click", () => {
       ? wholeNumber(e.target.value)
       : e.target.value;
 
+    if (stateKey.endsWith("NozzleType")) {
+      state.standpipeOps[stateKey] = normalizeNozzleType(state.standpipeOps[stateKey]);
+    }
+
     e.target.value = state.standpipeOps[stateKey];
 
     saveState();
@@ -6647,7 +6959,7 @@ els.standpipeRemoveOutletButton?.addEventListener("click", () => {
   });
 
   element.addEventListener("change", e => {
-    state.standpipeOps[stateKey] = e.target.value;
+    state.standpipeOps[stateKey] = normalizeNozzleType(e.target.value);
 
     saveState();
     syncStandpipeUi();
@@ -6775,12 +7087,14 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
 
 	    state.nozzleType = "30";
 	    state.nozzlePressure = "";
-    state.masterStreamType = "fog";
+    state.masterStreamType = "automaticFog";
     state.masterStreamLoss = "25";
     state.dualLineSupply = false;
     state.apparatusFogFlow = "1000";
     state.apparatusCustomFogFlow = "";
     state.apparatusElevation = "";
+    state.ratedFlow = "";
+    state.ratedPressure = "";
 
 	    state.smoothboreTip = "";
     state.bladeModel = "blade160";
@@ -6795,8 +7109,8 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
     state.hoseLength = "";
     state.hoseSize = "5";
 
-    state.nozzleType = "fog";
-    state.masterStreamType = "fog";
+    state.nozzleType = "smoothbore";
+    state.masterStreamType = "automaticFog";
     state.masterStreamLoss = "25";
     state.dualLineSupply = false;
     state.apparatusFogFlow = "1000";
@@ -6821,13 +7135,15 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
   state.hoseLength = "";
   state.hoseSize = "1.88";
 
-  state.nozzleType = "fog";
-	  state.masterStreamType = "fog";
+  state.nozzleType = "smoothbore";
+	  state.masterStreamType = "automaticFog";
 	  state.masterStreamLoss = "25";
 	  state.dualLineSupply = false;
   state.apparatusFogFlow = "1000";
   state.apparatusCustomFogFlow = "";
   state.apparatusElevation = "";
+  state.ratedFlow = "";
+  state.ratedPressure = "";
 
 	  state.nozzlePressure = "55";
   state.smoothboreTip = "";
@@ -6842,13 +7158,15 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
     state.targetGpm = "";
     state.hoseLength = "";
     state.hoseSize = "1.88";
-    state.nozzleType = "fog";
-    state.masterStreamType = "fog";
+    state.nozzleType = "smoothbore";
+    state.masterStreamType = "automaticFog";
     state.masterStreamLoss = "25";
     state.dualLineSupply = false;
     state.apparatusFogFlow = "1000";
     state.apparatusCustomFogFlow = "";
     state.apparatusElevation = "";
+    state.ratedFlow = "";
+    state.ratedPressure = "";
     state.nozzlePressure = "55";
     state.smoothboreTip = "";
     state.bladeModel = "blade160";
@@ -6966,9 +7284,11 @@ function resetCalculator() {
     nozzleType: state.nozzleType || "",
     nozzlePressure: state.nozzlePressure || "",
     customNozzlePressure: state.customNozzlePressure || "",
+    ratedFlow: state.ratedFlow || "",
+    ratedPressure: state.ratedPressure || "",
     smoothboreTip: state.smoothboreTip || "",
     bladeModel: state.bladeModel || "blade160",
-    masterStreamType: state.masterStreamType || "fog",
+    masterStreamType: normalizeNozzleType(state.masterStreamType) || "automaticFog",
     masterStreamLoss: state.masterStreamLoss || "25",
     dualLineSupply: !!state.dualLineSupply,
     apparatusFogFlow: state.apparatusFogFlow || "1000",
@@ -7036,17 +7356,21 @@ function resetCalculator() {
 
     ["splitAttack1Length", state.splitLay.attack1Length || ""],
     ["splitAttack1Hose", state.splitLay.attack1HoseSize || "1.75"],
-    ["splitAttack1NozzleType", state.splitLay.attack1NozzleType || "fog"],
+    ["splitAttack1NozzleType", normalizeNozzleType(state.splitLay.attack1NozzleType) || "smoothbore"],
     ["splitAttack1NozzlePressure", state.splitLay.attack1NozzlePressure || "50"],
     ["splitAttack1Flow", state.splitLay.attack1Flow || ""],
+    ["splitAttack1RatedFlow", state.splitLay.attack1RatedFlow || ""],
+    ["splitAttack1RatedPressure", state.splitLay.attack1RatedPressure || ""],
     ["splitAttack1SmoothboreTip", state.splitLay.attack1SmoothboreTip || ""],
     ["splitAttack1BladeModel", state.splitLay.attack1BladeModel || "blade160"],
 
     ["splitAttack2Length", state.splitLay.attack2Length || ""],
     ["splitAttack2Hose", state.splitLay.attack2HoseSize || "1.75"],
-    ["splitAttack2NozzleType", state.splitLay.attack2NozzleType || "fog"],
+    ["splitAttack2NozzleType", normalizeNozzleType(state.splitLay.attack2NozzleType) || "smoothbore"],
     ["splitAttack2NozzlePressure", state.splitLay.attack2NozzlePressure || "50"],
     ["splitAttack2Flow", state.splitLay.attack2Flow || ""],
+    ["splitAttack2RatedFlow", state.splitLay.attack2RatedFlow || ""],
+    ["splitAttack2RatedPressure", state.splitLay.attack2RatedPressure || ""],
     ["splitAttack2SmoothboreTip", state.splitLay.attack2SmoothboreTip || ""],
     ["splitAttack2BladeModel", state.splitLay.attack2BladeModel || "blade160"]
   ].forEach(([id, value]) => {
@@ -7092,9 +7416,13 @@ function applyPreset(presetId) {
 
     hoseLength: preset.hoseLength || "",
     hoseSize: preset.hoseSize || state.hoseSize,
-    nozzleType: preset.nozzleType || state.nozzleType,
-    nozzlePressure: preset.nozzlePressure || state.nozzlePressure,
+    nozzleType: normalizeNozzleType(preset.nozzleType) || state.nozzleType,
+    nozzlePressure: Object.prototype.hasOwnProperty.call(preset, "nozzlePressure")
+      ? preset.nozzlePressure
+      : state.nozzlePressure,
     customNozzlePressure: preset.customNozzlePressure || "",
+    ratedFlow: preset.ratedFlow || "",
+    ratedPressure: preset.ratedPressure || "",
 
     smoothboreTip:
       preset.smoothboreTip || "",
@@ -7103,7 +7431,7 @@ function applyPreset(presetId) {
       preset.bladeModel || "blade160",
 
     masterStreamType:
-      preset.masterStreamType || "fog",
+      normalizeNozzleType(preset.masterStreamType) || "automaticFog",
 
     masterStreamLoss:
       preset.masterStreamLoss || "25",
@@ -7146,15 +7474,19 @@ function applyPreset(presetId) {
     customCoefficient:
       preset.customCoefficient || "",
 
-    splitLay: {
+    splitLay: normalizeStateNozzleTypes({
+      splitLay: {
       ...DEFAULT_STATE.splitLay,
       ...(preset.splitLay || {})
-    },
+      }
+    }).splitLay,
 
-    standpipeOps: {
+    standpipeOps: normalizeStateNozzleTypes({
+      standpipeOps: {
       ...DEFAULT_STATE.standpipeOps,
       ...(preset.standpipeOps || {})
-    }
+      }
+    }).standpipeOps
   };
 
   populateHoseOptions();
@@ -7201,9 +7533,13 @@ function applyPumpChartSetup(chartId, setupId) {
 
     hoseLength: preset.hoseLength || "",
     hoseSize: preset.hoseSize || state.hoseSize,
-    nozzleType: preset.nozzleType || state.nozzleType,
-    nozzlePressure: preset.nozzlePressure || state.nozzlePressure,
+    nozzleType: normalizeNozzleType(preset.nozzleType) || state.nozzleType,
+    nozzlePressure: Object.prototype.hasOwnProperty.call(preset, "nozzlePressure")
+      ? preset.nozzlePressure
+      : state.nozzlePressure,
     customNozzlePressure: preset.customNozzlePressure || "",
+    ratedFlow: preset.ratedFlow || "",
+    ratedPressure: preset.ratedPressure || "",
 
     smoothboreTip:
       preset.smoothboreTip || "",
@@ -7212,7 +7548,7 @@ function applyPumpChartSetup(chartId, setupId) {
       preset.bladeModel || "blade160",
 
     masterStreamType:
-      preset.masterStreamType || "fog",
+      normalizeNozzleType(preset.masterStreamType) || "automaticFog",
 
     masterStreamLoss:
       preset.masterStreamLoss || "25",
@@ -7255,15 +7591,19 @@ function applyPumpChartSetup(chartId, setupId) {
     customCoefficient:
       preset.customCoefficient || "",
 
-    splitLay: {
+    splitLay: normalizeStateNozzleTypes({
+      splitLay: {
       ...DEFAULT_STATE.splitLay,
       ...(preset.splitLay || {})
-    },
+      }
+    }).splitLay,
 
-    standpipeOps: {
+    standpipeOps: normalizeStateNozzleTypes({
+      standpipeOps: {
       ...DEFAULT_STATE.standpipeOps,
       ...(preset.standpipeOps || {})
-    }
+      }
+    }).standpipeOps
   };
 
   populateHoseOptions();
@@ -9698,6 +10038,9 @@ syncLoadedSetupUpdateUi();
         targetGpm: numberOrNull(getTargetFlowValue()),
         hoseLength: numberOrNull(state.hoseLength),
         nozzlePressure,
+        nozzleType: getMainNozzleType(),
+        ratedFlow: getMainRatedFlow(),
+        ratedPressure: getMainRatedPressure(),
         applianceLoss: numberOrNull(state.applianceLoss) ?? 0,
         masterStreamLoss,
       };
@@ -9895,6 +10238,125 @@ syncLoadedSetupUpdateUi();
       return null;
     }
 
+    function solveReverseFixedFogPressure({
+      pdp,
+      hoseLength,
+      applianceLoss,
+      masterStreamLoss,
+      coefficient,
+      ratedFlow,
+      ratedPressure,
+      supplyApplianceLoss = 0
+    }) {
+      if (
+        pdp === null ||
+        hoseLength === null ||
+        coefficient === null ||
+        !(ratedFlow > 0) ||
+        !(ratedPressure > 0) ||
+        hoseLength <= 0 ||
+        coefficient <= 0
+      ) {
+        return null;
+      }
+
+      const reverseSupplyEnabled = !!state.reverseSupplyEnabled;
+      const supplyLength = reverseSupplyEnabled
+        ? numberOrNull(state.reverseSupplyLength)
+        : 0;
+      const supplyHose = reverseSupplyEnabled
+        ? HOSE_OPTIONS.find(hose => hose.id === state.reverseSupplyHoseSize)
+        : null;
+
+      if (
+        reverseSupplyEnabled &&
+        (supplyLength === null || supplyLength <= 0 || !supplyHose)
+      ) {
+        return null;
+      }
+
+      const attackLoad = coefficient * (hoseLength / 100);
+      const supplyLoad = reverseSupplyEnabled && supplyHose
+        ? getActiveHoseCoefficient(supplyHose.id) * (supplyLength / 100)
+        : 0;
+      const totalLoad = attackLoad + supplyLoad;
+
+      if (totalLoad <= 0) return null;
+
+      const flowConstant = ratedFlow / Math.sqrt(ratedPressure);
+      const turboCurve = getActiveHenTurboCurve();
+
+      if (!turboCurve) {
+        const frictionMultiplier =
+          totalLoad * Math.pow(flowConstant / 100, 2);
+        const achievablePressure =
+          (pdp - applianceLoss - masterStreamLoss - supplyApplianceLoss) /
+          (1 + frictionMultiplier);
+
+        if (achievablePressure <= 0) {
+          return {
+            nozzlePressure: 0,
+            calculatedGpm: 0,
+            turboLoss: 0
+          };
+        }
+
+        return {
+          nozzlePressure: achievablePressure,
+          calculatedGpm:
+            fixedFogFlowAtPressure(ratedFlow, ratedPressure, achievablePressure),
+          turboLoss: 0
+        };
+      }
+
+      for (const segment of getHenTurboSegments(turboCurve)) {
+        const quadraticA =
+          1 +
+          totalLoad *
+          Math.pow(flowConstant / 100, 2);
+        const quadraticB =
+          segment.a * flowConstant;
+        const quadraticC =
+          applianceLoss +
+          masterStreamLoss +
+          supplyApplianceLoss +
+          segment.b -
+          pdp;
+        const discriminant =
+          quadraticB * quadraticB -
+          4 * quadraticA * quadraticC;
+
+        if (discriminant < 0) continue;
+
+        const roots = [
+          (-quadraticB + Math.sqrt(discriminant)) /
+            (2 * quadraticA),
+          (-quadraticB - Math.sqrt(discriminant)) /
+            (2 * quadraticA)
+        ];
+
+        const root = roots.find(item => {
+          const calculatedGpm = flowConstant * item;
+          return item > 0 &&
+            calculatedGpm >= segment.minGpm &&
+            calculatedGpm <= segment.maxGpm;
+        });
+
+        if (!root) continue;
+
+        const calculatedGpm = flowConstant * root;
+
+        return {
+          nozzlePressure: root * root,
+          calculatedGpm,
+          turboLoss:
+            segment.a * calculatedGpm + segment.b
+        };
+      }
+
+      return null;
+    }
+
     function getReverseSmoothboreTurboRangeWarning({
       pdp,
       hoseLength,
@@ -10009,7 +10471,7 @@ syncLoadedSetupUpdateUi();
       );
     }
 
-    function calculateReverseFlow({ pdp, hoseLength, nozzlePressure, applianceLoss, masterStreamLoss, coefficient, selectedHose, warnings }) {      if (pdp === null || hoseLength === null || nozzlePressure === null || coefficient === null) {
+    function calculateReverseFlow({ pdp, hoseLength, nozzlePressure, nozzleType, ratedFlow, ratedPressure, applianceLoss, masterStreamLoss, coefficient, selectedHose, warnings }) {      if (pdp === null || hoseLength === null || (!isFixedFogType(nozzleType) && nozzlePressure === null) || coefficient === null) {
         if (
           state.henTurboEnabled &&
           isReverseSmoothbore() &&
@@ -10036,7 +10498,15 @@ syncLoadedSetupUpdateUi();
 
       if (!validateCommonInputs({ hoseLength, coefficient, warnings })) return;
 
-      if (pdp <= nozzlePressure + applianceLoss + masterStreamLoss) {
+      if (isFixedFogType(nozzleType) && (!(ratedFlow > 0) || !(ratedPressure > 0))) {
+        warnings.push("Enter a valid Fixed Fog nozzle rating.");
+        renderWarnings(warnings);
+        return;
+      }
+
+      const pressureFloor = isFixedFogType(nozzleType) ? 0 : nozzlePressure;
+
+      if (pdp <= pressureFloor + applianceLoss + masterStreamLoss) {
 
   warnings.push(
   isMasterStream()
@@ -10095,6 +10565,46 @@ const totalFrictionLoad =
 
 function solveReverseFlowGpm(supplyApplianceLoss) {
   const turboCurve = getActiveHenTurboCurve();
+
+  if (isFixedFogType(nozzleType)) {
+    const fixedFogSolve = solveReverseFixedFogPressure({
+      pdp,
+      hoseLength,
+      applianceLoss,
+      masterStreamLoss,
+      coefficient,
+      ratedFlow,
+      ratedPressure,
+      supplyApplianceLoss
+    });
+
+    if (!fixedFogSolve) {
+      return {
+        totalFrictionLoss: null,
+        frictionLossPer100: null,
+        calculatedGpm: null,
+        turboLoss: null,
+        outOfRangeWarning: "Unable to solve Fixed Fog nozzle pressure from the current setup."
+      };
+    }
+
+    const totalFrictionLoss =
+      pdp -
+      fixedFogSolve.nozzlePressure -
+      applianceLoss -
+      masterStreamLoss -
+      supplyApplianceLoss -
+      fixedFogSolve.turboLoss;
+
+    return {
+      nozzlePressure: fixedFogSolve.nozzlePressure,
+      totalFrictionLoss,
+      frictionLossPer100:
+        totalFrictionLoss / (hoseLength / 100),
+      calculatedGpm: fixedFogSolve.calculatedGpm,
+      turboLoss: fixedFogSolve.turboLoss
+    };
+  }
 
   if (turboCurve && !usesSmoothboreHydraulics()) {
     const turboSolve = solveReverseFogWithTurbo({
@@ -10290,7 +10800,10 @@ const roundedGpm =
   roundToNearestFive(calculatedGpm);
 
 const nozzleReaction =
-  calculateNozzleReaction(calculatedGpm, nozzlePressure);
+  calculateNozzleReaction(
+    calculatedGpm,
+    isFixedFogType(nozzleType) ? reverseSolve.nozzlePressure : nozzlePressure
+  );
 
 if (roundedGpm > selectedHose.maxReferenceFlow) {
   warnings.push(`Rounded flow is above the normal reference range for ${selectedHose.chartName} hose. Confirm with department-approved flow testing or local operating guidance.`);
@@ -10378,11 +10891,58 @@ renderWarnings(warnings);
   return Math.max(0, Math.floor(solve.nozzlePressure));
 }
 
+function calculateAchievableFixedFogPressure() {
+  if (!isReverseMode() || !isFixedFogType(getMainNozzleType())) return null;
+
+  const pdp = numberOrNull(state.pdp);
+  const hoseLength = numberOrNull(state.hoseLength);
+  const applianceLoss = numberOrNull(state.applianceLoss) ?? 0;
+  const masterStreamLoss =
+    isMasterStream()
+      ? numberOrNull(state.masterStreamLoss) ?? 25
+      : 0;
+  const selectedHose = getSelectedHose();
+  const coefficient = state.useCustomCoefficient
+    ? numberOrNull(state.customCoefficient)
+    : getActiveHoseCoefficient(selectedHose.id);
+  const ratedFlow = getMainRatedFlow();
+  const ratedPressure = getMainRatedPressure();
+  let supplyApplianceLoss = 0;
+  let solve = solveReverseFixedFogPressure({
+    pdp,
+    hoseLength,
+    applianceLoss,
+    masterStreamLoss,
+    coefficient,
+    ratedFlow,
+    ratedPressure,
+    supplyApplianceLoss
+  });
+
+  if (solve && state.reverseSupplyEnabled && solve.calculatedGpm > 350) {
+    supplyApplianceLoss = 10;
+    solve = solveReverseFixedFogPressure({
+      pdp,
+      hoseLength,
+      applianceLoss,
+      masterStreamLoss,
+      coefficient,
+      ratedFlow,
+      ratedPressure,
+      supplyApplianceLoss
+    });
+  }
+
+  if (!solve) return null;
+
+  return Math.max(0, solve.nozzlePressure);
+}
+
     // ========================================
     // REQUIRED PDP CALCULATIONS
     // ========================================
-    function calculateRequiredPdp({ targetGpm, hoseLength, nozzlePressure, applianceLoss, masterStreamLoss, coefficient, selectedHose, warnings }) {
-      if (targetGpm === null || hoseLength === null || nozzlePressure === null || coefficient === null) {
+    function calculateRequiredPdp({ targetGpm, hoseLength, nozzlePressure, nozzleType, ratedFlow, ratedPressure, applianceLoss, masterStreamLoss, coefficient, selectedHose, warnings }) {
+      if (targetGpm === null || hoseLength === null || (!isFixedFogType(nozzleType) && nozzlePressure === null) || coefficient === null) {
         renderWarnings(warnings);
         return;
       }
@@ -10391,6 +10951,16 @@ renderWarnings(warnings);
 
       if (targetGpm <= 0) {
         warnings.push("Target flow must be greater than 0 GPM.");
+        renderWarnings(warnings);
+        return;
+      }
+
+      const requiredNozzlePressure = isFixedFogType(nozzleType)
+        ? fixedFogPressureForFlow(ratedFlow, ratedPressure, targetGpm)
+        : nozzlePressure;
+
+      if (isFixedFogType(nozzleType) && !(requiredNozzlePressure > 0)) {
+        warnings.push("Enter a valid Fixed Fog nozzle rating.");
         renderWarnings(warnings);
         return;
       }
@@ -10420,12 +10990,12 @@ renderWarnings(warnings);
       }
 
       const requiredPdp =
-        nozzlePressure +
+        requiredNozzlePressure +
         totalFrictionLoss +
         applianceLoss +
         masterStreamLoss +
         henTurboLoss;      const roundedRequiredPdp = Math.round(requiredPdp);
-      const nozzleReaction = calculateNozzleReaction(targetGpm, nozzlePressure);
+      const nozzleReaction = calculateNozzleReaction(targetGpm, requiredNozzlePressure);
 
       const warningFlow =
   state.dualLineSupply && isMasterStream()
@@ -10448,6 +11018,8 @@ if (warningFlow > selectedHose.maxReferenceFlow) {
   getNozzleDisplay(),
   getSetupDisplay(),
   isBlade()
+    ? nozzleReaction
+    : isFogHydraulicType(getMainNozzleType())
     ? nozzleReaction
     : state.dualLineSupply && isMasterStream()
     ? `Dual lines: YES
@@ -10473,13 +11045,21 @@ function getApparatusRatedFlow() {
     return smoothboreGpm(tip.diameter, nozzlePressure);
   }
 
+  if (isFixedFogType(state.nozzleType)) {
+    return getMainRatedFlow();
+  }
+
   return state.apparatusFogFlow === "custom"
     ? numberOrNull(state.apparatusCustomFogFlow)
     : numberOrNull(state.apparatusFogFlow);
 }
 
-function calculateApparatusMounted({ nozzlePressure, masterStreamLoss, warnings }) {
-  if (nozzlePressure === null) {
+function calculateApparatusMounted({ nozzlePressure, nozzleType, ratedPressure, masterStreamLoss, warnings }) {
+  const effectiveNozzlePressure = isFixedFogType(nozzleType)
+    ? ratedPressure
+    : nozzlePressure;
+
+  if (effectiveNozzlePressure === null) {
     renderWarnings(warnings);
     return;
   }
@@ -10508,16 +11088,16 @@ function calculateApparatusMounted({ nozzlePressure, masterStreamLoss, warnings 
 
   const elevationLoss = elevationFeet * 0.434;
   const requiredPdp =
-    nozzlePressure +
+    effectiveNozzlePressure +
     elevationLoss +
     applianceLoss;
   const nozzleReaction =
-    calculateNozzleReaction(flow, nozzlePressure);
+    calculateNozzleReaction(flow, effectiveNozzlePressure);
 
   setResult(
     Math.round(requiredPdp),
     `${Math.round(flow)} GPM`,
-    `${Math.round(nozzlePressure)} psi`,
+    `${Math.round(effectiveNozzlePressure)} psi`,
     `${elevationLoss.toFixed(1)} psi`,
     `${Math.round(applianceLoss)} psi`,
     getNozzleDisplay(),
@@ -10654,10 +11234,10 @@ function calculateStandpipeAttackLine(lineNumber, warnings) {
   );
   const floor = numberOrNull(standpipe[`attack${lineNumber}Floor`]);
   const length = numberOrNull(standpipe[`attack${lineNumber}Length`]);
-  const nozzleType = standpipe[`attack${lineNumber}NozzleType`];
-  const nozzlePressure = numberOrNull(standpipe[`attack${lineNumber}NozzlePressure`]);
+  const nozzleType = getLineNozzleType(standpipe, lineNumber);
+  let nozzlePressure = numberOrNull(standpipe[`attack${lineNumber}NozzlePressure`]);
 
-  if (!hose || floor === null || length === null || nozzlePressure === null) {
+  if (!hose || floor === null || length === null || (!isFixedFogType(nozzleType) && nozzlePressure === null)) {
     warnings.push(`Complete Attack Line ${lineNumber} configuration.`);
     renderWarnings(warnings);
     return null;
@@ -10699,6 +11279,20 @@ function calculateStandpipeAttackLine(lineNumber, warnings) {
       renderWarnings(warnings);
       return null;
     }
+
+    if (isFixedFogType(nozzleType)) {
+      nozzlePressure = fixedFogPressureForFlow(
+        getLineRatedFlow(standpipe, lineNumber),
+        getLineRatedPressure(standpipe, lineNumber),
+        flow
+      );
+
+      if (!(nozzlePressure > 0)) {
+        warnings.push(`Enter a valid Fixed Fog nozzle rating for Attack Line ${lineNumber}.`);
+        renderWarnings(warnings);
+        return null;
+      }
+    }
   }
 
   const coefficient = getActiveHoseCoefficient(hose.id);
@@ -10725,6 +11319,12 @@ function calculateStandpipeAttackLine(lineNumber, warnings) {
     length,
     nozzleType,
     nozzlePressure,
+    ratedFlow: isFixedFogType(nozzleType)
+      ? getLineRatedFlow(standpipe, lineNumber)
+      : null,
+    ratedPressure: isFixedFogType(nozzleType)
+      ? getLineRatedPressure(standpipe, lineNumber)
+      : null,
     flow,
     flPer100,
     totalFl,
@@ -10732,6 +11332,112 @@ function calculateStandpipeAttackLine(lineNumber, warnings) {
     requiredPdp,
     reaction,
     warnings: lineWarnings
+  };
+}
+
+function calculateActualStandpipeLine(line, attackSidePdp) {
+  const coefficient = getActiveHoseCoefficient(line.hose.id);
+  const lengthHundreds = line.length / 100;
+  const pressureForNozzleAndFriction =
+    attackSidePdp - line.elevationLoss;
+  let actualNozzlePressure = line.nozzlePressure;
+  let actualFlow = line.flow;
+
+  if (pressureForNozzleAndFriction <= 0) {
+    return {
+      ...line,
+      designFlow: line.flow,
+      designNozzlePressure: line.nozzlePressure,
+      flow: 0,
+      nozzlePressure: 0,
+      flPer100: 0,
+      totalFl: 0,
+      requiredPdp: line.elevationLoss,
+      reaction: "—",
+      isRecalculated: true
+    };
+  }
+
+  if (line.nozzleType === "smoothbore" || line.nozzleType === "blade") {
+    const tip = getStandpipeHydraulicSmoothboreModel(line.lineNumber);
+
+    if (tip) {
+      const flowConstant =
+        29.7 * tip.diameter * tip.diameter;
+      const frictionMultiplier =
+        coefficient *
+        Math.pow(flowConstant / 100, 2) *
+        lengthHundreds;
+
+      actualNozzlePressure =
+        pressureForNozzleAndFriction / (1 + frictionMultiplier);
+      actualFlow =
+        smoothboreGpm(tip.diameter, actualNozzlePressure);
+    }
+  } else if (isFixedFogType(line.nozzleType)) {
+    const flowConstant =
+      line.ratedFlow / Math.sqrt(line.ratedPressure);
+    const frictionMultiplier =
+      coefficient *
+      Math.pow(flowConstant / 100, 2) *
+      lengthHundreds;
+
+    actualNozzlePressure =
+      pressureForNozzleAndFriction / (1 + frictionMultiplier);
+    actualFlow =
+      fixedFogFlowAtPressure(
+        line.ratedFlow,
+        line.ratedPressure,
+        actualNozzlePressure
+      ) || 0;
+  } else {
+    actualNozzlePressure = line.nozzlePressure;
+
+    const availableFrictionPressure =
+      pressureForNozzleAndFriction - actualNozzlePressure;
+
+    actualFlow =
+      availableFrictionPressure > 0
+        ? Math.sqrt(
+            availableFrictionPressure /
+            (coefficient * lengthHundreds)
+          ) * 100
+        : 0;
+  }
+
+  const flPer100 =
+    coefficient * Math.pow(actualFlow / 100, 2);
+  const totalFl =
+    flPer100 * lengthHundreds;
+  const reaction =
+    line.nozzleType === "smoothbore" || line.nozzleType === "blade"
+      ? calculateStandpipeSmoothboreReaction(line.lineNumber, actualNozzlePressure)
+      : calculateStandpipeFogReaction(actualFlow, actualNozzlePressure);
+  const warnings = [...line.warnings];
+
+  if (
+    actualFlow > 250 &&
+    !warnings.some(warning => warning.includes("Flow exceeds 250 GPM"))
+  ) {
+    warnings.push(
+      "Flow exceeds 250 GPM from a single standpipe outlet. Verify outlet capability, system condition, and local SOP."
+    );
+  }
+
+  return {
+    ...line,
+    designFlow: line.flow,
+    designNozzlePressure: line.nozzlePressure,
+    flow: actualFlow,
+    nozzlePressure: actualNozzlePressure,
+    flPer100,
+    totalFl,
+    requiredPdp: actualNozzlePressure + totalFl + line.elevationLoss,
+    reaction,
+    warnings,
+    isRecalculated:
+      Math.abs(actualNozzlePressure - line.nozzlePressure) > 1 ||
+      Math.abs(actualFlow - line.flow) > 1
   };
 }
 
@@ -10762,7 +11468,18 @@ function calculateStandpipeOps(warnings) {
     return;
   }
 
-  const totalFlow = line1.flow + (line2 ? line2.flow : 0);
+  const highestAttackSidePdp =
+    Math.max(
+      line1.requiredPdp,
+      line2 ? line2.requiredPdp : 0
+    );
+  const actualLine1 =
+    calculateActualStandpipeLine(line1, highestAttackSidePdp);
+  const actualLine2 =
+    line2
+      ? calculateActualStandpipeLine(line2, highestAttackSidePdp)
+      : null;
+  const totalFlow = actualLine1.flow + (actualLine2 ? actualLine2.flow : 0);
   const supplyFlowPerLine = standpipe.dualSupply ? totalFlow / 2 : totalFlow;
   const supplyCoefficient = getActiveHoseCoefficient(supplyHose.id);
   const supplyTotalFl =
@@ -10771,10 +11488,10 @@ function calculateStandpipeOps(warnings) {
     (supplyLength / 100);
   const drivingLine =
     line2 && line2.requiredPdp > line1.requiredPdp
-      ? line2
-      : line1;
+      ? actualLine2
+      : actualLine1;
   const requiredPdp =
-    drivingLine.requiredPdp +
+    highestAttackSidePdp +
     standpipeLoss +
     supplyTotalFl;
   const systemWarnings = [];
@@ -10798,8 +11515,8 @@ function calculateStandpipeOps(warnings) {
     supplyFlowPerLine,
     standpipeLoss,
     drivingLine,
-    line1,
-    line2,
+    line1: actualLine1,
+    line2: actualLine2,
     systemWarnings
   });
 
@@ -10809,7 +11526,7 @@ function calculateStandpipeOps(warnings) {
     `${supplyTotalFl.toFixed(1)} psi supply`,
     standpipe.dualSupply
       ? `Dual @ ${Math.round(supplyFlowPerLine)} GPM per line`
-      : `${Math.round(supplyFlowPerLine)} GPM supply`,
+    : `${Math.round(supplyFlowPerLine)} GPM supply`,
     `Standpipe loss ${Math.round(standpipeLoss)} psi`,
     `Attack Line ${drivingLine.lineNumber} drives PDP`,
     drivingLine.reaction
@@ -11106,14 +11823,14 @@ function calculateSplitAttackLine(lineNumber, warnings) {
     );
 
   const nozzleType =
-    state.splitLay[`attack${lineNumber}NozzleType`];
+    getLineNozzleType(state.splitLay, lineNumber);
 
-  const nozzlePressure =
+  let nozzlePressure =
     numberOrNull(
       state.splitLay[`attack${lineNumber}NozzlePressure`]
     );
 
-  if (!hose || length === null || nozzlePressure === null) {
+  if (!hose || length === null || (!isFixedFogType(nozzleType) && nozzlePressure === null)) {
 
     warnings.push(
       `Complete Attack Line ${lineNumber} configuration.`
@@ -11166,6 +11883,22 @@ function calculateSplitAttackLine(lineNumber, warnings) {
       renderWarnings(warnings);
 
       return null;
+    }
+
+    if (isFixedFogType(nozzleType)) {
+      nozzlePressure = fixedFogPressureForFlow(
+        getLineRatedFlow(state.splitLay, lineNumber),
+        getLineRatedPressure(state.splitLay, lineNumber),
+        flow
+      );
+
+      if (!(nozzlePressure > 0)) {
+        warnings.push(
+          `Enter a valid Fixed Fog nozzle rating for Attack Line ${lineNumber}.`
+        );
+        renderWarnings(warnings);
+        return null;
+      }
     }
 
   }
@@ -11223,6 +11956,12 @@ function calculateSplitAttackLine(lineNumber, warnings) {
   length,
   nozzleType,
   nozzlePressure,
+  ratedFlow: isFixedFogType(nozzleType)
+    ? getLineRatedFlow(state.splitLay, lineNumber)
+    : null,
+  ratedPressure: isFixedFogType(nozzleType)
+    ? getLineRatedPressure(state.splitLay, lineNumber)
+    : null,
   flow,
   flPer100,
   totalFl,
@@ -11258,22 +11997,37 @@ function calculateSplitAttackLine(lineNumber, warnings) {
       actualFlow =
         smoothboreGpm(tip.diameter, actualNozzlePressure);
     }
-  } else {
-    const designFlow = line.flow;
-    const designNozzlePressure = line.nozzlePressure;
+  } else if (isFixedFogType(line.nozzleType)) {
+    const flowConstant =
+      line.ratedFlow / Math.sqrt(line.ratedPressure);
 
     const frictionMultiplier =
       coefficient *
-      Math.pow(designFlow / 100, 2) *
-      lengthHundreds /
-      designNozzlePressure;
+      Math.pow(flowConstant / 100, 2) *
+      lengthHundreds;
 
     actualNozzlePressure =
       branchPressure / (1 + frictionMultiplier);
 
     actualFlow =
-      designFlow *
-      Math.sqrt(actualNozzlePressure / designNozzlePressure);
+      fixedFogFlowAtPressure(
+        line.ratedFlow,
+        line.ratedPressure,
+        actualNozzlePressure
+      ) || 0;
+  } else {
+    actualNozzlePressure = line.nozzlePressure;
+
+    const availableFrictionPressure =
+      branchPressure - actualNozzlePressure;
+
+    actualFlow =
+      availableFrictionPressure > 0
+        ? Math.sqrt(
+            availableFrictionPressure /
+            (coefficient * lengthHundreds)
+          ) * 100
+        : 0;
   }
 
   const actualFlPer100 =
@@ -11326,11 +12080,18 @@ function getSplitNozzleDisplay(line) {
   const flowAndPressure =
     `${Math.round(line.actualFlow)} GPM @ ${Math.round(line.actualNozzlePressure)} psi`;
 
+  if (line.nozzleType === "smoothbore") {
+    const tip = SMOOTHBORE_TIPS.find(
+      item => item.id === state.splitLay[`attack${line.lineNumber}SmoothboreTip`]
+    );
+    return `${tip?.label || "Smoothbore"} ${flowAndPressure}`;
+  }
+
   if (line.nozzleType === "blade") {
     return `${getBladeModelLabel(state.splitLay[`attack${line.lineNumber}BladeModel`])} ${flowAndPressure}`;
   }
 
-  return flowAndPressure;
+  return `${isFixedFogType(line.nozzleType) ? "Fixed Fog" : "Automatic Fog"} ${flowAndPressure}`;
 }
 
 
@@ -11753,12 +12514,30 @@ els.splitAttack2PressureTag.className =
         return `${blade ? blade.label : "Blade 160"} @ ${displayedPressure ?? "—"} psi`;
       }
 
+      if (isFixedFogType(getMainNozzleType())) {
+        const ratedFlow = getMainRatedFlow();
+        const ratedPressure = getMainRatedPressure();
+        const calculatedPressure = isReverseMode()
+          ? calculateAchievableFixedFogPressure()
+          : isRequiredPdpMode()
+            ? fixedFogPressureForFlow(ratedFlow, ratedPressure, numberOrNull(state.targetGpm))
+            : ratedPressure;
+        const rating = ratedFlow && ratedPressure
+          ? `${Math.round(ratedFlow)} GPM @ ${Math.round(ratedPressure)} PSI`
+          : "rating incomplete";
+        const pressureText = calculatedPressure
+          ? ` • NP ${Math.round(calculatedPressure)} psi`
+          : "";
+
+        return `Fixed Fog • ${rating}${pressureText}`;
+      }
+
       const displayPressure =
   state.nozzlePressure === "custom"
     ? state.customNozzlePressure
     : state.nozzlePressure;
 
-return `Fog @ ${displayPressure} psi`;
+return `Automatic Fog • ${displayPressure} psi`;
     }
 
     // ========================================
@@ -11798,7 +12577,7 @@ return `Fog @ ${displayPressure} psi`;
           : `${Math.round(reaction)} lb`;
       }
 
-      if (state.nozzleType === "fog") {
+      if (isFogHydraulicType(getMainNozzleType())) {
         if (!calculatedGpm || nozzlePressure === null) return "—";
 
         const reaction = 0.0505 * calculatedGpm * Math.sqrt(nozzlePressure);
@@ -11913,6 +12692,8 @@ function isMasterStream() {
 function clearSplitAttack2State() {
   state.splitLay.attack2Length = "";
   state.splitLay.attack2Flow = "";
+  state.splitLay.attack2RatedFlow = "";
+  state.splitLay.attack2RatedPressure = "";
   state.splitLay.attack2SmoothboreTip = "";
   state.splitLay.attack2BladeModel =
     DEFAULT_STATE.splitLay.attack2BladeModel;
@@ -11930,6 +12711,8 @@ function clearSplitAttack2State() {
     ["splitAttack2BladeModel", DEFAULT_STATE.splitLay.attack2BladeModel],
     ["splitAttack2NozzleType", DEFAULT_STATE.splitLay.attack2NozzleType],
     ["splitAttack2NozzlePressure", DEFAULT_STATE.splitLay.attack2NozzlePressure],
+    ["splitAttack2RatedFlow", ""],
+    ["splitAttack2RatedPressure", ""],
     ["splitAttack2Hose", DEFAULT_STATE.splitLay.attack2HoseSize]
   ].forEach(([id, value]) => {
     const element = document.getElementById(id);
@@ -11995,6 +12778,8 @@ function resetSplitLayInputs() {
     ["splitAttack1NozzleType", DEFAULT_STATE.splitLay.attack1NozzleType],
     ["splitAttack1NozzlePressure", DEFAULT_STATE.splitLay.attack1NozzlePressure],
     ["splitAttack1Flow", ""],
+    ["splitAttack1RatedFlow", ""],
+    ["splitAttack1RatedPressure", ""],
     ["splitAttack1SmoothboreTip", DEFAULT_STATE.splitLay.attack1SmoothboreTip],
     ["splitAttack1BladeModel", DEFAULT_STATE.splitLay.attack1BladeModel],
 
@@ -12003,6 +12788,8 @@ function resetSplitLayInputs() {
     ["splitAttack2NozzleType", DEFAULT_STATE.splitLay.attack2NozzleType],
     ["splitAttack2NozzlePressure", DEFAULT_STATE.splitLay.attack2NozzlePressure],
     ["splitAttack2Flow", ""],
+    ["splitAttack2RatedFlow", ""],
+    ["splitAttack2RatedPressure", ""],
     ["splitAttack2SmoothboreTip", DEFAULT_STATE.splitLay.attack2SmoothboreTip],
     ["splitAttack2BladeModel", DEFAULT_STATE.splitLay.attack2BladeModel]
   ].forEach(([id, value]) => {

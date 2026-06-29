@@ -309,8 +309,9 @@ Select a hydraulic calculation mode.
         <div class="field">
           <label>Nozzle 1 Style</label>
           <select id="splitAttack1NozzleType">
-            <option value="fog">Fog</option>
             <option value="smoothbore">Smoothbore</option>
+            <option value="automaticFog">Automatic Fog</option>
+            <option value="fixedFog">Fixed Fog</option>
             <option value="blade">Blade</option>
           </select>
         </div>
@@ -328,6 +329,19 @@ Select a hydraulic calculation mode.
         <div class="field" id="splitAttack1FlowField">
           <label>Target Flow 1</label>
           <input id="splitAttack1Flow" inputmode="numeric" placeholder="GPM" />
+        </div>
+
+        <div class="field" id="splitAttack1FixedFogRatingField" hidden>
+          <label>Nozzle Rating</label>
+          <div class="nozzle-rating-control">
+            <div class="nozzle-rating-entry">
+              <input id="splitAttack1RatedFlow" inputmode="numeric" placeholder="GPM" />
+            </div>
+            <strong>@</strong>
+            <div class="nozzle-rating-entry">
+              <input id="splitAttack1RatedPressure" inputmode="numeric" placeholder="PSI" />
+            </div>
+          </div>
         </div>
 
         <div class="field" id="splitAttack1SmoothboreTipField" hidden>
@@ -393,8 +407,9 @@ Select a hydraulic calculation mode.
         <div class="field">
           <label>Nozzle 2 Style</label>
           <select id="splitAttack2NozzleType">
-            <option value="fog">Fog</option>
             <option value="smoothbore">Smoothbore</option>
+            <option value="automaticFog">Automatic Fog</option>
+            <option value="fixedFog">Fixed Fog</option>
             <option value="blade">Blade</option>
           </select>
         </div>
@@ -412,6 +427,19 @@ Select a hydraulic calculation mode.
         <div class="field" id="splitAttack2FlowField">
           <label>Target Flow 2</label>
           <input id="splitAttack2Flow" inputmode="numeric" placeholder="GPM" />
+        </div>
+
+        <div class="field" id="splitAttack2FixedFogRatingField" hidden>
+          <label>Nozzle Rating</label>
+          <div class="nozzle-rating-control">
+            <div class="nozzle-rating-entry">
+              <input id="splitAttack2RatedFlow" inputmode="numeric" placeholder="GPM" />
+            </div>
+            <strong>@</strong>
+            <div class="nozzle-rating-entry">
+              <input id="splitAttack2RatedPressure" inputmode="numeric" placeholder="PSI" />
+            </div>
+          </div>
         </div>
 
         <div class="field" id="splitAttack2SmoothboreTipField" hidden>
@@ -481,8 +509,9 @@ Select a hydraulic calculation mode.
       <div class="field">
         <label for="standpipeAttack1NozzleType">Nozzle Type</label>
         <select id="standpipeAttack1NozzleType">
-          <option value="fog">Fog</option>
           <option value="smoothbore">Smoothbore</option>
+          <option value="automaticFog">Automatic Fog</option>
+          <option value="fixedFog">Fixed Fog</option>
           <option value="blade">Blade</option>
         </select>
       </div>
@@ -495,6 +524,19 @@ Select a hydraulic calculation mode.
       <div class="field" id="standpipeAttack1FlowField">
         <label for="standpipeAttack1Flow">Target Flow</label>
         <input id="standpipeAttack1Flow" inputmode="numeric" placeholder="GPM" />
+      </div>
+
+      <div class="field" id="standpipeAttack1FixedFogRatingField" hidden>
+        <label>Nozzle Rating</label>
+        <div class="nozzle-rating-control">
+          <div class="nozzle-rating-entry">
+            <input id="standpipeAttack1RatedFlow" inputmode="numeric" placeholder="GPM" />
+          </div>
+          <strong>@</strong>
+          <div class="nozzle-rating-entry">
+            <input id="standpipeAttack1RatedPressure" inputmode="numeric" placeholder="PSI" />
+          </div>
+        </div>
       </div>
 
       <div class="field" id="standpipeAttack1SmoothboreTipField" hidden>
@@ -564,8 +606,9 @@ Select a hydraulic calculation mode.
       <div class="field">
         <label for="standpipeAttack2NozzleType">Nozzle Type</label>
         <select id="standpipeAttack2NozzleType">
-          <option value="fog">Fog</option>
           <option value="smoothbore">Smoothbore</option>
+          <option value="automaticFog">Automatic Fog</option>
+          <option value="fixedFog">Fixed Fog</option>
           <option value="blade">Blade</option>
         </select>
       </div>
@@ -578,6 +621,19 @@ Select a hydraulic calculation mode.
       <div class="field" id="standpipeAttack2FlowField">
         <label for="standpipeAttack2Flow">Target Flow</label>
         <input id="standpipeAttack2Flow" inputmode="numeric" placeholder="GPM" />
+      </div>
+
+      <div class="field" id="standpipeAttack2FixedFogRatingField" hidden>
+        <label>Nozzle Rating</label>
+        <div class="nozzle-rating-control">
+          <div class="nozzle-rating-entry">
+            <input id="standpipeAttack2RatedFlow" inputmode="numeric" placeholder="GPM" />
+          </div>
+          <strong>@</strong>
+          <div class="nozzle-rating-entry">
+            <input id="standpipeAttack2RatedPressure" inputmode="numeric" placeholder="PSI" />
+          </div>
+        </div>
       </div>
 
       <div class="field" id="standpipeAttack2SmoothboreTipField" hidden>
@@ -740,22 +796,37 @@ Select a hydraulic calculation mode.
         <div class="field">
           <label for="nozzleType" id="nozzleTypeLabel">Nozzle Style</label>
           <select id="nozzleType">
-          <option value="fog">Fog</option>
           <option value="smoothbore">Smoothbore</option>
+          <option value="automaticFog">Automatic Fog</option>
+          <option value="fixedFog">Fixed Fog</option>
           <option value="blade">Blade</option>
           <option value="masterstream">Master Stream</option>
 </select>
           <p class="helper" id="nozzleTypeHelper">
-  Only nozzle style, nozzle pressure, and hose coefficient matter for these calculations.
+  Select a nozzle style to show only the inputs required by that hydraulic model.
 </p>
         </div>
         <div id="masterStreamTypeField" class="field full" hidden>
   <label for="masterStreamType">Master Stream Type</label>
   <select id="masterStreamType">
-    <option value="fog">Fog</option>
+    <option value="automaticFog">Automatic Fog</option>
+    <option value="fixedFog">Fixed Fog</option>
     <option value="smoothbore">Smoothbore</option>
   </select>
 </div>
+
+        <div id="fixedFogRatingField" class="field full" hidden>
+          <label>Nozzle Rating</label>
+          <div class="nozzle-rating-control">
+            <div class="nozzle-rating-entry">
+              <input id="ratedFlow" inputmode="numeric" placeholder="GPM" />
+            </div>
+            <strong>@</strong>
+            <div class="nozzle-rating-entry">
+              <input id="ratedPressure" inputmode="numeric" placeholder="PSI" />
+            </div>
+          </div>
+        </div>
 
         <div id="apparatusFogFlowField" class="field full" hidden>
           <label for="apparatusFogFlow">Rated Flow</label>
@@ -1336,7 +1407,7 @@ Select a hydraulic calculation mode.
   <p><strong>Split Lay Formula</strong></p>
   <p>Total PDP = supply friction loss + appliance loss + highest attack-side pressure demand.</p>
   <p>For unequal attack lines, the higher-demand line drives PDP. Lower-demand lines are recalculated to show actual delivered nozzle pressure, flow, friction loss, and nozzle reaction.</p>
-  <p>Fog nozzle actual flow = target flow × √(actual nozzle pressure ÷ target nozzle pressure).</p>
+  <p>Automatic Fog actual flow = target flow × √(actual nozzle pressure ÷ target nozzle pressure). Fixed Fog actual flow = rated flow × √(actual nozzle pressure ÷ rated pressure).</p>
   <p>Smoothbore flow = 29.7 × tip diameter² × √nozzle pressure.</p>
 </div>
 
