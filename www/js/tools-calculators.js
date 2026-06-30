@@ -46,6 +46,11 @@
       description: "Calculate water velocity from hose ID and flow.",
       render: renderWaterVelocity
     },
+    "estimated-remaining-supply": {
+      title: "Estimated Remaining Supply",
+      description: "Estimate additional hydrant supply at a selected residual pressure.",
+      render: renderEstimatedRemainingSupply
+    },
     coefficient: {
       title: "Coefficient Calculator",
       description: "Calculate hose friction loss coefficient from a 100' field test.",
@@ -1509,6 +1514,194 @@
     };
 
     [hoseId, customId, flow].forEach(input => {
+      input.addEventListener("input", update);
+      input.addEventListener("change", update);
+    });
+    update();
+  }
+
+  function renderEstimatedRemainingSupply() {
+    calculatorBody.innerHTML = `
+      <div class="field-calculator-form">
+        <div class="field">
+          <label for="remainingSupplyStaticPressure">Static Pressure</label>
+          <input id="remainingSupplyStaticPressure" type="text" inputmode="decimal" placeholder="80" />
+        </div>
+
+        <div class="field">
+          <label for="remainingSupplyResidualPressure">Residual Pressure</label>
+          <input id="remainingSupplyResidualPressure" type="text" inputmode="decimal" placeholder="50" />
+        </div>
+
+        <div class="field">
+          <label for="remainingSupplyCurrentFlow">Current Flow</label>
+          <input id="remainingSupplyCurrentFlow" type="text" inputmode="decimal" placeholder="1000" />
+        </div>
+
+        <div class="field">
+          <label for="remainingSupplyTargetResidual">Target Residual</label>
+          <select id="remainingSupplyTargetResidual">
+            <option value="20" selected>20 psi — Standard Reference</option>
+            <option value="10">10 psi — Aggressive Estimate</option>
+            <option value="0">0 psi — Theoretical Estimate</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+
+        <div id="remainingSupplyCustomTargetField" class="field" hidden>
+          <label for="remainingSupplyCustomTarget">Custom Target Residual</label>
+          <input id="remainingSupplyCustomTarget" type="text" inputmode="decimal" placeholder="psi" />
+        </div>
+      </div>
+
+      <div id="remainingSupplyValidation" class="warnings field-calculator-warning" hidden></div>
+      <div id="remainingSupplyCaution" class="warnings field-calculator-warning" hidden></div>
+      <div id="remainingSupplyResults" hidden></div>
+      <div id="remainingSupplyTargetWarning" class="warnings field-calculator-warning" hidden></div>
+
+      <details class="formula">
+        <summary>Formula / Reference</summary>
+        <p>
+          Estimated Remaining Supply uses the standard hydrant-flow projection method to estimate how much additional
+          flow may be available at a selected residual pressure.
+        </p>
+        <p>
+          <strong>Estimated Flow</strong> = Current Flow × ((Static Pressure − Target Residual) / (Static Pressure − Current Residual)) ^ 0.54
+        </p>
+        <p>
+          <strong>Estimated Remaining Supply</strong> = Estimated Flow − Current Flow
+        </p>
+        <p>
+          The 0.54 exponent comes from the Hazen-Williams relationship commonly used in hydrant flow-test calculations.
+          The default target residual is 20 psi because available fire flow is commonly evaluated at 20 psi residual
+          pressure.
+        </p>
+        <p>
+          Targets below 20 psi are aggressive fireground estimates and should not be treated as standard available
+          fire-flow ratings.
+        </p>
+        <p>
+          <strong>Reference basis:</strong> NFPA 291 hydrant flow-test guidance; Hazen-Williams available fire-flow
+          projection; 20 psi residual fire-flow reference.
+        </p>
+      </details>
+    `;
+
+    const staticPressure = document.getElementById("remainingSupplyStaticPressure");
+    const residualPressure = document.getElementById("remainingSupplyResidualPressure");
+    const currentFlow = document.getElementById("remainingSupplyCurrentFlow");
+    const targetResidual = document.getElementById("remainingSupplyTargetResidual");
+    const customTargetField = document.getElementById("remainingSupplyCustomTargetField");
+    const customTarget = document.getElementById("remainingSupplyCustomTarget");
+    const validation = document.getElementById("remainingSupplyValidation");
+    const caution = document.getElementById("remainingSupplyCaution");
+    const results = document.getElementById("remainingSupplyResults");
+    const targetWarning = document.getElementById("remainingSupplyTargetWarning");
+
+    const renderWarning = (element, title, copy) => {
+      element.hidden = false;
+      element.innerHTML = `
+        <div class="warning-item">
+          <span>!</span>
+          <span><strong>${escapeHtml(title)}</strong><br>${escapeHtml(copy)}</span>
+        </div>
+      `;
+    };
+
+    const clearWarning = element => {
+      element.hidden = true;
+      element.innerHTML = "";
+    };
+
+    const getTargetResidual = () => {
+      return targetResidual.value === "custom"
+        ? numberOrNull(customTarget.value)
+        : numberOrNull(targetResidual.value);
+    };
+
+    const update = () => {
+      customTargetField.hidden = targetResidual.value !== "custom";
+      clearWarning(validation);
+      clearWarning(caution);
+      clearWarning(targetWarning);
+      results.hidden = true;
+      results.innerHTML = "";
+
+      const staticPsi = numberOrNull(staticPressure.value);
+      const residualPsi = numberOrNull(residualPressure.value);
+      const flowGpm = numberOrNull(currentFlow.value);
+      const targetPsi = getTargetResidual();
+
+      if (staticPsi === null && residualPsi === null && flowGpm === null && targetResidual.value !== "custom") {
+        return;
+      }
+
+      if (!(staticPsi > 0)) {
+        renderWarning(validation, "Check Static Pressure", "Static Pressure must be greater than 0 psi.");
+        return;
+      }
+
+      if (!(residualPsi >= 0)) {
+        renderWarning(validation, "Check Residual Pressure", "Residual Pressure must be greater than or equal to 0 psi.");
+        return;
+      }
+
+      if (!(flowGpm > 0)) {
+        renderWarning(validation, "Check Current Flow", "Current Flow must be greater than 0 GPM.");
+        return;
+      }
+
+      if (!(targetPsi >= 0)) {
+        renderWarning(validation, "Check Target Residual", "Target Residual must be greater than or equal to 0 psi.");
+        return;
+      }
+
+      if (!(staticPsi > residualPsi)) {
+        renderWarning(validation, "Check Pressure Drop", "Static Pressure must be greater than Residual Pressure.");
+        return;
+      }
+
+      if (!(staticPsi > targetPsi)) {
+        renderWarning(validation, "Check Target Residual", "Static Pressure must be greater than Target Residual.");
+        return;
+      }
+
+      const pressureDrop = staticPsi - residualPsi;
+      if (pressureDrop <= 5) {
+        renderWarning(caution, "Small Pressure Drop", "This estimate is less reliable when the static-to-residual pressure drop is about 5 psi or less.");
+      }
+
+      const projectedFlow = flowGpm * Math.pow((staticPsi - targetPsi) / pressureDrop, 0.54);
+      const remainingSupply = projectedFlow - flowGpm;
+
+      if (!(remainingSupply >= 0)) {
+        renderWarning(validation, "No Additional Supply", "The selected target residual does not support additional flow based on the entered data.");
+        return;
+      }
+
+      results.hidden = false;
+      results.innerHTML = createCompactResultCard("Estimated Remaining Supply", [
+        ["Current Flow", `${formatWhole(flowGpm)} GPM`],
+        ["Target Residual", `${formatNumber(targetPsi, 0)} psi`],
+        ["Estimated Remaining Supply", `${formatWhole(remainingSupply)} GPM`]
+      ]);
+
+      if (targetPsi === 0) {
+        renderWarning(
+          targetWarning,
+          "Theoretical Estimate",
+          "A 0 psi residual target represents a theoretical projection to complete pressure depletion. This is not a standard available fire-flow rating and should only be used as an aggressive fireground estimate."
+        );
+      } else if (targetPsi < 20) {
+        renderWarning(
+          targetWarning,
+          "Aggressive Estimate",
+          "Residual targets below 20 psi are not standard available fire-flow reference points. This estimate may be useful for fireground decision-making, but should not be treated as a rated available fire flow. Use department policy, water-system guidance, and pump operator judgment."
+        );
+      }
+    };
+
+    [staticPressure, residualPressure, currentFlow, targetResidual, customTarget].forEach(input => {
       input.addEventListener("input", update);
       input.addEventListener("change", update);
     });
