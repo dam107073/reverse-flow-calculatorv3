@@ -41,6 +41,11 @@
       description: "Estimate onboard water duration at a known flow.",
       render: renderTankTime
     },
+    "water-shuttle": {
+      title: "Water Shuttle Estimator",
+      description: "Estimate sustained shuttle flow from one or more tenders.",
+      render: renderWaterShuttle
+    },
     "water-velocity": {
       title: "Water Velocity",
       description: "Calculate water velocity from hose ID and flow.",
@@ -632,6 +637,259 @@
       input.addEventListener("input", update);
       input.addEventListener("change", update);
     });
+    update();
+  }
+
+  function renderWaterShuttle() {
+    const createTender = () => ({
+      tankSize: "3000",
+      dumpSceneTime: "",
+      timeToHydrant: "",
+      fillTime: "",
+      timeToScene: ""
+    });
+
+    const tenderFields = [
+      ["tankSize", "Tank Size", "Gallons", "decimal"],
+      ["dumpSceneTime", "Dump / Scene Time", "Minutes", "decimal"],
+      ["timeToHydrant", "Time to Hydrant", "Minutes", "decimal"],
+      ["fillTime", "Fill Time", "Minutes", "decimal"],
+      ["timeToScene", "Time to Scene", "Minutes", "decimal"]
+    ];
+
+    const tenders = [createTender()];
+
+    calculatorBody.innerHTML = `
+      <div class="field-calculator-form">
+        <div class="field">
+          <label for="waterShuttleTargetFlow">Target Flow</label>
+          <input id="waterShuttleTargetFlow" type="text" inputmode="decimal" placeholder="500" />
+        </div>
+      </div>
+
+      <div id="waterShuttleTenderList" class="field-calculator-body"></div>
+
+      <div class="field-calculator-actions">
+        <button id="waterShuttleAddTender" class="reset-button reference-open-button" type="button">
+          Add Another Tender
+        </button>
+      </div>
+
+      <div id="waterShuttleValidation" class="warnings field-calculator-warning" hidden></div>
+      <div id="waterShuttleResults" hidden></div>
+      <div id="waterShuttleBreakdown" class="field-calculator-section" hidden></div>
+
+      <details class="formula">
+        <summary>Formula / Reference</summary>
+        <p>
+          Water Shuttle Estimator calculates the sustained flow that one or more tenders can provide after arriving on
+          scene full and beginning a shuttle cycle.
+        </p>
+        <p>Each tender is assumed to start full on scene.</p>
+        <p>
+          <strong>Tender Cycle Time</strong> = Dump / Scene Time + Time to Hydrant + Fill Time + Time to Scene
+        </p>
+        <p>
+          <strong>Tender Sustained Flow</strong> = Tank Size ÷ Tender Cycle Time
+        </p>
+        <p>
+          <strong>Total Sustained Shuttle Flow</strong> = Sum of all Tender Sustained Flows
+        </p>
+        <p>
+          <strong>Surplus / Deficit</strong> = Total Sustained Shuttle Flow − Target Flow
+        </p>
+        <p>
+          This estimate assumes the full entered tank size is delivered each trip. Actual usable water may be lower
+          depending on apparatus design, dump-site setup, fill-site setup, operator efficiency, traffic, access,
+          portable tank capacity, and local procedures.
+        </p>
+        <p>
+          <strong>Reference basis:</strong> NFPA 1142 rural/suburban firefighting water-supply planning; sustained
+          water supply concepts for fire department water shuttle operations.
+        </p>
+      </details>
+    `;
+
+    const targetFlow = document.getElementById("waterShuttleTargetFlow");
+    const tenderList = document.getElementById("waterShuttleTenderList");
+    const addTender = document.getElementById("waterShuttleAddTender");
+    const validation = document.getElementById("waterShuttleValidation");
+    const results = document.getElementById("waterShuttleResults");
+    const breakdown = document.getElementById("waterShuttleBreakdown");
+
+    const renderWarning = (title, copy) => {
+      validation.hidden = false;
+      validation.innerHTML = `
+        <div class="warning-item">
+          <span>!</span>
+          <span><strong>${escapeHtml(title)}</strong><br>${escapeHtml(copy)}</span>
+        </div>
+      `;
+    };
+
+    const clearOutput = () => {
+      validation.hidden = true;
+      validation.innerHTML = "";
+      results.hidden = true;
+      results.innerHTML = "";
+      breakdown.hidden = true;
+      breakdown.innerHTML = "";
+    };
+
+    const renderTenderList = () => {
+      tenderList.innerHTML = tenders.map((tender, index) => `
+        <article class="field-calculator-section" data-water-shuttle-tender="${index}">
+          <strong>Tender ${index + 1}</strong>
+          <div class="field-calculator-form">
+            ${tenderFields.map(([key, label, placeholder, inputMode]) => `
+              <div class="field">
+                <label for="waterShuttleTender${index}${key}">${escapeHtml(label)}</label>
+                <input
+                  id="waterShuttleTender${index}${key}"
+                  type="text"
+                  inputmode="${escapeHtml(inputMode)}"
+                  placeholder="${escapeHtml(placeholder)}"
+                  value="${escapeHtml(tender[key])}"
+                  data-water-shuttle-index="${index}"
+                  data-water-shuttle-field="${escapeHtml(key)}"
+                />
+              </div>
+            `).join("")}
+          </div>
+          ${index > 0 ? `
+            <div class="field-calculator-actions">
+              <button class="reset-button reference-open-button" type="button" data-remove-water-shuttle-tender="${index}">
+                Remove Tender
+              </button>
+            </div>
+          ` : ""}
+        </article>
+      `).join("");
+    };
+
+    const getTenderValidation = tender => {
+      const tankSize = numberOrNull(tender.tankSize);
+      const dumpSceneTime = numberOrNull(tender.dumpSceneTime);
+      const timeToHydrant = numberOrNull(tender.timeToHydrant);
+      const fillTime = numberOrNull(tender.fillTime);
+      const timeToScene = numberOrNull(tender.timeToScene);
+
+      if (!(tankSize > 0)) {
+        return { error: "Tank Size must be greater than 0 gallons." };
+      }
+
+      if (!(dumpSceneTime >= 0)) {
+        return { error: "Dump / Scene Time must be greater than or equal to 0 minutes." };
+      }
+
+      if (!(timeToHydrant >= 0)) {
+        return { error: "Time to Hydrant must be greater than or equal to 0 minutes." };
+      }
+
+      if (!(fillTime >= 0)) {
+        return { error: "Fill Time must be greater than or equal to 0 minutes." };
+      }
+
+      if (!(timeToScene >= 0)) {
+        return { error: "Time to Scene must be greater than or equal to 0 minutes." };
+      }
+
+      const cycleTime = dumpSceneTime + timeToHydrant + fillTime + timeToScene;
+      if (!(cycleTime > 0)) {
+        return { error: "Each tender cycle time must be greater than 0 minutes." };
+      }
+
+      return {
+        tankSize,
+        cycleTime,
+        sustainedFlow: tankSize / cycleTime
+      };
+    };
+
+    const update = () => {
+      clearOutput();
+
+      const targetGpm = numberOrNull(targetFlow.value);
+      if (targetGpm === null && tenders.every(tender => (
+        tender.tankSize === "3000" &&
+        tender.dumpSceneTime === "" &&
+        tender.timeToHydrant === "" &&
+        tender.fillTime === "" &&
+        tender.timeToScene === ""
+      ))) {
+        return;
+      }
+
+      if (!(targetGpm > 0)) {
+        renderWarning("Check Target Flow", "Target Flow must be greater than 0 GPM.");
+        return;
+      }
+
+      const tenderResults = [];
+      for (let index = 0; index < tenders.length; index += 1) {
+        const tenderResult = getTenderValidation(tenders[index]);
+        if (tenderResult.error) {
+          renderWarning(`Check Tender ${index + 1}`, tenderResult.error);
+          return;
+        }
+        tenderResults.push(tenderResult);
+      }
+
+      const totalSustainedFlow = tenderResults.reduce((sum, tender) => sum + tender.sustainedFlow, 0);
+      const surplusDeficit = totalSustainedFlow - targetGpm;
+      const isMeetingTarget = surplusDeficit >= 0;
+
+      results.hidden = false;
+      results.innerHTML = createCompactResultCard("Water Shuttle Estimate", [
+        ["Target Flow", `${formatWhole(targetGpm)} GPM`],
+        ["Tenders", String(tenderResults.length)],
+        ["Sustained Shuttle Flow", `${formatWhole(totalSustainedFlow)} GPM`],
+        [isMeetingTarget ? "Surplus" : "Deficit", `${formatWhole(Math.abs(surplusDeficit))} GPM`],
+        ["Status", isMeetingTarget ? "Meets Target" : "Below Target"]
+      ]);
+
+      breakdown.hidden = false;
+      breakdown.innerHTML = `
+        <strong>Tender Breakdown</strong>
+        <div class="field-calculator-compact-results">
+          ${tenderResults.map((tender, index) => `
+            <div>
+              <span>Tender ${index + 1}</span>
+              <strong>${formatWhole(tender.tankSize)} gal / ${formatNumber(tender.cycleTime, 1)} min = ${formatWhole(tender.sustainedFlow)} GPM</strong>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    };
+
+    tenderList.addEventListener("input", event => {
+      const index = Number(event.target?.dataset?.waterShuttleIndex);
+      const field = event.target?.dataset?.waterShuttleField;
+      if (!Number.isInteger(index) || !field || !tenders[index]) return;
+      tenders[index][field] = event.target.value;
+      update();
+    });
+
+    tenderList.addEventListener("click", event => {
+      const button = event.target.closest("[data-remove-water-shuttle-tender]");
+      if (!button) return;
+
+      const index = Number(button.dataset.removeWaterShuttleTender);
+      if (!Number.isInteger(index) || index < 1 || !tenders[index]) return;
+
+      tenders.splice(index, 1);
+      renderTenderList();
+      update();
+    });
+
+    addTender.addEventListener("click", () => {
+      tenders.push(createTender());
+      renderTenderList();
+      update();
+    });
+
+    targetFlow.addEventListener("input", update);
+    renderTenderList();
     update();
   }
 
