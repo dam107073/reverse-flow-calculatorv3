@@ -933,6 +933,11 @@
     width: 100%;
   }
 
+  .reference-product-spec-list div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
   .reference-partner-actions {
     justify-content: stretch;
   }

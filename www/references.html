@@ -89,7 +89,7 @@
         reason: "references-page-load"
       });
   </script>
-  <script src="js/data/references.js?v=training-directory-empty-1"></script>
+  <script src="js/data/references.js?v=hen-products-3"></script>
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
@@ -745,6 +745,215 @@
       `;
     }
 
+    function getEquipmentProducts(manufacturer) {
+      return Array.isArray(manufacturer.products) ? manufacturer.products : [];
+    }
+
+    function getEquipmentCategoryProducts(manufacturer, category) {
+      const products = getEquipmentProducts(manufacturer);
+      const productIds = Array.isArray(category.productIds) ? category.productIds : [];
+
+      if (productIds.length) {
+        return productIds
+          .map(productId => products.find(product => product.id === productId))
+          .filter(Boolean);
+      }
+
+      return products.filter(product => product.categoryId === category.id);
+    }
+
+    function findEquipmentCategory(data, categoryId) {
+      for (const manufacturer of getEquipmentManufacturers(data)) {
+        const category = (manufacturer.categories || []).find(item => item.id === categoryId);
+        if (category) {
+          return { manufacturer, category };
+        }
+      }
+
+      return null;
+    }
+
+    function findEquipmentProduct(data, productId) {
+      for (const manufacturer of getEquipmentManufacturers(data)) {
+        const product = getEquipmentProducts(manufacturer).find(item => item.id === productId);
+        if (product) {
+          const category = (manufacturer.categories || []).find(item => item.id === product.categoryId);
+          return { manufacturer, category, product };
+        }
+      }
+
+      return null;
+    }
+
+    function createEquipmentProductSpecList(specs) {
+      if (!Array.isArray(specs) || specs.length === 0) {
+        return `<p class="helper">See the manufacturer datasheet for current product specifications.</p>`;
+      }
+
+      return `
+        <dl class="reference-product-spec-list">
+          ${specs.map(spec => `
+            <div>
+              <dt>${escapeHtml(spec.label)}</dt>
+              <dd>${escapeHtml(spec.value)}</dd>
+            </div>
+          `).join("")}
+        </dl>
+      `;
+    }
+
+    function createEquipmentProductNotes(notes) {
+      if (!Array.isArray(notes) || notes.length === 0) {
+        return "";
+      }
+
+      return `
+        <article class="hose-library-card reference-card reference-info-card">
+          <strong>Reverse Flow Note</strong>
+          <ul class="reference-product-note-list">
+            ${notes.map(note => `<li>${escapeHtml(note)}</li>`).join("")}
+          </ul>
+        </article>
+      `;
+    }
+
+    function resolveReferenceAssetUrl(url) {
+      try {
+        return new URL(url, window.location.href).href;
+      } catch {
+        return url;
+      }
+    }
+
+    function openReferenceExternalUrl(url) {
+      const externalUrl = resolveReferenceAssetUrl(url);
+      const openedWindow = window.open(externalUrl, "_blank", "noopener");
+
+      if (!openedWindow) {
+        window.location.href = externalUrl;
+      }
+    }
+
+    function isNativeCapacitorReferenceApp() {
+      try {
+        return !!(
+          window.Capacitor &&
+          typeof window.Capacitor.isNativePlatform === "function" &&
+          window.Capacitor.isNativePlatform()
+        );
+      } catch {
+        return false;
+      }
+    }
+
+    function createReferenceFileName(title, extension) {
+      const normalizedTitle = String(title || "Datasheet")
+        .replace(/[^A-Za-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 80) || "Datasheet";
+
+      return `Reverse_Flow_HEN_${normalizedTitle}_Datasheet.${extension}`;
+    }
+
+    function blobToReferenceBase64Payload(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = String(reader.result || "");
+          const base64 = dataUrl.includes(",")
+            ? dataUrl.slice(dataUrl.indexOf(",") + 1)
+            : "";
+
+          if (!base64) {
+            reject(new Error("PDF base64 payload was empty."));
+            return;
+          }
+
+          resolve(base64);
+        };
+        reader.onerror = () => reject(reader.error || new Error("PDF base64 conversion failed."));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function openReferencePdfNative(url, title) {
+      const documentUrl = resolveReferenceAssetUrl(url);
+      const plugins = window.Capacitor?.Plugins || {};
+      const Filesystem = plugins.Filesystem;
+      const Share = plugins.Share;
+
+      if (!Filesystem || !Share) {
+        alert("Unable to open this datasheet on this device.");
+        return;
+      }
+
+      let pdfBlob = null;
+      try {
+        const response = await fetch(documentUrl);
+        if (!response.ok) {
+          throw new Error(`PDF request failed with ${response.status}`);
+        }
+        pdfBlob = await response.blob();
+      } catch {
+        alert("Unable to open this datasheet on this device.");
+        return;
+      }
+
+      let base64Data = "";
+      try {
+        base64Data = await blobToReferenceBase64Payload(
+          pdfBlob.type === "application/pdf"
+            ? pdfBlob
+            : new Blob([pdfBlob], { type: "application/pdf" })
+        );
+      } catch {
+        alert("Unable to open this datasheet on this device.");
+        return;
+      }
+
+      const fileName = createReferenceFileName(title, "pdf");
+      const path = `reference-datasheets/${fileName}`;
+      let fileUri = "";
+
+      try {
+        const writeResult = await Filesystem.writeFile({
+          path,
+          data: base64Data,
+          directory: "CACHE",
+          recursive: true
+        });
+        fileUri = writeResult.uri || "";
+      } catch {
+        alert("Unable to open this datasheet on this device.");
+        return;
+      }
+
+      try {
+        await Share.share({
+          title: title ? `${title} Datasheet` : "HEN Datasheet",
+          files: [fileUri],
+          dialogTitle: "Open Datasheet"
+        });
+      } catch {
+        alert("Unable to open this datasheet on this device.");
+      }
+    }
+
+    async function openReferenceDocument(url, title) {
+      const documentUrl = resolveReferenceAssetUrl(url);
+
+      if (isNativeCapacitorReferenceApp()) {
+        await openReferencePdfNative(documentUrl, title);
+        return;
+      }
+
+      const openedWindow = window.open(documentUrl, "_blank", "noopener");
+
+      if (!openedWindow) {
+        alert("Unable to open this datasheet on this device.");
+      }
+    }
+
     function createEquipmentCategoryCards(manufacturer) {
       const categories = Array.isArray(manufacturer.categories)
         ? manufacturer.categories
@@ -754,20 +963,38 @@
         return `<p class="helper">Product categories coming soon.</p>`;
       }
 
-      return categories.map(category => `
-        <details class="hose-library-card reference-equipment-category-card collapsible-settings-card">
-          <summary>
-            <span>
-              <strong>${escapeHtml(category.name)}</strong>
-              <span class="helper">${escapeHtml(category.helper || "Product specifications")}</span>
-            </span>
-          </summary>
-          <div class="collapsible-card-body reference-equipment-category-body">
-            ${createEquipmentSpecificationTable(category)}
-            ${createEquipmentNotes(category.notes)}
-          </div>
-        </details>
-      `).join("");
+      return categories.map(category => {
+        if (category.id) {
+          const products = getEquipmentCategoryProducts(manufacturer, category);
+          return `
+            <article class="hose-library-card reference-card reference-nav-card">
+              <div>
+                <strong>${escapeHtml(category.name)}</strong>
+                <p class="helper">${escapeHtml(category.helper || "Product references")}</p>
+                <p class="helper">${escapeHtml(products.length)} ${products.length === 1 ? "product" : "products"}</p>
+              </div>
+              <a class="reset-button reference-open-button" href="${escapeHtml(getReferenceUrl("equipment-category", category.id))}">
+                View Products
+              </a>
+            </article>
+          `;
+        }
+
+        return `
+          <details class="hose-library-card reference-equipment-category-card collapsible-settings-card">
+            <summary>
+              <span>
+                <strong>${escapeHtml(category.name)}</strong>
+                <span class="helper">${escapeHtml(category.helper || "Product specifications")}</span>
+              </span>
+            </summary>
+            <div class="collapsible-card-body reference-equipment-category-body">
+              ${createEquipmentSpecificationTable(category)}
+              ${createEquipmentNotes(category.notes)}
+            </div>
+          </details>
+        `;
+      }).join("");
     }
 
     function renderEquipmentManufacturers(data) {
@@ -854,6 +1081,124 @@
             rel="noopener"
           >
             Open Source
+          </a>
+        </article>
+      `;
+    }
+
+    function renderEquipmentCategory(data, categoryId) {
+      const match = findEquipmentCategory(data, categoryId);
+
+      if (!match) {
+        renderEquipmentManufacturers(data);
+        return;
+      }
+
+      const { manufacturer, category } = match;
+      const products = getEquipmentCategoryProducts(manufacturer, category);
+
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="${escapeHtml(getReferenceUrl("equipment-manufacturer", manufacturer.id))}">
+            Back to ${escapeHtml(manufacturer.name)}
+          </a>
+          <h2>${escapeHtml(category.name)}</h2>
+          <p class="helper">${escapeHtml(category.helper || "Product references")}</p>
+        </div>
+      `;
+
+      if (!products.length) {
+        referencesList.insertAdjacentHTML(
+          "beforeend",
+          `
+            <article class="hose-library-card reference-card reference-empty-card">
+              <div>
+                <strong>Product References Coming Soon</strong>
+                <p class="helper">Product references have not been added for this category yet.</p>
+              </div>
+            </article>
+          `
+        );
+        return;
+      }
+
+      products.forEach(product => {
+        referencesList.appendChild(
+          createReferenceLinkCard(
+            product.name,
+            product.description || "View datasheet and manufacturer website.",
+            getReferenceUrl("equipment-product", product.id),
+            "Open Product"
+          )
+        );
+      });
+    }
+
+    function renderEquipmentProduct(data, productId) {
+      const match = findEquipmentProduct(data, productId);
+
+      if (!match) {
+        renderEquipmentManufacturers(data);
+        return;
+      }
+
+      const { manufacturer, category, product } = match;
+      const websiteUrl = product.websiteUrl || manufacturer.productReferenceUrl || manufacturer.websiteUrl;
+      const datasheetPdfUrl = resolveReferenceAssetUrl(product.datasheetPdfUrl);
+      const productDescription = product.description
+        ? `<p class="helper">${escapeHtml(product.description)}</p>`
+        : "";
+
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="${escapeHtml(getReferenceUrl("equipment-category", category ? category.id : manufacturer.id))}">
+            Back to ${escapeHtml(category ? category.name : manufacturer.name)}
+          </a>
+          <h2>${escapeHtml(product.name)}</h2>
+          ${productDescription}
+        </div>
+
+        <article class="hose-library-card reference-card reference-category-card reference-partner-detail-card">
+          <strong>Basic Specifications</strong>
+          ${createEquipmentProductSpecList(product.specs)}
+        </article>
+
+        ${createEquipmentProductNotes(product.notes)}
+
+        <div class="references-group">
+          <h2>Product Resources</h2>
+        </div>
+
+        <article class="hose-library-card reference-card reference-website-card reference-product-resource-card">
+          <div>
+            <strong>Datasheet</strong>
+            <p class="helper">Open the official HEN datasheet with the device document viewer.</p>
+          </div>
+          <a
+            class="reset-button reference-open-button"
+            href="${escapeHtml(datasheetPdfUrl)}"
+            data-reference-document-url="${escapeHtml(datasheetPdfUrl)}"
+            data-reference-document-title="${escapeHtml(product.name)}"
+            target="_blank"
+            rel="noopener"
+          >
+            View Datasheet
+          </a>
+        </article>
+
+        <article class="hose-library-card reference-card reference-website-card reference-product-resource-card">
+          <div>
+            <strong>HEN Website</strong>
+            <p class="helper">${escapeHtml(websiteUrl)}</p>
+          </div>
+          <a
+            class="reset-button reference-open-button"
+            href="${escapeHtml(websiteUrl)}"
+            data-reference-external-url="${escapeHtml(websiteUrl)}"
+            target="_blank"
+            rel="noopener"
+          >
+            Visit HEN Website
           </a>
         </article>
       `;
@@ -961,6 +1306,23 @@
     }
 
     referencesList.addEventListener("click", event => {
+      const documentLink = event.target.closest("[data-reference-document-url]");
+      if (documentLink) {
+        event.preventDefault();
+        openReferenceDocument(
+          documentLink.dataset.referenceDocumentUrl || documentLink.href,
+          documentLink.dataset.referenceDocumentTitle || ""
+        );
+        return;
+      }
+
+      const externalLink = event.target.closest("[data-reference-external-url]");
+      if (externalLink) {
+        event.preventDefault();
+        openReferenceExternalUrl(externalLink.dataset.referenceExternalUrl || externalLink.href);
+        return;
+      }
+
       const resetButton = event.target.closest("[data-training-filter-reset]");
       if (resetButton) {
         trainingDirectoryFilterState.topic = "";
@@ -1252,6 +1614,16 @@
 
       if (route.section === "equipment-manufacturer") {
         renderEquipmentManufacturer(data, route.id);
+        return;
+      }
+
+      if (route.section === "equipment-category") {
+        renderEquipmentCategory(data, route.id);
+        return;
+      }
+
+      if (route.section === "equipment-product") {
+        renderEquipmentProduct(data, route.id);
         return;
       }
 

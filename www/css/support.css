@@ -488,6 +488,40 @@
       line-height: 1.4;
     }
 
+    .reference-product-spec-list {
+      display: grid;
+      gap: 8px;
+      margin: 8px 0 0;
+    }
+
+    .reference-product-spec-list div {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      gap: 10px;
+      padding: 8px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .reference-product-spec-list dt {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .reference-product-spec-list dd {
+      margin: 0;
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .reference-product-note-list {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
     .reference-nav-card {
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;

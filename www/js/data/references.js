@@ -263,37 +263,97 @@ const equipmentManufacturerReferences = [
     sourceUrl: "https://www.hennozzles.com/",
     about: "HEN manufactures nozzles, appliances, and fireground equipment for structural and wildland firefighting. HEN is best known for their proprietary blade nozzles, which produce a \"blade\" pattern resulting in increased surface area distribution of large droplets. HEN is also known for their revolutionary Turbo devices, which act as back pressure increasers to improve mechanics of the hoseline, while maintaining a low pressure nozzle.",
     sourceNote: "Reference information shown on this page is based on publicly available manufacturer information and published reference resources. Use the source links below for the most current information directly from the manufacturer.",
+    productReferenceUrl: "https://www.hennozzles.com",
     categories: [
       {
-        name: "Blade Series",
-        helper: "Supported HEN Blade models represented in Reverse Flow.",
-        columns: ["Model", "Rated Flow"],
-        rows: [
-          ["Blade 20", "20 GPM"],
-          ["Blade 45", "45 GPM"],
-          ["Blade 95", "95 GPM"],
-          ["Blade 160", "160 GPM"],
-          ["Blade 185", "185 GPM"],
-          ["Blade 265", "265 GPM"]
-        ],
-        notes: [
-          "Supported within Reverse Flow calculations.",
-          "Flow calculations assume solid-stream operation."
+        id: "hen-wildland",
+        name: "Wildland",
+        helper: "HEN wildland nozzles and electronic nozzle references.",
+        productIds: [
+          "blade-20",
+          "blade-45",
+          "blade-95",
+          "blade-versa-45",
+          "blade-versa-45-integrated",
+          "electronic-nozzle-20",
+          "electronic-nozzle-45"
         ]
       },
       {
+        id: "hen-structural-handline",
+        name: "Structural Handline",
+        helper: "HEN handline nozzle references for structural firefighting.",
+        productIds: [
+          "tip-160",
+          "tip-265",
+          "tip-force-175",
+          "tip-force-250",
+          "blade-160",
+          "blade-185",
+          "blade-265",
+          "blade-force-175",
+          "blade-force-250",
+          "blade-versa-250"
+        ]
+      },
+      {
+        id: "hen-shutoffs",
+        name: "Shutoffs",
+        helper: "HEN Hydro shutoff references.",
+        productIds: [
+          "hydro-100",
+          "hydro-138",
+          "hydro-force-138",
+          "hydro-200"
+        ]
+      },
+      {
+        id: "hen-turbo-devices",
         name: "Turbo Devices",
-        helper: "Published Turbo device flow ranges represented for reference.",
-        columns: ["Device", "Published Flow Range"],
-        rows: [
-          ["Turbo 1.5", "150-190 GPM"]
-        ],
-        notes: [
-          "Turbo 1.5 is currently supported within Reverse Flow.",
-          "Turbo calculations use published manufacturer performance data.",
-          "Calculations outside published operating ranges are not displayed."
+        helper: "HEN Turbo device references.",
+        productIds: [
+          "turbo-1-5",
+          "turbo-2-5"
+        ]
+      },
+      {
+        id: "hen-master-stream",
+        name: "Master Stream",
+        helper: "HEN master stream blade nozzle references.",
+        productIds: [
+          "blade-500",
+          "blade-750",
+          "blade-1000"
         ]
       }
+    ],
+    products: [
+      { id: "blade-20", name: "Blade 20", categoryId: "hen-wildland", specs: [{ label: "Rated Flow", value: "20 GPM" }], datasheetPdfUrl: "assets/references/hen/datasheets/blade-20.pdf" },
+      { id: "blade-45", name: "Blade 45", categoryId: "hen-wildland", specs: [{ label: "Rated Flow", value: "45 GPM" }], datasheetPdfUrl: "assets/references/hen/datasheets/blade-45.pdf" },
+      { id: "blade-95", name: "Blade 95", categoryId: "hen-wildland", specs: [{ label: "Rated Flow", value: "95 GPM" }], datasheetPdfUrl: "assets/references/hen/datasheets/blade-95.pdf" },
+      { id: "blade-160", name: "Blade 160", categoryId: "hen-structural-handline", specs: [{ label: "Rated Flow", value: "160 GPM" }], datasheetPdfUrl: "assets/references/hen/datasheets/blade-160.pdf" },
+      { id: "blade-185", name: "Blade 185", categoryId: "hen-structural-handline", specs: [{ label: "Rated Flow", value: "185 GPM" }], datasheetPdfUrl: "assets/references/hen/datasheets/blade-185.pdf" },
+      { id: "blade-265", name: "Blade 265", categoryId: "hen-structural-handline", specs: [{ label: "Rated Flow", value: "265 GPM" }], datasheetPdfUrl: "assets/references/hen/datasheets/blade-265.pdf" },
+      { id: "blade-versa-45", name: "Blade Versa 45", categoryId: "hen-wildland", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/blade-versa-45.pdf" },
+      { id: "blade-versa-45-integrated", name: "Blade Versa 45 Integrated", categoryId: "hen-wildland", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/blade-versa-45-integrated.pdf" },
+      { id: "electronic-nozzle-20", name: "Electronic Nozzle 20", categoryId: "hen-wildland", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/electronic-nozzle-20.pdf" },
+      { id: "electronic-nozzle-45", name: "Electronic Nozzle 45", categoryId: "hen-wildland", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/electronic-nozzle-45.pdf" },
+      { id: "tip-160", name: "TIP 160", categoryId: "hen-structural-handline", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/tip-160.pdf" },
+      { id: "tip-265", name: "TIP 265", categoryId: "hen-structural-handline", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/tip-265.pdf" },
+      { id: "tip-force-175", name: "TIP FORCE 175", categoryId: "hen-structural-handline", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/tip-force-175.pdf" },
+      { id: "tip-force-250", name: "TIP FORCE 250", categoryId: "hen-structural-handline", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/tip-force-250.pdf" },
+      { id: "blade-force-175", name: "Blade FORCE 175", categoryId: "hen-structural-handline", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/blade-force-175.pdf" },
+      { id: "blade-force-250", name: "Blade FORCE 250", categoryId: "hen-structural-handline", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/blade-force-250.pdf" },
+      { id: "blade-versa-250", name: "Blade Versa 250", categoryId: "hen-structural-handline", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/blade-versa-250.pdf" },
+      { id: "hydro-100", name: "Hydro 100", categoryId: "hen-shutoffs", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/hydro-100.pdf" },
+      { id: "hydro-138", name: "Hydro 138", categoryId: "hen-shutoffs", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/hydro-138.pdf" },
+      { id: "hydro-force-138", name: "Hydro FORCE 138", categoryId: "hen-shutoffs", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/hydro-force-138.pdf" },
+      { id: "hydro-200", name: "Hydro 200", categoryId: "hen-shutoffs", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/hydro-200.pdf" },
+      { id: "turbo-1-5", name: "Turbo 1.5", categoryId: "hen-turbo-devices", specs: [{ label: "Published Flow Range", value: "150-190 GPM" }], notes: ["Turbo 1.5 is currently supported within Reverse Flow calculations."], datasheetPdfUrl: "assets/references/hen/datasheets/turbo-1-5.pdf" },
+      { id: "turbo-2-5", name: "Turbo 2.5", categoryId: "hen-turbo-devices", specs: [], notes: ["Reference only. Turbo 2.5 is not enabled in Reverse Flow calculations."], datasheetPdfUrl: "assets/references/hen/datasheets/turbo-2-5.pdf" },
+      { id: "blade-500", name: "Blade 500", categoryId: "hen-master-stream", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/blade-500.pdf" },
+      { id: "blade-750", name: "Blade 750", categoryId: "hen-master-stream", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/blade-750.pdf" },
+      { id: "blade-1000", name: "Blade 1000", categoryId: "hen-master-stream", specs: [], datasheetPdfUrl: "assets/references/hen/datasheets/blade-1000.pdf" }
     ]
   }
 ];
