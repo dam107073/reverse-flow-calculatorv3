@@ -92,6 +92,30 @@
         standpipeLoss: "25",
         dualSupply: false
       },
+      wyeOps: {
+        supplyLength: "",
+        supplyHoseSize: "3",
+        attack1Length: "",
+        attack1HoseSize: "1.75",
+        attack1NozzleType: "smoothbore",
+        attack1NozzlePressure: "50",
+        attack1Flow: "",
+        attack1RatedFlow: "",
+        attack1RatedPressure: "",
+        attack1SmoothboreTip: "",
+        attack1CustomTip: "",
+        attack1CustomPressure: "",
+        attack2Length: "",
+        attack2HoseSize: "1.75",
+        attack2NozzleType: "smoothbore",
+        attack2NozzlePressure: "50",
+        attack2Flow: "",
+        attack2RatedFlow: "",
+        attack2RatedPressure: "",
+        attack2SmoothboreTip: "",
+        attack2CustomTip: "",
+        attack2CustomPressure: ""
+      },
       useCustomCoefficient: false,
       customCoefficient: "",
     };
@@ -100,6 +124,7 @@
     const VALID_CALCULATOR_MODES = new Set([
       "apparatusMounted",
       "relay",
+      "wyeOps",
       "requiredPdp",
       "reverse",
       "splitLay",
@@ -108,6 +133,7 @@
     const PRO_GATED_CALCULATOR_MODES = new Set([
       "apparatusMounted",
       "relay",
+      "wyeOps",
       "splitLay",
       "standpipeOps"
     ]);
@@ -127,7 +153,7 @@
       targetState.nozzleType = normalizeNozzleType(targetState.nozzleType);
       targetState.masterStreamType = normalizeNozzleType(targetState.masterStreamType);
 
-      ["splitLay", "standpipeOps"].forEach(section => {
+      ["splitLay", "standpipeOps", "wyeOps"].forEach(section => {
         const data = targetState[section];
         if (!data || typeof data !== "object") return;
 
@@ -264,8 +290,9 @@
 
       reverseModeButton: document.getElementById("reverseModeButton"),
       pdpModeButton: document.getElementById("pdpModeButton"),
-      relayModeButton: document.getElementById("relayModeButton"),
-      apparatusMountedModeButton: document.getElementById("apparatusMountedModeButton"),
+	      relayModeButton: document.getElementById("relayModeButton"),
+	      wyeOpsButton: document.getElementById("wyeOpsButton"),
+	      apparatusMountedModeButton: document.getElementById("apparatusMountedModeButton"),
       standpipeOpsButton: document.getElementById("standpipeOpsButton"),
       modeHelper: document.getElementById("modeHelper"),
 
@@ -314,7 +341,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       calculatedNozzlePressureValue: document.getElementById("calculatedNozzlePressureValue"),
       disabledPressureExplanations: document.getElementById("disabledPressureExplanations"),
 
-      
+
       customNozzlePressureField:
         document.getElementById("customNozzlePressureField"),
 
@@ -396,7 +423,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       splitAttack2FlResult: document.getElementById("splitAttack2FlResult"),
       splitAttack2ReactionResult:
         document.getElementById("splitAttack2ReactionResult"),
-      standpipeOpsFields: document.getElementById("standpipeOpsFields"),
+	      standpipeOpsFields: document.getElementById("standpipeOpsFields"),
+	      wyeOpsFields: document.getElementById("wyeOpsFields"),
       standpipeAddOutletButton: document.getElementById("standpipeAddOutletButton"),
       standpipeRemoveOutletButton: document.getElementById("standpipeRemoveOutletButton"),
       standpipeAttack2Section: document.getElementById("standpipeAttack2Section"),
@@ -452,12 +480,13 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       appearancePreferenceControls: document.querySelectorAll("input[name='appearancePreference']"),
       reverseFormula: document.getElementById("reverseFormula"),
       requiredPdpFormula: document.getElementById("requiredPdpFormula"),
-      relayFormula: document.getElementById("relayFormula"),
-      splitLayFormula: document.getElementById("splitLayFormula"),
+	      relayFormula: document.getElementById("relayFormula"),
+	      wyeOpsFormula: document.getElementById("wyeOpsFormula"),
+	      splitLayFormula: document.getElementById("splitLayFormula"),
       standpipeFormula: document.getElementById("standpipeFormula"),
       formulaCard: document.getElementById("formulaCard"),
       formulaCardSummary: document.getElementById("formulaCardSummary"),
-      
+
       versionFooter: document.getElementById("versionFooter"),
     };
 
@@ -467,7 +496,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
 	   document.addEventListener("deviceready", () => {
 	  console.log("Device ready fired.");
-	
+
 	  if (!window.CdvPurchase) {
 	    console.warn("CdvPurchase is NOT available.");
 	    updateBuyProButtonState("unavailable", {
@@ -480,10 +509,10 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
 	  initializeReverseFlowStore();
 	});
-	
+
 	function updateBuyProButtonState(state, details = {}) {
 	  if (!els.buyProButton) return;
-	
+
 	  if (state === "ready") {
 	    els.buyProButton.disabled = false;
 	    els.buyProButton.textContent = "Upgrade to Pro";
@@ -506,7 +535,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    els.buyProButton.disabled = false;
 	    els.buyProButton.textContent = "Purchase Unavailable";
 	  }
-	
+
 	  console.info("[Reverse Flow IAP]", {
 	    event: "buy-button-state",
 	    state,
@@ -520,7 +549,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
 	function summarizeVerifiedPurchase(purchase, fallbackPath = null) {
 	  if (!purchase || typeof purchase !== "object") return null;
-	
+
 	  return {
 	    path: fallbackPath,
 	    id: purchase.id || null,
@@ -537,11 +566,11 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
 	function summarizeVerifiedReceipt(receipt, index = null) {
 	  if (!receipt || typeof receipt !== "object") return null;
-	
+
 	  const collection = Array.isArray(receipt.collection)
 	    ? receipt.collection
 	    : [];
-	
+
 	  return {
 	    index,
 	    className: receipt.className || null,
@@ -574,7 +603,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    proProduct && typeof store?.findInVerifiedReceipts === "function"
 	      ? store.findInVerifiedReceipts(proProduct)
 	      : null;
-	
+
 	  return {
 	    platform: purchasePlatform || null,
 	    validatorConfigured: Boolean(store?.validator),
@@ -626,21 +655,21 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  const capacitor = window.Capacitor;
 	  const metaAppEvents = capacitor?.Plugins?.MetaAppEvents;
 	  const platform = capacitor?.getPlatform?.() || "web";
-	
+
 	  if (
 	    platform !== "ios" ||
 	    typeof metaAppEvents?.logProPurchase !== "function"
 	  ) {
 	    return;
 	  }
-	
+
 	  try {
 	    await metaAppEvents.logProPurchase({
 	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
 	      amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
 	      currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
 	    });
-	
+
 	    console.info("[Reverse Flow IAP]", {
 	      event: "meta-pro-purchase-logged",
 	      productId: grantSource.productId,
@@ -667,7 +696,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      product: null
 	    };
 	  }
-	
+
 	  const purchasePlatform = getReverseFlowPurchasePlatform();
 	  const product = purchasePlatform && typeof store?.get === "function"
 	    ? store.get(REVERSE_FLOW_PRO_PRODUCT_ID, purchasePlatform)
@@ -678,7 +707,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  const productOwned =
 	    product?.id === REVERSE_FLOW_PRO_PRODUCT_ID &&
 	    product.owned === true;
-	
+
 	  return {
 	    ownsPro: storeOwned || productOwned,
 	    source: storeOwned ? "store-owned" : productOwned ? "product-owned" : null,
@@ -700,7 +729,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	function grantProFromSdkOwnership(store, options = {}) {
 	  const ownership = ownsProViaSdkStore(store);
 	  if (!ownership.ownsPro) return false;
-	
+
 	  const wasAlreadyPro = isProUser();
 	  const trigger = options.trigger || "sdk-owned";
 	  const grantWasRestore = Boolean(options.restore);
@@ -736,7 +765,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    });
 	    return false;
 	  }
-	
+
 	  logProAccessEvent("sdk-owned-detected-pro", {
 	    trigger,
 	    source: ownership.source,
@@ -752,15 +781,15 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	        }
 	      : {})
 	  });
-	
+
 	  const proWasGranted = setAccessLevel(ACCESS_LEVELS.PRO, {
 	    trigger,
 	    source: "purchase",
 	    productId: ownership.productId
 	  });
-	
+
 	  if (!proWasGranted) return false;
-	
+
 	  updateBuyProButtonState("owned", {
 	    reason: "exact Pro product is owned by SDK store",
 	    trigger,
@@ -774,17 +803,17 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      els.restorePurchaseButton.textContent = "Restore Complete";
 	    }
 	  }
-	
+
 	  if (els.proModal) {
 	    els.proModal.hidden = true;
 	  }
-	
+
 	  if (!wasAlreadyPro && grantWasPurchase && !grantWasRestore) {
 	    logMetaProPurchaseEvent({
 	      productId: ownership.productId
 	    });
 	  }
-	
+
 	  if (grantWasPurchase || grantWasRestore) {
 	    reverseFlowPurchaseInProgress = false;
 	  }
@@ -792,15 +821,15 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  if (!wasAlreadyPro && grantWasPurchase && !grantWasRestore) {
 	    alert("Reverse Flow Pro Unlocked");
 	  }
-	
+
 	  return true;
 	}
-	
+
 	function initializeReverseFlowStore() {
 	  const store = window.CdvPurchase.store;
 	  const ProductType = window.CdvPurchase.ProductType;
 	  const Platform = window.CdvPurchase.Platform;
-	
+
 	  function logStoreEvent(event, details = {}) {
 	    console.info("[Reverse Flow IAP]", {
 	      event,
@@ -808,22 +837,22 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      ...details
 	    });
 	  }
-	
+
 	  function setBuyProButtonState(state, details = {}) {
 	    updateBuyProButtonState(state, details);
 	  }
-	
+
 	  function isExpiredPurchaseObject(value) {
 	    if (!value || typeof value !== "object") return false;
 	    if (value.isExpired) return true;
-	
+
 	    const expiry = value.expiryDate || value.expirationDate || value.expiresDate;
 	    if (!expiry) return false;
-	
+
 	    const expiryTime = typeof expiry === "number"
 	      ? expiry
 	      : Date.parse(expiry);
-	
+
 	    return Number.isFinite(expiryTime) && expiryTime <= Date.now();
 	  }
 
@@ -854,7 +883,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      matches[target] = [];
 	    });
 	    const seen = new WeakSet();
-	
+
 	    function visit(value, path = ["receipt"]) {
 	      if (typeof value === "string") {
 	        if (targets.has(value)) {
@@ -862,18 +891,18 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	        }
 	        return;
 	      }
-	
+
 	      if (!value || typeof value !== "object") return;
 	      if (seen.has(value)) return;
 	      seen.add(value);
-	
+
 	      if (Array.isArray(value)) {
 	        value.forEach((item, index) => {
 	          visit(item, path.concat(String(index)));
 	        });
 	        return;
 	      }
-	
+
 	      Object.getOwnPropertyNames(value).forEach(key => {
 	        if (targets.has(key)) {
 	          matches[key].push(formatReceiptPath(path.concat(key)));
@@ -881,9 +910,9 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	        visit(getReceiptPropertyValue(value, key), path.concat(key));
 	      });
 	    }
-	
+
 	    visit(receipt);
-	
+
 	    return matches;
 	  }
 
@@ -900,7 +929,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      purchase.productId === REVERSE_FLOW_PRO_PRODUCT_ID &&
 	      !purchase.expired
 	    );
-	
+
 	    return {
 	      grantsPro: Boolean(matchingPurchase),
 	      productId: matchingPurchase?.productId || null,
@@ -909,7 +938,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      purchases
 	    };
 	  }
-	
+
 	  const purchasePlatform = getReverseFlowPurchasePlatform();
 
 if (!purchasePlatform) {
@@ -932,22 +961,22 @@ logStoreEvent("initialize-start", {
     validatorConfigured: Boolean(store.validator)
   })
 });
-	
+
 	  setBuyProButtonState("loading", {
 	    reason: "store initialization started"
 	  });
-	
+
 	  if (reverseFlowProLoadTimeout) {
 	    clearTimeout(reverseFlowProLoadTimeout);
 	  }
-	
+
 	  reverseFlowProLoadTimeout = setTimeout(() => {
 	    if (reverseFlowProProductReady) return;
 	    setBuyProButtonState("unavailable", {
 	      reason: "product did not become purchasable before timeout"
 	    });
 	  }, 15000);
-	
+
 	  if (IAP_DEBUG_DIAGNOSTICS) {
 	    logStoreEvent("product-registering", {
 	      registration: {
@@ -957,7 +986,7 @@ logStoreEvent("initialize-start", {
 	      }
 	    });
 	  }
-	
+
 	  store.register([
 	    {
 	      id: REVERSE_FLOW_PRO_PRODUCT_ID,
@@ -978,7 +1007,7 @@ logStoreEvent("initialize-start", {
 	        rawProduct: product
 	      })
 	    });
-	
+
 	    if (product.id === REVERSE_FLOW_PRO_PRODUCT_ID) {
 	      if (product.owned === true) {
 	        reverseFlowProProductReady = false;
@@ -996,12 +1025,12 @@ logStoreEvent("initialize-start", {
 	    clearTimeout(reverseFlowProLoadTimeout);
 	    reverseFlowProLoadTimeout = null;
 	  }
-	
+
 	  setBuyProButtonState("ready", {
 	    reason: "product canPurchase is true",
 	    productCanPurchase: product.canPurchase
 	  });
-	
+
 	  logStoreEvent("product-ready", {
 	    canPurchase: product.canPurchase,
 	    ...getIapDiagnosticPayload({
@@ -1030,7 +1059,7 @@ logStoreEvent("initialize-start", {
 	          rawTransaction: transaction
 	        })
 	      });
-	
+
 	      transaction.verify();
 	    })
 	    .verified(receipt => {
@@ -1039,7 +1068,7 @@ logStoreEvent("initialize-start", {
 	      const receiptCollection = Array.isArray(receipt?.collection)
 	        ? receipt.collection
 	        : null;
-	
+
 	      if (IAP_DEBUG_DIAGNOSTICS) {
 	        logStoreEvent("receipt-verified", {
 	          receiptSummary: summarizeVerifiedReceipt(receipt),
@@ -1049,12 +1078,12 @@ logStoreEvent("initialize-start", {
 	          storeSnapshot: getReverseFlowProStoreSnapshot(store)
 	        });
 	      }
-	
+
 	      const storeOwnsPro =
 	        typeof store.owned === "function" &&
 	        store.owned(REVERSE_FLOW_PRO_PRODUCT_ID);
 	      const receiptWasRestore = reverseFlowRestoreInProgress;
-	
+
 	      if (!receiptInspection.grantsPro) {
 	        if (IAP_DEBUG_DIAGNOSTICS) {
 	          logProAccessEvent("validator-backed-receipt-not-available", {
@@ -1075,7 +1104,7 @@ logStoreEvent("initialize-start", {
 	        });
 	        return;
 	      }
-	
+
 	      const wasAlreadyPro = isProUser();
 	      const grantWasRestore = receiptWasRestore;
 	      const grantSource = receiptInspection;
@@ -1113,21 +1142,21 @@ logStoreEvent("initialize-start", {
 	          storeSnapshot: getReverseFlowProStoreSnapshot(store)
 	        })
 	      });
-	
+
 	      const proWasGranted = setAccessLevel(ACCESS_LEVELS.PRO, {
 	        trigger: "store.when().verified",
 	        source: "purchase",
 	        productId: grantSource.productId
 	      });
-	
+
 	      if (!proWasGranted) return;
-	
+
 	      reverseFlowRestoreInProgress = false;
 	      if (els.restorePurchaseButton) {
 	        els.restorePurchaseButton.disabled = false;
 	        els.restorePurchaseButton.textContent = "Restore Purchase";
 	      }
-	
+
 	      logProAccessEvent("pro-grant-succeeded", {
 	        trigger: "store.when().verified",
 	        source: grantWasRestore ? "restore" : "purchase",
@@ -1138,7 +1167,7 @@ logStoreEvent("initialize-start", {
 	        matchingPath: grantSource.canonicalPath,
 	        matchingCandidate: grantSource.matchingCandidate
 	      });
-	
+
 	      if (!wasAlreadyPro) {
 	        if (reverseFlowPurchaseInProgress && !grantWasRestore) {
 	          logMetaProPurchaseEvent(grantSource);
@@ -1184,7 +1213,7 @@ logStoreEvent("initialize-start", {
 	        })
 	      });
 	    });
-	
+
 	  store.error(error => {
 	    console.warn("[Reverse Flow IAP]", {
 	      event: "store-error",
@@ -1197,7 +1226,7 @@ logStoreEvent("initialize-start", {
 	      });
 	    }
 	  });
-	
+
 	  const initializeOptions = purchasePlatform === Platform.APPLE_APPSTORE
 	    ? [{
 	        platform: Platform.APPLE_APPSTORE,
@@ -1218,7 +1247,7 @@ logStoreEvent("initialize-start", {
 	  }
 
 	  const initializeResult = store.initialize(initializeOptions);
-	
+
 	  if (initializeResult && typeof initializeResult.then === "function") {
 	    initializeResult
 	      .then(() => {
@@ -1316,7 +1345,7 @@ logStoreEvent("initialize-start", {
 	    }
 	  );
 	}
-  
+
   updateWebProBannerVisibility();
   bindAppearanceSettings();
   updateAccessBadge();
@@ -1480,8 +1509,9 @@ function renderSupportPageToolsContent() {
           getHandlineSmoothboreTipOptions()
         )
       : "",
-    splitLay: getVisibleDefaultSplitLayState(),
-    standpipeOps: getVisibleDefaultStandpipeOpsState()
+	    splitLay: getVisibleDefaultSplitLayState(),
+	    standpipeOps: getVisibleDefaultStandpipeOpsState(),
+	    wyeOps: getVisibleDefaultWyeOpsState()
   };
 
   normalizeStateNozzleTypes(freshState);
@@ -1518,10 +1548,14 @@ function renderSupportPageToolsContent() {
               ...getVisibleDefaultSplitLayState(),
               ...(parsed.splitLay || {})
             },
-            standpipeOps: {
-              ...getVisibleDefaultStandpipeOpsState(),
-              ...(parsed.standpipeOps || {})
-            }
+	            standpipeOps: {
+	              ...getVisibleDefaultStandpipeOpsState(),
+	              ...(parsed.standpipeOps || {})
+	            },
+	            wyeOps: {
+	              ...getVisibleDefaultWyeOpsState(),
+	              ...(parsed.wyeOps || {})
+	            }
           });
         }
       } catch {}
@@ -1538,8 +1572,9 @@ function renderSupportPageToolsContent() {
               getHandlineSmoothboreTipOptions()
             )
           : "",
-        splitLay: getVisibleDefaultSplitLayState(),
-        standpipeOps: getVisibleDefaultStandpipeOpsState()
+	        splitLay: getVisibleDefaultSplitLayState(),
+	        standpipeOps: getVisibleDefaultStandpipeOpsState(),
+	        wyeOps: getVisibleDefaultWyeOpsState()
       });
     }
 
@@ -1984,9 +2019,10 @@ function extractResultFromLegacyPreset(preset = {}) {
 }
 
 function getModeLabel(mode) {
-  if (mode === "requiredPdp") return "Required PDP";
-  if (mode === "relay") return "Relay Pumping";
-  if (mode === "splitLay") return "Split Lay";
+	  if (mode === "requiredPdp") return "Required PDP";
+	  if (mode === "relay") return "Relay Pumping";
+	  if (mode === "wyeOps") return "Wye Ops";
+	  if (mode === "splitLay") return "Split Lay";
   if (mode === "standpipeOps") return "Standpipe Ops";
   if (mode === "apparatusMounted") return "Apparatus Mounted";
   return "Reverse Flow";
@@ -2529,6 +2565,19 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function formatNumber(value, digits = 1) {
+  if (!Number.isFinite(value)) return "-";
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits
+  });
+}
+
+function formatWhole(value) {
+  if (!Number.isFinite(value)) return "-";
+  return Math.round(value).toLocaleString();
+}
+
 function getHoseOptionById(hoseId) {
   return [...HOSE_OPTIONS, ...RELAY_HOSE_OPTIONS]
     .find(hose => hose.id === hoseId);
@@ -2919,10 +2968,11 @@ function refreshEquipmentVisibilityDisplays() {
   if (els.calculatorView) {
     populateHoseOptions();
     populateSmoothboreTips();
-    syncInputsFromState();
-    syncSplitLayInputsFromState();
-    syncStandpipeInputsFromState();
-    syncSmoothboreUi();
+	    syncInputsFromState();
+	    syncSplitLayInputsFromState();
+	    syncStandpipeInputsFromState();
+	    rerenderWyeOpsFields();
+	    syncSmoothboreUi();
     syncModeUi();
     calculateAndRender();
   }
@@ -3054,6 +3104,36 @@ function getVisibleDefaultStandpipeOpsState() {
   };
 }
 
+function getVisibleDefaultWyeOpsState() {
+  return {
+    ...DEFAULT_STATE.wyeOps,
+    supplyHoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.wyeOps.supplyHoseSize,
+      getSupplyHoseOptions()
+    ),
+    attack1HoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.wyeOps.attack1HoseSize,
+      getAttackHoseOptions()
+    ),
+    attack2HoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.wyeOps.attack2HoseSize,
+      getAttackHoseOptions()
+    ),
+    attack1SmoothboreTip: DEFAULT_STATE.wyeOps.attack1SmoothboreTip
+      ? resolveVisibleSmoothboreTipDefault(
+          DEFAULT_STATE.wyeOps.attack1SmoothboreTip,
+          getHandlineSmoothboreTipOptions()
+        )
+      : "",
+    attack2SmoothboreTip: DEFAULT_STATE.wyeOps.attack2SmoothboreTip
+      ? resolveVisibleSmoothboreTipDefault(
+          DEFAULT_STATE.wyeOps.attack2SmoothboreTip,
+          getHandlineSmoothboreTipOptions()
+        )
+      : ""
+  };
+}
+
 function replaceHiddenDefaultValue(target, key, hiddenId, options, type) {
   if (!target || target[key] !== hiddenId) return false;
 
@@ -3078,6 +3158,9 @@ function reconcileHoseDefaultsAfterVisibilityChange(hiddenId) {
   changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "supplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
   changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "attack1HoseSize", hiddenId, attackOptions, "hose") || changed;
   changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "attack2HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.wyeOps, "supplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.wyeOps, "attack1HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.wyeOps, "attack2HoseSize", hiddenId, attackOptions, "hose") || changed;
 
   changed = replaceHiddenDefaultValue(state, "hoseSize", hiddenId, getModeHoseOptions(), "hose") || changed;
   changed = replaceHiddenDefaultValue(state, "reverseSupplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
@@ -3088,6 +3171,9 @@ function reconcileHoseDefaultsAfterVisibilityChange(hiddenId) {
   changed = replaceHiddenDefaultValue(state.standpipeOps, "supplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
   changed = replaceHiddenDefaultValue(state.standpipeOps, "attack1HoseSize", hiddenId, attackOptions, "hose") || changed;
   changed = replaceHiddenDefaultValue(state.standpipeOps, "attack2HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.wyeOps, "supplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.wyeOps, "attack1HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.wyeOps, "attack2HoseSize", hiddenId, attackOptions, "hose") || changed;
 
   if (changed) {
     saveState();
@@ -3105,12 +3191,16 @@ function reconcileSmoothboreDefaultsAfterVisibilityChange(hiddenId) {
   changed = replaceHiddenDefaultValue(DEFAULT_STATE.splitLay, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
   changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
   changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.wyeOps, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.wyeOps, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
 
   changed = replaceHiddenDefaultValue(state, "smoothboreTip", hiddenId, getMainSmoothboreTipOptions(), "tip") || changed;
   changed = replaceHiddenDefaultValue(state.splitLay, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
   changed = replaceHiddenDefaultValue(state.splitLay, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
   changed = replaceHiddenDefaultValue(state.standpipeOps, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
   changed = replaceHiddenDefaultValue(state.standpipeOps, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(state.wyeOps, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(state.wyeOps, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
 
   if (changed) {
     saveState();
@@ -4872,7 +4962,7 @@ function getSetupBreakdownRows(setup) {
     els.customNozzlePressure.value = "";
   };
 
-  if (isSplitLayMode()) {
+  if (isWyeOpsMode() || isSplitLayMode()) {
     els.nozzlePressureLabel.closest(".field").style.display = "none";
     els.pressureButtons.hidden = true;
     els.pressureButtons.innerHTML = "";
@@ -5439,9 +5529,10 @@ function getNozzleTypeHelperText() {
 
       els.reverseModeButton.classList.toggle("active", isReverseMode());
       els.pdpModeButton.classList.toggle("active", isRequiredPdpMode());
-      els.apparatusMountedModeButton?.classList.toggle("active", isApparatusMountedMode());
-      els.relayModeButton.classList.toggle("active",isRelayMode());
-      els.splitLayButton.classList.toggle("active", isSplitLayMode());
+	      els.apparatusMountedModeButton?.classList.toggle("active", isApparatusMountedMode());
+	      els.relayModeButton.classList.toggle("active",isRelayMode());
+	      els.wyeOpsButton?.classList.toggle("active", isWyeOpsMode());
+	      els.splitLayButton.classList.toggle("active", isSplitLayMode());
       els.standpipeOpsButton?.classList.toggle("active", isStandpipeOpsMode());
       syncModeCarouselActiveState();
 
@@ -5466,20 +5557,20 @@ function getNozzleTypeHelperText() {
       els.pdp.disabled = smoothboreRequiredPdp || isApparatusMountedMode();
 
       els.pdp.closest(".field").style.display =
-        (isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
-      els.hoseLength.closest(".field").style.display =
-        (isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
-      els.hoseSize.closest(".field").style.display =
-        (isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
+	        (isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
+	      els.hoseLength.closest(".field").style.display =
+	        (isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
+	      els.hoseSize.closest(".field").style.display =
+	        (isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
 
-      els.nozzleType.closest(".field").style.display =
-  (isSplitLayMode() || isStandpipeOpsMode() || isRelayMode())
-    ? "none"
-    : "";
-      els.applianceLoss.closest(".field").style.display =
-        (isApparatusMountedMode() || isStandpipeOpsMode()) ? "none" : "";
-      els.customCoefficient.closest(".field").style.display =
-        (isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
+	      els.nozzleType.closest(".field").style.display =
+	  (isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode() || isRelayMode())
+	    ? "none"
+	    : "";
+	      els.applianceLoss.closest(".field").style.display =
+	        (isWyeOpsMode() || isApparatusMountedMode() || isStandpipeOpsMode()) ? "none" : "";
+	      els.customCoefficient.closest(".field").style.display =
+	        (isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()) ? "none" : "";
       enforceHenTurboAvailability();
       syncHenTurboUi();
 
@@ -5496,7 +5587,14 @@ document.querySelector('label[for="hoseSize"]').textContent =
 
 document.querySelector('label[for="applianceLoss"]').textContent =
   "Appliance / Elevation Loss";
-    if (isStandpipeOpsMode()) {
+	    if (isWyeOpsMode()) {
+
+  document.documentElement.style.setProperty(
+    "--mode-glow",
+    "rgba(245, 158, 11, 0.36)"
+  );
+
+} else if (isStandpipeOpsMode()) {
 
   document.documentElement.style.setProperty(
     "--mode-glow",
@@ -5539,9 +5637,11 @@ document.querySelector('label[for="applianceLoss"]').textContent =
   );
 
 }
-    els.modeHelper.textContent = isSplitLayMode()
-  ? "Split Lay: Calculate longer deployments using separate supply and attack sections joined by an appliance."
-  : isStandpipeOpsMode()
+	    els.modeHelper.textContent = isSplitLayMode()
+	  ? "Split Lay: Calculate longer deployments using separate supply and attack sections joined by an appliance."
+	  : isWyeOpsMode()
+	    ? "Wye Ops: model a gated wye with two attack lines and fixed-PDP behavior when one line closes."
+	  : isStandpipeOpsMode()
     ? "Standpipe Ops: calculate engine PDP for standpipe stretches using attack demand, elevation, standpipe loss, and FDC supply loss."
   : isApparatusMountedMode()
     ? "Apparatus Mounted: calculate master stream flow, reaction, elevation loss, and required PDP without hose friction."
@@ -5554,17 +5654,22 @@ document.querySelector('label[for="applianceLoss"]').textContent =
         : "Reverse Flow: enter PDP to estimate GPM.";
 
       els.reverseFormula.hidden = !isReverseMode();
-      els.requiredPdpFormula.hidden = !isRequiredPdpMode();
-      els.relayFormula.hidden = !isRelayMode();
-      els.splitLayFormula.hidden = !isSplitLayMode();
+	      els.requiredPdpFormula.hidden = !isRequiredPdpMode();
+	      els.relayFormula.hidden = !isRelayMode();
+	      if (els.wyeOpsFormula) {
+	        els.wyeOpsFormula.hidden = !isWyeOpsMode();
+	      }
+	      els.splitLayFormula.hidden = !isSplitLayMode();
       if (els.standpipeFormula) {
         els.standpipeFormula.hidden = !isStandpipeOpsMode();
       }
 
       els.primaryResultLabel.textContent =
-  isSplitLayMode()
-    ? "Split Lay PDP"
-    : isStandpipeOpsMode()
+	  isSplitLayMode()
+	    ? "Split Lay PDP"
+	    : isWyeOpsMode()
+	      ? "Wye Ops PDP"
+	    : isStandpipeOpsMode()
       ? "Standpipe Ops PDP"
     : isApparatusMountedMode()
       ? "Required PDP"
@@ -5575,7 +5680,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
         : "Rounded Flow";
 
   els.primaryResultUnit.textContent =
-  isRelayMode() || isRequiredPdpMode() || isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()
+	  isRelayMode() || isRequiredPdpMode() || isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode() || isApparatusMountedMode()
     ? "PSI"
     : "GPM";
      if (isRelayMode()) {
@@ -5657,10 +5762,10 @@ if (els.nozzleTypeHelper) {
   els.nozzleTypeHelper.hidden = !nozzleTypeHelperText;
 }
 
-els.nozzlePressureLabel.closest(".field").style.display =
-  (isRelayMode() || isSplitLayMode() || isStandpipeOpsMode())
-    ? "none"
-    : "";
+	  els.nozzlePressureLabel.closest(".field").style.display =
+	  (isRelayMode() || isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode())
+	    ? "none"
+	    : "";
 
     els.relayResidualField.hidden = !isRelayMode();
 
@@ -5671,6 +5776,12 @@ els.nozzlePressureLabel.closest(".field").style.display =
 
 if (splitLayFields) {
   splitLayFields.style.display = isSplitLayMode() ? "grid" : "none";
+}
+
+if (els.wyeOpsFields) {
+  ensureWyeOpsFieldsRendered();
+  els.wyeOpsFields.hidden = !isWyeOpsMode();
+  els.wyeOpsFields.style.display = isWyeOpsMode() ? "grid" : "none";
 }
 
 syncStandpipeUi();
@@ -5691,11 +5802,19 @@ if (!isStandpipeOpsMode()) {
   resetStandpipeResults();
 }
 
+if (!isWyeOpsMode()) {
+  const controls = els.wyeOpsFields?.dataset.rendered === "true"
+    ? getWyeControls()
+    : null;
+  if (controls?.currentResults) controls.currentResults.hidden = true;
+  if (controls?.closureResults) controls.closureResults.hidden = true;
+}
+
 if (els.standardResultsCard) {
-  els.standardResultsCard.hidden = isSplitLayMode() || isStandpipeOpsMode();
+  els.standardResultsCard.hidden = isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode();
 }
 if (els.standardResultsCard) {
-  els.standardResultsCard.hidden = isSplitLayMode() || isStandpipeOpsMode();
+  els.standardResultsCard.hidden = isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode();
 }
 
 if (els.reverseSupplyToggleField) {
@@ -5720,7 +5839,7 @@ if (!modeCarouselSuppressAutoCenter) {
 
 function syncSmoothboreUi() {
 
-  if (isRelayMode() || isSplitLayMode() || isStandpipeOpsMode()) {
+  if (isRelayMode() || isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode()) {
 
     els.smoothboreTipField.hidden = true;
     els.smoothboreTipField.style.display = "none";
@@ -6351,6 +6470,12 @@ function openProModal() {
         activated = true;
       }
 
+      if (mode === "wyeOps") {
+        setMode("wyeOps");
+        rerenderWyeOpsFields();
+        activated = true;
+      }
+
       if (mode === "splitLay") {
         resetSplitLayInputs();
         resetSplitLayResultCard();
@@ -6783,11 +6908,15 @@ els.apparatusMountedModeButton?.addEventListener("click", event => {
   activateCarouselMode("apparatusMounted", { targetButton: event.currentTarget });
 });
 
-els.relayModeButton.addEventListener("click", event => {
-  activateCarouselMode("relay", { targetButton: event.currentTarget });
-});
+	els.relayModeButton.addEventListener("click", event => {
+	  activateCarouselMode("relay", { targetButton: event.currentTarget });
+	});
 
-els.relayResidualPressure.addEventListener("change", e => {
+	els.wyeOpsButton?.addEventListener("click", event => {
+	  activateCarouselMode("wyeOps", { targetButton: event.currentTarget });
+	});
+
+	els.relayResidualPressure.addEventListener("change", e => {
   state.relayResidualPressure = e.target.value;
   updateCalculator();
 });
@@ -7495,10 +7624,13 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
   const leavingSplitLay =
     state.mode === "splitLay" && mode !== "splitLay";
 
-  const leavingStandpipeOps =
-    state.mode === "standpipeOps" && mode !== "standpipeOps";
+	  const leavingStandpipeOps =
+	    state.mode === "standpipeOps" && mode !== "standpipeOps";
 
-    const leavingReverseFlow =
+	  const leavingWyeOps =
+	    state.mode === "wyeOps" && mode !== "wyeOps";
+
+	    const leavingReverseFlow =
   state.mode === "reverse" && mode !== "reverse";
 
   state.mode = mode;
@@ -7512,11 +7644,16 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
     resetSplitLayResultCard();
   }
 
-  if (leavingStandpipeOps) {
-    state.standpipeOps = getVisibleDefaultStandpipeOpsState();
+	  if (leavingStandpipeOps) {
+	    state.standpipeOps = getVisibleDefaultStandpipeOpsState();
 
-    resetStandpipeResults();
-  }
+	    resetStandpipeResults();
+	  }
+
+	  if (leavingWyeOps) {
+	    state.wyeOps = getVisibleDefaultWyeOpsState();
+	    rerenderWyeOpsFields();
+	  }
 
   if (leavingReverseFlow) {
   resetReverseSupplyInputs();
@@ -7600,7 +7737,7 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
   state.henTurboEnabled = false;
 }
 
-  if (mode === "standpipeOps") {
+	  if (mode === "standpipeOps") {
     state.pdp = "";
     state.targetGpm = "";
     state.hoseLength = "";
@@ -7619,7 +7756,33 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
     state.bladeModel = "blade160";
     state.applianceLoss = "0";
     state.henTurboEnabled = false;
-  }
+	  }
+
+	  if (mode === "wyeOps") {
+	    state.pdp = "";
+	    state.targetGpm = "";
+	    state.hoseLength = "";
+	    state.hoseSize = resolveVisibleHoseDefault("1.88", HOSE_OPTIONS);
+	    state.nozzleType = "smoothbore";
+	    state.masterStreamType = "automaticFog";
+	    state.masterStreamLoss = "25";
+	    state.dualLineSupply = false;
+	    state.apparatusFogFlow = "1000";
+	    state.apparatusCustomFogFlow = "";
+	    state.apparatusElevation = "";
+	    state.ratedFlow = "";
+	    state.ratedPressure = "";
+	    state.nozzlePressure = "55";
+	    state.smoothboreTip = "";
+	    state.bladeModel = "blade160";
+	    state.applianceLoss = "0";
+	    state.henTurboEnabled = false;
+	    state.wyeOps = {
+	      ...getVisibleDefaultWyeOpsState(),
+	      ...state.wyeOps
+	    };
+	    rerenderWyeOpsFields();
+	  }
 
   populateHoseOptions();
   populateSmoothboreTips();
@@ -7650,15 +7813,16 @@ function resetCalculator() {
       DEFAULT_STATE.reverseSupplyHoseSize,
       getSupplyHoseOptions()
     ),
-    smoothboreTip: DEFAULT_STATE.smoothboreTip
+	    smoothboreTip: DEFAULT_STATE.smoothboreTip
       ? resolveVisibleSmoothboreTipDefault(
           DEFAULT_STATE.smoothboreTip,
           getHandlineSmoothboreTipOptions()
         )
       : "",
-    splitLay: getVisibleDefaultSplitLayState(),
-    standpipeOps: getVisibleDefaultStandpipeOpsState()
-  };
+	    splitLay: getVisibleDefaultSplitLayState(),
+	    standpipeOps: getVisibleDefaultStandpipeOpsState(),
+	    wyeOps: getVisibleDefaultWyeOpsState()
+	  };
 
   if (els.presetSelect) {
   els.presetSelect.value = "";
@@ -7667,9 +7831,10 @@ function resetCalculator() {
 
   populateHoseOptions();
   syncInputsFromState();
-  resetSplitLayInputs();
-  syncStandpipeInputsFromState();
-  resetStandpipeResults();
+	  resetSplitLayInputs();
+	  syncStandpipeInputsFromState();
+	  rerenderWyeOpsFields();
+	  resetStandpipeResults();
   renderPressureButtons();
   saveState();
   calculateAndRender();
@@ -10404,23 +10569,941 @@ function buildPumpChartPrintHtml(chart) {
       renderPresetOptions();
       els.presetSelect.value = "";
       alert(`Deleted preset: ${preset.name}`);
+	    }
+
+function getWyeSupplyHoseOptions() {
+  return getSupplyHoseOptions();
+}
+
+function getWyeAttackHoseOptions() {
+  return getAttackHoseOptions();
+}
+
+function getWyeHoseCoefficientValue(hose) {
+  return hose ? getActiveHoseCoefficient(hose.id) : null;
+}
+
+function createWyeHoseSelect(id, options, selectedId) {
+  const visibleOptions = getVisibleHoseOptions(options, selectedId);
+  return `
+    <select id="${escapeHtml(id)}">
+      ${visibleOptions.map(hose => `
+        <option value="${escapeHtml(hose.id)}"${hose.id === selectedId ? " selected" : ""}>${escapeHtml(hose.label)}</option>
+      `).join("")}
+    </select>
+  `;
+}
+
+function createWyeSmoothboreTipSelect(id, selectedId) {
+  const visibleTips = getVisibleSmoothboreTipOptions(
+    getHandlineSmoothboreTipOptions(),
+    selectedId
+  );
+  return `
+    <select id="${escapeHtml(id)}">
+      ${visibleTips.map(tip => `
+        <option value="${escapeHtml(tip.id)}" data-diameter="${escapeHtml(tip.diameter)}"${tip.id === selectedId ? " selected" : ""}>${escapeHtml(tip.label)}</option>
+      `).join("")}
+      <option value="custom"${selectedId === "custom" ? " selected" : ""}>Custom</option>
+    </select>
+  `;
+}
+
+function createWyePressureSelect(id, selectedValue) {
+  const values = [40, 50, 55, 60, 75, 100, "custom"];
+  return `
+    <select id="${escapeHtml(id)}">
+      ${values.map(value => `
+        <option value="${escapeHtml(value)}"${String(value) === String(selectedValue) ? " selected" : ""}>${value === "custom" ? "Custom" : `${escapeHtml(value)} PSI`}</option>
+      `).join("")}
+    </select>
+  `;
+}
+
+function createWyeLengthInput(id, value) {
+  return `
+    <div class="input-with-button">
+      <input id="${escapeHtml(id)}" type="text" inputmode="numeric" placeholder="Feet" value="${escapeHtml(value || "")}" />
+      <button class="inline-add-button" type="button" data-wye-add-feet="${escapeHtml(id)}">+50</button>
+    </div>
+  `;
+}
+
+function createWyeAttackFields(lineNumber, attackHoses) {
+  const wye = state.wyeOps;
+  const prefix = `attack${lineNumber}`;
+
+  return `
+    <div class="split-lay-grid section-card attack-card attack-${lineNumber}-card">
+      <div class="field full">
+        <strong>Attack Line ${lineNumber}</strong>
+      </div>
+
+      <div class="field">
+        <label for="wyeAttack${lineNumber}Length">Attack ${lineNumber} Length</label>
+        ${createWyeLengthInput(`wyeAttack${lineNumber}Length`, wye[`${prefix}Length`])}
+      </div>
+
+      <div class="field">
+        <label for="wyeAttack${lineNumber}Hose">Attack ${lineNumber} Hose</label>
+        ${createWyeHoseSelect(`wyeAttack${lineNumber}Hose`, attackHoses, wye[`${prefix}HoseSize`])}
+      </div>
+
+      <div class="field">
+        <label for="wyeAttack${lineNumber}NozzleType">Nozzle ${lineNumber} Style</label>
+        <select id="wyeAttack${lineNumber}NozzleType">
+          <option value="smoothbore"${wye[`${prefix}NozzleType`] === "smoothbore" ? " selected" : ""}>Smoothbore</option>
+          <option value="automaticFog"${wye[`${prefix}NozzleType`] === "automaticFog" ? " selected" : ""}>Automatic Fog</option>
+          <option value="fixedFog"${wye[`${prefix}NozzleType`] === "fixedFog" ? " selected" : ""}>Fixed Fog</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="wyeAttack${lineNumber}Pressure">Nozzle ${lineNumber} Pressure</label>
+        ${createWyePressureSelect(`wyeAttack${lineNumber}Pressure`, wye[`${prefix}NozzlePressure`])}
+      </div>
+
+      <div id="wyeAttack${lineNumber}FlowField" class="field">
+        <label for="wyeAttack${lineNumber}Flow">Target Flow ${lineNumber}</label>
+        <input id="wyeAttack${lineNumber}Flow" type="text" inputmode="decimal" placeholder="GPM" value="${escapeHtml(wye[`${prefix}Flow`] || "")}" />
+      </div>
+
+      <div id="wyeAttack${lineNumber}FixedFogRatingField" class="field" hidden>
+        <label>Nozzle Rating ${lineNumber}</label>
+        <div class="nozzle-rating-control">
+          <div class="nozzle-rating-entry">
+            <input id="wyeAttack${lineNumber}RatedFlow" type="text" inputmode="decimal" placeholder="GPM" value="${escapeHtml(wye[`${prefix}RatedFlow`] || "")}" />
+          </div>
+          <strong>@</strong>
+          <div class="nozzle-rating-entry">
+            <input id="wyeAttack${lineNumber}RatedPressure" type="text" inputmode="decimal" placeholder="PSI" value="${escapeHtml(wye[`${prefix}RatedPressure`] || "")}" />
+          </div>
+        </div>
+      </div>
+
+      <div id="wyeAttack${lineNumber}TipField" class="field" hidden>
+        <label for="wyeAttack${lineNumber}Tip">Smoothbore Tip ${lineNumber}</label>
+        ${createWyeSmoothboreTipSelect(`wyeAttack${lineNumber}Tip`, wye[`${prefix}SmoothboreTip`])}
+      </div>
+
+      <div id="wyeAttack${lineNumber}CustomTipField" class="field" hidden>
+        <label for="wyeAttack${lineNumber}CustomTip">Custom Tip ${lineNumber}</label>
+        <input id="wyeAttack${lineNumber}CustomTip" type="text" inputmode="decimal" placeholder="Diameter in inches" value="${escapeHtml(wye[`${prefix}CustomTip`] || "")}" />
+      </div>
+
+      <div id="wyeAttack${lineNumber}CustomPressureField" class="field" hidden>
+        <label for="wyeAttack${lineNumber}CustomPressure">Custom Pressure ${lineNumber}</label>
+        <input id="wyeAttack${lineNumber}CustomPressure" type="text" inputmode="decimal" placeholder="PSI" value="${escapeHtml(wye[`${prefix}CustomPressure`] || "")}" />
+      </div>
+    </div>
+  `;
+}
+
+function ensureWyeOpsFieldsRendered() {
+  if (!els.wyeOpsFields || els.wyeOpsFields.dataset.rendered === "true") return;
+
+  const supplyHoses = getWyeSupplyHoseOptions();
+  const attackHoses = getWyeAttackHoseOptions();
+
+  els.wyeOpsFields.innerHTML = `
+    <div class="split-lay-panel wye-operations-panel">
+      <strong>Supply Setup</strong>
+      <p class="helper">Pump to gated wye. Appliance loss is estimated automatically above 350 GPM.</p>
+
+      <div class="split-lay-grid section-card supply-card supply-1-card">
+        <div class="field full">
+          <strong>Supply Section</strong>
+          <p class="helper">Pump to gated wye.</p>
+        </div>
+
+        <div class="field">
+          <label for="wyeSupplyLength">Supply Length</label>
+          ${createWyeLengthInput("wyeSupplyLength", state.wyeOps.supplyLength)}
+        </div>
+
+        <div class="field">
+          <label for="wyeSupplyHose">Supply Hose</label>
+          ${createWyeHoseSelect("wyeSupplyHose", supplyHoses, state.wyeOps.supplyHoseSize)}
+        </div>
+      </div>
+
+      <div class="field full">
+        <strong>Attack Setup</strong>
+        <p class="helper">Two attack lines supplied from one gated wye.</p>
+      </div>
+
+      <div id="wyeAttackSections" class="split-attack-sections">
+        ${createWyeAttackFields(1, attackHoses)}
+        ${createWyeAttackFields(2, attackHoses)}
+      </div>
+    </div>
+
+    <div id="wyeValidationMessage" class="warnings field-calculator-warning" hidden></div>
+    <div id="wyeOperationWarnings" class="warnings field-calculator-warning" hidden></div>
+    <div id="wyeCurrentResults" hidden></div>
+    <div id="wyeClosureResults" hidden></div>
+  `;
+  els.wyeOpsFields.dataset.rendered = "true";
+  bindWyeOpsEvents();
+  syncWyeOpsUi();
+}
+
+function rerenderWyeOpsFields() {
+  if (!els.wyeOpsFields) return;
+  els.wyeOpsFields.dataset.rendered = "false";
+  ensureWyeOpsFieldsRendered();
+}
+
+function getWyeControls() {
+  return {
+    supplyHose: document.getElementById("wyeSupplyHose"),
+    supplyLength: document.getElementById("wyeSupplyLength"),
+    validation: document.getElementById("wyeValidationMessage"),
+    operationWarnings: document.getElementById("wyeOperationWarnings"),
+    currentResults: document.getElementById("wyeCurrentResults"),
+    closureResults: document.getElementById("wyeClosureResults"),
+    attack1: getWyeLineControls(1),
+    attack2: getWyeLineControls(2)
+  };
+}
+
+function getWyeLineControls(lineNumber) {
+  return {
+    lineNumber,
+    hose: document.getElementById(`wyeAttack${lineNumber}Hose`),
+    length: document.getElementById(`wyeAttack${lineNumber}Length`),
+    nozzleType: document.getElementById(`wyeAttack${lineNumber}NozzleType`),
+    flow: document.getElementById(`wyeAttack${lineNumber}Flow`),
+    flowField: document.getElementById(`wyeAttack${lineNumber}FlowField`),
+    tip: document.getElementById(`wyeAttack${lineNumber}Tip`),
+    tipField: document.getElementById(`wyeAttack${lineNumber}TipField`),
+    customTip: document.getElementById(`wyeAttack${lineNumber}CustomTip`),
+    customTipField: document.getElementById(`wyeAttack${lineNumber}CustomTipField`),
+    fixedFogRatingField: document.getElementById(`wyeAttack${lineNumber}FixedFogRatingField`),
+    ratedFlow: document.getElementById(`wyeAttack${lineNumber}RatedFlow`),
+    ratedPressure: document.getElementById(`wyeAttack${lineNumber}RatedPressure`),
+    pressure: document.getElementById(`wyeAttack${lineNumber}Pressure`),
+    customPressure: document.getElementById(`wyeAttack${lineNumber}CustomPressure`),
+    customPressureField: document.getElementById(`wyeAttack${lineNumber}CustomPressureField`)
+  };
+}
+
+function getWyeLineInputs(line) {
+  return [
+    line.hose,
+    line.length,
+    line.nozzleType,
+    line.flow,
+    line.ratedFlow,
+    line.ratedPressure,
+    line.tip,
+    line.customTip,
+    line.pressure,
+    line.customPressure
+  ].filter(Boolean);
+}
+
+function syncWyeLineControls(line) {
+  if (!line.nozzleType) return;
+  const setWyeFieldVisible = (element, visible) => {
+    if (!element) return;
+    element.hidden = !visible;
+    element.style.display = visible ? "" : "none";
+  };
+  const nozzleType = normalizeNozzleType(line.nozzleType.value);
+  line.nozzleType.value = nozzleType;
+  const isSmoothbore = nozzleType === "smoothbore";
+  const isFixedFog = isFixedFogType(nozzleType);
+  setWyeFieldVisible(line.flowField, !isSmoothbore);
+  setWyeFieldVisible(line.tipField, isSmoothbore);
+  setWyeFieldVisible(line.customTipField, isSmoothbore && line.tip.value === "custom");
+  setWyeFieldVisible(line.fixedFogRatingField, isFixedFog);
+  setWyeFieldVisible(line.pressure.closest(".field"), !isFixedFog);
+  setWyeFieldVisible(line.customPressureField, !isFixedFog && line.pressure.value === "custom");
+}
+
+function syncWyeOpsUi() {
+  if (!els.wyeOpsFields || els.wyeOpsFields.dataset.rendered !== "true") return;
+  const controls = getWyeControls();
+  syncWyeLineControls(controls.attack1);
+  syncWyeLineControls(controls.attack2);
+}
+
+function bindWyeOpsEvents() {
+  const controls = getWyeControls();
+
+  const bindings = [
+    [controls.supplyHose, "supplyHoseSize", "select"],
+    [controls.supplyLength, "supplyLength", "whole"],
+    [controls.attack1.hose, "attack1HoseSize", "select"],
+    [controls.attack1.length, "attack1Length", "whole"],
+    [controls.attack1.nozzleType, "attack1NozzleType", "nozzle"],
+    [controls.attack1.pressure, "attack1NozzlePressure", "select"],
+    [controls.attack1.flow, "attack1Flow", "whole"],
+    [controls.attack1.ratedFlow, "attack1RatedFlow", "whole"],
+    [controls.attack1.ratedPressure, "attack1RatedPressure", "whole"],
+    [controls.attack1.tip, "attack1SmoothboreTip", "select"],
+    [controls.attack1.customTip, "attack1CustomTip", "decimal"],
+    [controls.attack1.customPressure, "attack1CustomPressure", "whole"],
+    [controls.attack2.hose, "attack2HoseSize", "select"],
+    [controls.attack2.length, "attack2Length", "whole"],
+    [controls.attack2.nozzleType, "attack2NozzleType", "nozzle"],
+    [controls.attack2.pressure, "attack2NozzlePressure", "select"],
+    [controls.attack2.flow, "attack2Flow", "whole"],
+    [controls.attack2.ratedFlow, "attack2RatedFlow", "whole"],
+    [controls.attack2.ratedPressure, "attack2RatedPressure", "whole"],
+    [controls.attack2.tip, "attack2SmoothboreTip", "select"],
+    [controls.attack2.customTip, "attack2CustomTip", "decimal"],
+    [controls.attack2.customPressure, "attack2CustomPressure", "whole"]
+  ];
+
+  bindings.forEach(([element, key, type]) => {
+    if (!element) return;
+    const handler = event => {
+      const rawValue = event.target.value;
+      state.wyeOps[key] =
+        type === "whole"
+          ? wholeNumber(rawValue)
+          : type === "decimal"
+            ? decimalNumber(rawValue)
+            : type === "nozzle"
+              ? normalizeNozzleType(rawValue)
+              : rawValue;
+      event.target.value = state.wyeOps[key];
+      saveState();
+      syncWyeOpsUi();
+      calculateAndRender();
+    };
+
+    element.addEventListener("input", handler);
+    element.addEventListener("change", handler);
+  });
+
+  document.querySelectorAll("[data-wye-add-feet]").forEach(button => {
+    button.addEventListener("click", () => addFiftyFeet(button.dataset.wyeAddFeet));
+  });
+}
+
+function calculateAndRenderWyeOps() {
+  ensureWyeOpsFieldsRendered();
+
+  const controls = getWyeControls();
+  syncWyeOpsUi();
+
+  const result = calculateWyeOperation(controls);
+
+  controls.currentResults.hidden = !result.ok;
+  controls.closureResults.hidden = true;
+  controls.validation.hidden = result.ok;
+  controls.operationWarnings.hidden = true;
+
+  if (!result.ok) {
+    controls.validation.innerHTML = `<div class="warning-item"><span>&#9888;&#65039;</span><span>${escapeHtml(result.message)}</span></div>`;
+    renderWarnings([]);
+    return;
+  }
+
+  controls.validation.innerHTML = "";
+  renderWyeOperationWarnings(result.warnings, controls.operationWarnings);
+  controls.currentResults.innerHTML = createWyeCurrentResults(result);
+  bindWyeClosureButtons(result, controls);
+  renderWarnings([]);
+}
+
+function calculateWyeFrictionLoss(hose, length, flow) {
+  const coefficient = getWyeHoseCoefficientValue(hose);
+  if (!(coefficient > 0) || !(length > 0) || !(flow >= 0)) return null;
+  return coefficient * Math.pow(flow / 100, 2) * (length / 100);
+}
+
+function calculateWyeSmoothboreFlow(diameter, pressure) {
+  return 29.7 * diameter * diameter * Math.sqrt(pressure);
+}
+
+function calculateWyeFogFlow(targetFlow, targetPressure, actualPressure) {
+  return targetFlow * Math.sqrt(actualPressure / targetPressure);
+}
+
+function calculateWyeSmoothboreReaction(diameter, pressure) {
+  return 1.57 * diameter * diameter * pressure;
+}
+
+function calculateWyeFogReaction(flow, pressure) {
+  return 0.0505 * flow * Math.sqrt(pressure);
+}
+
+function getSelectedWyeTipDiameter(select, customInput) {
+  if (select.value === "custom") {
+    return numberOrNull(customInput.value);
+  }
+
+  const option = select.selectedOptions[0];
+  return numberOrNull(option?.dataset.diameter);
+}
+
+function getSelectedWyeTipLabel(select, customInput) {
+  if (select.value === "custom") {
+    const customDiameter = numberOrNull(customInput.value);
+    return customDiameter ? `${formatNumber(customDiameter, 3)}"` : "Custom";
+  }
+
+  return select.selectedOptions[0]?.textContent || "Selected tip";
+}
+
+function calculateWyeOperation(controls) {
+  const supplyHose = findWyeHoseById(getWyeSupplyHoseOptions(), controls.supplyHose.value);
+  const supplyLength = numberOrNull(controls.supplyLength.value);
+
+  if (!supplyHose) return { ok: false, message: "Select a supply hose size." };
+  if (!(supplyLength > 0)) return { ok: false, message: "Enter a valid supply hose length." };
+
+  const attack1 = readWyeLine(controls.attack1);
+  if (!attack1.ok) return attack1;
+
+  const attack2 = readWyeLine(controls.attack2);
+  if (!attack2.ok) return attack2;
+
+  const attack1Loss = calculateWyeFrictionLoss(attack1.hose, attack1.length, attack1.flow);
+  const attack2Loss = calculateWyeFrictionLoss(attack2.hose, attack2.length, attack2.flow);
+
+  if (attack1Loss === null || attack2Loss === null) {
+    return { ok: false, message: "Unable to calculate friction loss from the selected hose setup." };
+  }
+
+  const attack1Demand = attack1.nozzlePressure + attack1Loss;
+  const attack2Demand = attack2.nozzlePressure + attack2Loss;
+  const branchPressure = Math.max(attack1Demand, attack2Demand);
+  const balancedLines = Math.abs(attack1Demand - attack2Demand) < 0.5;
+  const drivingLine =
+    balancedLines
+      ? "Balanced"
+      : attack1Demand > attack2Demand
+        ? "Attack 1"
+        : "Attack 2";
+  const actualAttack1 = calculateActualWyeLine(
+    { ...attack1, designFrictionLoss: attack1Loss, designDemand: attack1Demand },
+    branchPressure
+  );
+  const actualAttack2 = calculateActualWyeLine(
+    { ...attack2, designFrictionLoss: attack2Loss, designDemand: attack2Demand },
+    branchPressure
+  );
+  const totalFlow = actualAttack1.flow + actualAttack2.flow;
+  const applianceLoss = getWyeApplianceLoss(totalFlow);
+  const warnings = getWyeScenarioWarnings({ ok: true, applianceLoss });
+  const supplyLoss = calculateWyeFrictionLoss(supplyHose, supplyLength, totalFlow);
+
+  if (supplyLoss === null) {
+    return { ok: false, message: "Unable to calculate supply friction loss from the selected hose setup." };
+  }
+
+  const requiredPdp = applianceLoss + supplyLoss + branchPressure;
+  const fixedPdp = Math.ceil(requiredPdp);
+
+  if (!(fixedPdp > applianceLoss)) {
+    return { ok: false, message: "Configuration does not leave usable pressure for the attack lines." };
+  }
+
+  return {
+    ok: true,
+    supplyHose,
+    supplyLength,
+    applianceLoss,
+    warnings,
+    supplyLoss,
+    totalFlow,
+    requiredPdp,
+    fixedPdp,
+    branchPressure,
+    drivingLine,
+    attack1: {
+      ...actualAttack1,
+      pressurePath: balancedLines
+        ? "balanced"
+        : attack1Demand > attack2Demand
+          ? "driver"
+          : "recalculated"
+    },
+    attack2: {
+      ...actualAttack2,
+      pressurePath: balancedLines
+        ? "balanced"
+        : attack2Demand > attack1Demand
+          ? "driver"
+          : "recalculated"
+    }
+  };
+}
+
+function calculateActualWyeLine(line, branchPressure) {
+  const coefficient = getWyeHoseCoefficientValue(line.hose);
+  const lengthHundreds = line.length / 100;
+  let actualNozzlePressure = line.nozzlePressure;
+  let actualFlow = line.flow;
+
+  if (line.nozzleType === "smoothbore") {
+    const tipConstant = 29.7 * line.diameter * line.diameter / 100;
+    const frictionMultiplier = coefficient * tipConstant * tipConstant * lengthHundreds;
+
+    actualNozzlePressure = branchPressure / (1 + frictionMultiplier);
+    actualFlow = calculateWyeSmoothboreFlow(line.diameter, actualNozzlePressure);
+  } else if (isFixedFogType(line.nozzleType)) {
+    const flowConstant = line.ratedFlow / Math.sqrt(line.ratedPressure);
+    const frictionMultiplier = coefficient * Math.pow(flowConstant / 100, 2) * lengthHundreds;
+
+    actualNozzlePressure = branchPressure / (1 + frictionMultiplier);
+    actualFlow = fixedFogFlowAtPressure(
+      line.ratedFlow,
+      line.ratedPressure,
+      actualNozzlePressure
+    ) || 0;
+  } else {
+    actualNozzlePressure = line.nozzlePressure;
+
+    const availableFrictionPressure = branchPressure - actualNozzlePressure;
+    actualFlow =
+      availableFrictionPressure > 0
+        ? Math.sqrt(availableFrictionPressure / (coefficient * lengthHundreds)) * 100
+        : 0;
+  }
+
+  const actualFrictionLoss = calculateWyeFrictionLoss(line.hose, line.length, actualFlow) ?? 0;
+  const actualReaction = line.nozzleType === "smoothbore"
+    ? calculateWyeSmoothboreReaction(line.diameter, actualNozzlePressure)
+    : calculateWyeFogReaction(actualFlow, actualNozzlePressure);
+
+  return {
+    ...line,
+    designFlow: line.flow,
+    designNozzlePressure: line.nozzlePressure,
+    flow: actualFlow,
+    nozzlePressure: actualNozzlePressure,
+    reaction: actualReaction,
+    frictionLoss: actualFrictionLoss,
+    demand: actualNozzlePressure + actualFrictionLoss,
+    isRecalculated: Math.abs(actualNozzlePressure - line.nozzlePressure) > 1
+  };
+}
+
+function readWyeLine(lineControls) {
+  const lineLabel = `Attack ${lineControls.lineNumber}`;
+  const hose = findWyeHoseById(getWyeAttackHoseOptions(), lineControls.hose.value);
+  const length = numberOrNull(lineControls.length.value);
+  const nozzleType = normalizeNozzleType(lineControls.nozzleType.value);
+  let nozzlePressure = getWyePressureValue(lineControls);
+
+  if (!hose) return { ok: false, message: `Select a hose size for ${lineLabel}.` };
+  if (!(length > 0)) return { ok: false, message: `Enter a valid hose length for ${lineLabel}.` };
+  if (!isFixedFogType(nozzleType) && !(nozzlePressure > 0)) return { ok: false, message: `Enter a valid nozzle pressure for ${lineLabel}.` };
+
+  if (nozzleType === "smoothbore") {
+    const diameter = getSelectedWyeTipDiameter(lineControls.tip, lineControls.customTip);
+    const tipLabel = getSelectedWyeTipLabel(lineControls.tip, lineControls.customTip);
+
+    if (!(diameter > 0)) {
+      return { ok: false, message: `Select or enter a valid smoothbore tip for ${lineLabel}.` };
     }
 
-    // ========================================
-    // CALCULATION ORCHESTRATION
+    const flow = calculateWyeSmoothboreFlow(diameter, nozzlePressure);
+    const reaction = calculateWyeSmoothboreReaction(diameter, nozzlePressure);
+
+    return {
+      ok: true,
+      lineNumber: lineControls.lineNumber,
+      hose,
+      length,
+      nozzleType,
+      nozzlePressure,
+      targetPressure: nozzlePressure,
+      flow,
+      reaction,
+      diameter,
+      tipLabel
+    };
+  }
+
+  const flow = numberOrNull(lineControls.flow.value);
+
+  if (!(flow > 0)) return { ok: false, message: `Enter a valid flow for ${lineLabel}.` };
+
+  const ratedFlow = numberOrNull(lineControls.ratedFlow.value);
+  const ratedPressure = numberOrNull(lineControls.ratedPressure.value);
+
+  if (isFixedFogType(nozzleType)) {
+    nozzlePressure = fixedFogPressureForFlow(ratedFlow, ratedPressure, flow);
+
+    if (!(nozzlePressure > 0)) {
+      return { ok: false, message: `Enter a valid Fixed Fog nozzle rating for ${lineLabel}.` };
+    }
+  }
+
+  return {
+    ok: true,
+    lineNumber: lineControls.lineNumber,
+    hose,
+    length,
+    nozzleType,
+    nozzlePressure,
+    targetPressure: nozzlePressure,
+    targetFlow: flow,
+    ratedFlow,
+    ratedPressure,
+    flow,
+    reaction: calculateWyeFogReaction(flow, nozzlePressure)
+  };
+}
+
+function getWyePressureValue(lineControls) {
+  return lineControls.pressure.value === "custom"
+    ? numberOrNull(lineControls.customPressure.value)
+    : numberOrNull(lineControls.pressure.value);
+}
+
+function findWyeHoseById(options, id) {
+  return options.find(hose => hose.id === id);
+}
+
+function renderWyeOperationWarnings(warnings, container) {
+  if (!container) return;
+
+  container.hidden = !warnings.length;
+  container.innerHTML = warnings.map(warning => `
+    <div class="warning-item"><span>&#9888;&#65039;</span><span>${escapeHtml(warning)}</span></div>
+  `).join("");
+}
+
+function createWyeCurrentResults(result) {
+  return `
+    <section class="card split-results-card wye-results-card">
+      <div class="split-results-header">
+        <p>Wye Ops PDP</p>
+        <strong>${formatWhole(result.fixedPdp)} PSI</strong>
+      </div>
+
+      <div class="split-results-grid">
+        <div class="split-result-section">
+          <div class="split-section-divider">CURRENT OPERATION</div>
+          <div class="split-result-title supply-1-title">Supply Section</div>
+          <div class="split-result-details">
+            ${createWyeResultItem("Total Flow", `${formatWhole(result.totalFlow)} GPM`)}
+            ${createWyeResultItem("Supply FL", `${formatNumber(result.supplyLoss, 1)} PSI`)}
+            ${createWyeResultItem("Appliance Loss", result.applianceLoss > 0 ? `${formatWhole(result.applianceLoss)} PSI` : "—")}
+            ${createWyeResultItem("Driving Line", result.drivingLine)}
+          </div>
+        </div>
+
+        ${createWyeLineResultSection(result.attack1)}
+        ${createWyeLineResultSection(result.attack2)}
+      </div>
+    </section>
+  `;
+}
+
+function createWyeResultItem(label, value, valueClass = "") {
+  return `
+    <div class="split-result-item">
+      <p>${escapeHtml(label)}</p>
+      <strong${valueClass ? ` class="${escapeHtml(valueClass)}"` : ""}>${escapeHtml(value)}</strong>
+    </div>
+  `;
+}
+
+function createWyeLineResultSection(line) {
+  const tag = getWyeLineTag(line);
+
+  return `
+    <div class="split-result-section">
+      <div class="split-section-divider">ATTACK LINES</div>
+      <div class="split-result-title attack-${line.lineNumber}-title">
+        <span>Attack Line ${line.lineNumber} • Delivered Conditions</span>
+        <span class="pressure-path-tag ${escapeHtml(tag.className)}">${escapeHtml(tag.label)}</span>
+      </div>
+      <div class="split-result-details">
+        ${createWyeResultItem("Delivered Flow", `${formatWhole(line.flow)} GPM`, line.isRecalculated ? "flow-increase" : "")}
+        ${createWyeResultItem("Nozzle Pressure", `${formatWhole(line.nozzlePressure)} PSI`, line.isRecalculated ? "overpressure" : "normal-pressure")}
+        ${createWyeResultItem("Attack Line FL", `${formatNumber(line.frictionLoss, 1)} PSI`)}
+        ${createWyeResultItem("Nozzle Reaction", `${formatWhole(line.reaction)} lb`)}
+      </div>
+      <div class="field-calculator-actions wye-result-actions wye-line-actions">
+        <button id="wyeAttack${line.lineNumber}ClosesButton" class="reset-button" type="button">Close Attack ${line.lineNumber}</button>
+      </div>
+    </div>
+  `;
+}
+
+function getWyeLineTag(line) {
+  if (line.pressurePath === "balanced") {
+    return { className: "balanced", label: "BALANCED" };
+  }
+
+  if (line.pressurePath === "recalculated" || line.isRecalculated) {
+    return { className: "recalculated", label: "RECALCULATED" };
+  }
+
+  return { className: "driver", label: "PDP DRIVING LINE" };
+}
+
+function bindWyeClosureButtons(result, controls) {
+  const attack1Button = document.getElementById("wyeAttack1ClosesButton");
+  const attack2Button = document.getElementById("wyeAttack2ClosesButton");
+
+  attack1Button?.addEventListener("click", () => renderWyeClosureScenario(result, controls, 1));
+  attack2Button?.addEventListener("click", () => renderWyeClosureScenario(result, controls, 2));
+}
+
+function createWyeValueChange(previous, next, unit) {
+  const delta = next - previous;
+  const direction = delta > 0 ? "+" : "";
+  return `${formatWhole(previous)} → ${formatWhole(next)} ${unit}${Math.abs(delta) >= 0.5 ? ` (${direction}${formatWhole(delta)})` : ""}`;
+}
+
+function renderWyeClosureScenario(result, controls, closedLineNumber) {
+  const remainingLine = closedLineNumber === 1 ? result.attack2 : result.attack1;
+  const closure = calculateWyeClosureLine(result, remainingLine);
+  controls.currentResults.hidden = true;
+  controls.closureResults.hidden = false;
+  renderWyeOperationWarnings(getWyeScenarioWarnings(closure), controls.operationWarnings);
+
+  if (!closure.ok) {
+    controls.closureResults.innerHTML = `
+      <section class="card split-results-card wye-results-card">
+        <div class="split-results-header">
+          <p>PDP Remains</p>
+          <strong>${formatWhole(result.fixedPdp)} PSI</strong>
+        </div>
+        <div class="split-results-grid">
+          <div class="warnings field-calculator-warning">
+            <div class="warning-item"><span>&#9888;&#65039;</span><span>${escapeHtml(closure.message)}</span></div>
+          </div>
+          <div class="field-calculator-actions wye-result-actions">
+            <button id="wyeBackToCurrentButton" class="reset-button" type="button">Back to Current Operation</button>
+          </div>
+        </div>
+      </section>
+    `;
+  } else {
+    controls.closureResults.innerHTML = `
+      <section class="card split-results-card wye-results-card">
+        <div class="split-results-header">
+          <p>PDP Remains</p>
+          <strong>${formatWhole(result.fixedPdp)} PSI</strong>
+        </div>
+        <div class="split-results-grid">
+          <div class="split-result-section">
+            <div class="split-section-divider">IF ATTACK ${closedLineNumber} CLOSES</div>
+            <div class="split-result-title attack-${remainingLine.lineNumber}-title">
+              <span>Attack Line ${remainingLine.lineNumber} • Remaining Line</span>
+              <span class="pressure-path-tag recalculated">Fixed PDP</span>
+            </div>
+            <div class="split-result-details">
+              ${createWyeResultItem("Delivered Flow", createWyeValueChange(remainingLine.flow, closure.flow, "GPM"), "flow-increase")}
+              ${createWyeResultItem("Nozzle Pressure", createWyeValueChange(remainingLine.nozzlePressure, closure.nozzlePressure, "PSI"), "overpressure")}
+              ${createWyeResultItem("Nozzle Reaction", createWyeValueChange(remainingLine.reaction, closure.reaction, "lb"))}
+            </div>
+          </div>
+          <div class="field-calculator-actions wye-result-actions">
+            <button id="wyeBackToCurrentButton" class="reset-button" type="button">Back to Current Operation</button>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  document.getElementById("wyeBackToCurrentButton")?.addEventListener("click", () => {
+    controls.closureResults.hidden = true;
+    controls.currentResults.hidden = false;
+    renderWyeOperationWarnings(result.warnings, controls.operationWarnings);
+  });
+}
+
+function calculateWyeClosureLine(result, line) {
+  const solve = solveWyeRemainingNozzlePressure({
+    line,
+    supplyHose: result.supplyHose,
+    supplyLength: result.supplyLength,
+    fixedPdp: result.fixedPdp
+  });
+
+  if (!solve.ok) return solve;
+
+  const reaction = line.nozzleType === "smoothbore"
+    ? calculateWyeSmoothboreReaction(line.diameter, solve.nozzlePressure)
+    : calculateWyeFogReaction(solve.flow, solve.nozzlePressure);
+
+  return {
+    ok: true,
+    nozzlePressure: solve.nozzlePressure,
+    flow: solve.flow,
+    applianceLoss: solve.applianceLoss,
+    reaction
+  };
+}
+
+function solveWyeRemainingNozzlePressure({ line, supplyHose, supplyLength, fixedPdp }) {
+  if (isAutomaticFogType(line.nozzleType)) {
+    return solveWyeRemainingAutomaticFog({
+      line,
+      supplyHose,
+      supplyLength,
+      fixedPdp
+    });
+  }
+
+  const pressureDemand = nozzlePressure => {
+    const flow = getWyeFlowAtPressure(line, nozzlePressure);
+    const supplyLoss = calculateWyeFrictionLoss(supplyHose, supplyLength, flow);
+    const attackLoss = calculateWyeFrictionLoss(line.hose, line.length, flow);
+    const applianceLoss = getWyeApplianceLoss(flow);
+
+    if (supplyLoss === null || attackLoss === null) return null;
+
+    return {
+      flow,
+      applianceLoss,
+      totalPressure: nozzlePressure + supplyLoss + attackLoss + applianceLoss
+    };
+  };
+
+  let low = 0;
+  let high = Math.max(line.nozzlePressure, 50);
+  let highDemand = pressureDemand(high);
+
+  while (highDemand && highDemand.totalPressure < fixedPdp && high < 2000) {
+    high *= 2;
+    highDemand = pressureDemand(high);
+  }
+
+  if (!highDemand || highDemand.totalPressure < fixedPdp) {
+    return { ok: false, message: "Unable to solve remaining line pressure from the fixed PDP." };
+  }
+
+  for (let i = 0; i < 60; i += 1) {
+    const mid = (low + high) / 2;
+    const midDemand = pressureDemand(mid);
+
+    if (!midDemand) {
+      return { ok: false, message: "Unable to solve remaining line pressure from the selected hose setup." };
+    }
+
+    if (midDemand.totalPressure > fixedPdp) {
+      high = mid;
+    } else {
+      low = mid;
+    }
+  }
+
+  const nozzlePressure = (low + high) / 2;
+  const flow = getWyeFlowAtPressure(line, nozzlePressure);
+  const applianceLoss = getWyeApplianceLoss(flow);
+
+  if (!(nozzlePressure > 0) || !(flow > 0)) {
+    return { ok: false, message: "Closure scenario does not leave valid flow for the remaining line." };
+  }
+
+  return { ok: true, nozzlePressure, flow, applianceLoss };
+}
+
+function getWyeFlowAtPressure(line, nozzlePressure) {
+  if (line.nozzleType === "smoothbore") {
+    return calculateWyeSmoothboreFlow(line.diameter, nozzlePressure);
+  }
+
+  if (isFixedFogType(line.nozzleType)) {
+    return fixedFogFlowAtPressure(
+      line.ratedFlow,
+      line.ratedPressure,
+      nozzlePressure
+    ) || 0;
+  }
+
+  return calculateWyeFogFlow(line.targetFlow, line.targetPressure, nozzlePressure);
+}
+
+function solveWyeRemainingAutomaticFog({ line, supplyHose, supplyLength, fixedPdp }) {
+  const nozzlePressure = line.nozzlePressure;
+  const pressureDemand = flow => {
+    const supplyLoss = calculateWyeFrictionLoss(supplyHose, supplyLength, flow);
+    const attackLoss = calculateWyeFrictionLoss(line.hose, line.length, flow);
+    const applianceLoss = getWyeApplianceLoss(flow);
+
+    if (supplyLoss === null || attackLoss === null) return null;
+
+    return {
+      flow,
+      applianceLoss,
+      totalPressure: nozzlePressure + supplyLoss + attackLoss + applianceLoss
+    };
+  };
+
+  let low = 0;
+  let high = Math.max(line.flow, 50);
+  let highDemand = pressureDemand(high);
+
+  while (highDemand && highDemand.totalPressure < fixedPdp && high < 5000) {
+    high *= 2;
+    highDemand = pressureDemand(high);
+  }
+
+  if (!highDemand || highDemand.totalPressure < fixedPdp) {
+    return { ok: false, message: "Unable to solve remaining line flow from the fixed PDP." };
+  }
+
+  for (let i = 0; i < 60; i += 1) {
+    const mid = (low + high) / 2;
+    const midDemand = pressureDemand(mid);
+
+    if (!midDemand) {
+      return { ok: false, message: "Unable to solve remaining line flow from the selected hose setup." };
+    }
+
+    if (midDemand.totalPressure > fixedPdp) {
+      high = mid;
+    } else {
+      low = mid;
+    }
+  }
+
+  const flow = (low + high) / 2;
+  const applianceLoss = getWyeApplianceLoss(flow);
+
+  if (!(nozzlePressure > 0) || !(flow > 0)) {
+    return { ok: false, message: "Closure scenario does not leave valid flow for the remaining line." };
+  }
+
+  return { ok: true, nozzlePressure, flow, applianceLoss };
+}
+
+function getWyeApplianceLoss(flow) {
+  return flow > 350 ? 10 : 0;
+}
+
+function getWyeScenarioWarnings(scenario) {
+  return scenario.ok && scenario.applianceLoss > 0
+    ? ["Estimated appliance loss applied: 10 psi at flows >350 GPM."]
+    : [];
+}
+
+	    // ========================================
+	    // CALCULATION ORCHESTRATION
     // ========================================
     function calculateAndRender() {
       const inputs = getCalculationInputs();
       const warnings = [];
 
       setResult("—", "—", "—", "—", getNozzleDisplay(), getSetupDisplay());
-      resetSplitResults();
-      resetStandpipeResults();
+	      resetSplitResults();
+	      resetStandpipeResults();
 
-      
-      
-      if (isSplitLayMode()) {
-  calculateSplitLay(warnings);
+
+
+	      if (isWyeOpsMode()) {
+	  calculateAndRenderWyeOps();
+	  syncLoadedSetupUpdateUi();
+	  return;
+	}
+
+	      if (isSplitLayMode()) {
+	  calculateSplitLay(warnings);
   syncLoadedSetupUpdateUi();
   return;
 }
@@ -12024,7 +13107,7 @@ function calculateSplitLay(warnings) {
 
   if (attackLines === 2 && !attack2) return;
 
-  
+
 
   const highestAttackSidePdp =
     Math.max(
@@ -13102,11 +14185,15 @@ return `Automatic Fog • ${displayPressure} psi`;
       return state.mode === "apparatusMounted";
     }
 
-    function isRelayMode() {
-      return state.mode === "relay";
-    }
+	    function isRelayMode() {
+	      return state.mode === "relay";
+	    }
 
-    function isSplitLayMode() {
+	    function isWyeOpsMode() {
+	      return state.mode === "wyeOps";
+	    }
+
+	    function isSplitLayMode() {
       return state.mode === "splitLay";
 }
 
@@ -13261,7 +14348,7 @@ function resetSplitLayInputs() {
   syncSplitLayUi();
 
 }
-    
+
     // ========================================
     // GENERAL UTILITIES
     // ========================================

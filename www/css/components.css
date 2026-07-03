@@ -1070,12 +1070,22 @@ main,
   padding-top: 8px;
 }
 
-    .mode-card-pro {
+.mode-card-pro {
   position: relative;
   overflow: hidden;
   opacity: 1;
   border-style: solid;
 }
+
+.mode-carousel button.mode-card-pro {
+  opacity: 0.68;
+}
+
+.mode-carousel button.mode-card-pro:hover,
+.mode-carousel button.mode-card-pro.active {
+  opacity: 1;
+}
+
   .mode-card-pro:hover {
   opacity: 1;
 }  
@@ -1110,6 +1120,15 @@ body.pro-user .mode-card-pro::after {
 body.pro-user .mode-card-pro {
   opacity: 1;
   border-style: solid;
+}
+
+body.pro-user .mode-carousel button.mode-card-pro {
+  opacity: 0.68;
+}
+
+body.pro-user .mode-carousel button.mode-card-pro:hover,
+body.pro-user .mode-carousel button.mode-card-pro.active {
+  opacity: 1;
 }
 
 body.pro-user .mode-card-pro.active {

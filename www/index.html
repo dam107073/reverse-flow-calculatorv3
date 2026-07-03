@@ -39,7 +39,7 @@
        STYLES
   ========================================= -->
   <link rel="stylesheet" href="css/base.css?v=appearance-1" />
-  <link rel="stylesheet" href="css/components.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/components.css?v=appearance-2" />
   <link rel="stylesheet" href="css/calculators.css?v=standpipe-1" />
   <link rel="stylesheet" href="css/support.css?v=appearance-1" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-1" />
@@ -109,6 +109,11 @@ Select a hydraulic calculation mode.
     <span>Pumping</span>
   </button>
 
+  <button id="wyeOpsButton" type="button" class="mode-card-pro" data-mode="wyeOps">
+    <span>Wye</span>
+    <span>Ops</span>
+  </button>
+
   <button id="pdpModeButton" type="button" data-mode="requiredPdp">
     <span>Required</span>
     <span>PDP</span>
@@ -142,6 +147,8 @@ Select a hydraulic calculation mode.
           <p class="helper" id="modeHelper">Reverse Flow Mode: Enter PDP to estimate GPM and Nozzle Pressure based on hose and nozzle characteristics.</p>
           <div class="section-divider">
         </div>
+
+          <div id="wyeOpsFields" class="field full" hidden></div>
 
           <div id="splitLayFields" class="field full" hidden>
   <div class="split-lay-panel">
@@ -1402,6 +1409,13 @@ Select a hydraulic calculation mode.
     <p><strong>Relay Pumping Formula</strong></p>
     <p>Relay PDP = relay friction loss + receiving engine residual + appliance/elevation loss.</p>
   </div>
+      <div id="wyeOpsFormula" hidden>
+  <p><strong>Wye Ops Formula</strong></p>
+  <p>Wye Ops PDP = supply friction loss + gated wye appliance loss + highest attack-line pressure demand.</p>
+  <p>Attack demand = nozzle pressure + attack hose friction loss.</p>
+  <p>When one line closes, the original PDP remains fixed and the remaining line is recalculated from the available pressure.</p>
+  <p>Smoothbore flow = 29.7 × tip diameter² × √nozzle pressure.</p>
+</div>
       <div id="splitLayFormula" hidden>
   <p><strong>Split Lay Formula</strong></p>
   <p>Total PDP = supply friction loss + appliance loss + highest attack-side pressure demand.</p>
@@ -1455,9 +1469,9 @@ Select a hydraulic calculation mode.
 
     <h3>Calculator Modes</h3>
 
-    <h4>Reverse Flow Mode</h4>
+    <h4>Wye Ops Mode</h4>
     <p>
-      Estimates achievable flow by working backward from available pump discharge pressure and hydraulic losses.
+      Models a gated wye operation with two attack lines and recalculates remaining-line flow when one line closes.
     </p>
 
     <h4>Required PDP Mode</h4>
@@ -1465,9 +1479,19 @@ Select a hydraulic calculation mode.
       Calculates the pump discharge pressure required to achieve a desired flow.
     </p>
 
-    <h4>Apparatus Mounted Mode</h4>
+    <h4>Reverse Flow Mode</h4>
     <p>
-      Supports apparatus-mounted and master stream hydraulic calculations, including elevation and appliance losses.
+      Estimates achievable flow by working backward from available pump discharge pressure and hydraulic losses.
+    </p>
+
+    <h4>Split Lay Mode</h4>
+    <p>
+      Models split-supply and split-attack hose layouts, including appliance losses, multiple attack lines, delivered flow, and pressure balancing.
+    </p>
+
+    <h4>Standpipe Ops Mode</h4>
+    <p>
+      Estimates engine pressure for standpipe stretches using attack demand, elevation, standpipe loss, and FDC supply loss.
     </p>
 
     <h4>Relay Pumping Mode</h4>
@@ -1475,9 +1499,9 @@ Select a hydraulic calculation mode.
       Calculates relay pumper discharge pressure needed to supply a receiving engine while maintaining residual pressure.
     </p>
 
-    <h4>Split Lay Mode</h4>
+    <h4>Apparatus Mounted Mode</h4>
     <p>
-      Models split-supply and split-attack hose layouts, including appliance losses, multiple attack lines, delivered flow, and pressure balancing.
+      Supports apparatus-mounted and master stream hydraulic calculations, including elevation and appliance losses.
     </p>
 
     <h3>Pump Charts</h3>
@@ -1487,18 +1511,23 @@ Select a hydraulic calculation mode.
 
     <h3>Tools &amp; References (Pro)</h3>
     <p>
-      The Tools workspace provides additional hydraulic resources, calculators, hose management tools, department defaults, and reference materials.
+      The Tools workspace includes Field Calculators, Equipment Defaults, Equipment Visibility, My Hose Profiles, and other hydraulic resources.
     </p>
     <p>
-      Current tools may include Smoothbore Flow, Nozzle Reaction, Tank Time, Water Velocity, Hose Coefficient Calculator, Wye Operations, and the Friction Loss Chart Generator.
+      Field Calculators cover quick utilities such as Smoothbore Flow, Nozzle Reaction, Tank Time, Water Velocity, Hose Coefficient, Friction Loss / 100', and reference charts.
     </p>
 
     <h3>Reference Library</h3>
     <p>
-      Reference content may include My Hose Profiles, manufacturer resources, the Training Directory, and training resources.
+      Reference content includes Manufacturer References and the Training Directory, plus department-managed hose information from My Hose Profiles.
     </p>
     <p>
       Reference material is intended for informational purposes and may vary by manufacturer, department testing, and local policy.
+    </p>
+
+    <h3>Settings</h3>
+    <p>
+      Equipment Defaults set preferred hose coefficients and selections, Equipment Visibility hides unused equipment from dropdowns, and Appearance lets you follow system theme or force light or dark mode.
     </p>
 
     <h3>Disclaimer</h3>
@@ -1612,7 +1641,7 @@ Select a hydraulic calculation mode.
   <script src="js/constants.js?v=build-6"></script>
   <script src="js/services/entitlement.js?v=build-2"></script>
   <script src="js/data/hydraulics.js?v=build-8"></script>
-  <script src="js/app.js?v=pro-beta-3"></script>
+  <script src="js/app.js?v=pro-beta-4"></script>
 
   <script type="module" src="js/analytics.js"></script>
 
