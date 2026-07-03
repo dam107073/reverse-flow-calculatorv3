@@ -61,6 +61,11 @@
       description: "Calculate hose friction loss coefficient from a 100' field test.",
       render: renderCoefficientCalculator
     },
+    "friction-loss-per-100": {
+      title: "Friction Loss / 100'",
+      description: "Calculate hose friction loss per 100 feet at a known flow.",
+      render: renderFrictionLossPerHundredCalculator
+    },
     "wye-operations": {
       title: "Wye Operations",
       description: "Show fixed-PDP effects when one gated wye attack line closes.",
@@ -427,8 +432,19 @@
         </div>
       </div>
 
-      <p class="helper field-calculator-note">Also serves pitot calculations.</p>
       <div id="smoothboreFlowResults" hidden></div>
+
+      <details class="formula">
+        <summary>Formula / Reference</summary>
+        <p><strong>Flow: GPM = 29.7 &times; d<sup>2</sup> &times; &radic;NP</strong></p>
+        <p><strong>Velocity: Velocity (ft/sec) = 0.408 &times; GPM / d<sup>2</sup></strong></p>
+        <p><strong>Definitions:</strong></p>
+        <ul>
+          <li>d = tip diameter (inches)</li>
+          <li>NP = nozzle pressure (PSI)</li>
+          <li>GPM = calculated flow</li>
+        </ul>
+      </details>
     `;
 
     const tip = document.getElementById("smoothboreFlowTip");
@@ -447,10 +463,10 @@
       if (!isValid) return;
 
       const gpm = 29.7 * diameter * diameter * Math.sqrt(psi);
+      const velocity = 0.408 * gpm / (diameter * diameter);
       results.innerHTML = createResultRows([
         ["Flow", `${formatWhole(gpm)} GPM`],
-        ["Tip Size", getSelectedTipLabel(tip, customTip)],
-        ["Pressure Used", `${formatNumber(psi, 0)} PSI`]
+        ["Stream Velocity", `${formatNumber(velocity, 1)} ft/sec`]
       ]);
     };
 
@@ -1729,6 +1745,86 @@
       input.addEventListener("change", update);
     });
     update();
+  }
+
+  function renderFrictionLossPerHundredCalculator() {
+    const hoseOptions = getHoseOptions().filter(hose => getHoseCoefficientValue(hose) > 0);
+
+    calculatorBody.innerHTML = `
+      <div class="field-calculator-form">
+        <div class="field">
+          <label for="frictionLossPerHundredHoseSize">Hose Size</label>
+          ${createHoseSelect("frictionLossPerHundredHoseSize", hoseOptions)}
+        </div>
+
+        <div class="field">
+          <label for="frictionLossPerHundredCoefficient">Coefficient</label>
+          <input id="frictionLossPerHundredCoefficient" type="text" inputmode="decimal" placeholder="C" />
+        </div>
+
+        <div class="field">
+          <label for="frictionLossPerHundredFlow">GPM</label>
+          <input id="frictionLossPerHundredFlow" type="text" inputmode="decimal" placeholder="GPM" />
+        </div>
+      </div>
+
+      <div class="field-calculator-actions">
+        <button id="calculateFrictionLossPerHundredButton" class="reset-button" type="button">Calculate</button>
+      </div>
+
+      <div id="frictionLossPerHundredResults" hidden></div>
+
+      <details class="formula">
+        <summary>Formula / Reference</summary>
+        <p><strong>FL/100' = C &times; (GPM / 100)<sup>2</sup></strong></p>
+        <p><strong>Where:</strong></p>
+        <ul>
+          <li>C = hose coefficient</li>
+          <li>GPM = flow in gallons per minute</li>
+        </ul>
+      </details>
+    `;
+
+    const hoseSize = document.getElementById("frictionLossPerHundredHoseSize");
+    const coefficient = document.getElementById("frictionLossPerHundredCoefficient");
+    const flow = document.getElementById("frictionLossPerHundredFlow");
+    const calculateButton = document.getElementById("calculateFrictionLossPerHundredButton");
+    const results = document.getElementById("frictionLossPerHundredResults");
+
+    const getSelectedHose = () =>
+      hoseOptions.find(hose => hose.id === hoseSize.value) || null;
+
+    const syncCoefficient = () => {
+      const selectedHose = getSelectedHose();
+      const selectedCoefficient = getHoseCoefficientValue(selectedHose);
+      coefficient.value = selectedCoefficient > 0
+        ? formatNumber(selectedCoefficient, selectedCoefficient < 1 ? 2 : 1)
+        : "";
+      results.hidden = true;
+    };
+
+    const calculate = () => {
+      const selectedHose = getSelectedHose();
+      const coefficientValue = numberOrNull(coefficient.value);
+      const gpm = numberOrNull(flow.value);
+      const isValid = selectedHose && coefficientValue > 0 && gpm >= 0;
+
+      results.hidden = !isValid;
+      if (!isValid) return;
+
+      const frictionLoss = coefficientValue * Math.pow(gpm / 100, 2);
+
+      results.innerHTML = createResultRows([
+        ["Friction Loss / 100'", `${formatNumber(frictionLoss, 1)} PSI`],
+        ["Hose Size", selectedHose.label],
+        ["Coefficient Used", formatNumber(coefficientValue, coefficientValue < 1 ? 2 : 1)],
+        ["GPM Used", `${formatNumber(gpm, 0)} GPM`]
+      ]);
+    };
+
+    hoseSize.addEventListener("change", syncCoefficient);
+    calculateButton.addEventListener("click", calculate);
+    syncCoefficient();
   }
 
   function renderWaterVelocity() {
