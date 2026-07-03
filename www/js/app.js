@@ -111,6 +111,11 @@
       "splitLay",
       "standpipeOps"
     ]);
+    const SUPPLY_HOSE_IDS =
+      ["2", "2.25", "2.5", "3", "4", "5"];
+
+    const ATTACK_HOSE_IDS =
+      ["1", "1.5", "1.75", "1.88", "2", "2.25", "2.5"];
 
     function normalizeNozzleType(value) {
       return value === "fog" ? "automaticFog" : value;
@@ -227,6 +232,8 @@
       hoseLibraryList: document.getElementById("hoseLibraryList"),
       defaultHoseSelectionsList: document.getElementById("defaultHoseSelectionsList"),
       defaultHoseCoefficientsList: document.getElementById("defaultHoseCoefficientsList"),
+      visibleHoseSizesList: document.getElementById("visibleHoseSizesList"),
+      visibleSmoothboreTipsList: document.getElementById("visibleSmoothboreTipsList"),
       customHoseProfileName: document.getElementById("customHoseProfileName"),
       customHoseManufacturer: document.getElementById("customHoseManufacturer"),
       customHoseModel: document.getElementById("customHoseModel"),
@@ -1325,6 +1332,8 @@ logStoreEvent("initialize-start", {
   renderHoseLibrary();
   renderDefaultHoseSelections();
   renderDefaultHoseCoefficients();
+  renderVisibleHoseSizes();
+  renderVisibleSmoothboreTips();
   populateSmoothboreTips();
   renderPresetOptions();
   syncInputsFromState();
@@ -1404,6 +1413,8 @@ function renderSupportPageToolsContent() {
   renderHoseLibrary();
   renderDefaultHoseSelections();
   renderDefaultHoseCoefficients();
+  renderVisibleHoseSizes();
+  renderVisibleSmoothboreTips();
 }
     // ========================================
     // STORAGE
@@ -1441,12 +1452,19 @@ function renderSupportPageToolsContent() {
       isProGatedCalculatorMode(sessionMode) && !isProUser()
         ? DEFAULT_STATE.mode
         : sessionMode,
-    splitLay: {
-      ...DEFAULT_STATE.splitLay
-    },
-    standpipeOps: {
-      ...DEFAULT_STATE.standpipeOps
-    }
+    hoseSize: resolveVisibleHoseDefault(DEFAULT_STATE.hoseSize, HOSE_OPTIONS),
+    reverseSupplyHoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.reverseSupplyHoseSize,
+      getSupplyHoseOptions()
+    ),
+    smoothboreTip: DEFAULT_STATE.smoothboreTip
+      ? resolveVisibleSmoothboreTipDefault(
+          DEFAULT_STATE.smoothboreTip,
+          getHandlineSmoothboreTipOptions()
+        )
+      : "",
+    splitLay: getVisibleDefaultSplitLayState(),
+    standpipeOps: getVisibleDefaultStandpipeOpsState()
   };
 
   normalizeStateNozzleTypes(freshState);
@@ -1467,16 +1485,24 @@ function renderSupportPageToolsContent() {
           return normalizeStateNozzleTypes({
             ...DEFAULT_STATE,
             ...parsed,
+            hoseSize: resolveVisibleHoseDefault(
+              parsed.hoseSize || DEFAULT_STATE.hoseSize,
+              getModeHoseOptions(parsed.mode || sessionMode)
+            ),
+            reverseSupplyHoseSize: resolveVisibleHoseDefault(
+              parsed.reverseSupplyHoseSize || DEFAULT_STATE.reverseSupplyHoseSize,
+              getSupplyHoseOptions()
+            ),
             mode:
               isProGatedCalculatorMode(sessionMode) && !isProUser()
                 ? DEFAULT_STATE.mode
                 : sessionMode,
             splitLay: {
-              ...DEFAULT_STATE.splitLay,
+              ...getVisibleDefaultSplitLayState(),
               ...(parsed.splitLay || {})
             },
             standpipeOps: {
-              ...DEFAULT_STATE.standpipeOps,
+              ...getVisibleDefaultStandpipeOpsState(),
               ...(parsed.standpipeOps || {})
             }
           });
@@ -1484,12 +1510,19 @@ function renderSupportPageToolsContent() {
       } catch {}
       return normalizeStateNozzleTypes({
         ...DEFAULT_STATE,
-        splitLay: {
-          ...DEFAULT_STATE.splitLay
-        },
-        standpipeOps: {
-          ...DEFAULT_STATE.standpipeOps
-        }
+        hoseSize: resolveVisibleHoseDefault(DEFAULT_STATE.hoseSize, HOSE_OPTIONS),
+        reverseSupplyHoseSize: resolveVisibleHoseDefault(
+          DEFAULT_STATE.reverseSupplyHoseSize,
+          getSupplyHoseOptions()
+        ),
+        smoothboreTip: DEFAULT_STATE.smoothboreTip
+          ? resolveVisibleSmoothboreTipDefault(
+              DEFAULT_STATE.smoothboreTip,
+              getHandlineSmoothboreTipOptions()
+            )
+          : "",
+        splitLay: getVisibleDefaultSplitLayState(),
+        standpipeOps: getVisibleDefaultStandpipeOpsState()
       });
     }
 
@@ -2102,9 +2135,12 @@ function getCustomHoseUseLabel(useValue) {
 function populateCustomHoseSizeOptions() {
   if (!els.customHoseSize) return;
 
-  const hoseOptions = HOSE_OPTIONS.filter(hose =>
-    ATTACK_HOSE_IDS.includes(hose.id) ||
-    SUPPLY_HOSE_IDS.includes(hose.id)
+  const hoseOptions = getVisibleHoseOptions(
+    HOSE_OPTIONS.filter(hose =>
+      ATTACK_HOSE_IDS.includes(hose.id) ||
+      SUPPLY_HOSE_IDS.includes(hose.id)
+    ),
+    els.customHoseSize.value
   );
 
   els.customHoseSize.innerHTML = hoseOptions.map(hose => (
@@ -2170,6 +2206,7 @@ function createCustomHoseProfile() {
   populateHoseLibraryFilter();
   renderHoseLibrary();
   renderDefaultHoseSelections();
+  renderVisibleHoseSizes();
 
   alert(`${profileName} was added to My Hose Profiles.`);
 }
@@ -2212,6 +2249,7 @@ function deleteCustomHoseProfile(customHoseId) {
   populateHoseLibraryFilter();
   renderHoseLibrary();
   renderDefaultHoseSelections();
+  renderVisibleHoseSizes();
 
   alert(`${getHoseProfileDisplayName(customHose)} was deleted.`);
 }
@@ -2289,14 +2327,9 @@ function editCustomHoseProfile(customHoseId) {
 
   renderHoseLibrary();
   renderDefaultHoseSelections();
+  renderVisibleHoseSizes();
   alert(`${getHoseProfileDisplayName(updatedHose)} was updated.`);
 }
-
-const SUPPLY_HOSE_IDS =
-  ["2", "2.25", "2.5", "3", "4", "5"];
-
-const ATTACK_HOSE_IDS =
-  ["1", "1.5", "1.75", "1.88", "2", "2.25", "2.5"];
 
   function hoseOptionLabel(hose) {
   const activeCoefficient = getActiveHoseCoefficient(hose.id);
@@ -2314,12 +2347,15 @@ const ATTACK_HOSE_IDS =
 }
 
 function populateHoseOptions() {
-  const hoseOptions = isRelayMode()
+  const hoseOptions = getVisibleHoseOptions(
+    isRelayMode()
     ? RELAY_HOSE_OPTIONS
-    : HOSE_OPTIONS;
+      : HOSE_OPTIONS,
+    state.hoseSize
+  );
 
   els.hoseSize.innerHTML = hoseOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   const splitSupplyHose =
@@ -2351,8 +2387,13 @@ const supplyOptions = HOSE_OPTIONS.filter(hose =>
 );
 
 if (reverseSupplyHose) {
-  reverseSupplyHose.innerHTML = supplyOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  const reverseSupplyOptions = getVisibleHoseOptions(
+    supplyOptions,
+    state.reverseSupplyHoseSize
+  );
+
+  reverseSupplyHose.innerHTML = reverseSupplyOptions.map(hose => (
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   reverseSupplyHose.value =
@@ -2364,8 +2405,13 @@ const attackOptions = HOSE_OPTIONS.filter(hose =>
 );
 
 if (splitSupplyHose) {
-  splitSupplyHose.innerHTML = supplyOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  const visibleOptions = getVisibleHoseOptions(
+    supplyOptions,
+    state.splitLay.supplyHoseSize
+  );
+
+  splitSupplyHose.innerHTML = visibleOptions.map(hose => (
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   splitSupplyHose.value =
@@ -2373,8 +2419,13 @@ if (splitSupplyHose) {
 }
 
 if (splitSupply2Hose) {
-  splitSupply2Hose.innerHTML = supplyOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  const visibleOptions = getVisibleHoseOptions(
+    supplyOptions,
+    state.splitLay.supply2HoseSize
+  );
+
+  splitSupply2Hose.innerHTML = visibleOptions.map(hose => (
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   splitSupply2Hose.value =
@@ -2382,8 +2433,13 @@ if (splitSupply2Hose) {
 }
 
 if (splitAttack1Hose) {
-  splitAttack1Hose.innerHTML = attackOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  const visibleOptions = getVisibleHoseOptions(
+    attackOptions,
+    state.splitLay.attack1HoseSize
+  );
+
+  splitAttack1Hose.innerHTML = visibleOptions.map(hose => (
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   splitAttack1Hose.value =
@@ -2391,8 +2447,13 @@ if (splitAttack1Hose) {
 }
 
 if (splitAttack2Hose) {
-  splitAttack2Hose.innerHTML = attackOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  const visibleOptions = getVisibleHoseOptions(
+    attackOptions,
+    state.splitLay.attack2HoseSize
+  );
+
+  splitAttack2Hose.innerHTML = visibleOptions.map(hose => (
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   splitAttack2Hose.value =
@@ -2400,8 +2461,13 @@ if (splitAttack2Hose) {
 }
 
 if (standpipeSupplyHose) {
-  standpipeSupplyHose.innerHTML = supplyOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  const visibleOptions = getVisibleHoseOptions(
+    supplyOptions,
+    state.standpipeOps.supplyHoseSize
+  );
+
+  standpipeSupplyHose.innerHTML = visibleOptions.map(hose => (
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   standpipeSupplyHose.value =
@@ -2409,8 +2475,13 @@ if (standpipeSupplyHose) {
 }
 
 if (standpipeAttack1Hose) {
-  standpipeAttack1Hose.innerHTML = attackOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  const visibleOptions = getVisibleHoseOptions(
+    attackOptions,
+    state.standpipeOps.attack1HoseSize
+  );
+
+  standpipeAttack1Hose.innerHTML = visibleOptions.map(hose => (
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   standpipeAttack1Hose.value =
@@ -2418,8 +2489,13 @@ if (standpipeAttack1Hose) {
 }
 
 if (standpipeAttack2Hose) {
-  standpipeAttack2Hose.innerHTML = attackOptions.map(hose => (
-    `<option value="${hose.id}">${hoseOptionLabel(hose)}</option>`
+  const visibleOptions = getVisibleHoseOptions(
+    attackOptions,
+    state.standpipeOps.attack2HoseSize
+  );
+
+  standpipeAttack2Hose.innerHTML = visibleOptions.map(hose => (
+    `<option value="${escapeHtml(hose.id)}">${escapeHtml(hoseOptionLabel(hose))}</option>`
   )).join("");
 
   standpipeAttack2Hose.value =
@@ -2659,6 +2735,7 @@ function clearDefaultHoseSelection(hoseId) {
   renderHoseLibrary();
   renderDefaultHoseSelections();
   renderDefaultHoseCoefficients();
+  renderVisibleHoseSizes();
 }
 
 function renderDefaultHoseCoefficients() {
@@ -2761,6 +2838,318 @@ function bindDefaultHoseCoefficientEvents() {
         refreshCoefficientDisplays();
       });
     });
+}
+
+function renderEquipmentVisibilityList({
+  container,
+  options,
+  visibleIds,
+  inputName
+}) {
+  if (!container) return;
+
+  const visibleIdSet = new Set(visibleIds.map(id => String(id)));
+
+  container.innerHTML = options.map(option => {
+    const optionId = String(option.id);
+    const isChecked = visibleIdSet.has(optionId);
+
+    return `
+      <label class="default-hose-selection-card equipment-visibility-card">
+        <span>
+          <strong>${escapeHtml(option.label)}</strong>
+          <span class="helper">${isChecked ? "Visible in dropdowns" : "Hidden from normal dropdowns"}</span>
+        </span>
+        <input
+          type="checkbox"
+          name="${escapeHtml(inputName)}"
+          value="${escapeHtml(optionId)}"
+          ${isChecked ? "checked" : ""}
+          data-option-label="${escapeHtml(option.label)}"
+        />
+      </label>
+    `;
+  }).join("");
+}
+
+function renderVisibleHoseSizes() {
+  renderEquipmentVisibilityList({
+    container: els.visibleHoseSizesList,
+    options: getSupportedHoseOptions(),
+    visibleIds: loadVisibleHoseSizeIds(),
+    inputName: "visibleHoseSizes"
+  });
+
+  bindVisibleHoseSizeEvents();
+}
+
+function renderVisibleSmoothboreTips() {
+  renderEquipmentVisibilityList({
+    container: els.visibleSmoothboreTipsList,
+    options: SMOOTHBORE_TIPS,
+    visibleIds: loadVisibleSmoothboreTipIds(),
+    inputName: "visibleSmoothboreTips"
+  });
+
+  bindVisibleSmoothboreTipEvents();
+}
+
+function refreshEquipmentVisibilityDisplays() {
+  populateCustomHoseSizeOptions();
+  renderVisibleHoseSizes();
+  renderVisibleSmoothboreTips();
+
+  if (els.calculatorView) {
+    populateHoseOptions();
+    populateSmoothboreTips();
+    syncInputsFromState();
+    syncSplitLayInputsFromState();
+    syncStandpipeInputsFromState();
+    syncSmoothboreUi();
+    syncModeUi();
+    calculateAndRender();
+  }
+}
+
+function getFirstVisibleEquipmentId(options, type) {
+  const visibleOptions = type === "hose"
+    ? getVisibleHoseOptions(options)
+    : getVisibleSmoothboreTipOptions(options);
+
+  return visibleOptions[0]?.id || "";
+}
+
+function resolveVisibleEquipmentDefault(preferredId, options, type) {
+  const visibleOptions = type === "hose"
+    ? getVisibleHoseOptions(options)
+    : getVisibleSmoothboreTipOptions(options);
+
+  if (visibleOptions.some(option => option.id === preferredId)) {
+    return preferredId;
+  }
+
+  return visibleOptions[0]?.id || preferredId;
+}
+
+function resolveVisibleHoseDefault(preferredId, options) {
+  return resolveVisibleEquipmentDefault(preferredId, options, "hose");
+}
+
+function resolveVisibleSmoothboreTipDefault(preferredId, options) {
+  return resolveVisibleEquipmentDefault(preferredId, options, "tip");
+}
+
+function getSupplyHoseOptions() {
+  return HOSE_OPTIONS.filter(hose =>
+    SUPPLY_HOSE_IDS.includes(hose.id)
+  );
+}
+
+function getAttackHoseOptions() {
+  return HOSE_OPTIONS.filter(hose =>
+    ATTACK_HOSE_IDS.includes(hose.id)
+  );
+}
+
+function getModeHoseOptions(mode = state.mode) {
+  return mode === "relay"
+    ? RELAY_HOSE_OPTIONS
+    : HOSE_OPTIONS;
+}
+
+function getHandlineSmoothboreTipOptions() {
+  return SMOOTHBORE_TIPS.filter(tip =>
+    tip.diameter >= 0.75 &&
+    tip.diameter <= 1.25
+  );
+}
+
+function getMainSmoothboreTipOptions() {
+  return isMasterStream() || isApparatusMountedMode()
+    ? SMOOTHBORE_TIPS.filter(tip =>
+        tip.diameter >= 1.25 &&
+        tip.diameter <= 3
+      )
+    : getHandlineSmoothboreTipOptions();
+}
+
+function getVisibleDefaultSplitLayState() {
+  return {
+    ...DEFAULT_STATE.splitLay,
+    supplyHoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.splitLay.supplyHoseSize,
+      getSupplyHoseOptions()
+    ),
+    supply2HoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.splitLay.supply2HoseSize,
+      getSupplyHoseOptions()
+    ),
+    attack1HoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.splitLay.attack1HoseSize,
+      getAttackHoseOptions()
+    ),
+    attack2HoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.splitLay.attack2HoseSize,
+      getAttackHoseOptions()
+    ),
+    attack1SmoothboreTip: DEFAULT_STATE.splitLay.attack1SmoothboreTip
+      ? resolveVisibleSmoothboreTipDefault(
+          DEFAULT_STATE.splitLay.attack1SmoothboreTip,
+          getHandlineSmoothboreTipOptions()
+        )
+      : "",
+    attack2SmoothboreTip: DEFAULT_STATE.splitLay.attack2SmoothboreTip
+      ? resolveVisibleSmoothboreTipDefault(
+          DEFAULT_STATE.splitLay.attack2SmoothboreTip,
+          getHandlineSmoothboreTipOptions()
+        )
+      : ""
+  };
+}
+
+function getVisibleDefaultStandpipeOpsState() {
+  return {
+    ...DEFAULT_STATE.standpipeOps,
+    supplyHoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.standpipeOps.supplyHoseSize,
+      getSupplyHoseOptions()
+    ),
+    attack1HoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.standpipeOps.attack1HoseSize,
+      getAttackHoseOptions()
+    ),
+    attack2HoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.standpipeOps.attack2HoseSize,
+      getAttackHoseOptions()
+    ),
+    attack1SmoothboreTip: DEFAULT_STATE.standpipeOps.attack1SmoothboreTip
+      ? resolveVisibleSmoothboreTipDefault(
+          DEFAULT_STATE.standpipeOps.attack1SmoothboreTip,
+          getHandlineSmoothboreTipOptions()
+        )
+      : "",
+    attack2SmoothboreTip: DEFAULT_STATE.standpipeOps.attack2SmoothboreTip
+      ? resolveVisibleSmoothboreTipDefault(
+          DEFAULT_STATE.standpipeOps.attack2SmoothboreTip,
+          getHandlineSmoothboreTipOptions()
+        )
+      : ""
+  };
+}
+
+function replaceHiddenDefaultValue(target, key, hiddenId, options, type) {
+  if (!target || target[key] !== hiddenId) return false;
+
+  const fallbackId = getFirstVisibleEquipmentId(options, type);
+  if (!fallbackId) return false;
+
+  target[key] = fallbackId;
+  return true;
+}
+
+function reconcileHoseDefaultsAfterVisibilityChange(hiddenId) {
+  const supplyOptions = getSupplyHoseOptions();
+  const attackOptions = getAttackHoseOptions();
+  let changed = false;
+
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE, "hoseSize", hiddenId, HOSE_OPTIONS, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE, "reverseSupplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.splitLay, "supplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.splitLay, "supply2HoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.splitLay, "attack1HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.splitLay, "attack2HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "supplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "attack1HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "attack2HoseSize", hiddenId, attackOptions, "hose") || changed;
+
+  changed = replaceHiddenDefaultValue(state, "hoseSize", hiddenId, getModeHoseOptions(), "hose") || changed;
+  changed = replaceHiddenDefaultValue(state, "reverseSupplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.splitLay, "supplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.splitLay, "supply2HoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.splitLay, "attack1HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.splitLay, "attack2HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.standpipeOps, "supplyHoseSize", hiddenId, supplyOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.standpipeOps, "attack1HoseSize", hiddenId, attackOptions, "hose") || changed;
+  changed = replaceHiddenDefaultValue(state.standpipeOps, "attack2HoseSize", hiddenId, attackOptions, "hose") || changed;
+
+  if (changed) {
+    saveState();
+  }
+
+  return changed;
+}
+
+function reconcileSmoothboreDefaultsAfterVisibilityChange(hiddenId) {
+  const handlineTips = getHandlineSmoothboreTipOptions();
+  let changed = false;
+
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE, "smoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.splitLay, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.splitLay, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(DEFAULT_STATE.standpipeOps, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+
+  changed = replaceHiddenDefaultValue(state, "smoothboreTip", hiddenId, getMainSmoothboreTipOptions(), "tip") || changed;
+  changed = replaceHiddenDefaultValue(state.splitLay, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(state.splitLay, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(state.standpipeOps, "attack1SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+  changed = replaceHiddenDefaultValue(state.standpipeOps, "attack2SmoothboreTip", hiddenId, handlineTips, "tip") || changed;
+
+  if (changed) {
+    saveState();
+  }
+
+  return changed;
+}
+
+function bindEquipmentVisibilityEvents({
+  container,
+  saveIds,
+  render,
+  refresh,
+  reconcile
+}) {
+  if (!container) return;
+
+  container
+    .querySelectorAll('input[type="checkbox"]')
+    .forEach(input => {
+      input.addEventListener("change", () => {
+        const wasHidden = !input.checked;
+
+        const selectedIds = [...container.querySelectorAll('input[type="checkbox"]:checked')]
+          .map(item => item.value);
+
+        saveIds(selectedIds);
+        const defaultsChanged = wasHidden && reconcile(input.value);
+        render();
+        refresh();
+
+        if (wasHidden && defaultsChanged) {
+          alert(`${input.dataset.optionLabel} was hidden. Affected defaults were updated.`);
+        }
+      });
+    });
+}
+
+function bindVisibleHoseSizeEvents() {
+  bindEquipmentVisibilityEvents({
+    container: els.visibleHoseSizesList,
+    saveIds: saveVisibleHoseSizeIds,
+    render: renderVisibleHoseSizes,
+    refresh: refreshEquipmentVisibilityDisplays,
+    reconcile: reconcileHoseDefaultsAfterVisibilityChange
+  });
+}
+
+function bindVisibleSmoothboreTipEvents() {
+  bindEquipmentVisibilityEvents({
+    container: els.visibleSmoothboreTipsList,
+    saveIds: saveVisibleSmoothboreTipIds,
+    render: renderVisibleSmoothboreTips,
+    refresh: refreshEquipmentVisibilityDisplays,
+    reconcile: reconcileSmoothboreDefaultsAfterVisibilityChange
+  });
 }
 
 function hoseMatchesLibraryUse(hose, selectedUse) {
@@ -2959,12 +3348,13 @@ function applyHoseLibraryDefault(libraryId) {
   renderHoseLibrary();
   renderDefaultHoseSelections();
   renderDefaultHoseCoefficients();
+  renderVisibleHoseSizes();
 
   alert(`${libraryHose.manufacturer} ${libraryHose.model} is now your default ${appHose.label} hose reference. Calculation coefficient unchanged: ${getActiveHoseCoefficient(libraryHose.appHoseId)}`);
 }
 
     function populateSmoothboreTips() {
-  const tips = isMasterStream() || isApparatusMountedMode()
+  const compatibleTips = isMasterStream() || isApparatusMountedMode()
     ? SMOOTHBORE_TIPS.filter(tip =>
         tip.diameter >= 1.25 &&
         tip.diameter <= 3
@@ -2973,15 +3363,53 @@ function applyHoseLibraryDefault(libraryId) {
         tip.diameter >= 0.75 &&
         tip.diameter <= 1.25
       );
+  const tips = getVisibleSmoothboreTipOptions(
+    compatibleTips,
+    state.smoothboreTip
+  );
 
   els.smoothboreTip.innerHTML = tips.map(tip => (
-    `<option value="${tip.id}">${tip.label}</option>`
+    `<option value="${escapeHtml(tip.id)}">${escapeHtml(tip.label)}</option>`
   )).join("");
 
   if (!tips.some(tip => tip.id === state.smoothboreTip)) {
     state.smoothboreTip = tips[0]?.id || "";
     els.smoothboreTip.value = state.smoothboreTip;
   }
+}
+
+function populateSmoothboreTipSelect(selectElement, compatibleTips, selectedId) {
+  if (!selectElement) return;
+
+  const tips = getVisibleSmoothboreTipOptions(compatibleTips, selectedId);
+
+  selectElement.innerHTML = tips.map(tip => (
+    `<option value="${escapeHtml(tip.id)}">${escapeHtml(tip.label)}</option>`
+  )).join("");
+
+  selectElement.value = selectedId || "";
+}
+
+function populateSplitSmoothboreTipOptions(lineNumber) {
+  populateSmoothboreTipSelect(
+    document.getElementById(`splitAttack${lineNumber}SmoothboreTip`),
+    SMOOTHBORE_TIPS.filter(tip =>
+      tip.diameter >= 0.75 &&
+      tip.diameter <= 1.25
+    ),
+    state.splitLay[`attack${lineNumber}SmoothboreTip`]
+  );
+}
+
+function populateStandpipeSmoothboreTipOptions(lineNumber) {
+  populateSmoothboreTipSelect(
+    document.getElementById(`standpipeAttack${lineNumber}SmoothboreTip`),
+    SMOOTHBORE_TIPS.filter(tip =>
+      tip.diameter >= 0.75 &&
+      tip.diameter <= 1.25
+    ),
+    state.standpipeOps[`attack${lineNumber}SmoothboreTip`]
+  );
 }
 
     function renderPresetOptions() {
@@ -4712,6 +5140,9 @@ function syncStandpipeNozzleUi(lineNumber) {
   const bladeKey = `attack${lineNumber}BladeModel`;
   const pressureKey = `attack${lineNumber}NozzlePressure`;
   const selectedBladeModel = standpipe[bladeKey] || "blade160";
+
+  populateStandpipeSmoothboreTipOptions(lineNumber);
+
   const pressures = isBladeLine
     ? getBladeNozzlePressures(selectedBladeModel)
       : usesSolidStreamOptions
@@ -5730,6 +6161,9 @@ function syncSplitNozzleUi(lineNumber) {
   const usesSolidStreamOptions = isSmoothboreLine || isBladeLine;
   const bladeKey = `attack${lineNumber}BladeModel`;
   const selectedBladeModel = state.splitLay[bladeKey] || "blade160";
+
+  populateSplitSmoothboreTipOptions(lineNumber);
+
   const solidStreamPressures = isBladeLine
     ? getBladeNozzlePressures(selectedBladeModel)
     : [40, 50, 60];
@@ -7056,17 +7490,13 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
   clearCustomCoefficient();
 
   if (leavingSplitLay) {
-    state.splitLay = {
-      ...DEFAULT_STATE.splitLay
-    };
+    state.splitLay = getVisibleDefaultSplitLayState();
 
     resetSplitLayResultCard();
   }
 
   if (leavingStandpipeOps) {
-    state.standpipeOps = {
-      ...DEFAULT_STATE.standpipeOps
-    };
+    state.standpipeOps = getVisibleDefaultStandpipeOpsState();
 
     resetStandpipeResults();
   }
@@ -7083,7 +7513,7 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
     state.pdp = "";
     state.targetGpm = "";
     state.hoseLength = "";
-    state.hoseSize = "5";
+    state.hoseSize = resolveVisibleHoseDefault("5", RELAY_HOSE_OPTIONS);
 
 	    state.nozzleType = "30";
 	    state.nozzlePressure = "";
@@ -7107,7 +7537,7 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
     state.pdp = "";
     state.targetGpm = "";
     state.hoseLength = "";
-    state.hoseSize = "5";
+    state.hoseSize = resolveVisibleHoseDefault("5", HOSE_OPTIONS);
 
     state.nozzleType = "smoothbore";
     state.masterStreamType = "automaticFog";
@@ -7133,7 +7563,7 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
   state.pdp = "";
   state.targetGpm = "";
   state.hoseLength = "";
-  state.hoseSize = "1.88";
+  state.hoseSize = resolveVisibleHoseDefault("1.88", HOSE_OPTIONS);
 
   state.nozzleType = "smoothbore";
 	  state.masterStreamType = "automaticFog";
@@ -7157,7 +7587,7 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
     state.pdp = "";
     state.targetGpm = "";
     state.hoseLength = "";
-    state.hoseSize = "1.88";
+    state.hoseSize = resolveVisibleHoseDefault("1.88", HOSE_OPTIONS);
     state.nozzleType = "smoothbore";
     state.masterStreamType = "automaticFog";
     state.masterStreamLoss = "25";
@@ -7198,12 +7628,19 @@ function resetCalculator() {
 
   state = {
     ...DEFAULT_STATE,
-    splitLay: {
-      ...DEFAULT_STATE.splitLay
-    },
-    standpipeOps: {
-      ...DEFAULT_STATE.standpipeOps
-    }
+    hoseSize: resolveVisibleHoseDefault(DEFAULT_STATE.hoseSize, HOSE_OPTIONS),
+    reverseSupplyHoseSize: resolveVisibleHoseDefault(
+      DEFAULT_STATE.reverseSupplyHoseSize,
+      getSupplyHoseOptions()
+    ),
+    smoothboreTip: DEFAULT_STATE.smoothboreTip
+      ? resolveVisibleSmoothboreTipDefault(
+          DEFAULT_STATE.smoothboreTip,
+          getHandlineSmoothboreTipOptions()
+        )
+      : "",
+    splitLay: getVisibleDefaultSplitLayState(),
+    standpipeOps: getVisibleDefaultStandpipeOpsState()
   };
 
   if (els.presetSelect) {
@@ -12690,30 +13127,32 @@ function isMasterStream() {
 // SPLIT LAY RESET
 // ========================================
 function clearSplitAttack2State() {
+  const visibleSplitDefaults = getVisibleDefaultSplitLayState();
+
   state.splitLay.attack2Length = "";
   state.splitLay.attack2Flow = "";
   state.splitLay.attack2RatedFlow = "";
   state.splitLay.attack2RatedPressure = "";
   state.splitLay.attack2SmoothboreTip = "";
   state.splitLay.attack2BladeModel =
-    DEFAULT_STATE.splitLay.attack2BladeModel;
+    visibleSplitDefaults.attack2BladeModel;
   state.splitLay.attack2NozzleType =
-    DEFAULT_STATE.splitLay.attack2NozzleType;
+    visibleSplitDefaults.attack2NozzleType;
   state.splitLay.attack2NozzlePressure =
-    DEFAULT_STATE.splitLay.attack2NozzlePressure;
+    visibleSplitDefaults.attack2NozzlePressure;
   state.splitLay.attack2HoseSize =
-    DEFAULT_STATE.splitLay.attack2HoseSize;
+    visibleSplitDefaults.attack2HoseSize;
 
   [
     ["splitAttack2Length", ""],
     ["splitAttack2Flow", ""],
     ["splitAttack2SmoothboreTip", ""],
-    ["splitAttack2BladeModel", DEFAULT_STATE.splitLay.attack2BladeModel],
-    ["splitAttack2NozzleType", DEFAULT_STATE.splitLay.attack2NozzleType],
-    ["splitAttack2NozzlePressure", DEFAULT_STATE.splitLay.attack2NozzlePressure],
+    ["splitAttack2BladeModel", visibleSplitDefaults.attack2BladeModel],
+    ["splitAttack2NozzleType", visibleSplitDefaults.attack2NozzleType],
+    ["splitAttack2NozzlePressure", visibleSplitDefaults.attack2NozzlePressure],
     ["splitAttack2RatedFlow", ""],
     ["splitAttack2RatedPressure", ""],
-    ["splitAttack2Hose", DEFAULT_STATE.splitLay.attack2HoseSize]
+    ["splitAttack2Hose", visibleSplitDefaults.attack2HoseSize]
   ].forEach(([id, value]) => {
     const element = document.getElementById(id);
     if (element) element.value = value;
@@ -12721,16 +13160,18 @@ function clearSplitAttack2State() {
   syncSplitNozzleUi("2");
 }
     function clearSplitSupply2State() {
+  const visibleSplitDefaults = getVisibleDefaultSplitLayState();
+
   state.splitLay.supply2Length = "";
   state.splitLay.supply2HoseSize =
-    DEFAULT_STATE.splitLay.supply2HoseSize;
+    visibleSplitDefaults.supply2HoseSize;
   state.splitLay.appliance2 =
-    DEFAULT_STATE.splitLay.appliance2;
+    visibleSplitDefaults.appliance2;
 
   [
     ["splitSupply2Length", ""],
-    ["splitSupply2Hose", DEFAULT_STATE.splitLay.supply2HoseSize],
-    ["splitAppliance2", DEFAULT_STATE.splitLay.appliance2]
+    ["splitSupply2Hose", visibleSplitDefaults.supply2HoseSize],
+    ["splitAppliance2", visibleSplitDefaults.appliance2]
   ].forEach(([id, value]) => {
     const element = document.getElementById(id);
     if (element) element.value = value;
@@ -12740,7 +13181,7 @@ function clearSplitAttack2State() {
   function resetReverseSupplyInputs() {
   state.reverseSupplyEnabled = false;
   state.reverseSupplyLength = "";
-  state.reverseSupplyHoseSize = "3";
+  state.reverseSupplyHoseSize = resolveVisibleHoseDefault("3", getSupplyHoseOptions());
   state.reverseSupplyAppliance = "gateValve";
 
   if (els.reverseSupplyLength) {
@@ -12748,7 +13189,7 @@ function clearSplitAttack2State() {
   }
 
   if (els.reverseSupplyHose) {
-    els.reverseSupplyHose.value = "3";
+    els.reverseSupplyHose.value = state.reverseSupplyHoseSize;
   }
 
   if (els.reverseSupplyAppliance) {
@@ -12760,37 +13201,35 @@ function clearSplitAttack2State() {
 
 function resetSplitLayInputs() {
 
-  state.splitLay = {
-    ...DEFAULT_STATE.splitLay
-  };
+  state.splitLay = getVisibleDefaultSplitLayState();
 
   [
     ["splitSupplyLength", ""],
-    ["splitSupplyHose", DEFAULT_STATE.splitLay.supplyHoseSize],
+    ["splitSupplyHose", state.splitLay.supplyHoseSize],
     ["splitAppliance1", DEFAULT_STATE.splitLay.appliance1],
 
     ["splitSupply2Length", ""],
-    ["splitSupply2Hose", DEFAULT_STATE.splitLay.supply2HoseSize],
+    ["splitSupply2Hose", state.splitLay.supply2HoseSize],
     ["splitAppliance2", DEFAULT_STATE.splitLay.appliance2],
 
     ["splitAttack1Length", ""],
-    ["splitAttack1Hose", DEFAULT_STATE.splitLay.attack1HoseSize],
+    ["splitAttack1Hose", state.splitLay.attack1HoseSize],
     ["splitAttack1NozzleType", DEFAULT_STATE.splitLay.attack1NozzleType],
     ["splitAttack1NozzlePressure", DEFAULT_STATE.splitLay.attack1NozzlePressure],
     ["splitAttack1Flow", ""],
     ["splitAttack1RatedFlow", ""],
     ["splitAttack1RatedPressure", ""],
-    ["splitAttack1SmoothboreTip", DEFAULT_STATE.splitLay.attack1SmoothboreTip],
+    ["splitAttack1SmoothboreTip", state.splitLay.attack1SmoothboreTip],
     ["splitAttack1BladeModel", DEFAULT_STATE.splitLay.attack1BladeModel],
 
     ["splitAttack2Length", ""],
-    ["splitAttack2Hose", DEFAULT_STATE.splitLay.attack2HoseSize],
+    ["splitAttack2Hose", state.splitLay.attack2HoseSize],
     ["splitAttack2NozzleType", DEFAULT_STATE.splitLay.attack2NozzleType],
     ["splitAttack2NozzlePressure", DEFAULT_STATE.splitLay.attack2NozzlePressure],
     ["splitAttack2Flow", ""],
     ["splitAttack2RatedFlow", ""],
     ["splitAttack2RatedPressure", ""],
-    ["splitAttack2SmoothboreTip", DEFAULT_STATE.splitLay.attack2SmoothboreTip],
+    ["splitAttack2SmoothboreTip", state.splitLay.attack2SmoothboreTip],
     ["splitAttack2BladeModel", DEFAULT_STATE.splitLay.attack2BladeModel]
   ].forEach(([id, value]) => {
 

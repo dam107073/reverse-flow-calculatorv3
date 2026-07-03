@@ -332,17 +332,17 @@
             </div>
           </details>
 
-          <details class="settings-tool-card collapsible-settings-card" data-tools-section="defaults" data-tools-title="Defaults" data-tools-path="Tools / Defaults">
+          <details class="settings-tool-card collapsible-settings-card" data-tools-section="equipment-defaults" data-tools-title="Equipment Defaults" data-tools-path="Tools / Equipment Defaults">
             <summary>
               <span>
-                <strong>Defaults</strong>
+                <strong>Equipment Defaults</strong>
                 <span class="helper">
-                  Default hose selections and calculation coefficients.
+                  Configure the default equipment and calculation values used throughout Reverse Flow.
                 </span>
               </span>
             </summary>
             <div class="collapsible-card-body">
-              <details class="tool-subsection collapsible-settings-card default-hose-selections-panel" data-tools-section="default-hose-selections" data-tools-title="Default Hose Selections" data-tools-path="Tools / Defaults / Default Hose Selections">
+              <details class="tool-subsection collapsible-settings-card default-hose-selections-panel" data-tools-section="default-hose-selections" data-tools-title="Default Hose Selections" data-tools-path="Tools / Equipment Defaults / Default Hose Selections">
                 <summary>
                   <span>
                     <strong>Default Hose Selections</strong>
@@ -356,12 +356,12 @@
                 </div>
               </details>
 
-              <details class="tool-subsection collapsible-settings-card default-hose-coefficients-panel" data-tools-section="default-hose-coefficients" data-tools-title="Default Hose Coefficients" data-tools-path="Tools / Defaults / Default Hose Coefficients">
+              <details class="tool-subsection collapsible-settings-card default-hose-coefficients-panel" data-tools-section="default-hose-coefficients" data-tools-title="Default Hose Coefficients" data-tools-path="Tools / Equipment Defaults / Default Hose Coefficients">
                 <summary>
                   <span>
                     <strong>Default Hose Coefficients</strong>
                     <span class="helper">
-                      Calculation coefficients currently used by the calculator. These remain separate from manufacturer hose references.
+                      Set the default friction loss coefficient for each hose size.
                     </span>
                   </span>
                 </summary>
@@ -370,6 +370,46 @@
                   <button id="resetHoseCoefficientsButton" class="reset-button" type="button">
                     Reset All Coefficients to App Defaults
                   </button>
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="settings-tool-card collapsible-settings-card" data-tools-section="equipment-visibility" data-tools-title="Equipment Visibility" data-tools-path="Tools / Equipment Visibility">
+            <summary>
+              <span>
+                <strong>Equipment Visibility</strong>
+                <span class="helper">
+                  Customize which equipment appears in selection lists throughout Reverse Flow.
+                </span>
+              </span>
+            </summary>
+            <div class="collapsible-card-body">
+              <details class="tool-subsection collapsible-settings-card default-hose-selections-panel" data-tools-section="visible-hose-sizes" data-tools-title="Hose Sizes" data-tools-path="Tools / Equipment Visibility / Hose Sizes">
+                <summary>
+                  <span>
+                    <strong>Hose Sizes</strong>
+                    <span class="helper">
+                      Choose which hose sizes appear throughout Reverse Flow.
+                    </span>
+                  </span>
+                </summary>
+                <div class="collapsible-card-body">
+                  <div id="visibleHoseSizesList" class="equipment-visibility-list default-hose-selections-list"></div>
+                </div>
+              </details>
+
+              <details class="tool-subsection collapsible-settings-card default-hose-selections-panel" data-tools-section="visible-smoothbore-tips" data-tools-title="Smoothbore Tips" data-tools-path="Tools / Equipment Visibility / Smoothbore Tips">
+                <summary>
+                  <span>
+                    <strong>Smoothbore Tips</strong>
+                    <span class="helper">
+                      Choose which smoothbore tips appear throughout Reverse Flow.
+                    </span>
+                  </span>
+                </summary>
+                <div class="collapsible-card-body">
+                  <div id="visibleSmoothboreTipsList" class="equipment-visibility-list default-hose-selections-list"></div>
                 </div>
               </details>
             </div>
@@ -445,7 +485,7 @@
   <script src="js/constants.js?v=build-6"></script>
   <script src="js/services/entitlement.js?v=build-2"></script>
   <script src="js/data/hydraulics.js?v=build-8"></script>
-  <script src="js/app.js?v=pro-beta-1"></script>
+  <script src="js/app.js?v=pro-beta-2"></script>
   <script src="js/tools-calculators.js?v=build-9"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>

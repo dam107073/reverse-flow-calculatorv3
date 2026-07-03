@@ -26,6 +26,10 @@ const HOSE_LIBRARY_SELECTIONS_KEY =
   "reverse-flow-hose-library-selections-v1";
 const DEFAULT_HOSE_PROFILES_KEY = "reverseFlowDefaultHoseProfiles";
 const CUSTOM_HOSE_PROFILES_KEY = "reverseFlowCustomHoseProfiles";
+const VISIBLE_HOSE_SIZES_KEY = "visibleHoseSizes";
+const VISIBLE_SMOOTHBORE_TIPS_KEY = "visibleSmoothboreTips";
+const VISIBLE_SMOOTHBORE_TIPS_MIGRATION_KEY =
+  "visibleSmoothboreTipsMigrationVersion";
 const PRO_ENTITLEMENT_STORAGE_KEY =
   "reverse-flow-pro-entitlement-v1";
 

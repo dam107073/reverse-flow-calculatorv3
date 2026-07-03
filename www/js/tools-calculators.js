@@ -243,7 +243,10 @@
   }
 
   function createSmoothboreTipSelect(id) {
-    const tipOptions = getSmoothboreTipOptions()
+    const tips = typeof getVisibleSmoothboreTipOptions === "function"
+      ? getVisibleSmoothboreTipOptions(getSmoothboreTipOptions())
+      : getSmoothboreTipOptions();
+    const tipOptions = tips
       .map(tip => `<option value="${escapeHtml(tip.id)}" data-diameter="${escapeHtml(tip.diameter)}">${escapeHtml(tip.label)}</option>`)
       .join("");
 
@@ -269,9 +272,13 @@
   }
 
   function createHoseSelect(id, options, fallbackId) {
+    const visibleOptions = typeof getVisibleHoseOptions === "function"
+      ? getVisibleHoseOptions(options, fallbackId)
+      : options;
+
     return `
       <select id="${escapeHtml(id)}">
-        ${options.map(hose => `
+        ${visibleOptions.map(hose => `
           <option value="${escapeHtml(hose.id)}"${hose.id === fallbackId ? " selected" : ""}>${escapeHtml(hose.label)}</option>
         `).join("")}
       </select>
@@ -279,7 +286,10 @@
   }
 
   function getFrictionLossChartHoseOptions() {
-    return getHoseOptions().filter(hose => getHoseCoefficientValue(hose) > 0);
+    const hoseOptions = getHoseOptions().filter(hose => getHoseCoefficientValue(hose) > 0);
+    return typeof getVisibleHoseOptions === "function"
+      ? getVisibleHoseOptions(hoseOptions)
+      : hoseOptions;
   }
 
   function createPressureSelect(id, values, selectedValue) {
@@ -1652,7 +1662,10 @@
   }
 
   function renderCoefficientCalculator() {
-    const hoseOptions = getHoseOptions()
+    const coefficientHoseOptions = typeof getVisibleHoseOptions === "function"
+      ? getVisibleHoseOptions(getHoseOptions())
+      : getHoseOptions();
+    const hoseOptions = coefficientHoseOptions
       .map(hose => `<option value="${escapeHtml(hose.id)}">${escapeHtml(hose.label)}</option>`)
       .join("");
 
@@ -1719,8 +1732,10 @@
   }
 
   function renderWaterVelocity() {
-    const hoseOptions = getHoseOptions()
-      .filter(hose => Number(hose.id) > 0)
+    const waterVelocityHoseOptions = typeof getVisibleHoseOptions === "function"
+      ? getVisibleHoseOptions(getHoseOptions().filter(hose => Number(hose.id) > 0), "2.5")
+      : getHoseOptions().filter(hose => Number(hose.id) > 0);
+    const hoseOptions = waterVelocityHoseOptions
       .map(hose => `<option value="${escapeHtml(hose.id)}"${hose.id === "2.5" ? " selected" : ""}>${escapeHtml(hose.label)}</option>`)
       .join("");
 

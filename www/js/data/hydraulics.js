@@ -210,6 +210,9 @@ function isModifiedHoseCoefficient(hoseId) {
 
     const SMOOTHBORE_TIPS = [
       { id: '3/4', label: '3/4"', diameter: 0.75 },
+      { id: '49/64', label: '49/64"', diameter: 0.765625 },
+      { id: '13/16', label: '13/16"', diameter: 0.8125 },
+      { id: '53/64', label: '53/64"', diameter: 0.828125 },
       { id: '7/8', label: '7/8"', diameter: 0.875 },
       { id: '15/16', label: '15/16"', diameter: 0.9375 },
       { id: '1', label: '1"', diameter: 1 },
@@ -226,3 +229,134 @@ function isModifiedHoseCoefficient(hoseId) {
       { id: '2-3/4', label: '2 3/4"', diameter: 2.75 },
       { id: '3', label: '3"', diameter: 3 },
           ];
+
+const HANDLINE_SMOOTHBORE_TIP_VISIBILITY_MIGRATION_VERSION =
+  "handline-tips-2026-07-03";
+const HANDLINE_SMOOTHBORE_TIP_VISIBILITY_MIGRATION_IDS =
+  ["49/64", "13/16", "53/64"];
+
+function getSupportedHoseEquipmentOptions() {
+  const optionsById = new Map();
+
+  [...HOSE_OPTIONS, ...RELAY_HOSE_OPTIONS].forEach(hose => {
+    if (hose?.id && !optionsById.has(hose.id)) {
+      optionsById.set(hose.id, hose);
+    }
+  });
+
+  return [...optionsById.values()];
+}
+
+function getStoredVisibleEquipmentIds(storageKey, supportedOptions) {
+  const supportedIds = supportedOptions.map(option => String(option.id));
+
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (!saved) return supportedIds;
+
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return supportedIds;
+
+    const supportedIdSet = new Set(supportedIds);
+    return parsed
+      .map(id => String(id))
+      .filter(id => supportedIdSet.has(id));
+  } catch {
+    return supportedIds;
+  }
+}
+
+function saveVisibleEquipmentIds(storageKey, ids) {
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify([...new Set(ids.map(id => String(id)))])
+  );
+}
+
+function loadVisibleHoseSizeIds() {
+  return getStoredVisibleEquipmentIds(
+    VISIBLE_HOSE_SIZES_KEY,
+    getSupportedHoseEquipmentOptions()
+  );
+}
+
+function saveVisibleHoseSizeIds(ids) {
+  saveVisibleEquipmentIds(VISIBLE_HOSE_SIZES_KEY, ids);
+}
+
+function loadVisibleSmoothboreTipIds() {
+  migrateVisibleSmoothboreTips();
+
+  return getStoredVisibleEquipmentIds(
+    VISIBLE_SMOOTHBORE_TIPS_KEY,
+    SMOOTHBORE_TIPS
+  );
+}
+
+function saveVisibleSmoothboreTipIds(ids) {
+  saveVisibleEquipmentIds(VISIBLE_SMOOTHBORE_TIPS_KEY, ids);
+}
+
+function migrateVisibleSmoothboreTips() {
+  try {
+    if (
+      localStorage.getItem(VISIBLE_SMOOTHBORE_TIPS_MIGRATION_KEY) ===
+      HANDLINE_SMOOTHBORE_TIP_VISIBILITY_MIGRATION_VERSION
+    ) {
+      return;
+    }
+
+    const saved = localStorage.getItem(VISIBLE_SMOOTHBORE_TIPS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        saveVisibleEquipmentIds(
+          VISIBLE_SMOOTHBORE_TIPS_KEY,
+          [
+            ...parsed.map(id => String(id)),
+            ...HANDLINE_SMOOTHBORE_TIP_VISIBILITY_MIGRATION_IDS
+          ]
+        );
+      }
+    }
+
+    localStorage.setItem(
+      VISIBLE_SMOOTHBORE_TIPS_MIGRATION_KEY,
+      HANDLINE_SMOOTHBORE_TIP_VISIBILITY_MIGRATION_VERSION
+    );
+  } catch {
+    return;
+  }
+}
+
+function applyVisibleEquipmentFilter(options, visibleIds, selectedId = "") {
+  const selectedValue = String(selectedId || "");
+  const visibleIdSet = new Set(visibleIds.map(id => String(id)));
+  const filtered = options.filter(option => visibleIdSet.has(String(option.id)));
+
+  if (
+    selectedValue &&
+    !filtered.some(option => String(option.id) === selectedValue)
+  ) {
+    const selectedOption = options.find(option => String(option.id) === selectedValue);
+    if (selectedOption) filtered.push(selectedOption);
+  }
+
+  return filtered;
+}
+
+function getVisibleHoseOptions(options = getSupportedHoseEquipmentOptions(), selectedId = "") {
+  return applyVisibleEquipmentFilter(
+    options,
+    loadVisibleHoseSizeIds(),
+    selectedId
+  );
+}
+
+function getVisibleSmoothboreTipOptions(options = SMOOTHBORE_TIPS, selectedId = "") {
+  return applyVisibleEquipmentFilter(
+    options,
+    loadVisibleSmoothboreTipIds(),
+    selectedId
+  );
+}
