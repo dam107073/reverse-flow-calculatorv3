@@ -30,6 +30,7 @@ const VISIBLE_HOSE_SIZES_KEY = "visibleHoseSizes";
 const VISIBLE_SMOOTHBORE_TIPS_KEY = "visibleSmoothboreTips";
 const VISIBLE_SMOOTHBORE_TIPS_MIGRATION_KEY =
   "visibleSmoothboreTipsMigrationVersion";
+const APPEARANCE_PREFERENCE_KEY = "reverse-flow-appearance-preference";
 const PRO_ENTITLEMENT_STORAGE_KEY =
   "reverse-flow-pro-entitlement-v1";
 

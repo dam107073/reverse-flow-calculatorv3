@@ -13,17 +13,16 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
   <link rel="manifest" href="manifest.json?v=6" />
+  <script src="js/appearance.js?v=build-1"></script>
   <style>
     html {
       min-height: 100%;
       background: #e7edf3;
       color: #111827;
     }
-    @media (prefers-color-scheme: dark) {
-      html {
-        background: #020617;
-        color: #f8fafc;
-      }
+    html[data-resolved-theme="dark"] {
+      background: #020617;
+      color: #f8fafc;
     }
     body {
       min-height: 100vh;
@@ -34,11 +33,11 @@
 
   <title>Settings | Reverse Flow</title>
 
-  <link rel="stylesheet" href="css/base.css?v=build-7" />
-  <link rel="stylesheet" href="css/components.css?v=flash-4" />
+  <link rel="stylesheet" href="css/base.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/components.css?v=appearance-1" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=build-15" />
-  <link rel="stylesheet" href="css/responsive.css?v=build-12" />
+  <link rel="stylesheet" href="css/support.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/responsive.css?v=appearance-1" />
 </head>
 
 <body>
@@ -161,19 +160,30 @@
           </div>
         </details>
 
-        <details class="settings-tool-card collapsible-settings-card muted-card">
+        <details class="settings-tool-card collapsible-settings-card">
           <summary>
             <span>
               <strong>Appearance</strong>
               <span class="helper">
-                Future app appearance preferences.
+                Choose how Reverse Flow displays light and dark mode.
               </span>
             </span>
           </summary>
           <div class="collapsible-card-body">
-            <p class="helper">
-              Appearance preferences will live here.
-            </p>
+            <div class="appearance-options" id="appearancePreferenceOptions" role="radiogroup" aria-label="Appearance">
+              <label class="appearance-option">
+                <input type="radio" name="appearancePreference" value="system" />
+                <span>System</span>
+              </label>
+              <label class="appearance-option">
+                <input type="radio" name="appearancePreference" value="light" />
+                <span>Light</span>
+              </label>
+              <label class="appearance-option">
+                <input type="radio" name="appearancePreference" value="dark" />
+                <span>Dark</span>
+              </label>
+            </div>
           </div>
         </details>
 
@@ -205,7 +215,7 @@
   <script src="js/constants.js?v=build-6"></script>
   <script src="js/services/entitlement.js?v=build-2"></script>
   <script src="js/data/hydraulics.js?v=build-8"></script>
-  <script src="js/app.js?v=pro-beta-2"></script>
+  <script src="js/app.js?v=pro-beta-3"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>
 </html>

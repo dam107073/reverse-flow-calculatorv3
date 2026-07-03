@@ -15,17 +15,16 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
   <link rel="manifest" href="manifest.json?v=6" />
+  <script src="js/appearance.js?v=build-1"></script>
   <style>
     html {
       min-height: 100%;
       background: #e7edf3;
       color: #111827;
     }
-    @media (prefers-color-scheme: dark) {
-      html {
-        background: #020617;
-        color: #f8fafc;
-      }
+    html[data-resolved-theme="dark"] {
+      background: #020617;
+      color: #f8fafc;
     }
     body {
       min-height: 100vh;
@@ -39,11 +38,11 @@
   <!-- ========================================
        STYLES
   ========================================= -->
-  <link rel="stylesheet" href="css/base.css?v=build-7" />
-  <link rel="stylesheet" href="css/components.css?v=standpipe-3" />
+  <link rel="stylesheet" href="css/base.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/components.css?v=appearance-1" />
   <link rel="stylesheet" href="css/calculators.css?v=standpipe-1" />
-  <link rel="stylesheet" href="css/support.css?v=build-15" />
-  <link rel="stylesheet" href="css/responsive.css?v=standpipe-3" />
+  <link rel="stylesheet" href="css/support.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/responsive.css?v=appearance-1" />
 </head>
   
   <body>
@@ -1613,7 +1612,7 @@ Select a hydraulic calculation mode.
   <script src="js/constants.js?v=build-6"></script>
   <script src="js/services/entitlement.js?v=build-2"></script>
   <script src="js/data/hydraulics.js?v=build-8"></script>
-  <script src="js/app.js?v=pro-beta-2"></script>
+  <script src="js/app.js?v=pro-beta-3"></script>
 
   <script type="module" src="js/analytics.js"></script>
 

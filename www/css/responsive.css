@@ -1,6 +1,6 @@
     /* ---------- Dark Mode ---------- */
-    @media (prefers-color-scheme: dark) {
-      :root {
+
+      :root[data-resolved-theme="dark"] {
         --card: #0f172a;
         --surface: #111827;
         --surface-strong: #1e293b;
@@ -19,24 +19,24 @@
         --button-muted: #111827;
       }
 
-      .badge {
+      html[data-resolved-theme="dark"] .badge {
         background: #f8fafc;
         color: #020617;
       }
 
-      body {
+      html[data-resolved-theme="dark"] body {
         background:
           radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.1), transparent 30%),
           linear-gradient(135deg, #020617 0%, #0b1220 55%, #020617 100%);
       }
 
-      body::before {
+      html[data-resolved-theme="dark"] body::before {
         background-image:
           linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
           linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
       }
 
-      .card {
+      html[data-resolved-theme="dark"] .card {
         background:
           linear-gradient(180deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92)),
           var(--card);
@@ -45,35 +45,35 @@
           0 14px 34px rgba(0, 0, 0, 0.28);
       }
 
-      .form-grid,
-      .section-card,
-      .settings-tool-card,
-      .tool-subsection,
-      .pump-chart-card,
-      .split-result-section {
+      html[data-resolved-theme="dark"] .form-grid,
+      html[data-resolved-theme="dark"] .section-card,
+      html[data-resolved-theme="dark"] .settings-tool-card,
+      html[data-resolved-theme="dark"] .tool-subsection,
+      html[data-resolved-theme="dark"] .pump-chart-card,
+      html[data-resolved-theme="dark"] .split-result-section {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.94), rgba(15,23,42,0.88));
       }
 
-      .muted-card {
+      html[data-resolved-theme="dark"] .muted-card {
         background: var(--surface);
       }
 
-      .hose-library-card {
+      html[data-resolved-theme="dark"] .hose-library-card {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.92), rgba(15,23,42,0.82));
       }
 
-      .hose-library-details span {
+      html[data-resolved-theme="dark"] .hose-library-details span {
         background: rgba(255,255,255,0.06);
         color: #cbd5e1;
       }
 
-      .reference-details span {
+      html[data-resolved-theme="dark"] .reference-details span {
         background: transparent;
       }
 
-      .reference-website-card {
+      html[data-resolved-theme="dark"] .reference-website-card {
         border-color: rgba(251, 146, 60, 0.36);
         background:
           linear-gradient(180deg, rgba(17,24,39,0.96), rgba(15,23,42,0.9)),
@@ -83,11 +83,11 @@
           0 8px 18px rgba(0, 0, 0, 0.22);
       }
 
-      .reference-nav-card,
-      .reference-empty-card,
-      .reference-category-card,
-      .reference-hose-data-card,
-      .reference-equipment-category-card {
+      html[data-resolved-theme="dark"] .reference-nav-card,
+      html[data-resolved-theme="dark"] .reference-empty-card,
+      html[data-resolved-theme="dark"] .reference-category-card,
+      html[data-resolved-theme="dark"] .reference-hose-data-card,
+      html[data-resolved-theme="dark"] .reference-equipment-category-card {
         border-color: rgba(51, 65, 85, 0.9);
         background:
           linear-gradient(180deg, rgba(17,24,39,0.94), rgba(15,23,42,0.86));
@@ -96,46 +96,46 @@
           0 4px 14px rgba(0, 0, 0, 0.18);
       }
 
-      .reference-hose-data-row {
+      html[data-resolved-theme="dark"] .reference-hose-data-row {
         border-color: rgba(148, 163, 184, 0.26);
         background: rgba(255,255,255,0.06);
       }
 
-      .reference-equipment-table-wrap,
-      .reference-equipment-notes {
+      html[data-resolved-theme="dark"] .reference-equipment-table-wrap,
+      html[data-resolved-theme="dark"] .reference-equipment-notes {
         border-color: rgba(148, 163, 184, 0.26);
         background: rgba(255,255,255,0.06);
       }
 
-      .reference-hose-data-row small {
+      html[data-resolved-theme="dark"] .reference-hose-data-row small {
         color: #cbd5e1;
       }
 
-      .reference-equipment-table th,
-      .reference-equipment-table td::before,
-      .reference-equipment-notes ul {
+      html[data-resolved-theme="dark"] .reference-equipment-table th,
+      html[data-resolved-theme="dark"] .reference-equipment-table td::before,
+      html[data-resolved-theme="dark"] .reference-equipment-notes ul {
         color: #cbd5e1;
       }
 
-      .reference-hose-data-row strong,
-      .reference-equipment-table td,
-      .reference-equipment-notes strong {
+      html[data-resolved-theme="dark"] .reference-hose-data-row strong,
+      html[data-resolved-theme="dark"] .reference-equipment-table td,
+      html[data-resolved-theme="dark"] .reference-equipment-notes strong {
         color: #f8fafc;
       }
 
-      .field-calculator-note {
+      html[data-resolved-theme="dark"] .field-calculator-note {
         background: rgba(255,255,255,0.06);
         border-color: rgba(148, 163, 184, 0.26);
       }
 
-      .wye-system-layout,
-      .field-calculator-section,
-      .field-calculator-summary-card {
+      html[data-resolved-theme="dark"] .wye-system-layout,
+      html[data-resolved-theme="dark"] .field-calculator-section,
+      html[data-resolved-theme="dark"] .field-calculator-summary-card {
         background: rgba(255,255,255,0.06);
         border-color: rgba(148, 163, 184, 0.26);
       }
 
-      .field-calculator-results {
+      html[data-resolved-theme="dark"] .field-calculator-results {
         border-color: rgba(251, 146, 60, 0.36);
         background:
           linear-gradient(180deg, rgba(17,24,39,0.96), rgba(15,23,42,0.86)),
@@ -145,7 +145,7 @@
           0 4px 14px rgba(0, 0, 0, 0.18);
       }
 
-      .reference-partner-logo {
+      html[data-resolved-theme="dark"] .reference-partner-logo {
         border-color: rgba(251, 146, 60, 0.3);
         background:
           linear-gradient(180deg, rgba(23,32,51,0.96), rgba(17,24,39,0.92));
@@ -153,33 +153,33 @@
         -webkit-text-fill-color: #fed7aa;
       }
 
-      .reference-specialty-tags span {
+      html[data-resolved-theme="dark"] .reference-specialty-tags span {
         border-color: rgba(148, 163, 184, 0.26);
         background: rgba(255,255,255,0.06);
         color: #cbd5e1;
         -webkit-text-fill-color: #cbd5e1;
       }
 
-      .reference-topic-tags span {
+      html[data-resolved-theme="dark"] .reference-topic-tags span {
         border-color: rgba(148, 163, 184, 0.26);
         background: rgba(255,255,255,0.06);
         color: #cbd5e1;
         -webkit-text-fill-color: #cbd5e1;
       }
 
-      .reference-open-button {
+      html[data-resolved-theme="dark"] .reference-open-button {
         color: #fed7aa;
         -webkit-text-fill-color: #fed7aa;
       }
 
-      .reference-website-card .reference-open-button {
+      html[data-resolved-theme="dark"] .reference-website-card .reference-open-button {
         background: #f8fafc;
         border-color: #f8fafc;
         color: #020617;
         -webkit-text-fill-color: #020617;
       }
 
-      .update-loaded-setup-button {
+      html[data-resolved-theme="dark"] .update-loaded-setup-button {
         background:
           linear-gradient(180deg, rgba(23,32,51,0.96), rgba(17,24,39,0.92)),
           linear-gradient(90deg, rgba(251,146,60,0.12), transparent 52%);
@@ -188,51 +188,51 @@
         -webkit-text-fill-color: #fed7aa;
       }
 
-      .pump-chart-overflow summary,
-      .pump-chart-overflow-menu {
+      html[data-resolved-theme="dark"] .pump-chart-overflow summary,
+      html[data-resolved-theme="dark"] .pump-chart-overflow-menu {
         background: #111827;
         border-color: rgba(148, 163, 184, 0.28);
       }
 
-      .pump-chart-overflow summary {
+      html[data-resolved-theme="dark"] .pump-chart-overflow summary {
         color: #cbd5e1;
         -webkit-text-fill-color: #cbd5e1;
       }
 
-      .pump-chart-overflow[open] summary {
+      html[data-resolved-theme="dark"] .pump-chart-overflow[open] summary {
         color: #fed7aa;
         -webkit-text-fill-color: #fed7aa;
       }
 
-      .pump-chart-menu-action {
+      html[data-resolved-theme="dark"] .pump-chart-menu-action {
         color: #f8fafc;
         -webkit-text-fill-color: #f8fafc;
       }
 
-      .pump-chart-menu-action:hover,
-      .pump-chart-menu-action:focus-visible {
+      html[data-resolved-theme="dark"] .pump-chart-menu-action:hover,
+      html[data-resolved-theme="dark"] .pump-chart-menu-action:focus-visible {
         background: rgba(251, 146, 60, 0.14);
       }
 
-      .pump-chart-menu-action.danger-button {
+      html[data-resolved-theme="dark"] .pump-chart-menu-action.danger-button {
         color: #fed7aa !important;
         -webkit-text-fill-color: #fed7aa !important;
       }
 
-      .hose-library-details a {
+      html[data-resolved-theme="dark"] .hose-library-details a {
         color: #fed7aa;
       }
 
-      .web-pro-banner {
+      html[data-resolved-theme="dark"] .web-pro-banner {
         background: rgba(69, 26, 3, 0.62);
         border-color: rgba(251, 146, 60, 0.34);
         color: #fed7aa;
       }
 
-      label { color: #cbd5e1; }
+      html[data-resolved-theme="dark"] label { color: #cbd5e1; }
 
-      input,
-      select {
+      html[data-resolved-theme="dark"] input,
+      html[data-resolved-theme="dark"] select {
         background:
           linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.07), transparent 44%);
@@ -244,8 +244,8 @@
           0 2px 8px rgba(0, 0, 0, 0.18);
       }
 
-      input:focus,
-      select:focus {
+      html[data-resolved-theme="dark"] input:focus,
+      html[data-resolved-theme="dark"] select:focus {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.12), transparent 48%);
@@ -257,16 +257,16 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      input::placeholder { color: #64748b; }
+      html[data-resolved-theme="dark"] input::placeholder { color: #64748b; }
 
-      button {
+      html[data-resolved-theme="dark"] button {
         border-color: rgba(148, 163, 184, 0.26);
         background:
           linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
         color: #f8fafc;
       }
 
-      #restorePurchaseButton {
+      html[data-resolved-theme="dark"] #restorePurchaseButton {
         background:
           linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
         border-color: rgba(148, 163, 184, 0.34);
@@ -277,14 +277,14 @@
           0 2px 8px rgba(0,0,0,0.18);
       }
 
-      #restorePurchaseButton:disabled {
+      html[data-resolved-theme="dark"] #restorePurchaseButton:disabled {
         background: #1e293b;
         border-color: rgba(148, 163, 184, 0.18);
         color: #94a3b8 !important;
         -webkit-text-fill-color: #94a3b8 !important;
       }
 
-      .toggle-button {
+      html[data-resolved-theme="dark"] .toggle-button {
         background:
           linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
         border-color: rgba(148, 163, 184, 0.28);
@@ -294,7 +294,7 @@
           0 2px 8px rgba(0,0,0,0.18);
       }
 
-      .toggle-button.active {
+      html[data-resolved-theme="dark"] .toggle-button.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -307,7 +307,7 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      .pressure-buttons button {
+      html[data-resolved-theme="dark"] .pressure-buttons button {
         background:
           linear-gradient(180deg, #172033, #111827);
         border-color: rgba(148, 163, 184, 0.28);
@@ -318,7 +318,7 @@
           0 2px 8px rgba(0,0,0,0.18);
       }
 
-      .pressure-buttons button.active {
+      html[data-resolved-theme="dark"] .pressure-buttons button.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -332,7 +332,7 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      .mode-carousel button {
+      html[data-resolved-theme="dark"] .mode-carousel button {
         background:
           linear-gradient(180deg, #172033, #111827);
         border-color: rgba(148, 163, 184, 0.28);
@@ -343,7 +343,7 @@
           0 2px 8px rgba(0,0,0,0.18);
       }
 
-      .mode-carousel button.active {
+      html[data-resolved-theme="dark"] .mode-carousel button.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -357,7 +357,7 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      button.active {
+      html[data-resolved-theme="dark"] button.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -370,11 +370,11 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      #splitSectionButtons button.active,
-      #splitAttackLineButtons button.active,
-      #pumpChartButtons button.active,
-      #pumpChartButtons .nav-button-link.active,
-      body.pro-user .mode-card-pro.active {
+      html[data-resolved-theme="dark"] #splitSectionButtons button.active,
+      html[data-resolved-theme="dark"] #splitAttackLineButtons button.active,
+      html[data-resolved-theme="dark"] #pumpChartButtons button.active,
+      html[data-resolved-theme="dark"] #pumpChartButtons .nav-button-link.active,
+      html[data-resolved-theme="dark"] body.pro-user .mode-card-pro.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -387,7 +387,7 @@
           0 8px 18px rgba(0, 0, 0, 0.26);
       }
 
-      .mode-carousel button.mode-card-pro.active {
+      html[data-resolved-theme="dark"] .mode-carousel button.mode-card-pro.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -401,62 +401,62 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      button:disabled {
+      html[data-resolved-theme="dark"] button:disabled {
         background: #1e293b;
         color: #64748b;
       }
 
-      #pumpChartButtons {
+      html[data-resolved-theme="dark"] #pumpChartButtons {
         border-color: rgba(148, 163, 184, 0.34);
         background: #1e293b;
       }
 
-      #pumpChartButtons button,
-      #pumpChartButtons .nav-button-link {
+      html[data-resolved-theme="dark"] #pumpChartButtons button,
+      html[data-resolved-theme="dark"] #pumpChartButtons .nav-button-link {
         color: #f8fafc;
         -webkit-text-fill-color: #f8fafc;
       }
 
-      #pumpChartButtons .nav-button-link {
+      html[data-resolved-theme="dark"] #pumpChartButtons .nav-button-link {
         background:
           linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
       }
 
-      .mode-card-pro::after {
+      html[data-resolved-theme="dark"] .mode-card-pro::after {
         background: #f8fafc;
         color: #020617 !important;
         -webkit-text-fill-color: #020617 !important;
       }
 
-      body.pro-user #toolsProLockedMessage {
+      html[data-resolved-theme="dark"] body.pro-user #toolsProLockedMessage {
         display: none !important;
       }
 
-      body.pro-user #toolsProContent {
+      html[data-resolved-theme="dark"] body.pro-user #toolsProContent {
         display: grid !important;
       }
 
-      .toggle-row,
-      .disabled-note,
-      .calculated-pressure-card {
+      html[data-resolved-theme="dark"] .toggle-row,
+      html[data-resolved-theme="dark"] .disabled-note,
+      html[data-resolved-theme="dark"] .calculated-pressure-card {
         background: #020617;
         border-color: #334155;
       }
 
-      .detail {
+      html[data-resolved-theme="dark"] .detail {
         background:
           linear-gradient(180deg, rgba(15,23,42,0.98), rgba(17,24,39,0.9));
       }
 
-      .split-result-section {
+      html[data-resolved-theme="dark"] .split-result-section {
         background: #0f172a;
       }
 
-      .result-details {
+      html[data-resolved-theme="dark"] .result-details {
         background: #020617;
       }
 
-      #pumpChartModal .pro-modal-content {
+      html[data-resolved-theme="dark"] #pumpChartModal .pro-modal-content {
         background:
           linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.96)),
           #0f172a;
@@ -468,7 +468,7 @@
           0 0 28px rgba(251, 146, 60, 0.12);
       }
 
-      #pumpChartModal .pump-chart-card {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.96), rgba(15,23,42,0.92));
         border-color: rgba(148, 163, 184, 0.26);
@@ -479,35 +479,35 @@
           0 8px 20px rgba(0,0,0,0.24);
       }
 
-      #pumpChartModal .pump-chart-card-header,
-      #pumpChartModal .pump-chart-card-actions {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card-header,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card-actions {
         border-color: rgba(148, 163, 184, 0.18);
       }
 
-      #pumpChartModal .pump-chart-card div,
-      #pumpChartModal .pump-chart-card strong {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card div,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card strong {
         color: #f8fafc !important;
         -webkit-text-fill-color: #f8fafc !important;
       }
 
-      #pumpChartModal .pump-chart-card-title,
-      #pumpChartModal .pump-chart-card-result {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card-title,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card-result {
         color: #f8fafc !important;
         -webkit-text-fill-color: #f8fafc !important;
       }
 
-      #pumpChartModal .pump-chart-card-summary {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card-summary {
         color: #cbd5e1 !important;
         -webkit-text-fill-color: #cbd5e1 !important;
       }
 
-      #pumpChartModal .pump-chart-card .pump-chart-card-badge {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-card .pump-chart-card-badge {
         background: #f8fafc;
         color: #020617 !important;
         -webkit-text-fill-color: #020617 !important;
       }
 
-      .pump-chart-card-actions .small-button {
+      html[data-resolved-theme="dark"] .pump-chart-card-actions .small-button {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.11), transparent 48%);
@@ -521,7 +521,7 @@
           0 8px 18px rgba(0, 0, 0, 0.26);
       }
 
-      .pump-chart-card-actions .small-button[onclick^="deletePumpChartPreset"] {
+      html[data-resolved-theme="dark"] .pump-chart-card-actions .small-button[onclick^="deletePumpChartPreset"] {
         background:
           linear-gradient(180deg, rgba(69,26,3,0.92), rgba(42,18,5,0.94)),
           linear-gradient(90deg, rgba(251,146,60,0.18), transparent 50%);
@@ -535,94 +535,94 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      #pumpChartModal .pump-chart-document {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-document {
         background: rgba(15,23,42,0.90);
         border-color: rgba(148, 163, 184, 0.24);
         color: #e5e7eb;
       }
 
-      #pumpChartModal .pump-chart-document-header {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-document-header {
         border-color: rgba(148, 163, 184, 0.18);
       }
 
-      #pumpChartModal .pump-chart-document h2,
-      #pumpChartModal .pump-chart-document strong {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-document h2,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-document strong {
         color: #e5e7eb;
         -webkit-text-fill-color: #e5e7eb;
       }
 
-      #pumpChartModal .pump-chart-row-result {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-row-result {
         color: #dbe3ee;
         -webkit-text-fill-color: #dbe3ee;
       }
 
-      #pumpChartModal .pump-chart-setup-row,
-      #pumpChartModal .pump-chart-document-section h3 {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-setup-row,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-document-section h3 {
         border-color: rgba(148, 163, 184, 0.16);
       }
 
-      #pumpChartModal .pump-chart-setup-detail-grid div,
-      #pumpChartModal .pump-chart-detail-table div,
-      #pumpChartModal .pump-chart-reference-section {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-setup-detail-grid div,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-detail-table div,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-reference-section {
         background: rgba(2,6,23,0.48);
         border-color: rgba(148, 163, 184, 0.24);
       }
 
-      #pumpChartModal .pump-chart-reference-section h3,
-      #pumpChartModal .pump-chart-reference-row {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-reference-section h3,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-reference-row {
         border-color: rgba(148, 163, 184, 0.18);
       }
 
-      #pumpChartModal .pump-chart-reference-result,
-      #pumpChartModal .pump-chart-reference-row strong,
-      #pumpChartModal .pump-chart-advanced-details summary {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-reference-result,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-reference-row strong,
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-advanced-details summary {
         color: #f8fafc;
         -webkit-text-fill-color: #f8fafc;
       }
 
-      #pumpChartModal .pump-chart-mode-badge {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-mode-badge {
         background: rgba(251,146,60,0.09);
         border-color: rgba(251,146,60,0.28);
         color: #fdba74;
         -webkit-text-fill-color: #fdba74;
       }
 
-      #pumpChartModal .pump-chart-mode-badge[data-mode="reverse"] {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-mode-badge[data-mode="reverse"] {
         background: rgba(96,165,250,0.10);
         border-color: rgba(96,165,250,0.28);
         color: #93c5fd;
         -webkit-text-fill-color: #93c5fd;
       }
 
-      #pumpChartModal .pump-chart-mode-badge[data-mode="requiredPdp"] {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-mode-badge[data-mode="requiredPdp"] {
         background: rgba(74,222,128,0.10);
         border-color: rgba(74,222,128,0.26);
         color: #86efac;
         -webkit-text-fill-color: #86efac;
       }
 
-      #pumpChartModal .pump-chart-mode-badge[data-mode="splitLay"] {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-mode-badge[data-mode="splitLay"] {
         background: rgba(251,146,60,0.10);
         border-color: rgba(251,146,60,0.30);
         color: #fdba74;
         -webkit-text-fill-color: #fdba74;
       }
 
-      #pumpChartModal .pump-chart-mode-badge[data-mode="relay"] {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-mode-badge[data-mode="relay"] {
         background: rgba(168,85,247,0.11);
         border-color: rgba(168,85,247,0.28);
         color: #d8b4fe;
         -webkit-text-fill-color: #d8b4fe;
       }
 
-      #pumpChartModal .pump-chart-mode-badge[data-mode="apparatusMounted"] {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-mode-badge[data-mode="apparatusMounted"] {
         background: rgba(148,163,184,0.10);
         border-color: rgba(148,163,184,0.26);
         color: #cbd5e1;
         -webkit-text-fill-color: #cbd5e1;
       }
 
-      #pumpChartModal .pump-chart-load-button {
+      html[data-resolved-theme="dark"] #pumpChartModal .pump-chart-load-button {
         background:
           linear-gradient(180deg, rgba(217, 92, 19, 0.92), rgba(154, 52, 18, 0.88));
         border-color: rgba(251, 146, 60, 0.44);
@@ -631,7 +631,7 @@
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
       }
 
-      #pumpChartModal .danger-button {
+      html[data-resolved-theme="dark"] #pumpChartModal .danger-button {
         background:
           linear-gradient(180deg, rgba(69,26,3,0.92), rgba(42,18,5,0.94)),
           linear-gradient(90deg, rgba(251,146,60,0.18), transparent 50%) !important;
@@ -640,7 +640,7 @@
         -webkit-text-fill-color: #fed7aa !important;
       }
 
-      .hose-library-delete-button {
+      html[data-resolved-theme="dark"] .hose-library-delete-button {
         background:
           linear-gradient(180deg, rgba(69,26,3,0.92), rgba(42,18,5,0.94)),
           linear-gradient(90deg, rgba(251,146,60,0.18), transparent 50%);
@@ -654,15 +654,15 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      .calculated-pressure-card strong,
-      .formula strong,
-      details.about summary {
+      html[data-resolved-theme="dark"] .calculated-pressure-card strong,
+      html[data-resolved-theme="dark"] .formula strong,
+      html[data-resolved-theme="dark"] details.about summary {
         color: #f8fafc;
       }
 
-      .reset-button { background: #111827; }
+      html[data-resolved-theme="dark"] .reset-button { background: #111827; }
 
-      .nav-button-link {
+      html[data-resolved-theme="dark"] .nav-button-link {
         background:
           linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
         border-color: rgba(148, 163, 184, 0.34);
@@ -673,7 +673,7 @@
           0 2px 8px rgba(0,0,0,0.18);
       }
 
-      .nav-button-link.active {
+      html[data-resolved-theme="dark"] .nav-button-link.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -687,10 +687,10 @@
           0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
-      .default-hose-choose-link {
+      html[data-resolved-theme="dark"] .default-hose-choose-link {
         color: #fb923c;
       }
-    }
+
 
   /* ---------- Mobile ---------- */
 @media (max-width: 720px) {

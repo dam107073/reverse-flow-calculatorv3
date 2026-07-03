@@ -448,6 +448,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
       restorePurchaseButton: document.getElementById("restorePurchaseButton"),
       webProBanner: document.getElementById("webProBanner"),
       settingsVersionInfo: document.getElementById("settingsVersionInfo"),
+      appearancePreferenceOptions: document.getElementById("appearancePreferenceOptions"),
+      appearancePreferenceControls: document.querySelectorAll("input[name='appearancePreference']"),
       reverseFormula: document.getElementById("reverseFormula"),
       requiredPdpFormula: document.getElementById("requiredPdpFormula"),
       relayFormula: document.getElementById("relayFormula"),
@@ -1278,6 +1280,20 @@ logStoreEvent("initialize-start", {
       els.webProBanner.hidden = isNativeCapacitorApp();
     }
 
+    function bindAppearanceSettings() {
+      if (!els.appearancePreferenceOptions || !window.ReverseFlowAppearance) return;
+
+      const currentPreference = window.ReverseFlowAppearance.getPreference();
+
+      els.appearancePreferenceControls.forEach(control => {
+        control.checked = control.value === currentPreference;
+        control.addEventListener("change", event => {
+          if (!event.target.checked) return;
+          window.ReverseFlowAppearance.save(event.target.value);
+        });
+      });
+    }
+
     async function init() {
 
   if (els.versionFooter) {
@@ -1302,6 +1318,7 @@ logStoreEvent("initialize-start", {
 	}
   
   updateWebProBannerVisibility();
+  bindAppearanceSettings();
   updateAccessBadge();
   await loadHoseLibraryData();
 

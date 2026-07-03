@@ -1391,9 +1391,9 @@ body.pro-user .mode-card-pro.active {
   cursor: pointer;
 }
 
-@media (prefers-color-scheme: dark) {
 
-  #proModal .pro-modal-content {
+
+  html[data-resolved-theme="dark"] #proModal .pro-modal-content {
     background:
       linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.96)),
       #0f172a;
@@ -1405,39 +1405,39 @@ body.pro-user .mode-card-pro.active {
       0 0 28px rgba(251, 146, 60, 0.12);
   }
 
-  #proModal .pro-modal-header h2,
-  #proModal .pro-summary-item h3 {
+  html[data-resolved-theme="dark"] #proModal .pro-modal-header h2,
+  html[data-resolved-theme="dark"] #proModal .pro-summary-item h3 {
     color: #f8fafc;
     -webkit-text-fill-color: #f8fafc;
   }
 
-  #proModal .pro-modal-header p,
-  #proModal .pro-summary-item p,
-  #proModal .pro-future-note {
+  html[data-resolved-theme="dark"] #proModal .pro-modal-header p,
+  html[data-resolved-theme="dark"] #proModal .pro-summary-item p,
+  html[data-resolved-theme="dark"] #proModal .pro-future-note {
     color: #cbd5e1;
     -webkit-text-fill-color: #cbd5e1;
   }
 
-  #proModal .pro-price-card {
+  html[data-resolved-theme="dark"] #proModal .pro-price-card {
     border-color: rgba(148, 163, 184, 0.34);
     border-left-color: var(--accent);
     background: rgba(15, 23, 42, 0.86);
     color: #f8fafc;
   }
 
-  #proModal .pro-price-card p,
-  #proModal .pro-price-card strong,
-  #proModal .pro-price-card span {
+  html[data-resolved-theme="dark"] #proModal .pro-price-card p,
+  html[data-resolved-theme="dark"] #proModal .pro-price-card strong,
+  html[data-resolved-theme="dark"] #proModal .pro-price-card span {
     color: #f8fafc;
     -webkit-text-fill-color: #f8fafc;
   }
 
-  #proModal .pro-summary-list,
-  #proModal .pro-summary-item + .pro-summary-item {
+  html[data-resolved-theme="dark"] #proModal .pro-summary-list,
+  html[data-resolved-theme="dark"] #proModal .pro-summary-item + .pro-summary-item {
     border-color: rgba(148, 163, 184, 0.2);
   }
 
-  #proModal #buyProButton {
+  html[data-resolved-theme="dark"] #proModal #buyProButton {
     background:
       linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
     border-color: rgba(148, 163, 184, 0.34);
@@ -1445,24 +1445,24 @@ body.pro-user .mode-card-pro.active {
     -webkit-text-fill-color: #f8fafc;
   }
 
-  #proModal #restorePurchaseButton {
+  html[data-resolved-theme="dark"] #proModal #restorePurchaseButton {
     background: transparent;
     border-color: transparent;
     color: #cbd5e1;
     -webkit-text-fill-color: #cbd5e1;
   }
 
-  #proModal #buyProButton:disabled,
-  #proModal #restorePurchaseButton:disabled {
+  html[data-resolved-theme="dark"] #proModal #buyProButton:disabled,
+  html[data-resolved-theme="dark"] #proModal #restorePurchaseButton:disabled {
     color: #94a3b8;
     -webkit-text-fill-color: #94a3b8;
   }
 
-  .split-inline-toggle {
+  html[data-resolved-theme="dark"] .split-inline-toggle {
     background: rgba(255,255,255,0.02);
   }
 
-}
+
 
     .toggle-row {
       display: flex;
