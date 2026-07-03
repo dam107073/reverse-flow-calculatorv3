@@ -1011,11 +1011,15 @@
   }
 
   function renderWaterVelocity() {
+    const defaultHoseId = "2.5";
     const waterVelocityHoseOptions = typeof getVisibleHoseOptions === "function"
-      ? getVisibleHoseOptions(getHoseOptions().filter(hose => Number(hose.id) > 0), "2.5")
+      ? getVisibleHoseOptions(getHoseOptions().filter(hose => Number(hose.id) > 0))
       : getHoseOptions().filter(hose => Number(hose.id) > 0);
+    const selectedHoseId = waterVelocityHoseOptions.some(hose => hose.id === defaultHoseId)
+      ? defaultHoseId
+      : waterVelocityHoseOptions[0]?.id || "custom";
     const hoseOptions = waterVelocityHoseOptions
-      .map(hose => `<option value="${escapeHtml(hose.id)}"${hose.id === "2.5" ? " selected" : ""}>${escapeHtml(hose.label)}</option>`)
+      .map(hose => `<option value="${escapeHtml(hose.id)}"${hose.id === selectedHoseId ? " selected" : ""}>${escapeHtml(hose.label)}</option>`)
       .join("");
 
     calculatorBody.innerHTML = `
@@ -1024,7 +1028,7 @@
           <label for="waterVelocityHoseId">Hose Size / ID</label>
           <select id="waterVelocityHoseId">
             ${hoseOptions}
-            <option value="custom">Custom</option>
+            <option value="custom"${selectedHoseId === "custom" ? " selected" : ""}>Custom</option>
           </select>
         </div>
 
