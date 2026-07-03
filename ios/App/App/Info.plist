@@ -32,7 +32,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>FacebookAdvertiserIDCollectionEnabled</key>
-	<false/>
+	<true/>
 	<key>FacebookAppID</key>
 	<string>2518836595207186</string>
 	<key>FacebookAutoLogAppEventsEnabled</key>
