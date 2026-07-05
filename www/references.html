@@ -88,11 +88,12 @@
         reason: "references-page-load"
       });
   </script>
-  <script src="js/data/references.js?v=hen-products-3"></script>
+  <script src="js/data/references.js?v=training-directory-mock-1"></script>
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
     const trainingDirectoryFilterState = {
+      search: "",
       topic: "",
       location: ""
     };
@@ -110,10 +111,11 @@
       return typeof referencesData === "object" && referencesData
         ? {
             manufacturers: referencesData.manufacturers || { hose: [], equipment: [] },
+            trainingDirectoryTopics: referencesData.trainingDirectoryTopics || [],
             trainingPartners: referencesData.trainingPartners || [],
             trainingResources: referencesData.trainingResources || []
           }
-        : { manufacturers: { hose: [], equipment: [] }, trainingPartners: [], trainingResources: [] };
+        : { manufacturers: { hose: [], equipment: [] }, trainingDirectoryTopics: [], trainingPartners: [], trainingResources: [] };
     }
 
     function getRoute() {
@@ -224,6 +226,12 @@
         : [];
     }
 
+    function getTrainingDirectoryTopics(data, listings) {
+      return Array.isArray(data.trainingDirectoryTopics) && data.trainingDirectoryTopics.length
+        ? data.trainingDirectoryTopics
+        : getUniqueTrainingFilterOptions(listings, "topics");
+    }
+
     function getUniqueTrainingFilterOptions(listings, field) {
       return [...new Set(
         listings.flatMap(listing => Array.isArray(listing[field]) ? listing[field] : [])
@@ -244,26 +252,49 @@
     }
 
     function filterTrainingDirectoryListings(listings) {
+      const searchTerm = trainingDirectoryFilterState.search.trim().toLowerCase();
       const selectedTopic = trainingDirectoryFilterState.topic;
       const selectedLocation = trainingDirectoryFilterState.location;
 
       return listings.filter(listing => {
         const topics = Array.isArray(listing.topics) ? listing.topics : [];
         const locations = Array.isArray(listing.locations) ? listing.locations : [];
+        const searchableText = [
+          listing.name,
+          listing.contactName,
+          listing.description,
+          listing.fullDescription,
+          listing.serviceArea,
+          ...(Array.isArray(listing.statesServed) ? listing.statesServed : []),
+          ...topics
+        ].filter(Boolean).join(" ").toLowerCase();
+        const matchesSearch = !searchTerm || searchableText.includes(searchTerm);
         const matchesTopic = !selectedTopic || topics.includes(selectedTopic);
         const matchesLocation = !selectedLocation || locations.includes(selectedLocation);
-        return matchesTopic && matchesLocation;
+        return matchesSearch && matchesTopic && matchesLocation;
       });
     }
 
-    function createTrainingDirectoryFilterCard(listings) {
-      const topicOptions = getUniqueTrainingFilterOptions(listings, "topics");
+    function createTrainingDirectoryFilterCard(data, listings) {
+      const topicOptions = getTrainingDirectoryTopics(data, listings);
       const locationOptions = getUniqueTrainingFilterOptions(listings, "locations");
-      const hasActiveFilters = !!trainingDirectoryFilterState.topic || !!trainingDirectoryFilterState.location;
+      const hasActiveFilters =
+        !!trainingDirectoryFilterState.search ||
+        !!trainingDirectoryFilterState.topic ||
+        !!trainingDirectoryFilterState.location;
       const card = document.createElement("article");
       card.className = "hose-library-card reference-card reference-filter-card";
       card.innerHTML = `
         <div class="reference-filter-fields">
+          <label class="reference-search-field">
+            <span>Search</span>
+            <input
+              type="search"
+              placeholder="Search by provider, contact, topic, or description"
+              value="${escapeHtml(trainingDirectoryFilterState.search)}"
+              data-training-filter="search"
+            />
+          </label>
           <label>
             <span>Topic</span>
             <select data-training-filter="topic">
@@ -271,9 +302,9 @@
             </select>
           </label>
           <label>
-            <span>Location</span>
+            <span>State / Service Area</span>
             <select data-training-filter="location">
-              ${createFilterOptionList(locationOptions, trainingDirectoryFilterState.location, "All Locations")}
+              ${createFilterOptionList(locationOptions, trainingDirectoryFilterState.location, "All States / Areas")}
             </select>
           </label>
         </div>
@@ -296,10 +327,20 @@
       const hiddenTopicCount = Array.isArray(partner.topics)
         ? Math.max(0, partner.topics.length - visibleTopics.length)
         : 0;
+      const statesServed = Array.isArray(partner.statesServed) && partner.statesServed.length
+        ? partner.statesServed.join(", ")
+        : "States served not listed";
+      const contactIndicators = [
+        partner.contactEmail ? "Email" : "",
+        partner.phone ? "Phone" : "",
+        partner.websiteUrl ? "Website" : ""
+      ].filter(Boolean);
       card.innerHTML = `
         <div>
           <strong>${escapeHtml(partner.name)}</strong>
-          <p class="helper">${escapeHtml(partner.subtitle || partner.serviceArea || "Training provider listing.")}</p>
+          <p class="helper">${escapeHtml(partner.serviceArea || "Training provider listing.")}</p>
+          <p class="helper">${escapeHtml(statesServed)}</p>
+          <p class="helper">${escapeHtml(partner.description || partner.subtitle || "Training listing details coming soon.")}</p>
           ${visibleTopics.length
             ? `
               <div class="reference-topic-tags" aria-label="Training topics">
@@ -308,9 +349,53 @@
               </div>
             `
             : ""}
+          ${contactIndicators.length
+            ? `
+              <p class="helper reference-contact-indicators">
+                Contact: ${escapeHtml(contactIndicators.join(" / "))}
+              </p>
+            `
+            : ""}
         </div>
         <a class="reset-button reference-open-button" href="${escapeHtml(getReferenceUrl("training-partner", partner.id))}">
           View Listing
+        </a>
+      `;
+      return card;
+    }
+
+    function createTrainingDirectoryIntroCard() {
+      const card = document.createElement("article");
+      card.className = "hose-library-card reference-card reference-info-card reference-directory-intro-card";
+      card.innerHTML = `
+        <div>
+          <strong>Reviewed Directory</strong>
+          <p class="helper">
+            All listings are reviewed prior to publication to help ensure the information is accurate and the organization is legitimate. Inclusion in the directory does not constitute an endorsement by Reverse Flow.
+          </p>
+        </div>
+        <a
+          class="reset-button reference-open-button reference-primary-action"
+          href="references.html?section=training-directory-submit"
+        >
+          Join the Reverse Flow Training Directory
+        </a>
+      `;
+      return card;
+    }
+
+    function createTrainingDirectorySubmissionCard() {
+      const card = document.createElement("article");
+      card.className = "hose-library-card reference-card reference-empty-card";
+      card.innerHTML = `
+        <div>
+          <strong>Submission form coming soon.</strong>
+          <p class="helper">
+            The public submission workflow will be connected in a later step after the mock directory experience is reviewed.
+          </p>
+        </div>
+        <a class="reset-button reference-open-button" href="references.html?section=training-partners">
+          Back to Directory
         </a>
       `;
       return card;
@@ -402,6 +487,14 @@
             </span>
           `
           : "",
+        Array.isArray(partner.statesServed) && partner.statesServed.length
+          ? `
+            <span>
+              <strong>States Served</strong>
+              ${escapeHtml(partner.statesServed.join(", "))}
+            </span>
+          `
+          : "",
         partner.established
           ? `
             <span>
@@ -486,19 +579,29 @@
                 </a>
               `).join("")
               : ""}
+            <button
+              class="reset-button reference-open-button disabled reference-disabled-action"
+              type="button"
+              disabled
+            >
+              Share Listing
+            </button>
           </div>
         </article>
       `;
     }
 
     function createTrainingPartnerSpecialties(partner) {
-      if (!Array.isArray(partner.specialties) || partner.specialties.length === 0) {
-        return `<p class="helper">Specialties coming soon.</p>`;
+      const topics = Array.isArray(partner.topics) && partner.topics.length
+        ? partner.topics
+        : partner.specialties;
+      if (!Array.isArray(topics) || topics.length === 0) {
+        return `<p class="helper">Topics coming soon.</p>`;
       }
 
       return `
         <div class="reference-specialty-tags" aria-label="Training directory specialties">
-          ${partner.specialties.map(specialty => `
+          ${topics.map(specialty => `
             <span>${escapeHtml(specialty)}</span>
           `).join("")}
         </div>
@@ -532,7 +635,6 @@
     function renderOverview(data) {
       referencesList.innerHTML = "";
       const manufacturerCount = getManufacturerCount(data);
-      const trainingDirectoryListings = getTrainingDirectoryListings(data);
       const manufacturerBody = `
         <article class="hose-library-card reference-card reference-nav-card">
           <div>
@@ -545,28 +647,6 @@
         </article>
       `;
 
-      const trainingPartnersBody = trainingDirectoryListings.length
-        ? createReferenceLinkList(
-            trainingDirectoryListings.map(partner => ({
-              id: partner.id,
-              name: partner.name,
-              helper: partner.subtitle || "Coming soon",
-              actionText: "View Listing"
-            })),
-            "training-partner"
-          )
-        : `
-            <article class="hose-library-card reference-card reference-empty-card">
-              <div>
-                <strong>Training Directory listings are coming soon.</strong>
-                <p class="helper">This section will help users discover reviewed fire service training resources and instructor listings.</p>
-              </div>
-              <a class="reset-button reference-open-button" href="references.html?section=training-partners">
-                Open
-              </a>
-            </article>
-          `;
-
       referencesList.appendChild(
         createCollapsedSection(
           "Manufacturers",
@@ -578,10 +658,11 @@
       );
 
       referencesList.appendChild(
-        createCollapsedSection(
+        createReferenceLinkCard(
           "Training Directory",
           "Curated fire service training resources reviewed by Reverse Flow.",
-          trainingPartnersBody
+          "references.html?section=training-partners",
+          "Show"
         )
       );
 
@@ -1324,6 +1405,7 @@
 
       const resetButton = event.target.closest("[data-training-filter-reset]");
       if (resetButton) {
+        trainingDirectoryFilterState.search = "";
         trainingDirectoryFilterState.topic = "";
         trainingDirectoryFilterState.location = "";
         renderTrainingPartners(getReferenceData());
@@ -1341,6 +1423,9 @@
       if (!filter) return;
 
       const filterType = filter.dataset.trainingFilter;
+      if (filterType === "search") {
+        trainingDirectoryFilterState.search = filter.value;
+      }
       if (filterType === "topic") {
         trainingDirectoryFilterState.topic = filter.value;
       }
@@ -1349,6 +1434,22 @@
       }
 
       renderTrainingPartners(getReferenceData());
+    });
+
+    referencesList.addEventListener("input", event => {
+      const filter = event.target.closest("[data-training-filter='search']");
+      if (!filter) return;
+
+      trainingDirectoryFilterState.search = filter.value;
+      const cursorPosition = filter.selectionStart;
+      renderTrainingPartners(getReferenceData());
+      const searchInput = referencesList.querySelector("[data-training-filter='search']");
+      if (searchInput) {
+        searchInput.focus();
+        if (typeof cursorPosition === "number") {
+          searchInput.setSelectionRange(cursorPosition, cursorPosition);
+        }
+      }
     });
 
     function groupHoseDataByModel(rows) {
@@ -1478,10 +1579,11 @@
             Back to References
           </a>
           <h2>Training Directory</h2>
-          <p class="helper">The Training Directory helps firefighters discover quality fire service training organizations and instructors. Listings are reviewed by Reverse Flow for relevance before being included.</p>
-          <p class="helper">Inclusion in the Training Directory does not imply formal partnership, sponsorship, endorsement, employment, affiliation, or operational control by Reverse Flow.</p>
+          <p class="helper">Reviewed fire service training resources and instructor listings.</p>
         </div>
       `;
+
+      referencesList.appendChild(createTrainingDirectoryIntroCard());
 
       const trainingDirectoryListings = getTrainingDirectoryListings(data);
 
@@ -1490,7 +1592,7 @@
         return;
       }
 
-      referencesList.appendChild(createTrainingDirectoryFilterCard(trainingDirectoryListings));
+      referencesList.appendChild(createTrainingDirectoryFilterCard(data, trainingDirectoryListings));
 
       const filteredListings = filterTrainingDirectoryListings(trainingDirectoryListings);
 
@@ -1515,6 +1617,20 @@
       `;
 
       referencesList.appendChild(createTrainingResourcesEmptyCard());
+    }
+
+    function renderTrainingDirectorySubmissionPlaceholder() {
+      referencesList.innerHTML = `
+        <div class="references-group">
+          <a class="reset-button reference-open-button reference-back-link" href="references.html?section=training-partners">
+            Back to Training Directory
+          </a>
+          <h2>Join the Reverse Flow Training Directory</h2>
+          <p class="helper">Submission form coming soon.</p>
+        </div>
+      `;
+
+      referencesList.appendChild(createTrainingDirectorySubmissionCard());
     }
 
     function renderManufacturer(data, id) {
@@ -1568,7 +1684,7 @@
             ${createTrainingPartnerLogo(partner)}
             <div class="reference-partner-title-copy">
               <h2>${escapeHtml(partner.name)}</h2>
-              <p class="helper">${escapeHtml(partner.description)}</p>
+              <p class="helper">${escapeHtml(partner.fullDescription || partner.description || "Training listing details coming soon.")}</p>
             </div>
           </div>
         </div>
@@ -1576,10 +1692,11 @@
         <article class="hose-library-card reference-card reference-category-card reference-partner-detail-card">
           <strong>Service Area</strong>
           <p class="helper">${escapeHtml(partner.serviceArea || "Service area coming soon.")}</p>
+          <p class="helper">${escapeHtml(Array.isArray(partner.statesServed) && partner.statesServed.length ? partner.statesServed.join(", ") : "States served not listed.")}</p>
         </article>
 
         <article class="hose-library-card reference-card reference-category-card reference-partner-detail-card">
-          <strong>Specialties</strong>
+          <strong>Topics</strong>
           ${createTrainingPartnerSpecialties(partner)}
         </article>
 
@@ -1633,6 +1750,11 @@
 
       if (route.section === "training-partner") {
         renderTrainingPartner(data, route.id);
+        return;
+      }
+
+      if (route.section === "training-directory-submit") {
+        renderTrainingDirectorySubmissionPlaceholder();
         return;
       }
 

@@ -896,6 +896,27 @@
       overflow-wrap: anywhere;
     }
 
+    .reference-directory-intro-card {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .reference-directory-intro-card .reference-primary-action {
+      min-height: 44px;
+      padding: 0 18px;
+      border-color: var(--button);
+      border-radius: 10px;
+      background: var(--button);
+      color: var(--button-text);
+      -webkit-text-fill-color: var(--button-text);
+      font-weight: 850;
+      text-align: center;
+      box-shadow:
+        0 8px 18px rgba(17, 24, 39, 0.13),
+        var(--accent-glow);
+    }
+
     .reference-filter-card {
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: end;
@@ -903,7 +924,7 @@
 
     .reference-filter-fields {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -916,6 +937,16 @@
       font-weight: 900;
       line-height: 1.15;
       text-transform: uppercase;
+    }
+
+    .reference-filter-fields input,
+    .reference-filter-fields select {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .reference-contact-indicators {
+      font-weight: 800;
     }
 
     .reference-partner-contact-card {
@@ -959,6 +990,10 @@
       flex-wrap: wrap;
       justify-content: flex-end;
       gap: 10px;
+    }
+
+    .reference-partner-actions .reference-open-button {
+      border-radius: 10px;
     }
 
     .reference-details {
@@ -1022,6 +1057,19 @@
       padding: 0;
       border: none;
       background: transparent;
+      box-shadow: none;
+    }
+
+    .reference-partner-actions .reference-disabled-action {
+      opacity: 1;
+      pointer-events: none;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid rgba(100, 116, 139, 0.24);
+      border-radius: 10px;
+      background: rgba(100, 116, 139, 0.12);
+      color: #64748b;
+      -webkit-text-fill-color: #64748b;
       box-shadow: none;
     }
 

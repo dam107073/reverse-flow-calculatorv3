@@ -358,37 +358,123 @@ const equipmentManufacturerReferences = [
   }
 ];
 
+const trainingDirectoryTopics = [
+  "Fire Hydraulics",
+  "Pump Operations",
+  "Engine Company Operations",
+  "Standpipe Operations",
+  "Rural Water Supply",
+  "Water Shuttle",
+  "Fire Attack",
+  "Search",
+  "Ventilation",
+  "Truck Company Operations",
+  "Fire Behavior",
+  "Leadership",
+  "Officer Development",
+  "Instructor Development",
+  "Driver Operator",
+  "Technical Rescue",
+  "EMS"
+];
+
+const mockTrainingDirectoryListings = [
+  {
+    id: "603-fire-service-consulting-training",
+    name: "603 Fire Service Consulting & Training, LLC",
+    subtitle: "Fire service consulting and hands-on training.",
+    description: "603 Fire Service Consulting & Training, LLC provides fire service consulting and training focused on practical engine company operations, pump operations, and fireground decision-making.",
+    fullDescription: "603 Fire Service Consulting & Training, LLC provides fire service consulting and training focused on practical engine company operations, pump operations, and fireground decision-making. This mock listing is included so the Training Directory workflow can be reviewed before live submission and publication tools are connected.",
+    contactName: "Directory contact pending",
+    contactTitle: "Training Coordinator",
+    contactEmail: "info@example.com",
+    phone: null,
+    phoneHref: null,
+    websiteUrl: "https://example.com/603-fire-service-training",
+    serviceArea: "Regional and department-hosted training",
+    statesServed: ["New Hampshire", "Maine", "Massachusetts", "Vermont"],
+    locations: ["New Hampshire", "Maine", "Massachusetts", "Vermont", "Regional"],
+    topics: [
+      "Fire Hydraulics",
+      "Pump Operations",
+      "Engine Company Operations",
+      "Driver Operator",
+      "Officer Development"
+    ],
+    socialLinks: [
+      { label: "Facebook", url: "https://example.com/603-fire-service-facebook" }
+    ],
+    logo: "assets/references/603-fire-service-logo.jpg",
+    status: "mock"
+  },
+  {
+    id: "national-engine-hydraulics-training",
+    name: "National Engine & Hydraulics Training Provider",
+    subtitle: "Nationwide engine company and hydraulics instruction.",
+    description: "A placeholder nationwide provider for engine company operations, pump operations, and fire hydraulics training delivered through hosted classes and department programs.",
+    fullDescription: "This placeholder represents a nationwide engine and hydraulics training provider. It shows how a broad service-area listing can present topics, contact options, and directory details without implying ranking, endorsement, or verification beyond the normal review process.",
+    contactName: "Submission contact pending",
+    contactTitle: "Program Contact",
+    contactEmail: "training@example.com",
+    phone: "(555) 010-6030",
+    phoneHref: "+15550106030",
+    websiteUrl: "https://example.com/national-engine-hydraulics",
+    serviceArea: "Nationwide",
+    statesServed: ["Nationwide"],
+    locations: ["Nationwide"],
+    topics: [
+      "Fire Hydraulics",
+      "Pump Operations",
+      "Engine Company Operations",
+      "Standpipe Operations",
+      "Rural Water Supply",
+      "Water Shuttle",
+      "Driver Operator",
+      "Instructor Development"
+    ],
+    socialLinks: [
+      { label: "LinkedIn", url: "https://example.com/national-engine-hydraulics-linkedin" }
+    ],
+    logo: null,
+    status: "mock"
+  },
+  {
+    id: "regional-truck-company-operations",
+    name: "Regional Truck Company Operations Group",
+    subtitle: "Truck company operations training for regional departments.",
+    description: "A placeholder regional listing for truck company operations, ventilation, search, fire attack support, and officer development programs.",
+    fullDescription: "This placeholder represents a regional truck company operations training group. It gives reviewers a realistic detail view for truck work, search, ventilation, and company officer topics while the future submission workflow is still being planned.",
+    contactName: "Regional program contact",
+    contactTitle: "Lead Instructor",
+    contactEmail: "truckops@example.com",
+    phone: "(555) 010-2410",
+    phoneHref: "+15550102410",
+    websiteUrl: null,
+    serviceArea: "Regional",
+    statesServed: ["Pennsylvania", "New Jersey", "Delaware", "Maryland"],
+    locations: ["Pennsylvania", "New Jersey", "Delaware", "Maryland", "Regional"],
+    topics: [
+      "Truck Company Operations",
+      "Search",
+      "Ventilation",
+      "Fire Attack",
+      "Leadership",
+      "Officer Development"
+    ],
+    socialLinks: [],
+    logo: null,
+    status: "mock"
+  }
+];
+
 const referencesData = {
   manufacturers: {
     hose: hoseManufacturerReferences,
     equipment: equipmentManufacturerReferences
   },
-  // Training Directory listings should only be added after review and approval by the Reverse Flow owner.
-  // Do not invent directory listings.
-  // Placeholder data should be replaced or supplemented only when real listing information has been submitted.
-  trainingPartners: [
-    {
-      id: "training-partner-directory",
-      name: "Training Directory",
-      subtitle: "Reviewed fire service training resources.",
-      description: "The Training Directory helps firefighters discover quality fire service training organizations and instructors. Listings are reviewed by Reverse Flow for relevance before being included.",
-      websiteUrl: null,
-      contactEmail: "support@reverse-flow.app",
-      serviceArea: "Local, regional, and nationwide training organizations",
-      specialties: [
-        "Pump Operations",
-        "Driver/Operator",
-        "Rural Water Supply",
-        "Fire Hydraulics",
-        "Water Supply",
-        "Relay Pumping",
-        "Engine Company Operations",
-        "Officer Development",
-        "Instructor Development"
-      ],
-      logo: null,
-      status: "placeholder"
-    }
-  ],
+  // UI-only mock listings for Training Directory workflow review.
+  // Replace with reviewed/published directory data when the submission system is connected.
+  trainingDirectoryTopics,
+  trainingPartners: mockTrainingDirectoryListings,
   trainingResources: []
 };
