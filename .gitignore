@@ -1,5 +1,8 @@
 node_modules/
 .DS_Store
 **/.DS_Store
+.env
+.env.*
+!.env.example
 android/app/src/main/res/xml/config *.xml
 ios/App/App/config *.xml
