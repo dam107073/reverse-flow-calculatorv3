@@ -89,8 +89,6 @@
       });
   </script>
   <script src="js/data/references.js?v=training-directory-mock-1"></script>
-  <script src="js/services/training-directory-submissions.js?v=milestone-2"></script>
-  <script src="js/training-directory-form.js?v=milestone-2"></script>
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
@@ -378,9 +376,10 @@
         </div>
         <a
           class="reset-button reference-open-button reference-primary-action"
-          href="references.html?section=training-directory-submit"
+          href="https://reverse-flow.app/training-directory/submit"
+          data-reference-external-url="https://reverse-flow.app/training-directory/submit"
         >
-          Join the Reverse Flow Training Directory
+          Submit a Training Organization
         </a>
       `;
       return card;
@@ -391,13 +390,17 @@
       card.className = "hose-library-card reference-card reference-empty-card";
       card.innerHTML = `
         <div>
-          <strong>Submission form coming soon.</strong>
+          <strong>Submit through the Reverse Flow website.</strong>
           <p class="helper">
-            The public submission workflow will be connected in a later step after the mock directory experience is reviewed.
+            Training organizations can submit a listing for review at reverse-flow.app.
           </p>
         </div>
-        <a class="reset-button reference-open-button" href="references.html?section=training-partners">
-          Back to Directory
+        <a
+          class="reset-button reference-open-button"
+          href="https://reverse-flow.app/training-directory/submit"
+          data-reference-external-url="https://reverse-flow.app/training-directory/submit"
+        >
+          Submit a Training Organization
         </a>
       `;
       return card;
@@ -1622,17 +1625,13 @@
     }
 
     function renderTrainingDirectorySubmissionPlaceholder() {
-      if (typeof window.renderTrainingDirectorySubmissionForm === "function") {
-        window.renderTrainingDirectorySubmissionForm(referencesList);
-        return;
-      }
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=training-partners">
             Back to Training Directory
           </a>
-          <h2>Join the Reverse Flow Training Directory</h2>
-          <p class="helper">Submission form coming soon.</p>
+          <h2>Submit a Training Organization</h2>
+          <p class="helper">Training Directory submissions are handled on the Reverse Flow website.</p>
         </div>
       `;
       referencesList.appendChild(createTrainingDirectorySubmissionCard());
