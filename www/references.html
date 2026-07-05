@@ -89,6 +89,8 @@
       });
   </script>
   <script src="js/data/references.js?v=training-directory-mock-1"></script>
+  <script src="js/services/training-directory-submissions.js?v=milestone-2"></script>
+  <script src="js/training-directory-form.js?v=milestone-2"></script>
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
@@ -1620,6 +1622,10 @@
     }
 
     function renderTrainingDirectorySubmissionPlaceholder() {
+      if (typeof window.renderTrainingDirectorySubmissionForm === "function") {
+        window.renderTrainingDirectorySubmissionForm(referencesList);
+        return;
+      }
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=training-partners">
@@ -1629,7 +1635,6 @@
           <p class="helper">Submission form coming soon.</p>
         </div>
       `;
-
       referencesList.appendChild(createTrainingDirectorySubmissionCard());
     }
 

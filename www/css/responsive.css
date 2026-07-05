@@ -960,9 +960,32 @@
     grid-template-columns: 1fr;
   }
 
-	  .custom-hose-form .reset-button,
-	  .default-hose-choose-link,
-	  .default-hose-delete-button {
+  .training-submit-progress > div:first-child,
+  .training-submit-actions,
+  .training-submit-success {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .training-submit-choice-grid,
+  .training-submit-state-grid,
+  .training-submit-image-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .training-submit-state-grid {
+    max-height: none;
+  }
+
+  .training-submit-actions .reference-open-button,
+  .training-submit-success .reference-open-button {
+    width: 100%;
+  }
+
+		  .custom-hose-form .reset-button,
+		  .default-hose-choose-link,
+		  .default-hose-delete-button {
 	    width: 100%;
 	  }
 
