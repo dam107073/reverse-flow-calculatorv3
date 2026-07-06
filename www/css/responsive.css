@@ -153,6 +153,12 @@
         -webkit-text-fill-color: #fed7aa;
       }
 
+      html[data-resolved-theme="dark"] .reference-directory-logo {
+        border-color: rgba(251, 146, 60, 0.3);
+        background:
+          linear-gradient(180deg, rgba(23,32,51,0.96), rgba(17,24,39,0.92));
+      }
+
       html[data-resolved-theme="dark"] .reference-specialty-tags span {
         border-color: rgba(148, 163, 184, 0.26);
         background: rgba(255,255,255,0.06);
@@ -949,6 +955,25 @@
   .reference-directory-intro-card {
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 12px 13px;
+  }
+
+  .reference-directory-card {
+    padding: 0;
+  }
+
+  .reference-directory-card-link {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    padding: 12px 13px;
+  }
+
+  .reference-directory-card-link .reference-open-button {
+    justify-self: start;
+  }
+
+  .reference-directory-logo {
+    width: 48px;
+    height: 48px;
   }
 
   .reference-filter-card,

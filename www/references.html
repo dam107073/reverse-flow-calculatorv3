@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="css/base.css?v=appearance-1" />
   <link rel="stylesheet" href="css/components.css?v=appearance-2" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/support.css?v=training-directory-live-1" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-1" />
 </head>
 
@@ -92,6 +92,15 @@
   <script>
     if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
+    const TRAINING_DIRECTORY_API_URL = "https://reverse-flow.app/api/training-directory/listings";
+    const TRAINING_DIRECTORY_PROFILE_BASE_URL = "https://reverse-flow.app/training-directory";
+    const TRAINING_DIRECTORY_SUBMIT_URL = "https://reverse-flow.app/training-directory/submit/";
+    const TRAINING_DIRECTORY_CACHE_KEY = "reverseFlowTrainingDirectoryListings:v1";
+    const trainingDirectoryLiveState = {
+      status: "idle",
+      listings: [],
+      message: ""
+    };
     const trainingDirectoryFilterState = {
       search: "",
       topic: "",
@@ -176,6 +185,18 @@
       return card;
     }
 
+    function createTrainingDirectoryStatusCard(title, message, modifierClass = "") {
+      const card = document.createElement("article");
+      card.className = `hose-library-card reference-card reference-empty-card${modifierClass ? ` ${modifierClass}` : ""}`;
+      card.innerHTML = `
+        <div>
+          <strong>${escapeHtml(title)}</strong>
+          ${message ? `<p class="helper">${escapeHtml(message)}</p>` : ""}
+        </div>
+      `;
+      return card;
+    }
+
     function createTrainingDirectoryNoResultsCard() {
       const card = document.createElement("article");
       card.className = "hose-library-card reference-card reference-empty-card";
@@ -221,9 +242,194 @@
     }
 
     function getTrainingDirectoryListings(data) {
+      if (Array.isArray(trainingDirectoryLiveState.listings)) {
+        return trainingDirectoryLiveState.listings;
+      }
+
       return Array.isArray(data.trainingPartners)
         ? data.trainingPartners.filter(item => item.status !== "placeholder")
         : [];
+    }
+
+    function getFirstTextValue(...values) {
+      for (const value of values) {
+        if (typeof value !== "string") continue;
+        const trimmed = value.trim();
+        if (trimmed) return trimmed;
+      }
+      return "";
+    }
+
+    function getArrayValue(value) {
+      return Array.isArray(value)
+        ? value.map(item => String(item || "").trim()).filter(Boolean)
+        : [];
+    }
+
+    function resolveTrainingDirectoryWebsiteUrl(pathOrUrl) {
+      const text = String(pathOrUrl || "").trim();
+      if (!text) return "";
+
+      try {
+        return new URL(text, "https://reverse-flow.app").href;
+      } catch {
+        return "";
+      }
+    }
+
+    function normalizeTrainingDirectoryListing(listing) {
+      listing = listing || {};
+      const slug = getFirstTextValue(listing.slug, listing.listingSlug);
+      const title = getFirstTextValue(
+        listing.title,
+        listing.publicTitle,
+        listing.public_title,
+        listing.organizationName,
+        listing.organization_name,
+        listing.instructorName,
+        listing.instructor_name,
+        "Training Listing"
+      );
+      const specialties = getArrayValue(listing.specialties).length
+        ? getArrayValue(listing.specialties)
+        : getArrayValue(listing.specialtyIds || listing.specialty_ids);
+      const statesServed = getArrayValue(listing.statesServed || listing.states_served);
+
+      return {
+        id: getFirstTextValue(listing.id, slug, title),
+        slug,
+        name: title,
+        description: getFirstTextValue(
+          listing.appSummary,
+          listing.app_summary,
+          listing.summary,
+          listing.shortSummary,
+          listing.publicProfile,
+          listing.public_profile
+        ),
+        serviceArea: getFirstTextValue(
+          listing.serviceArea,
+          listing.service_area_summary,
+          listing.serviceAreaSummary
+        ),
+        statesServed,
+        topics: specialties,
+        logoUrl: resolveTrainingDirectoryWebsiteUrl(listing.logoUrl || listing.logo_url || listing.logo_path),
+        profileUrl: slug
+          ? `${TRAINING_DIRECTORY_PROFILE_BASE_URL}/${encodeURIComponent(slug)}`
+          : ""
+      };
+    }
+
+    function loadCachedTrainingDirectoryListings() {
+      try {
+        const cached = JSON.parse(localStorage.getItem(TRAINING_DIRECTORY_CACHE_KEY) || "null");
+        const listings = Array.isArray(cached && cached.listings)
+          ? cached.listings.map(normalizeTrainingDirectoryListing).filter(listing => listing.slug)
+          : [];
+        return listings;
+      } catch {
+        return [];
+      }
+    }
+
+    function saveTrainingDirectoryListingsToCache(listings) {
+      try {
+        localStorage.setItem(
+          TRAINING_DIRECTORY_CACHE_KEY,
+          JSON.stringify({
+            cachedAt: new Date().toISOString(),
+            listings
+          })
+        );
+      } catch {
+        // Cache writes are best-effort; the live directory should still render.
+      }
+    }
+
+    function refreshTrainingDirectoryRoute() {
+      const route = getRoute();
+      if (route.section === "training-partners") {
+        renderTrainingPartners(getReferenceData());
+      }
+    }
+
+    function getCapacitorHttpPlugin() {
+      try {
+        return window.Capacitor &&
+          window.Capacitor.Plugins &&
+          window.Capacitor.Plugins.CapacitorHttp;
+      } catch {
+        return null;
+      }
+    }
+
+    function parseTrainingDirectoryApiBody(responseBody) {
+      if (typeof responseBody === "string") {
+        return JSON.parse(responseBody);
+      }
+
+      return responseBody || {};
+    }
+
+    function fetchTrainingDirectoryListingsFromApi() {
+      const capacitorHttp = getCapacitorHttpPlugin();
+      if (isNativeCapacitorReferenceApp() && capacitorHttp && typeof capacitorHttp.get === "function") {
+        return capacitorHttp.get({
+          url: TRAINING_DIRECTORY_API_URL,
+          headers: { Accept: "application/json" },
+          responseType: "json"
+        }).then(response => {
+          if (response.status < 200 || response.status >= 300) {
+            throw new Error("Unable to load Training Directory listings.");
+          }
+
+          return parseTrainingDirectoryApiBody(response.data);
+        });
+      }
+
+      return fetch(TRAINING_DIRECTORY_API_URL, {
+        headers: { Accept: "application/json" },
+        cache: "no-store"
+      }).then(response => response.ok ? response.json() : Promise.reject(new Error("Unable to load Training Directory listings.")));
+    }
+
+    function loadTrainingDirectoryListings() {
+      const hasNativeHttp = !!getCapacitorHttpPlugin();
+      const hasFetch = typeof fetch === "function";
+      if (trainingDirectoryLiveState.status !== "idle" || (!hasFetch && !hasNativeHttp)) {
+        if (!hasFetch && !hasNativeHttp) {
+          const cachedListings = loadCachedTrainingDirectoryListings();
+          trainingDirectoryLiveState.status = cachedListings.length ? "cached" : "error";
+          trainingDirectoryLiveState.listings = cachedListings;
+          trainingDirectoryLiveState.message = cachedListings.length
+            ? "Showing recently loaded listings."
+            : "Training Directory listings could not be loaded right now. Check your connection and try again.";
+        }
+        return;
+      }
+
+      trainingDirectoryLiveState.status = "loading";
+      fetchTrainingDirectoryListingsFromApi()
+        .then(body => {
+          const listings = Array.isArray(body && body.listings)
+            ? body.listings.map(normalizeTrainingDirectoryListing).filter(listing => listing.slug)
+            : [];
+          trainingDirectoryLiveState.status = listings.length ? "loaded" : "empty";
+          trainingDirectoryLiveState.listings = listings;
+          trainingDirectoryLiveState.message = "";
+          saveTrainingDirectoryListingsToCache(listings);
+        })
+        .catch(error => {
+          console.warn("Training Directory listings unavailable.", error);
+          const cachedListings = loadCachedTrainingDirectoryListings();
+          trainingDirectoryLiveState.status = cachedListings.length ? "cached" : "error";
+          trainingDirectoryLiveState.listings = cachedListings;
+          trainingDirectoryLiveState.message = cachedListings.length
+            ? "Showing recently loaded listings."
+            : "Training Directory listings could not be loaded right now. Check your connection and try again.";
+        })
+        .finally(refreshTrainingDirectoryRoute);
     }
 
     function getTrainingDirectoryTopics(data, listings) {
@@ -327,38 +533,41 @@
       const hiddenTopicCount = Array.isArray(partner.topics)
         ? Math.max(0, partner.topics.length - visibleTopics.length)
         : 0;
-      const statesServed = Array.isArray(partner.statesServed) && partner.statesServed.length
-        ? partner.statesServed.join(", ")
-        : "States served not listed";
-      const contactIndicators = [
-        partner.contactEmail ? "Email" : "",
-        partner.phone ? "Phone" : "",
-        partner.websiteUrl ? "Website" : ""
-      ].filter(Boolean);
+      const profileUrl = partner.profileUrl || (partner.slug
+        ? `${TRAINING_DIRECTORY_PROFILE_BASE_URL}/${encodeURIComponent(partner.slug)}`
+        : "");
       card.innerHTML = `
-        <div>
-          <strong>${escapeHtml(partner.name)}</strong>
-          <p class="helper">${escapeHtml(partner.serviceArea || "Training provider listing.")}</p>
-          <p class="helper">${escapeHtml(statesServed)}</p>
-          <p class="helper">${escapeHtml(partner.description || partner.subtitle || "Training listing details coming soon.")}</p>
-          ${visibleTopics.length
-            ? `
-              <div class="reference-topic-tags" aria-label="Training topics">
-                ${visibleTopics.map(topic => `<span>${escapeHtml(topic)}</span>`).join("")}
-                ${hiddenTopicCount ? `<span>+${hiddenTopicCount}</span>` : ""}
-              </div>
-            `
-            : ""}
-          ${contactIndicators.length
-            ? `
-              <p class="helper reference-contact-indicators">
-                Contact: ${escapeHtml(contactIndicators.join(" / "))}
-              </p>
-            `
-            : ""}
-        </div>
-        <a class="reset-button reference-open-button" href="${escapeHtml(getReferenceUrl("training-partner", partner.id))}">
-          View Listing
+        <a
+          class="reference-directory-card-link"
+          href="${escapeHtml(profileUrl)}"
+          data-reference-external-url="${escapeHtml(profileUrl)}"
+          aria-label="View ${escapeHtml(partner.name)} profile"
+        >
+          <div class="reference-directory-card-body">
+            ${partner.logoUrl
+              ? `
+                <div class="reference-directory-logo">
+                  <img src="${escapeHtml(partner.logoUrl)}" alt="${escapeHtml(partner.name)} logo" loading="lazy">
+                </div>
+              `
+              : ""}
+            <div class="reference-directory-copy">
+              <strong>${escapeHtml(partner.name)}</strong>
+              <p class="helper">${escapeHtml(partner.description || partner.subtitle || "Training listing details coming soon.")}</p>
+              ${partner.serviceArea
+                ? `<p class="helper reference-directory-meta">${escapeHtml(partner.serviceArea)}</p>`
+                : ""}
+              ${visibleTopics.length
+                ? `
+                  <div class="reference-topic-tags" aria-label="Training topics">
+                    ${visibleTopics.map(topic => `<span>${escapeHtml(topic)}</span>`).join("")}
+                    ${hiddenTopicCount ? `<span>+${hiddenTopicCount}</span>` : ""}
+                  </div>
+                `
+                : ""}
+            </div>
+          </div>
+          <span class="reset-button reference-open-button">View Profile</span>
         </a>
       `;
       return card;
@@ -376,8 +585,8 @@
         </div>
         <a
           class="reset-button reference-open-button reference-primary-action"
-          href="https://reverse-flow.app/training-directory/submit"
-          data-reference-external-url="https://reverse-flow.app/training-directory/submit"
+          href="${escapeHtml(TRAINING_DIRECTORY_SUBMIT_URL)}"
+          data-reference-external-url="${escapeHtml(TRAINING_DIRECTORY_SUBMIT_URL)}"
         >
           Submit a Training Organization
         </a>
@@ -397,8 +606,8 @@
         </div>
         <a
           class="reset-button reference-open-button"
-          href="https://reverse-flow.app/training-directory/submit"
-          data-reference-external-url="https://reverse-flow.app/training-directory/submit"
+          href="${escapeHtml(TRAINING_DIRECTORY_SUBMIT_URL)}"
+          data-reference-external-url="${escapeHtml(TRAINING_DIRECTORY_SUBMIT_URL)}"
         >
           Submit a Training Organization
         </a>
@@ -1589,6 +1798,21 @@
       `;
 
       referencesList.appendChild(createTrainingDirectoryIntroCard());
+      loadTrainingDirectoryListings();
+
+      if (trainingDirectoryLiveState.status === "loading") {
+        referencesList.appendChild(createTrainingDirectoryStatusCard("Loading Training Directory listings.", "Fetching the latest published listings from reverse-flow.app."));
+        return;
+      }
+
+      if (trainingDirectoryLiveState.status === "error") {
+        referencesList.appendChild(createTrainingDirectoryStatusCard("Training Directory listings could not be loaded right now.", "Check your connection and try again."));
+        return;
+      }
+
+      if (trainingDirectoryLiveState.status === "cached") {
+        referencesList.appendChild(createTrainingDirectoryStatusCard("Showing recently loaded listings.", "", "reference-cache-status-card"));
+      }
 
       const trainingDirectoryListings = getTrainingDirectoryListings(data);
 
@@ -1597,16 +1821,7 @@
         return;
       }
 
-      referencesList.appendChild(createTrainingDirectoryFilterCard(data, trainingDirectoryListings));
-
-      const filteredListings = filterTrainingDirectoryListings(trainingDirectoryListings);
-
-      if (!filteredListings.length) {
-        referencesList.appendChild(createTrainingDirectoryNoResultsCard());
-        return;
-      }
-
-      filteredListings.forEach(partner => {
+      trainingDirectoryListings.forEach(partner => {
         referencesList.appendChild(createTrainingDirectoryListingCard(partner));
       });
     }
