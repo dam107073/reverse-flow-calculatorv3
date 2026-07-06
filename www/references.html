@@ -96,6 +96,14 @@
     const TRAINING_DIRECTORY_PROFILE_BASE_URL = "https://reverse-flow.app/training-directory";
     const TRAINING_DIRECTORY_SUBMIT_URL = "https://reverse-flow.app/training-directory/submit/";
     const TRAINING_DIRECTORY_CACHE_KEY = "reverseFlowTrainingDirectoryListings:v1";
+    const ENABLE_PUBLISHED_HOSE_REFERENCES = false;
+    const PUBLISHED_HOSE_REFERENCES_API_URL = "https://reverse-flow.app/api/hose-references/published";
+    const PUBLISHED_HOSE_REFERENCES_CACHE_KEY = "reverseFlowPublishedHoseReferences:v1";
+    const PUBLISHED_HOSE_REFERENCES_SCHEMA_VERSION = 1;
+    const publishedHoseReferencesState = {
+      status: "disabled",
+      hose: null
+    };
     const trainingDirectoryLiveState = {
       status: "idle",
       listings: [],
@@ -116,7 +124,7 @@
         .replaceAll("'", "&#039;");
     }
 
-    function getReferenceData() {
+    function getBundledReferenceData() {
       return typeof referencesData === "object" && referencesData
         ? {
             manufacturers: referencesData.manufacturers || { hose: [], equipment: [] },
@@ -125,6 +133,28 @@
             trainingResources: referencesData.trainingResources || []
           }
         : { manufacturers: { hose: [], equipment: [] }, trainingDirectoryTopics: [], trainingPartners: [], trainingResources: [] };
+    }
+
+    function getReferenceData() {
+      const bundledData = getBundledReferenceData();
+      const bundledManufacturers = bundledData.manufacturers || { hose: [], equipment: [] };
+      const publishedHose = ENABLE_PUBLISHED_HOSE_REFERENCES &&
+        Array.isArray(publishedHoseReferencesState.hose)
+          ? publishedHoseReferencesState.hose
+          : bundledManufacturers.hose;
+
+      return {
+        manufacturers: {
+          ...bundledManufacturers,
+          hose: publishedHose,
+          equipment: Array.isArray(bundledManufacturers.equipment)
+            ? bundledManufacturers.equipment
+            : []
+        },
+        trainingDirectoryTopics: bundledData.trainingDirectoryTopics,
+        trainingPartners: bundledData.trainingPartners,
+        trainingResources: bundledData.trainingResources
+      };
     }
 
     function getRoute() {
@@ -345,6 +375,140 @@
       } catch {
         // Cache writes are best-effort; the live directory should still render.
       }
+    }
+
+    function isPublishedHoseReferenceRow(row) {
+      return row &&
+        typeof row.model === "string" &&
+        typeof row.tradeSize === "string" &&
+        typeof row.chargedId50 === "string" &&
+        typeof row.chargedId150 === "string" &&
+        typeof row.coefficient === "string" &&
+        typeof row.referenceUrl === "string";
+    }
+
+    function isPublishedHoseManufacturer(manufacturer) {
+      return manufacturer &&
+        typeof manufacturer.id === "string" &&
+        typeof manufacturer.name === "string" &&
+        typeof manufacturer.shortName === "string" &&
+        typeof manufacturer.websiteUrl === "string" &&
+        typeof manufacturer.sourceUrl === "string" &&
+        typeof manufacturer.about === "string" &&
+        typeof manufacturer.notes === "string" &&
+        typeof manufacturer.sourceNote === "string" &&
+        Array.isArray(manufacturer.hoseData) &&
+        manufacturer.hoseData.every(isPublishedHoseReferenceRow);
+    }
+
+    function normalizePublishedHoseReferencesPayload(body) {
+      const hose = body &&
+        body.manufacturers &&
+        Array.isArray(body.manufacturers.hose)
+          ? body.manufacturers.hose
+          : [];
+
+      if (!hose.length || !hose.every(isPublishedHoseManufacturer)) {
+        return null;
+      }
+
+      return hose;
+    }
+
+    function loadCachedPublishedHoseReferences() {
+      try {
+        const cached = JSON.parse(localStorage.getItem(PUBLISHED_HOSE_REFERENCES_CACHE_KEY) || "null");
+        if (!cached || cached.schemaVersion !== PUBLISHED_HOSE_REFERENCES_SCHEMA_VERSION) {
+          return null;
+        }
+        return normalizePublishedHoseReferencesPayload(cached);
+      } catch {
+        return null;
+      }
+    }
+
+    function savePublishedHoseReferencesToCache(hose) {
+      try {
+        localStorage.setItem(
+          PUBLISHED_HOSE_REFERENCES_CACHE_KEY,
+          JSON.stringify({
+            schemaVersion: PUBLISHED_HOSE_REFERENCES_SCHEMA_VERSION,
+            cachedAt: new Date().toISOString(),
+            source: "published-api",
+            manufacturers: { hose }
+          })
+        );
+      } catch {
+        // Cache writes are best-effort; bundled references remain the fallback.
+      }
+    }
+
+    function parsePublishedHoseReferencesApiBody(responseBody) {
+      if (typeof responseBody === "string") {
+        return JSON.parse(responseBody);
+      }
+
+      return responseBody || {};
+    }
+
+    function fetchPublishedHoseReferencesFromApi() {
+      const capacitorHttp = getCapacitorHttpPlugin();
+      if (isNativeCapacitorReferenceApp() && capacitorHttp && typeof capacitorHttp.get === "function") {
+        return capacitorHttp.get({
+          url: PUBLISHED_HOSE_REFERENCES_API_URL,
+          headers: { Accept: "application/json" },
+          responseType: "json"
+        }).then(response => {
+          if (response.status < 200 || response.status >= 300) {
+            throw new Error("Unable to load published Hose References.");
+          }
+
+          return parsePublishedHoseReferencesApiBody(response.data);
+        });
+      }
+
+      return fetch(PUBLISHED_HOSE_REFERENCES_API_URL, {
+        headers: { Accept: "application/json" },
+        cache: "no-store"
+      }).then(response => response.ok ? response.json() : Promise.reject(new Error("Unable to load published Hose References.")));
+    }
+
+    function applyPublishedHoseReferences(hose, status) {
+      publishedHoseReferencesState.status = status;
+      publishedHoseReferencesState.hose = hose;
+      renderReferences();
+    }
+
+    function loadPublishedHoseReferences() {
+      if (!ENABLE_PUBLISHED_HOSE_REFERENCES) return;
+
+      const cachedHose = loadCachedPublishedHoseReferences();
+      if (cachedHose) {
+        applyPublishedHoseReferences(cachedHose, "cached");
+      }
+
+      const hasNativeHttp = !!getCapacitorHttpPlugin();
+      const hasFetch = typeof fetch === "function";
+      if (!hasFetch && !hasNativeHttp) {
+        publishedHoseReferencesState.status = cachedHose ? "cached" : "offline";
+        return;
+      }
+
+      publishedHoseReferencesState.status = "loading";
+      fetchPublishedHoseReferencesFromApi()
+        .then(body => {
+          const hose = normalizePublishedHoseReferencesPayload(body);
+          if (!hose) {
+            throw new Error("Published Hose References payload was invalid.");
+          }
+
+          savePublishedHoseReferencesToCache(hose);
+          applyPublishedHoseReferences(hose, "loaded");
+        })
+        .catch(error => {
+          console.warn("Published Hose References unavailable.", error);
+          publishedHoseReferencesState.status = cachedHose ? "cached" : "error";
+        });
     }
 
     function refreshTrainingDirectoryRoute() {
@@ -1991,6 +2155,7 @@
     }
 
     renderReferences();
+    loadPublishedHoseReferences();
     }
   </script>
   <script type="module" src="js/analytics.js"></script>
