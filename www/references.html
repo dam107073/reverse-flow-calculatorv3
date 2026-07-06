@@ -138,15 +138,21 @@
     function getReferenceData() {
       const bundledData = getBundledReferenceData();
       const bundledManufacturers = bundledData.manufacturers || { hose: [], equipment: [] };
+      const bundledHose = Array.isArray(bundledManufacturers.hose)
+        ? bundledManufacturers.hose
+        : [];
       const publishedHose = ENABLE_PUBLISHED_HOSE_REFERENCES &&
         Array.isArray(publishedHoseReferencesState.hose)
           ? publishedHoseReferencesState.hose
-          : bundledManufacturers.hose;
+          : null;
+      const mergedHose = publishedHose
+        ? mergePublishedHoseReferences(bundledHose, publishedHose)
+        : bundledHose;
 
       return {
         manufacturers: {
           ...bundledManufacturers,
-          hose: publishedHose,
+          hose: mergedHose,
           equipment: Array.isArray(bundledManufacturers.equipment)
             ? bundledManufacturers.equipment
             : []
@@ -259,6 +265,103 @@
       return Array.isArray(data.manufacturers && data.manufacturers.hose)
         ? data.manufacturers.hose
         : [];
+    }
+
+    function normalizeHoseReferenceKey(value) {
+      return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+    }
+
+    function getHoseReferenceRowKey(row) {
+      if (!row || typeof row !== "object") return "";
+      if (row.id) return `id:${normalizeHoseReferenceKey(row.id)}`;
+      if (row.referenceId) return `referenceId:${normalizeHoseReferenceKey(row.referenceId)}`;
+      if (row.variantId) return `variantId:${normalizeHoseReferenceKey(row.variantId)}`;
+
+      const model = normalizeHoseReferenceKey(row.model);
+      const tradeSize = normalizeHoseReferenceKey(row.tradeSize);
+      return model && tradeSize ? `model:${model}|tradeSize:${tradeSize}` : "";
+    }
+
+    function mergeHoseReferenceRows(bundledRows, publishedRows) {
+      const mergedRows = Array.isArray(bundledRows)
+        ? bundledRows.map(row => ({ ...row }))
+        : [];
+      const rowIndexByKey = new Map();
+
+      mergedRows.forEach((row, index) => {
+        const key = getHoseReferenceRowKey(row);
+        if (key && !rowIndexByKey.has(key)) {
+          rowIndexByKey.set(key, index);
+        }
+      });
+
+      if (!Array.isArray(publishedRows)) return mergedRows;
+
+      publishedRows.forEach(row => {
+        const key = getHoseReferenceRowKey(row);
+        if (key && rowIndexByKey.has(key)) {
+          const index = rowIndexByKey.get(key);
+          mergedRows[index] = { ...mergedRows[index], ...row };
+          return;
+        }
+
+        const nextIndex = mergedRows.length;
+        mergedRows.push({ ...row });
+        if (key) rowIndexByKey.set(key, nextIndex);
+      });
+
+      return mergedRows;
+    }
+
+    function mergePublishedHoseReferences(bundledHose, publishedHose) {
+      const mergedHose = Array.isArray(bundledHose)
+        ? bundledHose.map(manufacturer => ({
+            ...manufacturer,
+            hoseData: Array.isArray(manufacturer.hoseData)
+              ? manufacturer.hoseData.map(row => ({ ...row }))
+              : []
+          }))
+        : [];
+      const manufacturerIndexById = new Map();
+
+      mergedHose.forEach((manufacturer, index) => {
+        if (manufacturer && manufacturer.id && !manufacturerIndexById.has(manufacturer.id)) {
+          manufacturerIndexById.set(manufacturer.id, index);
+        }
+      });
+
+      if (!Array.isArray(publishedHose) || !publishedHose.length) return mergedHose;
+
+      publishedHose.forEach(manufacturer => {
+        if (!manufacturer || !manufacturer.id) return;
+
+        if (manufacturerIndexById.has(manufacturer.id)) {
+          const index = manufacturerIndexById.get(manufacturer.id);
+          const bundledManufacturer = mergedHose[index] || {};
+          mergedHose[index] = {
+            ...bundledManufacturer,
+            ...manufacturer,
+            hoseData: mergeHoseReferenceRows(
+              bundledManufacturer.hoseData,
+              manufacturer.hoseData
+            )
+          };
+          return;
+        }
+
+        manufacturerIndexById.set(manufacturer.id, mergedHose.length);
+        mergedHose.push({
+          ...manufacturer,
+          hoseData: Array.isArray(manufacturer.hoseData)
+            ? manufacturer.hoseData.map(row => ({ ...row }))
+            : []
+        });
+      });
+
+      return mergedHose;
     }
 
     function getEquipmentManufacturers(data) {
