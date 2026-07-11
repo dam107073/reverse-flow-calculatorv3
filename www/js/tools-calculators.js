@@ -67,9 +67,9 @@
       render: renderFrictionLossPerHundredCalculator
     },
     "friction-loss-chart": {
-      title: "Friction Loss Chart",
+      title: "Friction Loss Chart Generator",
       description: "Generate a friction loss reference chart from your current default hose coefficients.",
-      path: "Tools / Reference Library / Friction Loss Chart",
+      path: "Tools / Hose Management / Friction Loss Chart Generator",
       render: renderFrictionLossChart
     }
   };

@@ -31,7 +31,7 @@
     }
   </style>
 
-  <title>References | Reverse Flow</title>
+  <title>Resources | Reverse Flow</title>
 
   <link rel="stylesheet" href="css/base.css?v=appearance-1" />
   <link rel="stylesheet" href="css/components.css?v=appearance-2" />
@@ -55,15 +55,16 @@
   <main id="referencesPage">
     <nav class="page-nav" aria-label="Primary">
       <a class="reset-button nav-action-button nav-button-link" href="index.html">Calculator</a>
-      <a class="reset-button nav-action-button nav-button-link active" href="tools.html">Tools</a>
+      <a class="reset-button nav-action-button nav-button-link" href="tools.html">Tools</a>
+      <a class="reset-button nav-action-button nav-button-link" href="resources.html">Resources</a>
       <a class="reset-button nav-action-button nav-button-link" href="settings.html">Settings</a>
     </nav>
 
     <section class="card app-view-panel">
       <div class="form-grid">
         <div class="field full">
-          <label>References</label>
-          <p class="helper">
+          <label id="referencesShellTitle">References</label>
+          <p id="referencesShellHelper" class="helper">
             Manufacturer information, reviewed training resources, and instructor listings for fire hydraulics.
           </p>
         </div>
@@ -77,20 +78,30 @@
     </p>
   </main>
 
-  <script src="js/constants.js?v=build-6"></script>
-  <script src="js/services/entitlement.js?v=build-2"></script>
   <script>
-    window.__reverseFlowReferencesLocked =
-      typeof guardToolsAccess === "function" &&
-      !guardToolsAccess({
-        safeUrl: "index.html",
-        redirectDelayMs: 250,
-        reason: "references-page-load"
+    function syncReferencesPrimaryNav() {
+      const activeHref = "resources.html";
+      document.querySelectorAll(".page-nav a").forEach(link => {
+        const isActive = link.getAttribute("href") === activeHref;
+        link.classList.toggle("active", isActive);
+        if (isActive) {
+          link.setAttribute("aria-current", "page");
+        } else {
+          link.removeAttribute("aria-current");
+        }
       });
+      const title = document.getElementById("referencesShellTitle");
+      const helper = document.getElementById("referencesShellHelper");
+      if (title) title.textContent = "Resources";
+      if (helper) {
+        helper.textContent = "Reference, training, and educational content for Reverse Flow.";
+      }
+    }
+
+    syncReferencesPrimaryNav();
   </script>
   <script src="js/data/references.js?v=training-directory-mock-1"></script>
   <script>
-    if (!window.__reverseFlowReferencesLocked) {
     const referencesList = document.getElementById("referencesList");
     const TRAINING_DIRECTORY_API_URL = "https://reverse-flow.app/api/training-directory/listings";
     const TRAINING_DIRECTORY_PROFILE_BASE_URL = "https://reverse-flow.app/training-directory";
@@ -174,10 +185,6 @@
     function getReferenceUrl(section, id) {
       const params = new URLSearchParams({ section, id });
       return `references.html?${params.toString()}`;
-    }
-
-    function getFrictionLossChartUrl() {
-      return "tools.html?calculator=friction-loss-chart";
     }
 
     function createReferenceLinkCard(title, helper, href, actionText = "Open") {
@@ -1116,11 +1123,20 @@
     function renderOverview(data) {
       referencesList.innerHTML = "";
       const manufacturerCount = getManufacturerCount(data);
+      referencesList.appendChild(
+        createReferenceLinkCard(
+          "Training Directory",
+          "Reviewed fire service training resources and instructor listings.",
+          "references.html?section=training-partners",
+          "Open"
+        )
+      );
+
       const manufacturerBody = `
         <article class="hose-library-card reference-card reference-nav-card">
           <div>
-            <strong>Manufacturers</strong>
-            <p class="helper">Hose and equipment manufacturer references for supported Reverse Flow products.</p>
+            <strong>Manufacturer References</strong>
+            <p class="helper">Browse manufacturer reference information by category.</p>
           </div>
           <a class="reset-button reference-open-button" href="references.html?section=manufacturers">
             Open
@@ -1130,20 +1146,11 @@
 
       referencesList.appendChild(
         createCollapsedSection(
-          "Manufacturers",
+          "Manufacturer References",
           manufacturerCount
             ? `${manufacturerCount} manufacturer resource ${manufacturerCount === 1 ? "page" : "pages"}`
             : "Manufacturer reference materials coming soon",
           manufacturerBody
-        )
-      );
-
-      referencesList.appendChild(
-        createReferenceLinkCard(
-          "Training Directory",
-          "Curated fire service training resources reviewed by Reverse Flow.",
-          "references.html?section=training-partners",
-          "Show"
         )
       );
 
@@ -1165,23 +1172,6 @@
         )
       );
 
-      referencesList.appendChild(
-        createCollapsedSection(
-          "Friction Loss Chart",
-          "Generate a reference chart from your current default hose coefficients.",
-          `
-            <article class="hose-library-card reference-card reference-nav-card">
-              <div>
-                <strong>Friction Loss Chart</strong>
-                <p class="helper">Generate a friction loss reference chart from your current default hose coefficients.</p>
-              </div>
-              <a class="reset-button reference-open-button" href="${escapeHtml(getFrictionLossChartUrl())}">
-                Open
-              </a>
-            </article>
-          `
-        )
-      );
     }
 
     function renderManufacturers(data) {
@@ -1189,20 +1179,20 @@
       const equipmentManufacturers = getEquipmentManufacturers(data);
       referencesList.innerHTML = `
         <div class="references-group">
-          <a class="reset-button reference-open-button reference-back-link" href="references.html">
-            Back to References
+          <a class="reset-button reference-open-button reference-back-link" href="resources.html">
+            Back to Resources
           </a>
-          <h2>Manufacturers</h2>
-          <p class="helper">Browse manufacturer reference pages by category.</p>
+          <h2>Manufacturer References</h2>
+          <p class="helper">Browse manufacturer reference information by category.</p>
         </div>
       `;
 
       referencesList.appendChild(
         createReferenceLinkCard(
-          "Hose Manufacturers",
+          "Hose References",
           hoseManufacturers.length
-            ? `${hoseManufacturers.length} hose manufacturer reference page`
-            : "Hose manufacturer references coming soon",
+            ? `${hoseManufacturers.length} hose manufacturer reference ${hoseManufacturers.length === 1 ? "page" : "pages"}`
+            : "Hose reference materials coming soon",
           "references.html?section=hose-manufacturers",
           "Open"
         )
@@ -1210,10 +1200,10 @@
 
       referencesList.appendChild(
         createReferenceLinkCard(
-          "Equipment Manufacturers",
+          "Equipment References",
           equipmentManufacturers.length
-            ? `${equipmentManufacturers.length} equipment manufacturer reference page`
-            : "Equipment manufacturer references coming soon",
+            ? `${equipmentManufacturers.length} equipment manufacturer reference ${equipmentManufacturers.length === 1 ? "page" : "pages"}`
+            : "Equipment reference materials coming soon",
           "references.html?section=equipment-manufacturers",
           "Open"
         )
@@ -1237,10 +1227,10 @@
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=manufacturers">
-            Back to Manufacturers
+            Back to Manufacturer References
           </a>
-          <h2>Hose Manufacturers</h2>
-          <p class="helper">Published hose data and source links by manufacturer.</p>
+          <h2>Hose References</h2>
+          <p class="helper">Browse hose manufacturers and published hose reference information.</p>
         </div>
       `;
 
@@ -1563,10 +1553,10 @@
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=manufacturers">
-            Back to Manufacturers
+            Back to Manufacturer References
           </a>
-          <h2>Equipment Manufacturers</h2>
-          <p class="helper">Published product references and Reverse Flow integration notes by manufacturer.</p>
+          <h2>Equipment References</h2>
+          <p class="helper">Browse equipment manufacturer reference pages and product documentation.</p>
         </div>
       `;
 
@@ -1576,8 +1566,8 @@
           `
             <article class="hose-library-card reference-card reference-empty-card">
               <div>
-                <strong>Equipment Manufacturers Coming Soon</strong>
-                <p class="helper">Equipment manufacturer reference pages have not been added yet.</p>
+                <strong>Equipment References Coming Soon</strong>
+                <p class="helper">Equipment manufacturer reference pages and product documentation have not been added yet.</p>
               </div>
             </article>
           `
@@ -1608,7 +1598,7 @@
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=equipment-manufacturers">
-            Back to Equipment Manufacturers
+            Back to Equipment References
           </a>
           <h2>${escapeHtml(manufacturer.name)}</h2>
         </div>
@@ -2009,7 +1999,7 @@
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=hose-manufacturers">
-            Back to Hose Manufacturers
+            Back to Hose References
           </a>
           <h2>${escapeHtml(manufacturer.name)}</h2>
         </div>
@@ -2056,8 +2046,8 @@
     function renderTrainingPartners(data) {
       referencesList.innerHTML = `
         <div class="references-group">
-          <a class="reset-button reference-open-button reference-back-link" href="references.html">
-            Back to References
+          <a class="reset-button reference-open-button reference-back-link" href="resources.html">
+            Back to Resources
           </a>
           <h2>Training Directory</h2>
           <p class="helper">Reviewed fire service training resources and instructor listings.</p>
@@ -2096,8 +2086,8 @@
     function renderTrainingResources(data) {
       referencesList.innerHTML = `
         <div class="references-group">
-          <a class="reset-button reference-open-button reference-back-link" href="references.html">
-            Back to References
+          <a class="reset-button reference-open-button reference-back-link" href="resources.html">
+            Back to Resources
           </a>
           <h2>Training Resources</h2>
         </div>
@@ -2143,7 +2133,7 @@
       referencesList.innerHTML = `
         <div class="references-group">
           <a class="reset-button reference-open-button reference-back-link" href="references.html?section=manufacturers">
-            Back to Manufacturers
+            Back to Manufacturer References
           </a>
           <h2>${escapeHtml(manufacturer.name)}</h2>
           <p class="helper">Manufacturer resources and product references.</p>
@@ -2259,7 +2249,6 @@
 
     renderReferences();
     loadPublishedHoseReferences();
-    }
   </script>
   <script type="module" src="js/analytics.js"></script>
 </body>
