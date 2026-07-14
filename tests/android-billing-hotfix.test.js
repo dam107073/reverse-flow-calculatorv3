@@ -119,6 +119,7 @@ function loadProcessor(overrides = {}) {
     .replace(/^function /, "async function ");
   vm.runInContext(
     `${extractFunction("getAndroidProTransactionAssessment")};` +
+    `${extractFunction("acknowledgeAndroidProDirectly")};` +
     `${processorSource};` +
     "this.process = processAndroidProTransaction;",
     context
@@ -168,6 +169,72 @@ test("valid Android purchase persists, finishes, confirms, then completes UI", a
   assert.ok(sequence.indexOf("persist") < sequence.indexOf("finish"));
   assert.ok(sequence.indexOf("finish") < sequence.indexOf("wait-confirmation"));
   assert.ok(sequence.indexOf("wait-confirmation") < sequence.indexOf("complete-ui"));
+});
+
+test("direct Android acknowledgement invokes the native Cordova action and waits for success", async () => {
+  const nativeCalls = [];
+  const { process, calls } = loadProcessor({
+    window: {
+      CdvPurchase: {
+        Platform: { GOOGLE_PLAY: "android-playstore" },
+        TransactionState: {
+          APPROVED: "approved",
+          PENDING: "pending",
+          CANCELLED: "cancelled",
+          FINISHED: "finished"
+        }
+      },
+      cordova: {
+        exec(success, _failure, service, action, args) {
+          nativeCalls.push({ service, action, args });
+          success();
+        }
+      }
+    }
+  });
+  const transaction = makeTransaction({
+    purchaseId: "test-purchase-token",
+    finish: async () => calls.push(["abstract-finish"])
+  });
+  assert.equal(await process({}, transaction, { purchase: true }), true);
+  assert.equal(nativeCalls.length, 1);
+  assert.equal(nativeCalls[0].service, "InAppBillingPlugin");
+  assert.equal(nativeCalls[0].action, "acknowledgePurchase");
+  assert.equal(nativeCalls[0].args.length, 1);
+  assert.equal(nativeCalls[0].args[0], "test-purchase-token");
+  assert.equal(transaction.isAcknowledged, true);
+  assert.equal(calls.some(call => call[0] === "abstract-finish"), false);
+  assert.equal(calls.some(call => call[0] === "complete-ui"), true);
+});
+
+test("native acknowledgement failure is logged, remains retryable, and never shows success", async () => {
+  const { process, calls } = loadProcessor({
+    window: {
+      CdvPurchase: {
+        Platform: { GOOGLE_PLAY: "android-playstore" },
+        TransactionState: {
+          APPROVED: "approved",
+          PENDING: "pending",
+          CANCELLED: "cancelled",
+          FINISHED: "finished"
+        }
+      },
+      cordova: {
+        exec(_success, failure) {
+          failure({ code: 6777003, message: "BillingClient unavailable" });
+        }
+      }
+    }
+  });
+  const transaction = makeTransaction({ purchaseId: "test-purchase-token" });
+  assert.equal(await process({}, transaction, { purchase: true }), false);
+  assert.equal(transaction.isAcknowledged, false);
+  assert.equal(calls.some(call => call[0] === "schedule-retry"), true);
+  assert.equal(calls.some(call => call[0] === "complete-ui"), false);
+  assert.equal(
+    calls.some(call => call[0] === "warn" && call[2]?.event === "android-native-acknowledgement-failed"),
+    true
+  );
 });
 
 test("persistence failure never finalizes and schedules recovery", async () => {
@@ -235,4 +302,27 @@ test("iOS keeps the existing verify and receipt finish path", () => {
   assert.match(source, /transaction\.verify\(\)/);
   assert.match(source, /Promise\.resolve\(receipt\.finish\(\)\)/);
   assert.match(source, /platform !== "ios"/);
+});
+
+test("native plugin diagnostics are reproducibly patched", () => {
+  const pluginSource = fs.readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "node_modules",
+      "cordova-plugin-purchase",
+      "src",
+      "android",
+      "cc",
+      "fovea",
+      "PurchasePlugin.java"
+    ),
+    "utf8"
+  );
+  assert.match(pluginSource, /ReverseFlowBilling/);
+  assert.match(pluginSource, /finish requested action=acknowledgePurchase/);
+  assert.match(pluginSource, /BillingClient acknowledgement responseCode=/);
+  assert.match(pluginSource, /acknowledgement success/);
+  assert.match(pluginSource, /acknowledgement failure responseCode=/);
+  assert.doesNotMatch(pluginSource, /acknowledgePurchase\(" \+ purchaseToken/);
 });

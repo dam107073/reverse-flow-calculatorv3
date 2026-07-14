@@ -1,5 +1,8 @@
 {
   "scripts": {
+    "postinstall": "node scripts/patch-android-purchase-plugin.js",
+    "patch:android-purchase": "node scripts/patch-android-purchase-plugin.js",
+    "sync:android": "npm run patch:android-purchase && npx cap sync android",
     "test:android-billing": "node --test tests/android-billing-hotfix.test.js"
   },
   "dependencies": {

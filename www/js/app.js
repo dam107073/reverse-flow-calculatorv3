@@ -1110,6 +1110,50 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  });
 	}
 
+	function acknowledgeAndroidProDirectly(transaction) {
+	  const purchaseToken = transaction?.purchaseId;
+	  if (!purchaseToken || typeof window.cordova?.exec !== "function") {
+	    return Promise.reject(
+	      new Error("direct Android acknowledgement bridge is unavailable")
+	    );
+	  }
+
+	  console.info("[Reverse Flow IAP]", {
+	    event: "android-finish-requested",
+	    productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	    transactionRef: redactAndroidTransactionId(transaction),
+	    method: "cordova.exec acknowledgePurchase",
+	    purchaseTokenPresent: true
+	  });
+
+	  return new Promise((resolve, reject) => {
+	    window.cordova.exec(
+	      () => {
+	        transaction.isAcknowledged = true;
+	        console.info("[Reverse Flow IAP]", {
+	          event: "android-native-acknowledgement-success",
+	          productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	          transactionRef: redactAndroidTransactionId(transaction)
+	        });
+	        resolve(true);
+	      },
+	      error => {
+	        console.warn("[Reverse Flow IAP]", {
+	          event: "android-native-acknowledgement-failed",
+	          productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	          transactionRef: redactAndroidTransactionId(transaction),
+	          code: error?.code || null,
+	          message: error?.message || String(error)
+	        });
+	        reject(error instanceof Error ? error : new Error(String(error?.message || error)));
+	      },
+	      "InAppBillingPlugin",
+	      "acknowledgePurchase",
+	      [purchaseToken]
+	    );
+	  });
+	}
+
 	function completeAndroidProTransactionUi(options = {}) {
 	  reverseFlowPurchaseInProgress = false;
 	  reverseFlowRestoreInProgress = false;
@@ -1204,6 +1248,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    state: assessment.state,
 	    acknowledged: assessment.isAcknowledged,
 	    pending: assessment.isPending,
+	    purchaseTokenPresent: Boolean(transaction?.purchaseId),
 	    trigger
 	  });
 
@@ -1309,9 +1354,24 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    });
 
 	    let finishInitiated = false;
+	    let confirmed = false;
 	    try {
 	      finishInitiated = true;
-	      await Promise.resolve(transaction.finish());
+	      if (
+	        transaction?.purchaseId &&
+	        typeof window.cordova?.exec === "function"
+	      ) {
+	        confirmed = await acknowledgeAndroidProDirectly(transaction);
+	      } else {
+	        console.warn("[Reverse Flow IAP]", {
+	          event: "android-finish-fallback",
+	          productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	          transactionRef,
+	          reason: "direct acknowledgement bridge unavailable"
+	        });
+	        await Promise.resolve(transaction.finish());
+	        confirmed = await waitForAndroidAcknowledgementConfirmation(transaction);
+	      }
 	    } catch (error) {
 	      console.warn("[Reverse Flow IAP]", {
 	        event: "android-acknowledgement-initiation-failed",
@@ -1321,11 +1381,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      });
 	    }
 
-	    const confirmed = finishInitiated
-	      ? await waitForAndroidAcknowledgementConfirmation(transaction)
-	      : false;
-
-	    if (confirmed) {
+	    if (finishInitiated && confirmed) {
 	      clearAndroidProAckRetryState(transaction, "acknowledgement confirmed");
 	      androidProAckSessionAttempts.delete(key);
 	      console.info("[Reverse Flow IAP]", {
