@@ -507,8 +507,42 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
   console.log("CdvPurchase is available.");
 
-	  initializeReverseFlowStore();
-	});
+		  initializeReverseFlowStore();
+		});
+
+		document.addEventListener("resume", async () => {
+		  if (
+		    !window.CdvPurchase ||
+		    getReverseFlowPurchasePlatform() !== window.CdvPurchase.Platform?.GOOGLE_PLAY
+		  ) {
+		    return;
+		  }
+
+		  const store = window.CdvPurchase.store;
+		  getAndroidProTransactions(store).forEach(transaction => {
+		    const key = getAndroidProTransactionKey(transaction);
+		    androidProAckSessionAttempts.delete(key);
+		    const timer = androidProAckRetryTimers.get(key);
+		    if (timer) clearTimeout(timer);
+		    androidProAckRetryTimers.delete(key);
+		  });
+
+		  console.info("[Reverse Flow IAP]", {
+		    event: "android-resume-acknowledgement-check",
+		    retryStatePresent: Boolean(readAndroidProAckRetryState())
+		  });
+		  try {
+		    await store.restorePurchases();
+		  } catch (error) {
+		    console.warn("[Reverse Flow IAP]", {
+		      event: "android-resume-refresh-failed",
+		      message: error?.message || String(error)
+		    });
+		  }
+		  recoverAndroidProTransactions(store, {
+		    trigger: "app-resume"
+		  });
+		});
 
 	function updateBuyProButtonState(state, details = {}) {
 	  if (!els.buyProButton) return;
@@ -519,12 +553,15 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  } else if (state === "loading") {
 	    els.buyProButton.disabled = true;
 	    els.buyProButton.textContent = "Loading purchase...";
-	  } else if (state === "processing") {
-	    els.buyProButton.disabled = true;
-	    els.buyProButton.textContent = "Processing purchase...";
-	  } else if (state === "owned") {
-	    els.buyProButton.disabled = true;
-	    els.buyProButton.textContent = "Pro Active";
+		  } else if (state === "processing") {
+		    els.buyProButton.disabled = true;
+		    els.buyProButton.textContent = "Processing purchase...";
+		  } else if (state === "owned") {
+		    els.buyProButton.disabled = true;
+		    els.buyProButton.textContent = "Pro Active";
+		  } else if (state === "confirmationPending") {
+		    els.buyProButton.disabled = true;
+		    els.buyProButton.textContent = "Pro Active - Confirming Purchase";
 	  } else if (state === "restoreRequired") {
 	    els.buyProButton.disabled = true;
 	    els.buyProButton.textContent = "Pro Owned - Restore to Activate";
@@ -825,6 +862,532 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  return true;
 	}
 
+	const ANDROID_PRO_ACK_RETRY_STORAGE_KEY =
+	  "reverse-flow-android-pro-ack-retry-v1";
+	const ANDROID_PRO_ACK_CONFIRM_TIMEOUT_MS = 8000;
+	const ANDROID_PRO_ACK_RETRY_DELAYS_MS = [2000, 10000, 30000];
+	const androidProAckInFlight = new Map();
+	const androidProAckRetryTimers = new Map();
+	const androidProAckSessionAttempts = new Map();
+	const androidProAckWaiters = new Map();
+
+	function getAndroidProTransactionAssessment(transaction) {
+	  const Platform = window.CdvPurchase?.Platform;
+	  const TransactionState = window.CdvPurchase?.TransactionState;
+	  const productIds = Array.isArray(transaction?.products)
+	    ? transaction.products.map(product => product?.id).filter(Boolean)
+	    : [];
+	  const state = transaction?.state || null;
+	  const isGooglePlay = transaction?.platform === Platform?.GOOGLE_PLAY;
+	  const matchesProduct = productIds.includes(REVERSE_FLOW_PRO_PRODUCT_ID);
+	  const isPending =
+	    transaction?.isPending === true ||
+	    state === TransactionState?.PENDING ||
+	    state === "pending";
+	  const isCancelled =
+	    state === TransactionState?.CANCELLED ||
+	    state === "cancelled";
+	  const isFinished =
+	    state === TransactionState?.FINISHED ||
+	    state === "finished";
+	  const isApproved =
+	    state === TransactionState?.APPROVED ||
+	    state === "approved";
+	  const isAcknowledged = transaction?.isAcknowledged === true;
+
+	  return {
+	    isGooglePlay,
+	    matchesProduct,
+	    productIds,
+	    state,
+	    isPending,
+	    isCancelled,
+	    isFinished,
+	    isApproved,
+	    isAcknowledged,
+	    shouldAcknowledge:
+	      isGooglePlay &&
+	      matchesProduct &&
+	      isApproved &&
+	      !isPending &&
+	      !isCancelled &&
+	      !isFinished &&
+	      !isAcknowledged
+	  };
+	}
+
+	function getAndroidProTransactionKey(transaction) {
+	  return String(
+	    transaction?.transactionId ||
+	    transaction?.purchaseId ||
+	    `${REVERSE_FLOW_PRO_PRODUCT_ID}:unknown`
+	  );
+	}
+
+	function redactAndroidTransactionId(transaction) {
+	  const value = getAndroidProTransactionKey(transaction);
+	  if (!value || value.endsWith(":unknown")) return "unknown";
+	  return `...${value.slice(-6)}`;
+	}
+
+	function getAndroidProTransactions(store, receipt = null) {
+	  const candidates = [];
+	  const appendTransactions = value => {
+	    if (!Array.isArray(value)) return;
+	    value.forEach(transaction => {
+	      if (transaction && !candidates.includes(transaction)) {
+	        candidates.push(transaction);
+	      }
+	    });
+	  };
+
+	  appendTransactions(receipt?.sourceReceipt?.transactions);
+	  appendTransactions(receipt?.transactions);
+	  appendTransactions(store?.localTransactions);
+	  if (Array.isArray(store?.localReceipts)) {
+	    store.localReceipts.forEach(localReceipt => {
+	      appendTransactions(localReceipt?.transactions);
+	    });
+	  }
+
+	  return candidates.filter(transaction => {
+	    const assessment = getAndroidProTransactionAssessment(transaction);
+	    return assessment.isGooglePlay && assessment.matchesProduct;
+	  });
+	}
+
+	function readAndroidProAckRetryState() {
+	  try {
+	    return JSON.parse(
+	      localStorage.getItem(ANDROID_PRO_ACK_RETRY_STORAGE_KEY) || "null"
+	    );
+	  } catch (error) {
+	    console.warn("[Reverse Flow IAP]", {
+	      event: "android-ack-retry-state-read-failed",
+	      message: error?.message || String(error)
+	    });
+	    return null;
+	  }
+	}
+
+	function writeAndroidProAckRetryState(transaction, details = {}) {
+	  try {
+	    const previous = readAndroidProAckRetryState();
+	    localStorage.setItem(
+	      ANDROID_PRO_ACK_RETRY_STORAGE_KEY,
+	      JSON.stringify({
+	        productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	        transactionRef: redactAndroidTransactionId(transaction),
+	        attempts: Number(previous?.attempts || 0) + (details.increment ? 1 : 0),
+	        reason: details.reason || null,
+	        updatedAt: new Date().toISOString()
+	      })
+	    );
+	    return true;
+	  } catch (error) {
+	    console.warn("[Reverse Flow IAP]", {
+	      event: "android-ack-retry-state-write-failed",
+	      transactionRef: redactAndroidTransactionId(transaction),
+	      message: error?.message || String(error)
+	    });
+	    return false;
+	  }
+	}
+
+	function clearAndroidProAckRetryState(transaction, reason) {
+	  try {
+	    localStorage.removeItem(ANDROID_PRO_ACK_RETRY_STORAGE_KEY);
+	  } catch (error) {
+	    console.warn("[Reverse Flow IAP]", {
+	      event: "android-ack-retry-state-clear-failed",
+	      transactionRef: redactAndroidTransactionId(transaction),
+	      reason,
+	      message: error?.message || String(error)
+	    });
+	  }
+	}
+
+	function persistAndroidProEntitlement(transaction, trigger) {
+	  try {
+	    const entitlement = {
+	      access: ACCESS_LEVELS.PRO,
+	      source: "purchase",
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      trigger,
+	      verifiedAt: new Date().toISOString()
+	    };
+	    localStorage.setItem(
+	      PRO_ENTITLEMENT_STORAGE_KEY,
+	      JSON.stringify(entitlement)
+	    );
+	    localStorage.setItem(ACCESS_LEVEL_STORAGE_KEY, ACCESS_LEVELS.PRO);
+
+	    const storedEntitlement = JSON.parse(
+	      localStorage.getItem(PRO_ENTITLEMENT_STORAGE_KEY) || "null"
+	    );
+	    if (!isValidStoredProEntitlement(storedEntitlement)) {
+	      throw new Error("stored entitlement could not be confirmed");
+	    }
+
+	    userAccessLevel = ACCESS_LEVELS.PRO;
+	  } catch (error) {
+	    try {
+	      localStorage.removeItem(PRO_ENTITLEMENT_STORAGE_KEY);
+	      localStorage.setItem(ACCESS_LEVEL_STORAGE_KEY, ACCESS_LEVELS.BASIC);
+	      userAccessLevel = ACCESS_LEVELS.BASIC;
+	    } catch (cleanupError) {
+	      console.warn("[Reverse Flow IAP]", {
+	        event: "android-entitlement-cleanup-failed",
+	        transactionRef: redactAndroidTransactionId(transaction),
+	        message: cleanupError?.message || String(cleanupError)
+	      });
+	    }
+
+	    console.warn("[Reverse Flow IAP]", {
+	      event: "android-entitlement-persist-failed",
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      transactionRef: redactAndroidTransactionId(transaction),
+	      message: error?.message || String(error)
+	    });
+	    return false;
+	  }
+
+	  console.info("[Reverse Flow IAP]", {
+	    event: "android-entitlement-persisted",
+	    productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	    transactionRef: redactAndroidTransactionId(transaction),
+	    trigger
+	  });
+	  return true;
+	}
+
+	function syncAndroidProEntitlementUi() {
+	  document.body.classList.toggle("pro-user", isProUser());
+	  updateAccessBadge();
+	}
+
+	function isAndroidAcknowledgementConfirmed(transaction) {
+	  const assessment = getAndroidProTransactionAssessment(transaction);
+	  return assessment.isAcknowledged || assessment.isFinished;
+	}
+
+	function resolveAndroidProAckWaiters(transaction) {
+	  const key = getAndroidProTransactionKey(transaction);
+	  const waiters = androidProAckWaiters.get(key);
+	  if (!waiters) return;
+	  androidProAckWaiters.delete(key);
+	  waiters.forEach(resolve => resolve(true));
+	}
+
+	function waitForAndroidAcknowledgementConfirmation(transaction) {
+	  if (isAndroidAcknowledgementConfirmed(transaction)) {
+	    return Promise.resolve(true);
+	  }
+
+	  const key = getAndroidProTransactionKey(transaction);
+	  return new Promise(resolve => {
+	    const waiters = androidProAckWaiters.get(key) || new Set();
+	    waiters.add(resolve);
+	    androidProAckWaiters.set(key, waiters);
+
+	    const startedAt = Date.now();
+	    const poll = () => {
+	      if (isAndroidAcknowledgementConfirmed(transaction)) {
+	        resolveAndroidProAckWaiters(transaction);
+	        return;
+	      }
+
+	      if (Date.now() - startedAt >= ANDROID_PRO_ACK_CONFIRM_TIMEOUT_MS) {
+	        waiters.delete(resolve);
+	        if (waiters.size === 0) androidProAckWaiters.delete(key);
+	        resolve(false);
+	        return;
+	      }
+
+	      setTimeout(poll, 250);
+	    };
+	    setTimeout(poll, 250);
+	  });
+	}
+
+	function completeAndroidProTransactionUi(options = {}) {
+	  reverseFlowPurchaseInProgress = false;
+	  reverseFlowRestoreInProgress = false;
+	  syncAndroidProEntitlementUi();
+	  updateBuyProButtonState("owned", {
+	    reason: options.alreadyAcknowledged
+	      ? "Google Play purchase was already acknowledged"
+	      : "Google Play acknowledgement confirmed"
+	  });
+
+	  if (els.restorePurchaseButton) {
+	    els.restorePurchaseButton.disabled = false;
+	    els.restorePurchaseButton.textContent = options.restore
+	      ? "Restore Complete"
+	      : "Restore Purchase";
+	  }
+
+	  if (els.proModal) {
+	    els.proModal.hidden = true;
+	  }
+
+	  if (options.purchase && !options.wasAlreadyPro) {
+	    alert("Reverse Flow Pro Unlocked");
+	  }
+	}
+
+	function scheduleAndroidProAckRetry(store, transaction, reason) {
+	  const key = getAndroidProTransactionKey(transaction);
+	  const attempts = androidProAckSessionAttempts.get(key) || 0;
+	  if (attempts >= ANDROID_PRO_ACK_RETRY_DELAYS_MS.length) {
+	    console.warn("[Reverse Flow IAP]", {
+	      event: "android-ack-retry-session-limit",
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      transactionRef: redactAndroidTransactionId(transaction),
+	      attempts,
+	      reason
+	    });
+	    return;
+	  }
+
+	  if (androidProAckRetryTimers.has(key)) return;
+	  const delayMs = ANDROID_PRO_ACK_RETRY_DELAYS_MS[attempts];
+	  androidProAckSessionAttempts.set(key, attempts + 1);
+	  writeAndroidProAckRetryState(transaction, {
+	    increment: true,
+	    reason
+	  });
+
+	  console.info("[Reverse Flow IAP]", {
+	    event: "android-ack-retry-scheduled",
+	    productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	    transactionRef: redactAndroidTransactionId(transaction),
+	    attempt: attempts + 1,
+	    delayMs,
+	    reason
+	  });
+
+	  const timer = setTimeout(async () => {
+	    androidProAckRetryTimers.delete(key);
+	    try {
+	      await store.restorePurchases();
+	    } catch (error) {
+	      console.warn("[Reverse Flow IAP]", {
+	        event: "android-ack-retry-refresh-failed",
+	        transactionRef: redactAndroidTransactionId(transaction),
+	        message: error?.message || String(error)
+	      });
+	    }
+
+	    const refreshedTransaction = getAndroidProTransactions(store).find(candidate =>
+	      getAndroidProTransactionKey(candidate) === key
+	    ) || transaction;
+	    processAndroidProTransaction(store, refreshedTransaction, {
+	      trigger: "acknowledgement-retry",
+	      retry: true
+	    });
+	  }, delayMs);
+	  androidProAckRetryTimers.set(key, timer);
+	}
+
+	async function processAndroidProTransaction(store, transaction, options = {}) {
+	  const assessment = getAndroidProTransactionAssessment(transaction);
+	  const transactionRef = redactAndroidTransactionId(transaction);
+	  const trigger = options.trigger || "android-purchase-update";
+	  const purchase = Boolean(options.purchase || reverseFlowPurchaseInProgress);
+	  const restore = Boolean(options.restore || reverseFlowRestoreInProgress);
+
+	  console.info("[Reverse Flow IAP]", {
+	    event: "android-purchase-received",
+	    productId: assessment.matchesProduct ? REVERSE_FLOW_PRO_PRODUCT_ID : null,
+	    transactionRef,
+	    state: assessment.state,
+	    acknowledged: assessment.isAcknowledged,
+	    pending: assessment.isPending,
+	    trigger
+	  });
+
+	  if (!assessment.isGooglePlay || !assessment.matchesProduct) {
+	    console.warn("[Reverse Flow IAP]", {
+	      event: "android-purchase-ignored-wrong-product",
+	      transactionRef,
+	      state: assessment.state
+	    });
+	    return false;
+	  }
+
+	  console.info("[Reverse Flow IAP]", {
+	    event: "android-exact-product-matched",
+	    productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	    transactionRef,
+	    state: assessment.state
+	  });
+
+	  if (assessment.isPending) {
+	    console.info("[Reverse Flow IAP]", {
+	      event: "android-purchase-pending",
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      transactionRef
+	    });
+	    return false;
+	  }
+
+	  if (assessment.isCancelled || (!assessment.isApproved && !assessment.isFinished)) {
+	    console.warn("[Reverse Flow IAP]", {
+	      event: "android-purchase-not-processable",
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      transactionRef,
+	      state: assessment.state
+	    });
+	    return false;
+	  }
+
+	  const wasAlreadyPro = isProUser();
+	  if (assessment.isAcknowledged || assessment.isFinished) {
+	    clearAndroidProAckRetryState(transaction, "already acknowledged");
+	    console.info("[Reverse Flow IAP]", {
+	      event: "android-purchase-already-acknowledged",
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      transactionRef,
+	      state: assessment.state
+	    });
+
+	    if (!wasAlreadyPro && !purchase && !restore) {
+	      updateBuyProButtonState("restoreRequired", {
+	        reason: "Google Play owns Pro; explicit restore is required on this device"
+	      });
+	      return true;
+	    }
+
+	    if (!wasAlreadyPro && !persistAndroidProEntitlement(transaction, trigger)) {
+	      return false;
+	    }
+	    completeAndroidProTransactionUi({
+	      alreadyAcknowledged: true,
+	      purchase,
+	      restore,
+	      wasAlreadyPro
+	    });
+	    return true;
+	  }
+
+	  if (!assessment.shouldAcknowledge) return false;
+	  const key = getAndroidProTransactionKey(transaction);
+	  if (androidProAckInFlight.has(key)) {
+	    return androidProAckInFlight.get(key);
+	  }
+
+	  const operation = (async () => {
+	    if (!persistAndroidProEntitlement(transaction, trigger)) {
+	      writeAndroidProAckRetryState(transaction, {
+	        increment: false,
+	        reason: "entitlement persistence failed"
+	      });
+	      scheduleAndroidProAckRetry(
+	        store,
+	        transaction,
+	        "entitlement persistence failed"
+	      );
+	      reverseFlowPurchaseInProgress = false;
+	      reverseFlowRestoreInProgress = false;
+	      if (purchase || restore) {
+	        alert("Your purchase was received, but Pro could not be saved on this device. Please reopen the app or tap Restore Purchase to retry.");
+	      }
+	      return false;
+	    }
+
+	    writeAndroidProAckRetryState(transaction, {
+	      increment: false,
+	      reason: "acknowledgement pending"
+	    });
+	    console.info("[Reverse Flow IAP]", {
+	      event: "android-acknowledgement-started",
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      transactionRef,
+	      trigger,
+	      restore
+	    });
+
+	    let finishInitiated = false;
+	    try {
+	      finishInitiated = true;
+	      await Promise.resolve(transaction.finish());
+	    } catch (error) {
+	      console.warn("[Reverse Flow IAP]", {
+	        event: "android-acknowledgement-initiation-failed",
+	        productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	        transactionRef,
+	        message: error?.message || String(error)
+	      });
+	    }
+
+	    const confirmed = finishInitiated
+	      ? await waitForAndroidAcknowledgementConfirmation(transaction)
+	      : false;
+
+	    if (confirmed) {
+	      clearAndroidProAckRetryState(transaction, "acknowledgement confirmed");
+	      androidProAckSessionAttempts.delete(key);
+	      console.info("[Reverse Flow IAP]", {
+	        event: "android-acknowledgement-confirmed",
+	        productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	        transactionRef,
+	        state: transaction?.state || null,
+	        restore
+	      });
+	      completeAndroidProTransactionUi({
+	        purchase,
+	        restore,
+	        wasAlreadyPro
+	      });
+	      return true;
+	    }
+
+	    console.warn("[Reverse Flow IAP]", {
+	      event: "android-acknowledgement-timeout",
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	      transactionRef,
+	      trigger,
+	      restore
+	    });
+	    syncAndroidProEntitlementUi();
+	    updateBuyProButtonState("confirmationPending", {
+	      reason: "Google Play acknowledgement confirmation is pending"
+	    });
+	    scheduleAndroidProAckRetry(
+	      store,
+	      transaction,
+	      "acknowledgement confirmation timeout"
+	    );
+	    if ((purchase || restore) && !options.retry) {
+	      alert("Reverse Flow Pro is active. Google Play confirmation is still pending, and the app will retry automatically.");
+	    }
+	    return false;
+	  })();
+
+	  androidProAckInFlight.set(key, operation);
+	  try {
+	    return await operation;
+	  } finally {
+	    androidProAckInFlight.delete(key);
+	  }
+	}
+
+	async function recoverAndroidProTransactions(store, options = {}) {
+	  if (getReverseFlowPurchasePlatform() !== window.CdvPurchase?.Platform?.GOOGLE_PLAY) {
+	    return false;
+	  }
+
+	  const transactions = getAndroidProTransactions(store, options.receipt);
+	  if (transactions.length === 0) return false;
+	  const results = await Promise.all(
+	    transactions.map(transaction =>
+	      processAndroidProTransaction(store, transaction, options)
+	    )
+	  );
+	  return results.some(Boolean);
+	}
+
 	function initializeReverseFlowStore() {
 	  const store = window.CdvPurchase.store;
 	  const ProductType = window.CdvPurchase.ProductType;
@@ -1008,16 +1571,29 @@ logStoreEvent("initialize-start", {
 	      })
 	    });
 
-	    if (product.id === REVERSE_FLOW_PRO_PRODUCT_ID) {
-	      if (product.owned === true) {
-	        reverseFlowProProductReady = false;
-	        grantProFromSdkOwnership(store, {
-	          trigger: "product-updated",
-	          purchase: reverseFlowPurchaseInProgress,
-	          restore: reverseFlowRestoreInProgress
-	        });
-	        return;
-	      }
+		    if (product.id === REVERSE_FLOW_PRO_PRODUCT_ID) {
+		      if (product.owned === true) {
+		        reverseFlowProProductReady = false;
+		        if (purchasePlatform === Platform.GOOGLE_PLAY) {
+		          recoverAndroidProTransactions(store, {
+		            trigger: "product-updated",
+		            purchase: reverseFlowPurchaseInProgress,
+		            restore: reverseFlowRestoreInProgress
+		          });
+		          if (!isProUser() && !reverseFlowPurchaseInProgress && !reverseFlowRestoreInProgress) {
+		            setBuyProButtonState("restoreRequired", {
+		              reason: "Google Play reports Pro ownership; checking acknowledgement state"
+		            });
+		          }
+		        } else {
+		          grantProFromSdkOwnership(store, {
+		            trigger: "product-updated",
+		            purchase: reverseFlowPurchaseInProgress,
+		            restore: reverseFlowRestoreInProgress
+		          });
+		        }
+		        return;
+		      }
 
 	      if (product.canPurchase) {
 	  reverseFlowProProductReady = true;
@@ -1047,23 +1623,90 @@ logStoreEvent("initialize-start", {
 	    }
 	  });
 
-	  store.when()
-	    .approved(transaction => {
-	      logStoreEvent("transaction-approved", {
-	        transactionId: transaction?.transactionId || null,
-	        state: transaction?.state || null,
-	        productIds: Array.isArray(transaction?.products)
+		  store.when()
+		    .pending(transaction => {
+		      const assessment = getAndroidProTransactionAssessment(transaction);
+		      if (!assessment.isGooglePlay || !assessment.matchesProduct) return;
+		      processAndroidProTransaction(store, transaction, {
+		        trigger: "transaction-pending"
+		      });
+		    })
+		    .initiated(transaction => {
+		      const assessment = getAndroidProTransactionAssessment(transaction);
+		      if (!assessment.isGooglePlay || !assessment.matchesProduct || !assessment.isPending) {
+		        return;
+		      }
+		      processAndroidProTransaction(store, transaction, {
+		        trigger: "transaction-initiated-pending"
+		      });
+		    })
+		    .receiptUpdated(receipt => {
+		      recoverAndroidProTransactions(store, {
+		        trigger: "receipt-updated",
+		        receipt,
+		        purchase: reverseFlowPurchaseInProgress,
+		        restore: reverseFlowRestoreInProgress
+		      });
+		    })
+		    .finished(transaction => {
+		      const assessment = getAndroidProTransactionAssessment(transaction);
+		      if (!assessment.isGooglePlay || !assessment.matchesProduct) return;
+		      console.info("[Reverse Flow IAP]", {
+		        event: "android-finished-event",
+		        productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+		        transactionRef: redactAndroidTransactionId(transaction),
+		        state: transaction?.state || null
+		      });
+		      resolveAndroidProAckWaiters(transaction);
+		    })
+		    .receiptsReady(() => {
+		      recoverAndroidProTransactions(store, {
+		        trigger: readAndroidProAckRetryState()
+		          ? "startup-retry-state"
+		          : "startup-receipts-ready"
+		      });
+		    });
+
+		  store.when()
+		    .approved(transaction => {
+		      const androidAssessment = getAndroidProTransactionAssessment(transaction);
+		      logStoreEvent("transaction-approved", {
+		        transactionRef: androidAssessment.isGooglePlay
+		          ? redactAndroidTransactionId(transaction)
+		          : transaction?.transactionId || null,
+		        state: transaction?.state || null,
+		        productIds: Array.isArray(transaction?.products)
 	          ? transaction.products.map(product => product?.id).filter(Boolean)
 	          : [],
 	        ...getIapDiagnosticPayload({
 	          rawTransaction: transaction
-	        })
-	      });
+		        })
+		      });
 
-	      transaction.verify();
-	    })
-	    .verified(receipt => {
-	      const receiptInspection = inspectVerifiedEntitlement(receipt);
+		      if (androidAssessment.isGooglePlay) {
+		        processAndroidProTransaction(store, transaction, {
+		          trigger: "transaction-approved",
+		          purchase: reverseFlowPurchaseInProgress,
+		          restore: reverseFlowRestoreInProgress
+		        });
+		        return;
+		      }
+
+		      transaction.verify();
+		    })
+		    .verified(receipt => {
+		      const androidTransactions = getAndroidProTransactions(store, receipt);
+		      if (androidTransactions.length > 0) {
+		        recoverAndroidProTransactions(store, {
+		          trigger: "verified-receipt-android-fallback",
+		          receipt,
+		          purchase: reverseFlowPurchaseInProgress,
+		          restore: reverseFlowRestoreInProgress
+		        });
+		        return;
+		      }
+
+		      const receiptInspection = inspectVerifiedEntitlement(receipt);
 	      const verifiedReceiptValuePaths = findVerifiedReceiptValuePaths(receipt);
 	      const receiptCollection = Array.isArray(receipt?.collection)
 	        ? receipt.collection
@@ -1259,9 +1902,15 @@ logStoreEvent("initialize-start", {
 	            storeSnapshot: getReverseFlowProStoreSnapshot(store)
 	          })
 	        });
-	        grantProFromSdkOwnership(store, {
-	          trigger: "initialize-complete"
-	        });
+		        if (purchasePlatform === Platform.GOOGLE_PLAY) {
+		          recoverAndroidProTransactions(store, {
+		            trigger: "initialize-complete"
+		          });
+		        } else {
+		          grantProFromSdkOwnership(store, {
+		            trigger: "initialize-complete"
+		          });
+		        }
 	      })
 	      .catch(error => {
 	        console.warn("[Reverse Flow IAP]", {
@@ -1282,9 +1931,15 @@ logStoreEvent("initialize-start", {
 	        storeSnapshot: getReverseFlowProStoreSnapshot(store)
 	      })
 	    });
-	    grantProFromSdkOwnership(store, {
-	      trigger: "initialize-complete"
-	    });
+		    if (purchasePlatform === Platform.GOOGLE_PLAY) {
+		      recoverAndroidProTransactions(store, {
+		        trigger: "initialize-complete"
+		      });
+		    } else {
+		      grantProFromSdkOwnership(store, {
+		        trigger: "initialize-complete"
+		      });
+		    }
 	  }
 	}
 
@@ -6571,22 +7226,29 @@ function openProModal() {
         buttonText: els.buyProButton?.textContent
       });
 
-      const store = getReverseFlowStoreForSupportPage();
-      if (!store) return;
+	      const store = getReverseFlowStoreForSupportPage();
+	      if (!store) return;
+	      const purchasePlatform = getReverseFlowPurchasePlatform();
 
-      const supportPurchaseOwnership = ownsProViaSdkStore(store);
-      if (supportPurchaseOwnership.ownsPro) {
-        grantProFromSdkOwnership(store, {
-          trigger: "support-page-purchase-click",
-          purchase: false,
-          restore: false
-        });
+	      const supportPurchaseOwnership = ownsProViaSdkStore(store);
+	      if (supportPurchaseOwnership.ownsPro) {
+	        if (purchasePlatform === window.CdvPurchase.Platform?.GOOGLE_PLAY) {
+	          await recoverAndroidProTransactions(store, {
+	            trigger: "support-page-purchase-owned-check"
+	          });
+	        } else {
+	          grantProFromSdkOwnership(store, {
+	            trigger: "support-page-purchase-click",
+	            purchase: false,
+	            restore: false
+	          });
+	        }
         console.info("[Reverse Flow IAP]", {
           event: "support-page-purchase-skipped-owned-restore-required",
           productId: REVERSE_FLOW_PRO_PRODUCT_ID
         });
         if (!isProUser()) {
-          alert("Reverse Flow Pro is already owned by this Apple ID. Tap Restore Purchase to activate it on this device.");
+	          alert("Reverse Flow Pro is already owned by this store account. Tap Restore Purchase to activate it on this device.");
         }
         return;
       }
@@ -6601,9 +7263,7 @@ function openProModal() {
         return;
       }
 
-      const purchasePlatform = getReverseFlowPurchasePlatform();
-
-      if (!purchasePlatform) {
+	      if (!purchasePlatform) {
         alert("Purchases are only available in the mobile app.");
         return;
       }
@@ -6622,14 +7282,20 @@ function openProModal() {
         return;
       }
 
-      if (product.owned === true) {
-        grantProFromSdkOwnership(store, {
-          trigger: "support-page-purchase-product-owned",
-          purchase: false,
-          restore: false
-        });
-        if (!isProUser()) {
-          alert("Reverse Flow Pro is already owned by this Apple ID. Tap Restore Purchase to activate it on this device.");
+	      if (product.owned === true) {
+	        if (purchasePlatform === window.CdvPurchase.Platform?.GOOGLE_PLAY) {
+	          await recoverAndroidProTransactions(store, {
+	            trigger: "support-page-product-owned-check"
+	          });
+	        } else {
+	          grantProFromSdkOwnership(store, {
+	            trigger: "support-page-purchase-product-owned",
+	            purchase: false,
+	            restore: false
+	          });
+	        }
+	        if (!isProUser()) {
+	          alert("Reverse Flow Pro is already owned by this store account. Tap Restore Purchase to activate it on this device.");
         }
         return;
       }
@@ -6718,23 +7384,39 @@ function openProModal() {
           isPro: isProUser(),
           restoreInProgress: reverseFlowRestoreInProgress
         });
-        grantProFromSdkOwnership(store, {
-          trigger: "support-page-restore-complete",
-          restore: true
-        });
+	        const isAndroidPurchase =
+	          getReverseFlowPurchasePlatform() === window.CdvPurchase.Platform?.GOOGLE_PLAY;
+	        if (isAndroidPurchase) {
+	          await recoverAndroidProTransactions(store, {
+	            trigger: "support-page-restore-complete",
+	            restore: true
+	          });
+	        } else {
+	          grantProFromSdkOwnership(store, {
+	            trigger: "support-page-restore-complete",
+	            restore: true
+	          });
+	        }
 
-        setTimeout(() => {
-          if (!reverseFlowRestoreInProgress) return;
+	        setTimeout(async () => {
+	          if (!reverseFlowRestoreInProgress) return;
           logReverseFlowRestoreDiagnostic("support-page-restore-postcheck", store, {
             isPro: isProUser(),
             restoreInProgress: reverseFlowRestoreInProgress
           });
-          if (grantProFromSdkOwnership(store, {
-            trigger: "support-page-restore-postcheck",
-            restore: true
-          })) {
-            return;
-          }
+	          if (isAndroidPurchase) {
+	            if (await recoverAndroidProTransactions(store, {
+	              trigger: "support-page-restore-postcheck",
+	              restore: true
+	            })) {
+	              return;
+	            }
+	          } else if (grantProFromSdkOwnership(store, {
+	              trigger: "support-page-restore-postcheck",
+	              restore: true
+	            })) {
+	              return;
+	            }
           reverseFlowRestoreInProgress = false;
           if (els.restorePurchaseButton) {
             els.restorePurchaseButton.disabled = false;
@@ -6967,20 +7649,27 @@ async function purchaseReverseFlowPro() {
 
   const store = getReverseFlowStore();
   if (!store) return;
+	  const purchasePlatform = getReverseFlowPurchasePlatform();
 
   const purchaseOwnership = ownsProViaSdkStore(store);
   if (purchaseOwnership.ownsPro) {
-    grantProFromSdkOwnership(store, {
-      trigger: "purchase-click",
-      purchase: false,
-      restore: false
-    });
+	    if (purchasePlatform === window.CdvPurchase.Platform?.GOOGLE_PLAY) {
+	      await recoverAndroidProTransactions(store, {
+	        trigger: "purchase-owned-check"
+	      });
+	    } else {
+	      grantProFromSdkOwnership(store, {
+	        trigger: "purchase-click",
+	        purchase: false,
+	        restore: false
+	      });
+	    }
     console.info("[Reverse Flow IAP]", {
       event: "purchase-skipped-owned-restore-required",
       productId: REVERSE_FLOW_PRO_PRODUCT_ID
     });
     if (!isProUser()) {
-      alert("Reverse Flow Pro is already owned by this Apple ID. Tap Restore Purchase to activate it on this device.");
+	      alert("Reverse Flow Pro is already owned by this store account. Tap Restore Purchase to activate it on this device.");
     }
     return;
   }
@@ -6995,9 +7684,7 @@ async function purchaseReverseFlowPro() {
 	  return;
 	}
 
-	  const purchasePlatform = getReverseFlowPurchasePlatform();
-
-if (!purchasePlatform) {
+	if (!purchasePlatform) {
   alert("Purchases are only available in the mobile app.");
   return;
 }
@@ -7018,13 +7705,19 @@ const product =
 	  }
 
   if (product.owned === true) {
-    grantProFromSdkOwnership(store, {
-      trigger: "purchase-product-owned",
-      purchase: false,
-      restore: false
-    });
-    if (!isProUser()) {
-      alert("Reverse Flow Pro is already owned by this Apple ID. Tap Restore Purchase to activate it on this device.");
+	    if (purchasePlatform === window.CdvPurchase.Platform?.GOOGLE_PLAY) {
+	      await recoverAndroidProTransactions(store, {
+	        trigger: "purchase-product-owned-check"
+	      });
+	    } else {
+	      grantProFromSdkOwnership(store, {
+	        trigger: "purchase-product-owned",
+	        purchase: false,
+	        restore: false
+	      });
+	    }
+	    if (!isProUser()) {
+	      alert("Reverse Flow Pro is already owned by this store account. Tap Restore Purchase to activate it on this device.");
     }
     return;
   }
@@ -7125,23 +7818,39 @@ const product =
 	      isPro: isProUser(),
 	      restoreInProgress: reverseFlowRestoreInProgress
 	    });
-	    grantProFromSdkOwnership(store, {
-	      trigger: "restore-complete",
-	      restore: true
-	    });
+		    const isAndroidPurchase =
+		      getReverseFlowPurchasePlatform() === window.CdvPurchase.Platform?.GOOGLE_PLAY;
+		    if (isAndroidPurchase) {
+		      await recoverAndroidProTransactions(store, {
+		        trigger: "restore-complete",
+		        restore: true
+		      });
+		    } else {
+		      grantProFromSdkOwnership(store, {
+		        trigger: "restore-complete",
+		        restore: true
+		      });
+		    }
 
-	    setTimeout(() => {
-	      if (!reverseFlowRestoreInProgress) return;
+		    setTimeout(async () => {
+		      if (!reverseFlowRestoreInProgress) return;
 	      logReverseFlowRestoreDiagnostic("restore-postcheck", store, {
 	        isPro: isProUser(),
 	        restoreInProgress: reverseFlowRestoreInProgress
 	      });
-	      if (grantProFromSdkOwnership(store, {
-	        trigger: "restore-postcheck",
-	        restore: true
-	      })) {
-	        return;
-	      }
+		      if (isAndroidPurchase) {
+		        if (await recoverAndroidProTransactions(store, {
+		          trigger: "restore-postcheck",
+		          restore: true
+		        })) {
+		          return;
+		        }
+		      } else if (grantProFromSdkOwnership(store, {
+		          trigger: "restore-postcheck",
+		          restore: true
+		        })) {
+		          return;
+		        }
 	      reverseFlowRestoreInProgress = false;
 	      if (els.restorePurchaseButton) {
 	        els.restorePurchaseButton.disabled = false;

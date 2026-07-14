@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "test:android-billing": "node --test tests/android-billing-hotfix.test.js"
+  },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
     "@capacitor/cli": "^8.3.4",
