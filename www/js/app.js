@@ -2330,6 +2330,7 @@ let pumpChartView = {
 };
 
 let activePumpChartEdit = null;
+let activePumpOperatorPackage = null;
 let shouldScrollToTopAfterPumpChartSaveClose = false;
 
 function scrollCalculatorPageToTop() {
@@ -2637,6 +2638,32 @@ function savePumpCharts(data) {
   if (!isProUser()) {
     openProModal();
     return false;
+  }
+
+  const packageApi = window.ReverseFlowPumpOperatorPackage;
+  if (packageApi) {
+    let persistedNames = new Map();
+    try {
+      const persisted = JSON.parse(localStorage.getItem(PUMP_CHARTS_KEY) || "{}");
+      persistedNames = new Map(
+        (persisted.charts || []).flatMap(chart =>
+          (chart.setups || []).map(setup => [String(setup.id), String(setup.name || "")])
+        )
+      );
+    } catch {}
+
+    const invalidChangedSetup = (data?.charts || [])
+      .flatMap(chart => chart.setups || [])
+      .find(setup => {
+        const validation = packageApi.validateSetupName(setup.name);
+        if (validation.ok) return false;
+        return persistedNames.get(String(setup.id)) !== String(setup.name || "");
+      });
+
+    if (invalidChangedSetup) {
+      alert(`Setup names are limited to ${packageApi.SETUP_NAME_MAX_LENGTH} characters. No changes were saved.`);
+      return false;
+    }
   }
 
   localStorage.setItem(PUMP_CHARTS_KEY, JSON.stringify(normalizePumpChartData(data)));
@@ -4243,11 +4270,26 @@ function populateStandpipeSmoothboreTipOptions(lineNumber) {
   `;
 }
 
-      function renderPumpChart() {
+function renderPumpChart() {
   if (!els.pumpChartList) return;
 
   if (pumpChartView.screen === "save") {
     renderSavePumpChartForm();
+    return;
+  }
+
+  if (pumpChartView.screen === "rename" && pumpChartView.chartId && pumpChartView.setupId) {
+    renderPumpChartSetupRenameForm(pumpChartView.chartId, pumpChartView.setupId);
+    return;
+  }
+
+  if (pumpChartView.screen === "export" && pumpChartView.chartId) {
+    renderPumpOperatorPackageSelection(pumpChartView.chartId);
+    return;
+  }
+
+  if (pumpChartView.screen === "package-preview" && pumpChartView.chartId) {
+    renderPumpOperatorPackagePreview(pumpChartView.chartId);
     return;
   }
 
@@ -4338,7 +4380,7 @@ function renderPumpChartDetail(chartId, options = {}) {
   els.pumpChartList.innerHTML = `
     <div class="pump-chart-toolbar">
       <button class="small-button" type="button" onclick="showPumpChartsList()">Back</button>
-      <button class="small-button" type="button" onclick="exportPumpChart('${chart.id}')">Export / Share</button>
+      <button class="small-button" type="button" onclick="exportPumpChart('${chart.id}')">Pump Operator Package</button>
     </div>
     <article class="pump-chart-document">
       <header class="pump-chart-document-header">
@@ -4380,6 +4422,7 @@ function renderPumpChartSetupRow(chartId, setup, options = {}) {
           <div class="pump-chart-overflow-menu">
             <button class="pump-chart-menu-action" type="button" onclick="movePumpChartSetup('${escapedChartId}', '${escapedSetupId}', 'up'); closePumpChartActionMenus();" ${moveUpDisabled}>Move Up</button>
             <button class="pump-chart-menu-action" type="button" onclick="movePumpChartSetup('${escapedChartId}', '${escapedSetupId}', 'down'); closePumpChartActionMenus();" ${moveDownDisabled}>Move Down</button>
+            <button class="pump-chart-menu-action" type="button" onclick="renamePumpChartSetup('${escapedChartId}', '${escapedSetupId}'); closePumpChartActionMenus();">Rename</button>
             <button class="pump-chart-menu-action danger-button" type="button" onclick="deletePumpChartSetup('${escapedChartId}', '${escapedSetupId}'); closePumpChartActionMenus();">Delete</button>
           </div>
         </details>
@@ -4524,8 +4567,9 @@ function renderSavePumpChartForm() {
       </div>
 
       <div class="field full">
-        <label>Setup Name</label>
-        <input id="pumpChartSetupName" type="text" required placeholder="200' 1.88 Automatic Fog" />
+        <label for="pumpChartSetupName">Setup Name</label>
+        <input id="pumpChartSetupName" type="text" required maxlength="28" aria-describedby="pumpChartSetupNameCount" placeholder="200' 1.88 Automatic Fog" />
+        <span class="pump-chart-character-count" id="pumpChartSetupNameCount">0 / 28</span>
       </div>
 
       <div class="field full">
@@ -4540,6 +4584,10 @@ function renderSavePumpChartForm() {
   const saveMode = document.getElementById("pumpChartSaveMode");
   const existingField = document.getElementById("pumpChartExistingField");
   const newFields = document.getElementById("pumpChartNewFields");
+  bindPumpChartNameCounter(
+    document.getElementById("pumpChartSetupName"),
+    document.getElementById("pumpChartSetupNameCount")
+  );
 
   saveMode?.addEventListener("change", () => {
     const creatingNewChart = saveMode.value === "new";
@@ -4555,6 +4603,64 @@ function renderSavePumpChartForm() {
     });
 }
 
+function bindPumpChartNameCounter(input, counter) {
+  if (!input || !counter) return;
+  const update = () => {
+    const limit = window.ReverseFlowPumpOperatorPackage?.SETUP_NAME_MAX_LENGTH || 28;
+    counter.textContent = `${input.value.length} / ${limit}`;
+  };
+  input.addEventListener("input", update);
+  update();
+}
+
+function renderPumpChartSetupRenameForm(chartId, setupId) {
+  const { chart, setup } = findPumpChartSetup(chartId, setupId);
+  if (!chart || !setup) {
+    renderPumpChartDetail(chartId);
+    return;
+  }
+
+  setPumpChartSubtitle("Rename this saved setup before exporting it.");
+  els.pumpChartList.innerHTML = `
+    <form class="pump-chart-save-form" id="pumpChartRenameSetupForm">
+      <div class="pump-chart-toolbar">
+        <button class="small-button" type="button" onclick="openPumpChartDetail('${escapeHtml(chart.id)}')">Cancel</button>
+      </div>
+      <div class="field full">
+        <label for="pumpChartRenameSetupName">Setup Name</label>
+        <input id="pumpChartRenameSetupName" type="text" required maxlength="28" aria-describedby="pumpChartRenameSetupNameCount" value="${escapeHtml(setup.name)}" />
+        <span class="pump-chart-character-count" id="pumpChartRenameSetupNameCount">0 / 28</span>
+      </div>
+      <button class="small-button pump-chart-primary-action" type="submit">Save Setup Name</button>
+    </form>
+  `;
+
+  const input = document.getElementById("pumpChartRenameSetupName");
+  bindPumpChartNameCounter(input, document.getElementById("pumpChartRenameSetupNameCount"));
+  input?.focus();
+  input?.setSelectionRange(input.value.length, input.value.length);
+  document.getElementById("pumpChartRenameSetupForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    const validation = window.ReverseFlowPumpOperatorPackage?.validateSetupName(input?.value);
+    if (!validation?.ok) {
+      alert(validation?.message || "Enter a valid Setup Name.");
+      return;
+    }
+
+    const data = loadPumpCharts();
+    const targetChart = data.charts.find(item => item.id === chartId);
+    const targetSetup = targetChart?.setups.find(item => item.id === setupId);
+    if (!targetChart || !targetSetup) return;
+    targetSetup.name = validation.name;
+    targetSetup.updatedAt = nowIsoString();
+    targetChart.updatedAt = targetSetup.updatedAt;
+    if (!savePumpCharts(data)) return;
+    renderPresetOptions();
+    pumpChartView = { screen: "detail", chartId, setupId: null };
+    renderPumpChart();
+  });
+}
+
 function submitPumpChartSaveForm() {
   if (!isProUser()) {
     openProModal();
@@ -4565,8 +4671,10 @@ function submitPumpChartSaveForm() {
   const setupNotes = document.getElementById("pumpChartSetupNotes")?.value.trim() || "";
   const saveMode = document.getElementById("pumpChartSaveMode")?.value || "existing";
 
-  if (!setupName) {
-    alert("Setup Name is required.");
+  const setupNameValidation = window.ReverseFlowPumpOperatorPackage
+    ?.validateSetupName(setupName);
+  if (!setupNameValidation?.ok) {
+    alert(setupNameValidation?.message || "Setup Name is required.");
     return;
   }
 
@@ -9042,6 +9150,11 @@ window.viewPumpChartSetup = function(chartId, setupId) {
   renderPumpChart();
 };
 
+window.renamePumpChartSetup = function(chartId, setupId) {
+  pumpChartView = { screen: "rename", chartId, setupId };
+  renderPumpChart();
+};
+
 window.loadPumpChartSetup = function(chartId, setupId) {
   if (!isProUser()) {
     openProModal();
@@ -9163,7 +9276,171 @@ window.deletePumpChartPreset = function(presetId) {
   }
 };
 
-window.exportPumpChart = async function(chartId) {
+function getPumpOperatorNumericValue(value) {
+  const match = String(value || "").match(/-?\d+(?:\.\d+)?/);
+  return match ? match[0] : "";
+}
+
+function getPumpOperatorNozzleLabel(setup) {
+  const inputs = setup.inputs || {};
+  if (setup.mode === "splitLay") {
+    return getSplitNozzleConfigurationLabel(inputs.splitLay || {}, "1").replace("Automatic Fog", "Auto Fog");
+  }
+  if (setup.mode === "standpipeOps") {
+    const standpipe = getStandpipeOpsData(setup);
+    return getStandpipeNozzleSummary(standpipe, "1").replace("Automatic Fog", "Auto Fog");
+  }
+  return getNozzleConfigurationLabel(inputs)
+    .replace("Automatic Fog", "Auto Fog")
+    .replace(/\s*•.*$/, "");
+}
+
+function getPumpOperatorSetupRow(setup) {
+  const inputs = setup.inputs || {};
+  const result = setup.result || {};
+  let hoseSize = inputs.hoseSize;
+  let hoseLength = inputs.hoseLength;
+  let frictionLoss = result.totalFl || result.flPer100;
+  let nozzlePressure = getNozzlePressureSummary(inputs);
+  let appliance = getApplianceLabel(inputs.reverseSupplyAppliance);
+  let elevation = inputs.apparatusElevation || "";
+
+  if (setup.mode === "splitLay") {
+    const split = inputs.splitLay || {};
+    hoseSize = split.attack1HoseSize;
+    hoseLength = split.attack1Length;
+    frictionLoss = result.splitAttack1FlResult;
+    nozzlePressure = result.splitAttack1NpResult;
+    appliance = getApplianceLabel(split.appliance1);
+  } else if (setup.mode === "standpipeOps") {
+    const standpipe = getStandpipeOpsData(setup);
+    hoseSize = standpipe.attack1HoseSize;
+    hoseLength = standpipe.attack1Length;
+    frictionLoss = result.standpipeAttack1FlResult;
+    nozzlePressure = result.standpipeAttack1NpResult;
+    appliance = "FDC";
+    elevation = standpipe.attack1Elevation || standpipe.elevation || "";
+  }
+
+  return {
+    id: setup.id,
+    name: setup.name,
+    gpm: getPumpOperatorNumericValue(
+      result.flowSummary || result.splitSupplyFlow || result.standpipeTotalFlow || result.calculatedFlow || inputs.targetGpm
+    ),
+    hoseSize: formatHoseSize(hoseSize),
+    hoseLength: getPumpOperatorNumericValue(hoseLength),
+    frictionLoss: getPumpOperatorNumericValue(frictionLoss),
+    nozzle: getPumpOperatorNozzleLabel(setup),
+    nozzlePressure: getPumpOperatorNumericValue(nozzlePressure),
+    appliance: appliance || (hasManualApplianceLoss(inputs.applianceLoss) ? "Loss" : "-"),
+    elevation: getPumpOperatorNumericValue(elevation),
+    pdp: getPumpOperatorNumericValue(result.pdpSummary || result.calculatedPdp || getSetupPdpSummary(setup))
+  };
+}
+
+function getPumpOperatorPackageData(chart, selectedSetups) {
+  const visibleHoseIds = new Set(loadVisibleHoseSizeIds().map(String));
+  const hoses = getSupportedHoseOptions()
+    .filter(hose => visibleHoseIds.has(String(hose.id)))
+    .map(hose => ({
+      id: hose.id,
+      label: formatFrictionLossChartHoseLabel(hose),
+      coefficient: getActiveHoseCoefficient(hose.id)
+    }))
+    .filter(hose => hose.coefficient > 0);
+  const visibleTipIds = new Set(loadVisibleSmoothboreTipIds().map(String));
+  const tips = SMOOTHBORE_TIPS
+    .filter(tip => visibleTipIds.has(String(tip.id)))
+    .map(tip => ({ id: tip.id, label: tip.label, diameter: tip.diameter }));
+
+  return {
+    chartName: chart.name,
+    generatedAt: nowIsoString(),
+    setups: selectedSetups.map(getPumpOperatorSetupRow),
+    hoses,
+    tips
+  };
+}
+
+function renderPumpOperatorPackageSelection(chartId) {
+  const chart = findPumpChart(chartId);
+  if (!chart) {
+    renderPumpChartList();
+    return;
+  }
+  setPumpChartSubtitle("Which saved setups do you want to include?");
+  els.pumpChartList.innerHTML = `
+    <form class="pump-operator-selection" id="pumpOperatorPackageSelectionForm">
+      <div class="pump-chart-toolbar">
+        <button class="small-button" type="button" onclick="openPumpChartDetail('${escapeHtml(chart.id)}')">Back</button>
+      </div>
+      <div class="pump-operator-selection-list" role="group" aria-label="Saved setups to include">
+        ${chart.setups.map(setup => `
+          <label class="pump-operator-setup-choice">
+            <input type="checkbox" name="pumpOperatorSetup" value="${escapeHtml(setup.id)}" checked />
+            <span><strong>${escapeHtml(setup.name)}</strong><small>${escapeHtml(getSetupConfigurationSummary(setup).replace(/\n+/g, " / "))}</small></span>
+          </label>
+        `).join("") || `<p class="disabled-note">No saved setups are available.</p>`}
+      </div>
+      <p class="pump-operator-validation" id="pumpOperatorPackageValidation" role="alert" hidden></p>
+      <button class="small-button pump-chart-primary-action" type="submit" ${chart.setups.length ? "" : "disabled"}>Preview Pump Operator Package</button>
+    </form>
+  `;
+  document.getElementById("pumpOperatorPackageSelectionForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    const selectedIds = [...document.querySelectorAll('input[name="pumpOperatorSetup"]:checked')].map(input => input.value);
+    const packageApi = window.ReverseFlowPumpOperatorPackage;
+    const validation = packageApi.validateExportSelection(chart.setups, selectedIds);
+    const validationNode = document.getElementById("pumpOperatorPackageValidation");
+    if (!validation.ok) {
+      validationNode.hidden = false;
+      validationNode.innerHTML = `${escapeHtml(validation.message)}${validation.overLimit.length ? ` <button class="small-button" type="button" data-rename-over-limit="${escapeHtml(validation.overLimit[0].id)}">Rename Setup</button>` : ""}`;
+      validationNode.querySelector("[data-rename-over-limit]")?.addEventListener("click", () => {
+        window.renamePumpChartSetup(chart.id, validation.overLimit[0].id);
+      });
+      return;
+    }
+
+    const packageData = getPumpOperatorPackageData(chart, validation.selected);
+    const model = packageApi.createLayoutModel(packageData);
+    if (model.likelyExceedsTwoPages) {
+      const confirmed = confirm(
+        "This Pump Operator Package is estimated to exceed the recommended two-page layout. Supporting reference material may be placed on a third page. Continue generating?"
+      );
+      if (!confirmed) return;
+    }
+    activePumpOperatorPackage = { chartId: chart.id, model, pngFiles: null, pdfFile: null, preparing: false };
+    pumpChartView = { screen: "package-preview", chartId: chart.id, setupId: null };
+    renderPumpChart();
+  });
+}
+
+function renderPumpOperatorPackagePreview(chartId) {
+  const chart = findPumpChart(chartId);
+  const packageState = activePumpOperatorPackage;
+  if (!chart || packageState?.chartId !== chartId) {
+    pumpChartView = { screen: "export", chartId, setupId: null };
+    renderPumpChart();
+    return;
+  }
+  setPumpChartSubtitle(`${packageState.model.pageCount}-page Pump Operator Package preview.`);
+  els.pumpChartList.innerHTML = `
+    <div class="pump-operator-preview-toolbar">
+      <button class="small-button" type="button" onclick="exportPumpChart('${escapeHtml(chart.id)}')">Change Setups</button>
+      <button class="small-button pump-chart-primary-action" id="sharePumpOperatorPngButton" type="button" disabled>Preparing PNGs...</button>
+      <button class="small-button" id="sharePumpOperatorPdfButton" type="button" disabled>Preparing PDF...</button>
+    </div>
+    <p class="helper">PNG pages are the primary export. Each preview below becomes one full-resolution letter-size PNG; the PDF uses those exact page images.</p>
+    <div class="pump-operator-preview-pages"><style>${window.ReverseFlowPumpOperatorPackage.PAGE_STYLES}</style>${window.ReverseFlowPumpOperatorPackage.renderPackageHtml(packageState.model)}</div>
+    <p class="pump-operator-export-status" id="pumpOperatorExportStatus" role="status" aria-live="polite"></p>
+  `;
+  document.getElementById("sharePumpOperatorPngButton")?.addEventListener("click", () => sharePumpOperatorPackage("png"));
+  document.getElementById("sharePumpOperatorPdfButton")?.addEventListener("click", () => sharePumpOperatorPackage("pdf"));
+  preparePumpOperatorPackageExports();
+}
+
+window.exportPumpChart = function(chartId) {
   if (!isProUser()) {
     openProModal();
     return;
@@ -9172,21 +9449,234 @@ window.exportPumpChart = async function(chartId) {
   const chart = findPumpChart(chartId);
   if (!chart) return;
 
-  const shareText = buildPumpChartShareText(chart);
-  const pngExport = await createPumpChartPngFile(chart);
-  const shareTitle = `${chart.name} Pump Chart`;
-
-  await shareGeneratedPngFile({
-    pngExport,
-    shareTitle,
-    fallbackText: shareText,
-    nativeFolder: "pump-charts",
-    nativeDialogTitle: "Share Pump Chart",
-    fallbackMessage: "Pump Chart sharing is unavailable on this device.",
-    fallbackCopyMessage: "Pump Chart text copied to clipboard.",
-    showTextShareNotice: showPumpChartShareFallbackMessage
-  });
+  activePumpOperatorPackage = null;
+  pumpChartView = { screen: "export", chartId, setupId: null };
+  renderPumpChart();
 };
+
+async function createPumpOperatorPackagePngFiles(model) {
+  const packageApi = window.ReverseFlowPumpOperatorPackage;
+  const previousScroll = { x: window.scrollX || 0, y: window.scrollY || 0 };
+  window.scrollTo(0, 0);
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  const mounted = packageApi.mountPackagePages(model, document);
+  const files = [];
+  try {
+    for (let index = 0; index < mounted.pages.length; index += 1) {
+      const captureHost = document.createElement("div");
+      captureHost.style.position = "fixed";
+      captureHost.style.left = "0";
+      captureHost.style.top = "0";
+      captureHost.style.zIndex = "-2147483647";
+      captureHost.style.width = `${packageApi.PAGE_WIDTH_PX}px`;
+      captureHost.style.height = `${packageApi.PAGE_HEIGHT_PX}px`;
+      captureHost.style.background = "#ffffff";
+      captureHost.style.overflow = "hidden";
+      captureHost.style.pointerEvents = "none";
+      const pageClone = mounted.pages[index].cloneNode(true);
+      pageClone.style.position = "absolute";
+      pageClone.style.inset = "0";
+      pageClone.style.margin = "0";
+      pageClone.style.transform = "none";
+      pageClone.style.boxShadow = "none";
+      captureHost.appendChild(pageClone);
+      document.body.appendChild(captureHost);
+      const renderedBlob = await renderElementToPngBlob(
+        captureHost,
+        `pump-operator-package-page-${index + 1}`,
+        { pixelRatio: 3 }
+      );
+      captureHost.remove();
+      if (!renderedBlob) throw new Error(`Page ${index + 1} PNG could not be rendered.`);
+      const blob = await redrawPumpOperatorPackageChartName(renderedBlob, model.chartName);
+      files.push(new File(
+        [blob],
+        `${sanitizeFileName(model.chartName)}-Pump-Operator-Package-Page-${index + 1}.png`,
+        { type: "image/png" }
+      ));
+    }
+  } finally {
+    mounted.wrapper.remove();
+    window.scrollTo(previousScroll.x, previousScroll.y);
+  }
+  return files;
+}
+
+async function redrawPumpOperatorPackageChartName(blob, chartName) {
+  const sourceUrl = URL.createObjectURL(blob);
+  try {
+    const image = await loadImage(sourceUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context) return blob;
+    context.drawImage(image, 0, 0);
+    const scale = canvas.width / window.ReverseFlowPumpOperatorPackage.PAGE_WIDTH_PX;
+    context.save();
+    context.scale(scale, scale);
+    context.fillStyle = "#ffffff";
+    context.fillRect(48, 72, 520, 32);
+    let fontSize = 24;
+    context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
+    while (fontSize > 16 && context.measureText(chartName).width > 510) {
+      fontSize -= 1;
+      context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
+    }
+    context.fillStyle = "#181f2a";
+    context.textAlign = "left";
+    context.textBaseline = "top";
+    context.fillText(chartName, 48, 74, 510);
+    context.restore();
+    return await exportCanvasToPngBlob(canvas, "pump-operator-package-chart-name");
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
+function readBlobAsDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("File could not be read."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function createPumpOperatorPackagePdfFile(model, pngFiles) {
+  const JsPdf = window.jspdf?.jsPDF;
+  if (!JsPdf) throw new Error("PDF renderer is unavailable.");
+  const doc = new JsPdf({ orientation: "portrait", unit: "pt", format: "letter", compress: true });
+  for (let index = 0; index < pngFiles.length; index += 1) {
+    if (index) doc.addPage("letter", "portrait");
+    const dataUrl = await readBlobAsDataUrl(pngFiles[index]);
+    doc.addImage(dataUrl, "PNG", 0, 0, 612, 792, `package-page-${index + 1}`, "FAST");
+  }
+  doc.setProperties({
+    title: `${model.chartName} Pump Operator Package`,
+    subject: "Reverse Flow Pump Operator Package",
+    author: "Reverse Flow",
+    creator: "Reverse Flow"
+  });
+  return new File(
+    [doc.output("blob")],
+    `${sanitizeFileName(model.chartName)}-Pump-Operator-Package.pdf`,
+    { type: "application/pdf" }
+  );
+}
+
+async function preparePumpOperatorPackageExports() {
+  const state = activePumpOperatorPackage;
+  if (!state?.model || state.preparing || state.pngFiles) return;
+  state.preparing = true;
+  const status = document.getElementById("pumpOperatorExportStatus");
+  const pngButton = document.getElementById("sharePumpOperatorPngButton");
+  const pdfButton = document.getElementById("sharePumpOperatorPdfButton");
+  if (status) status.textContent = "Preparing full-resolution package pages...";
+  try {
+    state.pngFiles = await createPumpOperatorPackagePngFiles(state.model);
+    state.pdfFile = await createPumpOperatorPackagePdfFile(state.model, state.pngFiles);
+    if (pngButton) {
+      pngButton.disabled = false;
+      pngButton.textContent = "Share Package PNGs";
+    }
+    if (pdfButton) {
+      pdfButton.disabled = false;
+      pdfButton.textContent = "Share PDF";
+    }
+    if (status) status.textContent = `${state.pngFiles.length} full-resolution PNG pages ready.`;
+  } catch (error) {
+    console.error("[Pump Operator Package]", error);
+    if (status) status.textContent = `Unable to prepare the package: ${error?.message || String(error)}`;
+  } finally {
+    state.preparing = false;
+  }
+}
+
+async function sharePumpOperatorPackageFiles(files, title, folder) {
+  const platform = getPumpChartSharePlatform();
+  if (platform.supportsNativeFileShare) {
+    const plugins = window.Capacitor?.Plugins || {};
+    if (plugins.Filesystem && plugins.Share) {
+      const uris = [];
+      for (const file of files) {
+        const result = await plugins.Filesystem.writeFile({
+          path: `${folder}/${file.name}`,
+          data: await blobToBase64Payload(file),
+          directory: "CACHE",
+          recursive: true
+        });
+        if (result.uri) uris.push(result.uri);
+      }
+      if (uris.length === files.length) {
+        await plugins.Share.share({ title, files: uris, dialogTitle: "Share Pump Operator Package" });
+        return { shared: true, downloaded: false };
+      }
+    }
+  }
+
+  if (navigator.share && navigator.canShare?.({ files })) {
+    try {
+      await navigator.share({ title, files });
+      return { shared: true, downloaded: false };
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      logPumpChartShareFallback(`File share unavailable; saving locally instead: ${error?.message || String(error)}`);
+    }
+  }
+
+  files.forEach(file => {
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  return { shared: false, downloaded: true };
+}
+
+async function sharePumpOperatorPackage(format) {
+  const state = activePumpOperatorPackage;
+  if (!state?.model) return;
+  const status = document.getElementById("pumpOperatorExportStatus");
+  const buttons = [
+    document.getElementById("sharePumpOperatorPngButton"),
+    document.getElementById("sharePumpOperatorPdfButton")
+  ].filter(Boolean);
+  if (!state.pngFiles || !state.pdfFile) {
+    if (status) status.textContent = "Package files are still being prepared.";
+    return;
+  }
+  buttons.forEach(button => { button.disabled = true; });
+  if (status) status.textContent = format === "pdf" ? "Opening PDF share options..." : "Opening PNG share options...";
+  try {
+    const files = format === "pdf"
+      ? [state.pdfFile]
+      : state.pngFiles;
+    const result = await sharePumpOperatorPackageFiles(
+      files,
+      `${state.model.chartName} Pump Operator Package`,
+      "pump-operator-packages"
+    );
+    if (status) {
+      status.textContent = result.downloaded
+        ? `${files.length} ${format.toUpperCase()} ${files.length === 1 ? "file" : "files"} saved.`
+        : "Share sheet opened.";
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      if (status) status.textContent = "Share cancelled.";
+    } else {
+      console.error("[Pump Operator Package]", error);
+      if (status) status.textContent = `Unable to export the package: ${error?.message || String(error)}`;
+    }
+  } finally {
+    buttons.forEach(button => { button.disabled = false; });
+  }
+}
 
 async function shareGeneratedPngFile({
   pngExport,
@@ -9425,107 +9915,6 @@ async function sharePumpChartPngWithNativeCapacitor(pngFile, shareTitle, platfor
       reason: `Native ${platform} PNG share failed: ${error?.message || String(error)}`
     };
   }
-}
-
-async function createPumpChartPngFile(chart) {
-  if (typeof Blob === "undefined" || typeof File === "undefined") {
-    logPumpChartShareFallback("Blob or File constructor is unavailable.");
-    return {
-      file: null,
-      reason: "Blob or File constructor is unavailable."
-    };
-  }
-
-  const source = getPumpChartExportElement();
-  if (!source) {
-    logPumpChartShareFallback("Pump Chart export element was not found.");
-    return {
-      file: null,
-      reason: "Pump Chart export element was not found."
-    };
-  }
-
-  try {
-    logPumpChartExportDomSources(source);
-
-    const exportElement = createPumpChartExportRenderElement(source);
-    let blob = null;
-
-    if (exportElement) {
-      try {
-        blob = await tryRenderElementToPngBlob(exportElement, "dom-export");
-        if (!blob) {
-          const sanitizedClone = createSanitizedPumpChartExportClone(exportElement);
-          if (sanitizedClone) {
-            blob = await tryRenderElementToPngBlob(sanitizedClone, "dom-sanitized");
-          }
-        }
-        if (!blob) {
-          blob = await tryRenderManualPumpChartCanvasToBlob(exportElement);
-        }
-      } finally {
-        const exportWrapper = exportElement.parentElement;
-        if (exportWrapper) {
-          exportWrapper.remove();
-        } else {
-          exportElement.remove();
-        }
-      }
-    }
-
-    if (!blob) {
-      blob = await tryRenderManualPumpChartCanvasToBlob(source);
-    }
-    if (!blob) {
-      logPumpChartShareFallback("PNG renderer did not return a blob.");
-      return {
-        file: null,
-        reason: "PNG renderer did not return a blob."
-      };
-    }
-
-    logPumpChartShareStep("png-blob-created", {
-      blobSize: blob.size,
-      blobType: blob.type
-    });
-
-    let file;
-    try {
-      file = new File(
-        [blob],
-        `${sanitizeFileName(chart.name)}-Pump-Chart.png`,
-        { type: "image/png" }
-      );
-    } catch (error) {
-      logPumpChartShareStep("png-file-error", {
-        message: error?.message || String(error)
-      });
-      throw error;
-    }
-
-    logPumpChartShareStep("png-file-created", {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type
-    });
-
-    return {
-      file,
-      reason: ""
-    };
-  } catch (error) {
-    logPumpChartShareFallback(`PNG export failed: ${error?.message || String(error)}`);
-    return {
-      file: null,
-      reason: `PNG export failed: ${error?.message || String(error)}`
-    };
-  }
-}
-
-function getPumpChartExportElement() {
-  if (!els.pumpChartModal || els.pumpChartModal.hidden) return null;
-
-  return els.pumpChartModal.querySelector(".pump-chart-document");
 }
 
 function getPumpChartExportLogoSrc() {
@@ -9963,258 +10352,11 @@ function getGeneratedPngProfileName() {
   }
 }
 
-function createPumpChartExportRenderElement(source) {
-  try {
-    const sourceRect = source.getBoundingClientRect();
-    const width = Math.ceil(sourceRect.width);
-    if (!width) return null;
-
-    const clone = source.cloneNode(true);
-    inlineComputedStyles(source, clone);
-    preparePumpChartExportContent(clone);
-
-    const wrapper = document.createElement("div");
-    wrapper.style.position = "fixed";
-    wrapper.style.left = "-10000px";
-    wrapper.style.top = "0";
-    wrapper.style.width = `${width}px`;
-    wrapper.style.background = getResolvedExportBackground(source);
-    wrapper.style.pointerEvents = "none";
-    wrapper.style.zIndex = "-1";
-
-    clone.style.width = `${width}px`;
-    clone.style.boxSizing = "border-box";
-    clone.style.margin = "0";
-    wrapper.appendChild(clone);
-    document.body.appendChild(wrapper);
-
-    logPumpChartShareStep("png-export-clone-created", {
-      removedModeBadges: clone.dataset.removedModeBadges || "0",
-      hasBranding: clone.dataset.exportBranding || "false"
-    });
-
-    return clone;
-  } catch (error) {
-    logPumpChartShareStep("png-export-clone-error", {
-      message: error?.message || String(error)
-    });
-    return null;
-  }
-}
-
-function preparePumpChartExportContent(element) {
-  let removedModeBadges = 0;
-
-  element.querySelectorAll(".pump-chart-mode-badge").forEach(node => {
-    node.remove();
-    removedModeBadges += 1;
-  });
-
-  element.querySelectorAll(".pump-chart-setup-aside").forEach(node => {
-    node.style.justifyContent = "center";
-    node.style.gap = "0";
-  });
-
-  applyGeneratedPngExportCardStyle(element);
-  prepareGeneratedPumpChartHeader(element);
-  element.dataset.removedModeBadges = String(removedModeBadges);
-}
-
-function prepareGeneratedPumpChartHeader(element) {
-  const header = element.querySelector(".pump-chart-document-header");
-  if (!header) return;
-
-  const headerData = getGeneratedPumpChartExportHeaderData(header);
-  header.dataset.generatedPngLabel = headerData.label;
-  header.dataset.generatedPngTitle = headerData.title;
-  header.dataset.generatedPngSubtitle = headerData.subtitle;
-  header.dataset.generatedPngMetadata = headerData.metadata;
-  header.dataset.generatedPngNotes = headerData.notes;
-  header.innerHTML = "";
-  header.style.display = "grid";
-  header.style.gridTemplateColumns = `minmax(0, 1fr) ${GENERATED_PNG_STYLE.brand.compact.blockWidth}px`;
-  header.style.alignItems = "center";
-  header.style.gap = `${GENERATED_PNG_STYLE.header.gap}px`;
-  header.style.minHeight = `${GENERATED_PNG_STYLE.header.minHeight}px`;
-  header.style.marginBottom = "14px";
-  header.style.paddingBottom = "14px";
-  header.style.borderBottom = `1px solid ${GENERATED_PNG_STYLE.header.dividerColor}`;
-  header.style.color = GENERATED_PNG_STYLE.header.titleColor;
-  header.style.fontFamily = "Arial, sans-serif";
-
-  const textBlock = document.createElement("div");
-  textBlock.style.minWidth = "0";
-
-  const label = document.createElement("p");
-  label.textContent = headerData.label;
-  label.style.margin = "0 0 7px";
-  label.style.color = GENERATED_PNG_STYLE.header.mutedColor;
-  label.style.fontSize = GENERATED_PNG_STYLE.header.labelSize;
-  label.style.fontWeight = "900";
-  label.style.letterSpacing = "0.08em";
-  label.style.textTransform = "uppercase";
-
-  const title = document.createElement("h2");
-  title.textContent = headerData.title;
-  title.style.margin = "0 0 7px";
-  title.style.color = GENERATED_PNG_STYLE.header.titleColor;
-  title.style.fontSize = GENERATED_PNG_STYLE.header.titleSize;
-  title.style.fontWeight = "900";
-  title.style.lineHeight = "1.08";
-  title.style.letterSpacing = "0";
-
-  textBlock.append(label, title);
-
-  if (headerData.subtitle) {
-    const subtitle = document.createElement("p");
-    subtitle.textContent = headerData.subtitle;
-    subtitle.style.margin = "0 0 3px";
-    subtitle.style.color = GENERATED_PNG_STYLE.header.detailColor;
-    subtitle.style.fontSize = GENERATED_PNG_STYLE.header.subtitleSize;
-    subtitle.style.fontWeight = "900";
-    subtitle.style.lineHeight = "1.25";
-    subtitle.style.letterSpacing = "0";
-    subtitle.style.textTransform = "none";
-    textBlock.appendChild(subtitle);
-  }
-
-  if (headerData.metadata) {
-    const metadata = document.createElement("p");
-    metadata.style.margin = "0";
-    metadata.style.color = GENERATED_PNG_STYLE.header.detailColor;
-    metadata.style.fontSize = GENERATED_PNG_STYLE.header.detailSize;
-    metadata.style.fontWeight = "800";
-    metadata.style.lineHeight = "1.32";
-    metadata.style.letterSpacing = "0";
-    metadata.style.textTransform = "none";
-    appendGeneratedPngMetadataParts(metadata, headerData.metadata);
-    textBlock.appendChild(metadata);
-  }
-
-  if (headerData.notes) {
-    const notes = document.createElement("p");
-    notes.textContent = headerData.notes;
-    notes.className = "pump-chart-document-notes";
-    notes.style.margin = "8px 0 0";
-    notes.style.color = "#475569";
-    notes.style.fontSize = "13px";
-    notes.style.fontWeight = "650";
-    notes.style.lineHeight = "1.35";
-    notes.style.letterSpacing = "0";
-    notes.style.textTransform = "none";
-    textBlock.appendChild(notes);
-  }
-
-  header.append(textBlock, createGeneratedPngBrandLockupElement());
-  element.dataset.exportBranding = "true";
-}
-
-function getGeneratedPumpChartExportHeaderData(header) {
-  if (header?.dataset?.generatedPngTitle) {
-    return {
-      label: header.dataset.generatedPngLabel || "PUMP CHART",
-      title: header.dataset.generatedPngTitle || "Pump Chart",
-      subtitle: header.dataset.generatedPngSubtitle || "",
-      metadata: header.dataset.generatedPngMetadata || "",
-      notes: header.dataset.generatedPngNotes || ""
-    };
-  }
-
-  const label = getGeneratedPumpChartHeaderLabel(header?.querySelector("p")?.textContent || "PUMP CHART");
-  const title = header?.querySelector("h2")?.textContent?.trim() || "Pump Chart";
-  const department = header?.querySelector("strong")?.textContent?.trim() || "";
-  const metaItems = Array.from(header?.querySelectorAll(".pump-chart-document-meta span") || [])
-    .map(item => stripGeneratedPumpChartUpdatedDate(item.textContent))
-    .filter(Boolean);
-
-  if (!metaItems.some(item => item.startsWith("Generated "))) {
-    metaItems.push(`Generated ${formatPumpChartDate(new Date().toISOString())}`);
-  }
-
-  return {
-    label,
-    title,
-    subtitle: "",
-    metadata: getGeneratedPngMetadataLine([department, ...metaItems]),
-    notes: header?.querySelector(".pump-chart-document-notes")?.textContent?.trim() || ""
-  };
-}
-
 function getGeneratedPngMetadataLine(items = []) {
   return items
     .map(item => String(item || "").trim())
     .filter(Boolean)
     .join(" • ");
-}
-
-function appendGeneratedPngMetadataParts(element, metadata) {
-  const parts = String(metadata || "")
-    .split("•")
-    .map(part => part.trim())
-    .filter(Boolean);
-
-  parts.forEach((part, index) => {
-    if (index > 0) {
-      const separator = document.createElement("span");
-      separator.textContent = " • ";
-      separator.style.whiteSpace = "normal";
-      element.appendChild(separator);
-    }
-
-    const span = document.createElement("span");
-    span.textContent = part;
-    span.style.whiteSpace = index === 0 && !/^Generated\b/i.test(part) ? "normal" : "nowrap";
-    element.appendChild(span);
-  });
-}
-
-function getGeneratedPumpChartHeaderLabel(value) {
-  const text = String(value || "").trim();
-  return text.toUpperCase() === "REVERSE FLOW PUMP CHART" ? "PUMP CHART" : text;
-}
-
-function stripGeneratedPumpChartUpdatedDate(value) {
-  return String(value || "")
-    .split("•")
-    .map(part => part.trim())
-    .filter(part => part && !/^Updated\b/i.test(part))
-    .join(" • ");
-}
-
-function createGeneratedPngBrandLockupElement() {
-  const brand = document.createElement("div");
-  brand.className = "pump-chart-export-brand";
-  brand.setAttribute("aria-hidden", "true");
-  brand.style.display = "flex";
-  brand.style.alignItems = "center";
-  brand.style.justifyContent = "flex-end";
-  brand.style.gap = `${GENERATED_PNG_STYLE.brand.compact.gap}px`;
-  brand.style.width = `${GENERATED_PNG_STYLE.brand.compact.blockWidth}px`;
-  brand.style.minHeight = `${GENERATED_PNG_STYLE.brand.compact.cardHeight}px`;
-  brand.style.boxSizing = "border-box";
-  brand.style.color = "#111827";
-  brand.style.fontFamily = "Arial, sans-serif";
-  brand.style.lineHeight = "1.02";
-
-  const mark = document.createElement("img");
-  mark.src = getPumpChartExportLogoSrc();
-  mark.alt = "";
-  mark.style.display = "block";
-  mark.style.width = `${GENERATED_PNG_STYLE.brand.compact.logoSize}px`;
-  mark.style.height = `${GENERATED_PNG_STYLE.brand.compact.logoSize}px`;
-  mark.style.borderRadius = `${Math.round(GENERATED_PNG_STYLE.brand.compact.logoSize * GENERATED_PNG_STYLE.brand.borderRadiusRatio)}px`;
-  mark.style.objectFit = "cover";
-
-  const text = document.createElement("span");
-  text.style.display = "grid";
-  text.style.gap = "2px";
-  text.innerHTML = `
-    <strong style="display:block;font-size:${GENERATED_PNG_STYLE.brand.compact.primarySize};font-weight:900;color:#111827;text-transform:none;letter-spacing:0;">Reverse Flow</strong>
-    <span style="display:block;font-size:${GENERATED_PNG_STYLE.brand.compact.secondarySize};font-weight:900;color:#111827;text-transform:none;letter-spacing:0.02em;">Fire Hydraulics</span>
-  `;
-
-  brand.append(mark, text);
-  return brand;
 }
 
 async function tryRenderElementToPngBlob(element, method) {
@@ -10240,12 +10382,28 @@ async function tryRenderElementToPngBlob(element, method) {
   return null;
 }
 
-async function renderElementToPngBlob(element, method) {
+async function renderElementToPngBlob(element, method, options = {}) {
   const rect = element.getBoundingClientRect();
   const width = Math.ceil(rect.width);
   const height = Math.ceil(element.scrollHeight || rect.height);
 
   if (!width || !height) return null;
+
+  if (typeof window.html2canvas === "function") {
+    const canvas = await window.html2canvas(element, {
+      backgroundColor: "#ffffff",
+      scale: options.pixelRatio || Math.min(window.devicePixelRatio || 1, 2),
+      logging: false,
+      useCORS: true,
+      width,
+      height,
+      windowWidth: width,
+      windowHeight: height,
+      scrollX: 0,
+      scrollY: 0
+    });
+    return exportCanvasToPngBlob(canvas, method);
+  }
 
   const clone = element.cloneNode(true);
   clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
@@ -10279,7 +10437,7 @@ async function renderElementToPngBlob(element, method) {
 
   try {
     const image = await loadImage(svgUrl);
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const pixelRatio = options.pixelRatio || Math.min(window.devicePixelRatio || 1, 2);
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(width * pixelRatio);
     canvas.height = Math.ceil(height * pixelRatio);
@@ -10423,507 +10581,11 @@ function inlineComputedStyles(source, clone) {
   });
 }
 
-function createSanitizedPumpChartExportClone(source) {
-  try {
-    const clone = source.cloneNode(true);
-    clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
-    inlineComputedStyles(source, clone);
-    sanitizePumpChartExportElement(clone);
-
-    const sourceRect = source.getBoundingClientRect();
-    clone.style.width = `${Math.ceil(sourceRect.width)}px`;
-    clone.style.boxSizing = "border-box";
-    clone.style.margin = "0";
-
-    logPumpChartShareStep("png-sanitized-clone-created", {
-      removedMedia: clone.dataset.removedMedia || "0",
-      removedBackgrounds: clone.dataset.removedBackgrounds || "0"
-    });
-
-    return clone;
-  } catch (error) {
-    logPumpChartShareStep("png-sanitized-clone-error", {
-      message: error?.message || String(error)
-    });
-    return null;
-  }
-}
-
-function sanitizePumpChartExportElement(element) {
-  let removedMedia = 0;
-  let removedBackgrounds = 0;
-
-  element.querySelectorAll("img, svg, picture, source, canvas, video, object, embed").forEach(node => {
-    node.remove();
-    removedMedia += 1;
-  });
-
-  [element, ...element.querySelectorAll("*")].forEach(node => {
-    if (node.style.backgroundImage && node.style.backgroundImage !== "none") {
-      node.style.backgroundImage = "none";
-      removedBackgrounds += 1;
-    }
-    node.style.webkitMaskImage = "none";
-    node.style.maskImage = "none";
-    node.style.filter = "none";
-    node.style.backdropFilter = "none";
-  });
-
-  element.dataset.removedMedia = String(removedMedia);
-  element.dataset.removedBackgrounds = String(removedBackgrounds);
-}
-
-function logPumpChartExportDomSources(source) {
-  const resources = [];
-
-  source.querySelectorAll("img, svg, use, image, picture, source, canvas, video, object, embed").forEach(node => {
-    resources.push({
-      tag: node.tagName.toLowerCase(),
-      src: node.getAttribute("src") || "",
-      currentSrc: node.currentSrc || "",
-      href: node.getAttribute("href") || node.getAttribute("xlink:href") || "",
-      crossorigin: node.getAttribute("crossorigin") || "",
-      urlType: classifyPumpChartExportUrl(node.currentSrc || node.getAttribute("src") || node.getAttribute("href") || node.getAttribute("xlink:href") || "")
-    });
-  });
-
-  [source, ...source.querySelectorAll("*")].forEach(node => {
-    const backgroundImage = getComputedStyle(node).backgroundImage;
-    if (backgroundImage && backgroundImage !== "none") {
-      resources.push({
-        tag: node.tagName.toLowerCase(),
-        backgroundImage,
-        urlType: classifyPumpChartExportUrl(backgroundImage)
-      });
-    }
-  });
-
-  logPumpChartShareStep("png-taint-sources", {
-    resourceCount: resources.length,
-    resources,
-    fontStatus: document.fonts?.status || "unknown"
-  });
-}
-
-function classifyPumpChartExportUrl(value) {
-  const text = String(value || "").trim();
-  if (!text) return "none";
-  if (text.startsWith("data:")) return "data";
-  if (text.startsWith("blob:")) return "blob";
-  if (text.startsWith("capacitor://")) return "capacitor";
-  if (text.startsWith("file:")) return "file";
-  if (/^https?:\/\//i.test(text)) {
-    try {
-      const url = new URL(text);
-      return url.origin === window.location.origin ? "local-http" : "cross-origin-http";
-    } catch {
-      return "http";
-    }
-  }
-  if (text.includes("url(")) return "css-url";
-  return "local-or-inline";
-}
-
-async function tryRenderManualPumpChartCanvasToBlob(source) {
-  try {
-    const canvas = renderPumpChartDocumentToCanvas(source);
-    await drawPumpChartCanvasBrandLogo(canvas);
-    logPumpChartShareStep("png-canvas-created", {
-      method: "manual-canvas",
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
-      pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
-    });
-    const blob = await exportCanvasToPngBlob(canvas, "manual-canvas");
-    if (blob) {
-      logPumpChartShareStep("png-render-success", {
-        method: "manual-canvas",
-        blobSize: blob.size,
-        blobType: blob.type
-      });
-    }
-    return blob;
-  } catch (error) {
-    logPumpChartShareStep("png-render-error", {
-      method: "manual-canvas",
-      message: error?.message || String(error)
-    });
-    return null;
-  }
-}
-
-function renderPumpChartDocumentToCanvas(source) {
-  const width = 720;
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  const horizontalPadding = 32;
-  const contentWidth = width - horizontalPadding * 2;
-  const headerTextWidth = contentWidth - GENERATED_PNG_STYLE.brand.compact.blockWidth - GENERATED_PNG_STYLE.header.gap;
-  const measureCanvas = document.createElement("canvas");
-  const measureContext = measureCanvas.getContext("2d");
-  if (!measureContext) throw new Error("Canvas context unavailable.");
-
-  const drawItems = [];
-  let y = 30;
-
-  const pushText = (text, options = {}) => {
-    const item = createCanvasTextItem(measureContext, text, {
-      x: horizontalPadding,
-      y,
-      maxWidth: contentWidth,
-      ...options
-    });
-    if (!item) return 0;
-
-    drawItems.push(item);
-    const height = getCanvasTextItemHeight(item);
-    y += height + (options.marginBottom ?? 4);
-    return height;
-  };
-
-  const pushRule = (marginTop = 10, marginBottom = 10, color = "#d1d5db") => {
-    y += marginTop;
-    drawItems.push({ type: "rule", x: horizontalPadding, y, width: contentWidth, color });
-    y += marginBottom;
-  };
-
-  const header = source.querySelector(".pump-chart-document-header");
-  const headerData = getGeneratedPumpChartExportHeaderData(header);
-  pushText(headerData.label || "PUMP CHART", {
-    font: GENERATED_PNG_STYLE.header.labelFont,
-    lineHeight: 16,
-    color: GENERATED_PNG_STYLE.header.mutedColor,
-    letterSpacing: 0.08,
-    maxWidth: headerTextWidth,
-    marginBottom: 6
-  });
-  pushText(headerData.title || "Pump Chart", {
-    font: GENERATED_PNG_STYLE.header.titleFont,
-    lineHeight: 36,
-    color: GENERATED_PNG_STYLE.header.titleColor,
-    maxWidth: headerTextWidth,
-    marginBottom: 6
-  });
-  pushText(headerData.subtitle || "", {
-    font: GENERATED_PNG_STYLE.header.subtitleFont,
-    lineHeight: 26,
-    color: GENERATED_PNG_STYLE.header.detailColor,
-    maxWidth: headerTextWidth,
-    marginBottom: 4
-  });
-  pushText(headerData.metadata || "", {
-    font: GENERATED_PNG_STYLE.header.detailFont,
-    lineHeight: 20,
-    color: GENERATED_PNG_STYLE.header.detailColor,
-    maxWidth: headerTextWidth,
-    marginBottom: 7,
-    metadataWrap: true
-  });
-  pushText(headerData.notes || "", {
-    font: "650 14px Arial, sans-serif",
-    lineHeight: 20,
-    color: "#475569",
-    marginBottom: 7
-  });
-  pushRule(10, 18, "#cbd5e1");
-
-  source.querySelectorAll(".pump-chart-document-section").forEach(section => {
-    pushText(stripPumpChartCategoryCount(section.querySelector("h3")?.textContent || ""), {
-      font: "900 14px Arial, sans-serif",
-      lineHeight: 18,
-      color: "#64748b",
-      marginBottom: 8
-    });
-
-    section.querySelectorAll(".pump-chart-setup-row").forEach(row => {
-      const layout = createPumpChartCanvasSetupRowLayout(measureContext, row, {
-        x: horizontalPadding,
-        y,
-        width: contentWidth
-      });
-
-      drawItems.push(...layout.items);
-      y += layout.height;
-    });
-
-    const sectionText = Array.from(section.children)
-      .filter(child => !child.matches("h3, .pump-chart-setup-row"))
-      .map(child => child.textContent.trim())
-      .filter(Boolean)
-      .join("\n");
-    pushText(sectionText, {
-      font: "700 14px Arial, sans-serif",
-      lineHeight: 20,
-      color: "#334155",
-      marginBottom: 10
-    });
-    y += 8;
-  });
-
-  const height = Math.ceil(y + 30);
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.ceil(width * pixelRatio);
-  canvas.height = Math.ceil(height * pixelRatio);
-
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Canvas context unavailable.");
-
-  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  drawGeneratedPngCanvasBackground(context, width, height);
-
-  drawItems.forEach(item => {
-    if (item.type === "rule") {
-      context.strokeStyle = item.color || "rgba(17, 24, 39, 0.18)";
-      context.beginPath();
-      context.moveTo(item.x, item.y + 0.5);
-      context.lineTo(item.x + item.width, item.y + 0.5);
-      context.stroke();
-      return;
-    }
-
-    if (item.type === "row-background") {
-      drawCanvasRoundedRect(context, item.x, item.y, item.width, item.height, item.radius || 8);
-      context.fillStyle = item.fill || "#f8fafc";
-      context.fill();
-      if (item.stroke) {
-        context.strokeStyle = item.stroke;
-        context.stroke();
-      }
-      return;
-    }
-
-    if (item.type === "badge") {
-      drawCanvasBadge(context, item);
-      return;
-    }
-
-    if (item.type === "brand") {
-      drawCanvasExportBrand(context, item);
-      return;
-    }
-
-    drawCanvasTextItem(context, item);
-  });
-
-  return canvas;
-}
-
-function createPumpChartCanvasSetupRowLayout(context, row, bounds) {
-  const paddingX = 14;
-  const paddingY = 13;
-  const gap = 24;
-  const canUseColumns = bounds.width >= 560;
-  const asideWidth = canUseColumns ? 240 : bounds.width - paddingX * 2;
-  const leftWidth = canUseColumns
-    ? bounds.width - paddingX * 2 - asideWidth - gap
-    : bounds.width - paddingX * 2;
-  const leftX = bounds.x + paddingX;
-  const asideX = canUseColumns
-    ? bounds.x + bounds.width - paddingX - asideWidth
-    : leftX;
-  const contentTop = bounds.y + paddingY;
-  const nameText = row.querySelector(".pump-chart-setup-name")?.textContent || "";
-  const configText = row.querySelector(".pump-chart-config-summary")?.textContent || "";
-  const badgeElement = row.querySelector(".pump-chart-mode-badge");
-  const resultText = row.querySelector(".pump-chart-row-result")?.textContent || "";
-  const items = [];
-
-  if (badgeElement?.dataset.mode === "apparatusMounted") {
-    logPumpChartApparatusExportSummary({
-      name: nameText.trim(),
-      configuration: configText.trim(),
-      result: resultText.trim()
-    });
-  }
-  const nameItem = createCanvasTextItem(context, nameText, {
-    x: leftX,
-    y: contentTop,
-    maxWidth: leftWidth,
-    font: "900 18px Arial, sans-serif",
-    lineHeight: 23,
-    color: "#111827"
-  });
-  const nameHeight = nameItem ? getCanvasTextItemHeight(nameItem) : 0;
-  const configItem = createCanvasTextItem(context, configText, {
-    x: leftX,
-    y: contentTop + nameHeight + 5,
-    maxWidth: leftWidth,
-    font: "750 15px Arial, sans-serif",
-    lineHeight: 21,
-    color: "#475569"
-  });
-  const configHeight = configItem ? getCanvasTextItemHeight(configItem) : 0;
-  const leftHeight = nameHeight + (configItem ? 5 : 0) + configHeight;
-  let rightHeight = 0;
-
-  const resultItem = createCanvasResultTextItem(context, resultText, {
-    x: asideX,
-    y: contentTop,
-    maxWidth: asideWidth,
-    font: "900 19px Arial, sans-serif",
-    lineHeight: 25,
-    color: "#111827",
-    align: canUseColumns ? "right" : "left"
-  });
-
-  if (resultItem) {
-    rightHeight += getCanvasTextItemHeight(resultItem);
-    items.push(resultItem);
-  }
-
-  if (nameItem) items.push(nameItem);
-  if (configItem) items.push(configItem);
-
-  const rowContentHeight = canUseColumns
-    ? Math.max(leftHeight, rightHeight)
-    : Math.max(leftHeight, rightHeight);
-  const rowHeight = Math.max(76, rowContentHeight + paddingY * 2);
-
-  items.unshift({
-    type: "row-background",
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: rowHeight - 8,
-    radius: 8,
-    fill: "#f8fafc",
-    stroke: "#e2e8f0"
-  });
-
-  return {
-    items,
-    height: rowHeight
-  };
-}
-
-function createCanvasTextItem(context, text, options = {}) {
-  const cleanText = String(text || "").trim();
-  if (!cleanText) return null;
-
-  const font = options.font || "700 14px Arial, sans-serif";
-  const maxWidth = options.maxWidth || 300;
-  context.font = font;
-  const lines = options.metadataWrap
-    ? wrapCanvasMetadataLine(context, cleanText, maxWidth)
-    : wrapCanvasText(context, cleanText, maxWidth);
-  if (!lines.length) return null;
-
-  return {
-    type: "text",
-    lines,
-    x: options.x || 0,
-    y: options.y || 0,
-    font,
-    lineHeight: options.lineHeight || 18,
-    color: options.color || "#111827",
-    maxWidth,
-    align: options.align || "left"
-  };
-}
-
-function createCanvasResultTextItem(context, text, options = {}) {
-  const cleanText = String(text || "").trim();
-  if (!cleanText) return null;
-
-  const font = options.font || "900 19px Arial, sans-serif";
-  const maxWidth = options.maxWidth || 240;
-  context.font = font;
-
-  return {
-    type: "text",
-    lines: getCanvasResultLines(context, cleanText, maxWidth),
-    x: options.x || 0,
-    y: options.y || 0,
-    font,
-    lineHeight: options.lineHeight || 24,
-    color: options.color || "#111827",
-    maxWidth,
-    align: options.align || "left"
-  };
-}
-
-function getCanvasResultLines(context, text, maxWidth) {
-  return String(text || "")
-    .split(/\n+/)
-    .flatMap(line => splitCanvasResultLine(context, line.trim(), maxWidth))
-    .filter(Boolean);
-}
-
-function splitCanvasResultLine(context, line, maxWidth) {
-  if (!line) return [];
-  if (context.measureText(line).width <= maxWidth) return [line];
-
-  if (line.includes(" • ")) {
-    const segments = line.split(" • ").map(segment => segment.trim()).filter(Boolean);
-    const combinedLines = [];
-    let currentLine = "";
-
-    segments.forEach(segment => {
-      const candidate = currentLine ? `${currentLine} • ${segment}` : segment;
-      if (!currentLine || context.measureText(candidate).width <= maxWidth) {
-        currentLine = candidate;
-      } else {
-        combinedLines.push(currentLine);
-        currentLine = segment;
-      }
-    });
-
-    if (currentLine) combinedLines.push(currentLine);
-    return combinedLines;
-  }
-
-  return [line];
-}
-
-function getCanvasTextItemHeight(item) {
-  return item.lines.length * item.lineHeight;
-}
-
-function drawCanvasTextItem(context, item) {
-  context.font = item.font;
-  context.fillStyle = item.color;
-  context.textAlign = item.align || "left";
-  context.textBaseline = "alphabetic";
-  item.lines.forEach((line, index) => {
-    const x = item.align === "right" ? item.x + item.maxWidth : item.x;
-    context.fillText(line, x, item.y + item.lineHeight * (index + 0.78), item.maxWidth);
-  });
-}
-
 function wrapCanvasText(context, text, maxWidth) {
   return String(text || "")
     .split(/\n+/)
     .flatMap(line => wrapCanvasLine(context, line.trim(), maxWidth))
     .filter(Boolean);
-}
-
-function wrapCanvasMetadataLine(context, text, maxWidth) {
-  const cleanText = String(text || "").trim();
-  if (!cleanText) return [];
-  if (context.measureText(cleanText).width <= maxWidth) return [cleanText];
-
-  const parts = cleanText
-    .split("•")
-    .map(part => part.trim())
-    .filter(Boolean);
-
-  if (parts.length <= 1) return wrapCanvasText(context, cleanText, maxWidth);
-
-  const lines = [];
-  let currentLine = "";
-
-  parts.forEach(part => {
-    const candidate = currentLine ? `${currentLine} • ${part}` : part;
-    if (!currentLine || context.measureText(candidate).width <= maxWidth) {
-      currentLine = candidate;
-      return;
-    }
-
-    lines.push(currentLine);
-    currentLine = part;
-  });
-
-  if (currentLine) lines.push(currentLine);
-  return lines;
 }
 
 function wrapCanvasLine(context, text, maxWidth) {
@@ -10947,66 +10609,6 @@ function wrapCanvasLine(context, text, maxWidth) {
   return lines;
 }
 
-function drawCanvasBadge(context, item) {
-  const palette = getPumpChartCanvasBadgePalette(item.mode);
-  const height = item.height || 26;
-  const radius = height / 2;
-  const width = Math.min(item.width, 150);
-  const x = item.x + Math.max(0, item.width - width);
-
-  context.fillStyle = palette.background;
-  context.strokeStyle = palette.border;
-  context.lineWidth = 1;
-  drawCanvasRoundedRect(context, x, item.y, width, height, radius);
-  context.fill();
-  context.stroke();
-
-  context.font = "900 11px Arial, sans-serif";
-  context.fillStyle = palette.text;
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.fillText(item.text, x + width / 2, item.y + height / 2 + 0.5, width - 14);
-}
-
-function drawCanvasExportBrand(context, item) {
-  const markSize = 24;
-  const text = "Reverse Flow";
-  const generated = item.generated || "";
-  context.font = "800 11px Arial, sans-serif";
-  const textWidth = context.measureText(text).width;
-  context.font = "700 10px Arial, sans-serif";
-  const generatedWidth = generated ? context.measureText(generated).width : 0;
-  const contentWidth = markSize + 7 + Math.max(textWidth, generatedWidth);
-  const startX = item.x + item.width - contentWidth;
-  const markX = startX;
-  const markY = item.y;
-  const textX = markX + markSize + 7;
-
-  context.save();
-  context.globalAlpha = 0.78;
-  context.textAlign = "left";
-  context.textBaseline = "alphabetic";
-  context.font = "800 11px Arial, sans-serif";
-  context.fillStyle = "rgba(71, 85, 105, 0.76)";
-  context.fillText(text, textX, markY + 10, item.width);
-
-  if (generated) {
-    context.font = "700 10px Arial, sans-serif";
-    context.fillStyle = "rgba(100, 116, 139, 0.64)";
-    context.fillText(generated, textX, markY + 23, item.width);
-  }
-  context.restore();
-}
-
-function applyGeneratedPngExportCardStyle(element) {
-  element.style.background = GENERATED_PNG_STYLE.card.background;
-  element.style.border = GENERATED_PNG_STYLE.card.border;
-  element.style.borderTop = GENERATED_PNG_STYLE.documentTopBorder;
-  element.style.borderRadius = `${GENERATED_PNG_STYLE.card.borderRadius}px`;
-  element.style.padding = `${GENERATED_PNG_STYLE.card.padding}px`;
-  element.style.color = GENERATED_PNG_STYLE.header.titleColor;
-}
-
 function drawGeneratedPngCanvasBackground(context, width, height) {
   context.fillStyle = GENERATED_PNG_STYLE.background;
   context.fillRect(0, 0, width, height);
@@ -11015,20 +10617,6 @@ function drawGeneratedPngCanvasBackground(context, width, height) {
   context.strokeRect(0.5, 0.5, width - 1, height - 1);
   context.fillStyle = GENERATED_PNG_STYLE.accentColor;
   context.fillRect(0, 0, width, GENERATED_PNG_STYLE.canvasTopBorderHeight);
-}
-
-function getGeneratedPngCanvasBrandOptions(size, width, margin, y) {
-  const preset = GENERATED_PNG_STYLE.brand[size] || GENERATED_PNG_STYLE.brand.compact;
-
-  return {
-    x: width - margin - preset.blockWidth,
-    y,
-    logoSize: preset.logoSize,
-    gap: preset.gap,
-    primaryFont: preset.primaryFont,
-    secondaryFont: preset.secondaryFont,
-    textWidth: preset.textWidth
-  };
 }
 
 async function drawGeneratedPngBrandLogo(canvas, options = {}) {
@@ -11070,29 +10658,6 @@ async function drawGeneratedPngBrandLogo(canvas, options = {}) {
   }
 }
 
-async function drawPumpChartCanvasBrandLogo(canvas) {
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  const width = canvas.width / pixelRatio;
-  const brand = GENERATED_PNG_STYLE.brand.compact;
-  const x = width - 32 - brand.blockWidth;
-  const y = 32;
-  const brandHeight = brand.cardHeight;
-
-  await drawGeneratedPngBrandLogo(canvas, {
-    x: x + brand.paddingX,
-    y: y + Math.round((brandHeight - brand.logoSize) / 2),
-    logoSize: brand.logoSize,
-    gap: brand.gap,
-    primaryFont: brand.primaryFont,
-    secondaryFont: brand.secondaryFont,
-    textWidth: brand.textWidth
-  });
-}
-
-function stripPumpChartCategoryCount(value) {
-  return String(value || "").replace(/\s+\(\d+\)\s*$/, "").trim();
-}
-
 function drawCanvasRoundedRect(context, x, y, width, height, radius) {
   const safeRadius = Math.min(radius, width / 2, height / 2);
   context.beginPath();
@@ -11105,18 +10670,6 @@ function drawCanvasRoundedRect(context, x, y, width, height, radius) {
   context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
   context.lineTo(x, y + safeRadius);
   context.quadraticCurveTo(x, y, x + safeRadius, y);
-}
-
-function getPumpChartCanvasBadgePalette(mode) {
-  const palettes = {
-    reverse: { background: "rgba(37, 99, 235, 0.10)", border: "rgba(37, 99, 235, 0.34)", text: "#1d4ed8" },
-    requiredPdp: { background: "rgba(22, 163, 74, 0.10)", border: "rgba(22, 163, 74, 0.34)", text: "#166534" },
-    splitLay: { background: "rgba(217, 92, 19, 0.10)", border: "rgba(217, 92, 19, 0.38)", text: "#9a3412" },
-    relay: { background: "rgba(124, 58, 237, 0.10)", border: "rgba(124, 58, 237, 0.34)", text: "#6d28d9" },
-    apparatusMounted: { background: "rgba(71, 85, 105, 0.10)", border: "rgba(71, 85, 105, 0.32)", text: "#334155" }
-  };
-
-  return palettes[mode] || { background: "rgba(217, 92, 19, 0.08)", border: "rgba(217, 92, 19, 0.34)", text: "#7c2d12" };
 }
 
 function getResolvedExportBackground(element) {
@@ -11219,99 +10772,6 @@ async function copyPumpChartShareTextToClipboard(text) {
     });
     return false;
   }
-}
-
-function buildPumpChartShareText(chart) {
-  const lines = [
-    "Reverse Flow Pump Chart",
-    "",
-    chart.name,
-    chart.department || "",
-    `${chart.setups.length} ${chart.setups.length === 1 ? "Setup" : "Setups"}`,
-    ""
-  ].filter(line => line !== "");
-
-  chart.setups.forEach(setup => {
-    const config = getSetupConfigurationSummary(setup).replace(/\n+/g, " / ");
-    const result = getSetupHydraulicSummary(setup).replace(/\n+/g, " / ");
-    lines.push([setup.name, config, result].filter(Boolean).join(" — "));
-    if (setup.notes) lines.push(`Notes: ${setup.notes}`);
-  });
-
-  if (chart.notes) {
-    lines.push(`Chart Notes: ${chart.notes}`);
-  }
-
-  lines.push("Generated by Reverse Flow");
-
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-}
-
-function openPumpChartPrintView(chart) {
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    alert("Export view could not open. Check popup settings, then try again.");
-    return;
-  }
-
-  printWindow.document.write(buildPumpChartPrintHtml(chart));
-  printWindow.document.close();
-  printWindow.focus();
-}
-
-function buildPumpChartPrintHtml(chart) {
-  const sections = chart.setups.length ? `
-      <section>
-        ${chart.setups.map(setup => `
-          <div class="setup">
-            <div>
-              <strong>${escapeHtml(setup.name)}</strong>
-              <p>${escapeHtml(getSetupConfigurationSummary(setup))}</p>
-            </div>
-            <b>${escapeHtml(getSetupHydraulicSummary(setup))}</b>
-            ${setup.notes ? `<p class="notes">${escapeHtml(setup.notes)}</p>` : ""}
-          </div>
-        `).join("")}
-      </section>
-    ` : "";
-
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(chart.name)} Pump Chart</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 28px; color: #111827; }
-    header { border-bottom: 3px solid #111827; padding-bottom: 16px; margin-bottom: 20px; }
-    header p { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; }
-    h1 { margin: 0 0 6px; font-size: 30px; }
-    h2 { margin: 24px 0 10px; font-size: 15px; letter-spacing: 0.08em; border-bottom: 1px solid #9ca3af; padding-bottom: 6px; }
-    .meta { display: flex; gap: 16px; flex-wrap: wrap; color: #374151; font-size: 13px; }
-    .setup { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; border-bottom: 1px solid #d1d5db; padding: 10px 0; break-inside: avoid; }
-    .setup p { margin: 2px 0 0; color: #4b5563; font-size: 12px; }
-    .setup b { font-size: 18px; }
-    .notes { grid-column: 1 / -1; }
-    .actions { margin: 0 0 18px; }
-    button { min-height: 40px; padding: 0 16px; border: 1px solid #111827; background: #111827; color: white; border-radius: 4px; font-weight: 700; }
-    @media print { .actions { display: none; } body { margin: 18mm; } }
-  </style>
-</head>
-<body>
-  <div class="actions"><button onclick="window.print()">Print / Save PDF</button></div>
-  <header>
-    <p>REVERSE FLOW PUMP CHART</p>
-    <h1>${escapeHtml(chart.name)}</h1>
-    ${chart.department ? `<strong>${escapeHtml(chart.department)}</strong>` : ""}
-    <div class="meta">
-      <span>Updated ${escapeHtml(formatPumpChartDate(chart.updatedAt))}</span>
-      <span>${chart.setups.length} Setups</span>
-    </div>
-    ${chart.notes ? `<p>${escapeHtml(chart.notes)}</p>` : ""}
-  </header>
-  ${sections}
-</body>
-</html>`;
 }
 
     function deleteSelectedPreset() {
