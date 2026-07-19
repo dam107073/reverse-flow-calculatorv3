@@ -9369,7 +9369,10 @@ function renderPumpOperatorPackageSelection(chartId) {
     renderPumpChartList();
     return;
   }
-  setPumpChartSubtitle("Which saved setups do you want to include?");
+  const packageApi = window.ReverseFlowPumpOperatorPackage;
+  const maxSetups = packageApi.MAX_EXPORT_SETUPS;
+  const selectAllByDefault = chart.setups.length <= maxSetups;
+  setPumpChartSubtitle(`Choose up to ${maxSetups} Setups`);
   els.pumpChartList.innerHTML = `
     <form class="pump-operator-selection" id="pumpOperatorPackageSelectionForm">
       <div class="pump-chart-toolbar">
@@ -9378,7 +9381,7 @@ function renderPumpOperatorPackageSelection(chartId) {
       <div class="pump-operator-selection-list" role="group" aria-label="Saved setups to include">
         ${chart.setups.map(setup => `
           <label class="pump-operator-setup-choice">
-            <input type="checkbox" name="pumpOperatorSetup" value="${escapeHtml(setup.id)}" checked />
+            <input type="checkbox" name="pumpOperatorSetup" value="${escapeHtml(setup.id)}" ${selectAllByDefault ? "checked" : ""} />
             <span><strong>${escapeHtml(setup.name)}</strong><small>${escapeHtml(getSetupConfigurationSummary(setup).replace(/\n+/g, " / "))}</small></span>
           </label>
         `).join("") || `<p class="disabled-note">No saved setups are available.</p>`}
@@ -9387,12 +9390,30 @@ function renderPumpOperatorPackageSelection(chartId) {
       <button class="small-button pump-chart-primary-action" type="submit" ${chart.setups.length ? "" : "disabled"}>Preview Pump Operator Package</button>
     </form>
   `;
-  document.getElementById("pumpOperatorPackageSelectionForm")?.addEventListener("submit", event => {
+  const selectionForm = document.getElementById("pumpOperatorPackageSelectionForm");
+  const selectionInputs = [...selectionForm?.querySelectorAll('input[name="pumpOperatorSetup"]') || []];
+  const validationNode = document.getElementById("pumpOperatorPackageValidation");
+  const updateSelectionAvailability = () => {
+    const selectedCount = selectionInputs.filter(input => input.checked).length;
+    const maximumReached = selectedCount >= maxSetups;
+    selectionInputs.forEach(input => {
+      input.disabled = maximumReached && !input.checked;
+      input.closest(".pump-operator-setup-choice")?.classList.toggle("is-unavailable", input.disabled);
+    });
+    if (maximumReached) {
+      validationNode.hidden = false;
+      validationNode.textContent = `Maximum reached: ${maxSetups} setups selected.`;
+    } else {
+      validationNode.hidden = true;
+      validationNode.textContent = "";
+    }
+  };
+  selectionInputs.forEach(input => input.addEventListener("change", updateSelectionAvailability));
+  updateSelectionAvailability();
+  selectionForm?.addEventListener("submit", event => {
     event.preventDefault();
-    const selectedIds = [...document.querySelectorAll('input[name="pumpOperatorSetup"]:checked')].map(input => input.value);
-    const packageApi = window.ReverseFlowPumpOperatorPackage;
+    const selectedIds = selectionInputs.filter(input => input.checked).map(input => input.value);
     const validation = packageApi.validateExportSelection(chart.setups, selectedIds);
-    const validationNode = document.getElementById("pumpOperatorPackageValidation");
     if (!validation.ok) {
       validationNode.hidden = false;
       validationNode.innerHTML = `${escapeHtml(validation.message)}${validation.overLimit.length ? ` <button class="small-button" type="button" data-rename-over-limit="${escapeHtml(validation.overLimit[0].id)}">Rename Setup</button>` : ""}`;
@@ -9404,12 +9425,6 @@ function renderPumpOperatorPackageSelection(chartId) {
 
     const packageData = getPumpOperatorPackageData(chart, validation.selected);
     const model = packageApi.createLayoutModel(packageData);
-    if (model.likelyExceedsTwoPages) {
-      const confirmed = confirm(
-        "This Pump Operator Package is estimated to exceed the recommended two-page layout. Supporting reference material may be placed on a third page. Continue generating?"
-      );
-      if (!confirmed) return;
-    }
     activePumpOperatorPackage = { chartId: chart.id, model, pngFiles: null, pdfFile: null, preparing: false };
     pumpChartView = { screen: "package-preview", chartId: chart.id, setupId: null };
     renderPumpChart();
@@ -9457,14 +9472,21 @@ window.exportPumpChart = function(chartId) {
 async function createPumpOperatorPackagePngFiles(model) {
   const packageApi = window.ReverseFlowPumpOperatorPackage;
   const previousScroll = { x: window.scrollX || 0, y: window.scrollY || 0 };
-  window.scrollTo(0, 0);
+  const resetPumpOperatorCaptureScroll = () => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollLeft = 0;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollLeft = 0;
+    document.body.scrollTop = 0;
+  };
+  resetPumpOperatorCaptureScroll();
   await new Promise(resolve => requestAnimationFrame(resolve));
   const mounted = packageApi.mountPackagePages(model, document);
   const files = [];
   try {
     for (let index = 0; index < mounted.pages.length; index += 1) {
       const captureHost = document.createElement("div");
-      captureHost.style.position = "fixed";
+      captureHost.style.position = "absolute";
       captureHost.style.left = "0";
       captureHost.style.top = "0";
       captureHost.style.zIndex = "-2147483647";
@@ -9474,23 +9496,26 @@ async function createPumpOperatorPackagePngFiles(model) {
       captureHost.style.overflow = "hidden";
       captureHost.style.pointerEvents = "none";
       const pageClone = mounted.pages[index].cloneNode(true);
-      pageClone.style.position = "absolute";
-      pageClone.style.inset = "0";
+      pageClone.style.position = "relative";
+      pageClone.style.inset = "auto";
       pageClone.style.margin = "0";
       pageClone.style.transform = "none";
       pageClone.style.boxShadow = "none";
       captureHost.appendChild(pageClone);
       document.body.appendChild(captureHost);
+      resetPumpOperatorCaptureScroll();
+      await new Promise(resolve => requestAnimationFrame(resolve));
       const renderedBlob = await renderElementToPngBlob(
-        captureHost,
+        pageClone,
         `pump-operator-package-page-${index + 1}`,
-        { pixelRatio: 3 }
+        { pixelRatio: 3, normalizeOrigin: true }
       );
       captureHost.remove();
+      resetPumpOperatorCaptureScroll();
+      await new Promise(resolve => window.setTimeout(resolve, 100));
       if (!renderedBlob) throw new Error(`Page ${index + 1} PNG could not be rendered.`);
-      const blob = await redrawPumpOperatorPackageChartName(renderedBlob, model.chartName);
       files.push(new File(
-        [blob],
+        [renderedBlob],
         `${sanitizeFileName(model.chartName)}-Pump-Operator-Package-Page-${index + 1}.png`,
         { type: "image/png" }
       ));
@@ -9500,38 +9525,6 @@ async function createPumpOperatorPackagePngFiles(model) {
     window.scrollTo(previousScroll.x, previousScroll.y);
   }
   return files;
-}
-
-async function redrawPumpOperatorPackageChartName(blob, chartName) {
-  const sourceUrl = URL.createObjectURL(blob);
-  try {
-    const image = await loadImage(sourceUrl);
-    const canvas = document.createElement("canvas");
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-    const context = canvas.getContext("2d");
-    if (!context) return blob;
-    context.drawImage(image, 0, 0);
-    const scale = canvas.width / window.ReverseFlowPumpOperatorPackage.PAGE_WIDTH_PX;
-    context.save();
-    context.scale(scale, scale);
-    context.fillStyle = "#ffffff";
-    context.fillRect(48, 72, 520, 32);
-    let fontSize = 24;
-    context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
-    while (fontSize > 16 && context.measureText(chartName).width > 510) {
-      fontSize -= 1;
-      context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
-    }
-    context.fillStyle = "#181f2a";
-    context.textAlign = "left";
-    context.textBaseline = "top";
-    context.fillText(chartName, 48, 74, 510);
-    context.restore();
-    return await exportCanvasToPngBlob(canvas, "pump-operator-package-chart-name");
-  } finally {
-    URL.revokeObjectURL(sourceUrl);
-  }
 }
 
 function readBlobAsDataUrl(blob) {
@@ -9549,8 +9542,8 @@ async function createPumpOperatorPackagePdfFile(model, pngFiles) {
   const doc = new JsPdf({ orientation: "portrait", unit: "pt", format: "letter", compress: true });
   for (let index = 0; index < pngFiles.length; index += 1) {
     if (index) doc.addPage("letter", "portrait");
-    const dataUrl = await readBlobAsDataUrl(pngFiles[index]);
-    doc.addImage(dataUrl, "PNG", 0, 0, 612, 792, `package-page-${index + 1}`, "FAST");
+    const pageBytes = new Uint8Array(await pngFiles[index].arrayBuffer());
+    doc.addImage(pageBytes, "PNG", 0, 0, 612, 792, undefined, "NONE");
   }
   doc.setProperties({
     title: `${model.chartName} Pump Operator Package`,
@@ -10400,7 +10393,9 @@ async function renderElementToPngBlob(element, method, options = {}) {
       windowWidth: width,
       windowHeight: height,
       scrollX: 0,
-      scrollY: 0
+      scrollY: 0,
+      x: options.normalizeOrigin ? rect.left + (window.scrollX || 0) : undefined,
+      y: options.normalizeOrigin ? rect.top + (window.scrollY || 0) : undefined
     });
     return exportCanvasToPngBlob(canvas, method);
   }

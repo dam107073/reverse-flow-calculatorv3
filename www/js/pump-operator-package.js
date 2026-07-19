@@ -6,61 +6,64 @@
   "use strict";
 
   const SETUP_NAME_MAX_LENGTH = 28;
+  const MAX_EXPORT_SETUPS = 6;
   const PAGE_WIDTH_PX = 816;
   const PAGE_HEIGHT_PX = 1056;
-  const MAX_PAGE_ONE_ROW_UNITS = 7.5;
-  const MAX_CONTINUATION_ROW_UNITS = 34;
+  const MAX_PAGE_ONE_REFERENCE_UNITS = 4.5;
 
   const SUPPORT_MODULES = [
     {
       id: "appliance-loss",
       title: "Appliance Loss Guide",
-      lines: [
-        "Use the calculated/current Reverse Flow appliance loss.",
-        "Confirm unusual appliances with department or manufacturer data."
+      type: "table",
+      headers: ["Appliance", "Add"],
+      rows: [
+        ["Small Appliance (Wye, Reducer)", "10 psi"],
+        ["Large Appliance (Portable Hydrant, Water Thief)", "25 psi"],
+        ["Master Stream Device", "25 psi"],
+        ["Standpipe System", "25 psi"],
+        ["Residential Sprinkler System", "95 psi"],
+        ["Commercial Sprinkler System", "150 psi"]
       ]
     },
     {
       id: "hydrant-water",
-      title: "Additional Water Available at a Hydrant",
-      lines: [
-        "Q available = Q test x ((S - target R) / (S - R))^0.54",
-        "Use verified static, residual, and flow readings."
-      ]
-    },
-    {
-      id: "foam-eductor",
-      title: "Inline Foam Eductor",
-      lines: [
-        "Match rated flow and inlet pressure.",
-        "Follow eductor, hose, nozzle, and concentrate guidance."
-      ]
+      title: "Additional Water Available",
+      type: "table",
+      headers: ["Intake Pressure Drop", "Additional Water Available"],
+      rows: [
+        ["0-10%", "≈ 3× Current Flow"],
+        ["11-15%", "≈ 2× Current Flow"],
+        ["16-25%", "≈ Current Flow"],
+        [">25%", "Less than Current Flow"]
+      ],
+      footer: "Approximation only."
     }
   ];
 
   const FORMULA_MODULES = [
     {
-      id: "friction-formula",
-      title: "Friction Loss Formula",
-      lines: ["FL = C x (Q / 100)^2 x (L / 100)", "C = coefficient; Q = GPM; L = feet"]
-    },
-    {
-      id: "smoothbore-formula",
-      title: "Smoothbore Flow Formula",
-      lines: ["GPM = 29.7 x d^2 x square root of NP", "d = tip diameter (in); NP = PSI"]
+      id: "common-formulas",
+      title: "Common Formulas",
+      type: "formulas",
+      formulas: [
+        ["Friction Loss", "FL = C × (Q ÷ 100)<sup>2</sup> × (L ÷ 100)"],
+        ["Smoothbore Flow", "GPM = 29.7 × d<sup>2</sup> × √NP"],
+        ["Smoothbore Nozzle Reaction", "NR = 1.57 × d<sup>2</sup> × NP"],
+        ["Fog Nozzle Reaction", "NR = 0.0505 × GPM × √NP"]
+      ]
     }
   ];
 
   const OPTIONAL_MODULES = [
     {
-      id: "standpipe-quick-info",
-      title: "Standpipe Quick Info",
-      lines: ["Include attack line, standpipe, supply, and elevation losses."]
-    },
-    {
-      id: "relay-pumping",
-      title: "Relay Pumping",
-      lines: ["Add calculated friction loss for the desired flow plus the required residual pressure."]
+      id: "dry-standpipe",
+      title: "Dry Standpipe Quick Reference",
+      type: "bullet-groups",
+      groups: [
+        ["Riser supports <strong>500 GPM</strong>", "Outlet supports <strong>250 GPM</strong>", "PRVs may be present"],
+        ["Add <strong>25 psi</strong> Standpipe Loss", "Add <strong>5 psi/floor</strong> Elevation Loss", "Include <strong>Attack Friction Loss</strong>", "Include <strong>Supply Friction Loss</strong>"]
+      ]
     }
   ];
 
@@ -98,7 +101,16 @@
   function validateExportSelection(setups, selectedIds) {
     const selected = selectSetupsInChartOrder(setups, selectedIds);
     if (!selected.length) {
-      return { ok: false, selected, overLimit: [], message: "Select at least one saved setup." };
+      return { ok: false, selected, overLimit: [], limitExceeded: false, message: "Select at least one saved setup." };
+    }
+    if (selected.length > MAX_EXPORT_SETUPS) {
+      return {
+        ok: false,
+        selected,
+        overLimit: [],
+        limitExceeded: true,
+        message: `Choose no more than ${MAX_EXPORT_SETUPS} setups.`
+      };
     }
     const overLimit = selected.filter(setup => cleanText(setup.name).length > SETUP_NAME_MAX_LENGTH);
     if (overLimit.length) {
@@ -106,26 +118,15 @@
         ok: false,
         selected,
         overLimit,
+        limitExceeded: false,
         message: `Rename ${overLimit.map(setup => `\"${cleanText(setup.name)}\"`).join(", ")} to ${SETUP_NAME_MAX_LENGTH} characters or fewer before exporting.`
       };
     }
-    return { ok: true, selected, overLimit: [], message: "" };
+    return { ok: true, selected, overLimit: [], limitExceeded: false, message: "" };
   }
 
   function getSetupRowUnits(setup) {
     return cleanText(setup && (setup.name || setup.id)).length > 20 ? 1.55 : 1;
-  }
-
-  function takeRowsByUnits(rows, maxUnits) {
-    let units = 0;
-    let count = 0;
-    while (count < rows.length) {
-      const next = getSetupRowUnits(rows[count]);
-      if (count && units + next > maxUnits) break;
-      units += next;
-      count += 1;
-    }
-    return { rows: rows.slice(0, count), remaining: rows.slice(count), units };
   }
 
   function createLayoutModel(data) {
@@ -133,79 +134,46 @@
     if (!(data.setups || []).length) throw new Error("At least one setup is required.");
     if (!(data.hoses || []).length) throw new Error("At least one enabled hose size is required.");
 
-    const pages = [];
-    let remainingSetups = data.setups.slice();
-    const firstSetupPage = takeRowsByUnits(remainingSetups, MAX_PAGE_ONE_ROW_UNITS);
-    remainingSetups = firstSetupPage.remaining;
-    const pageOneHasSupport = !remainingSetups.length && firstSetupPage.units <= 4.5;
-
-    pages.push({
+    const setupUnits = data.setups.reduce((sum, setup) => sum + getSetupRowUnits(setup), 0);
+    const pageOneHasReferences = setupUnits <= MAX_PAGE_ONE_REFERENCE_UNITS;
+    const referenceIsCompact = data.hoses.length <= 8 && (data.tips || []).length <= 10;
+    const pageOneReferences = pageOneHasReferences ? SUPPORT_MODULES : [];
+    const pageTwoReferences = referenceIsCompact ? [...FORMULA_MODULES, ...OPTIONAL_MODULES] : [];
+    const includedReferenceIds = new Set([...pageOneReferences, ...pageTwoReferences].map(module => module.id));
+    const allReferenceModules = [...SUPPORT_MODULES, ...FORMULA_MODULES, ...OPTIONAL_MODULES];
+    const pages = [{
       kind: "operational",
       label: "PUMP CHART",
       chartName: cleanText(data.chartName),
-      setupRows: firstSetupPage.rows,
+      setupRows: data.setups.slice(),
       worksheet: true,
-      supportModules: pageOneHasSupport ? SUPPORT_MODULES : []
-    });
-
-    while (remainingSetups.length) {
-      const continuation = takeRowsByUnits(remainingSetups, MAX_CONTINUATION_ROW_UNITS);
-      remainingSetups = continuation.remaining;
-      pages.push({
-        kind: "operational-continuation",
-        label: "PUMP CHART - SETUPS CONTINUED",
-        chartName: cleanText(data.chartName),
-        setupRows: continuation.rows,
-        worksheet: false,
-        supportModules: []
-      });
-    }
-
-    const hydraulicPage = {
+      referenceModules: pageOneReferences
+    }, {
       kind: "hydraulic",
       label: "HYDRAULIC REFERENCE",
       chartName: cleanText(data.chartName),
       hoses: data.hoses.slice(),
       tips: (data.tips || []).slice(),
-      formulaModules: FORMULA_MODULES,
-      supportModules: [],
-      optionalModules: []
-    };
+      referenceModules: pageTwoReferences
+    }];
 
-    const referenceIsCompact = hydraulicPage.hoses.length <= 8 && hydraulicPage.tips.length <= 10;
-    if (!pageOneHasSupport && referenceIsCompact) hydraulicPage.supportModules = SUPPORT_MODULES;
-    if (pageOneHasSupport && referenceIsCompact) hydraulicPage.optionalModules = OPTIONAL_MODULES;
-    pages.push(hydraulicPage);
-
-    const deferredSupport = !pageOneHasSupport && !hydraulicPage.supportModules.length;
-    if (deferredSupport) {
-      pages.push({
-        kind: "supplemental",
-        label: "OPERATIONAL REFERENCE",
-        chartName: cleanText(data.chartName),
-        supportModules: deferredSupport ? SUPPORT_MODULES : [],
-        optionalModules: OPTIONAL_MODULES
-      });
-    }
-
-    const firstHydraulicPageIndex = pages.findIndex(page => page.kind === "hydraulic");
-    const likelyExceedsTwoPages = pages.length > 2;
     return {
       chartName: cleanText(data.chartName),
       generatedAt: data.generatedAt || new Date().toISOString(),
       pages,
-      likelyExceedsTwoPages,
-      pageCount: pages.length,
-      firstHydraulicPageNumber: firstHydraulicPageIndex + 1,
-      frictionLossChartPageNumber: firstHydraulicPageIndex + 1,
-      frictionLossChartSplit: false
+      pageCount: 2,
+      firstHydraulicPageNumber: 2,
+      frictionLossChartPageNumber: 2,
+      frictionLossChartSplit: false,
+      omittedReferenceModules: allReferenceModules
+        .filter(module => !includedReferenceIds.has(module.id))
+        .map(module => module.title)
     };
   }
 
   function estimateLayout(data) {
     const model = createLayoutModel(data);
     return {
-      likelyExceedsTwoPages: model.likelyExceedsTwoPages,
       pageCount: model.pageCount,
       firstHydraulicPageNumber: model.firstHydraulicPageNumber,
       frictionLossChartSplit: false
@@ -224,7 +192,7 @@
         <p>${escapeHtml(page.label)}</p>
         <h1>${escapeHtml(chartName)}</h1>
       </div>
-      <div class="rf-pop-brand"><strong>REVERSE FLOW</strong><span>FIRE HYDRAULICS</span></div>
+      <div class="rf-pop-brand"><img src="icons/reverse-flow-logo.png" alt=""><div><strong>REVERSE FLOW</strong><span>PUMP OPERATOR PACKAGE</span></div></div>
     </header>`;
   }
 
@@ -239,7 +207,7 @@
     ];
     return `<section class="rf-pop-section rf-pop-worksheet"><h2>Operator Worksheet</h2>
       <table><thead><tr>${columns.map(column => `<th>${column}</th>`).join("")}</tr></thead>
-      <tbody>${Array.from({ length: 6 }, () => `<tr>${columns.map(() => "<td></td>").join("")}</tr>`).join("")}</tbody></table>
+      <tbody>${Array.from({ length: 5 }, () => `<tr>${columns.map(() => "<td></td>").join("")}</tr>`).join("")}</tbody></table>
     </section>`;
   }
 
@@ -249,17 +217,31 @@
     ["appliance", "Appliance"], ["elevation", "Elevation"], ["pdp", "PDP"]
   ];
 
-  function renderSetupTable(rows, continued) {
-    return `<section class="rf-pop-section rf-pop-setups"><h2>Setups${continued ? " (continued)" : ""}</h2>
+  function renderSetupTable(rows) {
+    return `<section class="rf-pop-section rf-pop-setups"><h2>Setups</h2>
       <table><thead><tr>${SETUP_COLUMNS.map(([, label]) => `<th>${label}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(row => `<tr>${SETUP_COLUMNS.map(([key]) => `<td>${escapeHtml(row[key] || "-")}</td>`).join("")}</tr>`).join("")}</tbody></table>
     </section>`;
   }
 
+  function renderModuleBody(module) {
+    if (module.type === "table") {
+      return `<div class="rf-pop-module-body"><table class="rf-pop-reference-table"><thead><tr>${module.headers.map(header => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${module.rows.map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>${module.footer ? `<p class="rf-pop-module-footer">${escapeHtml(module.footer)}</p>` : ""}</div>`;
+    }
+    if (module.type === "formulas") {
+      return `<div class="rf-pop-module-body rf-pop-formula-grid">${module.formulas.map(([label, equation]) => `<div><h4>${escapeHtml(label)}</h4><p>${equation}</p></div>`).join("")}</div>`;
+    }
+    if (module.type === "bullet-groups") {
+      const groupLabels = ["Things to Remember", "Things to Add"];
+      return `<div class="rf-pop-module-body rf-pop-bullet-groups">${module.groups.map((group, index) => `<div><h4>${groupLabels[index]}</h4><ul>${group.map(item => `<li>${item}</li>`).join("")}</ul></div>`).join("")}</div>`;
+    }
+    return "";
+  }
+
   function renderModules(title, modules, className) {
     if (!modules || !modules.length) return "";
     return `<section class="rf-pop-section ${className || ""}"><h2>${escapeHtml(title)}</h2>
-      <div class="rf-pop-module-grid">${modules.map(module => `<article class="rf-pop-module"><h3>${escapeHtml(module.title)}</h3>${module.lines.map(line => `<p>${escapeHtml(line)}</p>`).join("")}</article>`).join("")}</div>
+      <div class="rf-pop-module-grid">${modules.map(module => `<article class="rf-pop-module rf-pop-module-${escapeHtml(module.id)}"><h3>${escapeHtml(module.title)}</h3>${renderModuleBody(module)}</article>`).join("")}</div>
     </section>`;
   }
 
@@ -277,26 +259,28 @@
 
   function renderSmoothbore(tips) {
     if (!tips.length) return "";
-    const table = pressure => `<table><thead><tr><th colspan="2">Smoothbore ${pressure} PSI</th></tr><tr><th>Tip</th><th>GPM</th></tr></thead><tbody>${tips.map(tip => {
+    const handlineTips = tips.filter(tip => Number(tip.diameter) >= 0.75 && Number(tip.diameter) <= 1.25);
+    const masterStreamTips = tips.filter(tip => Number(tip.diameter) >= 1.25 && Number(tip.diameter) <= 3);
+    const table = (title, pressure, pressureTips) => `<table><thead><tr><th colspan="2">${title}</th></tr><tr><th>Tip</th><th>GPM</th></tr></thead><tbody>${pressureTips.map(tip => {
       const gpm = 29.7 * Number(tip.diameter) * Number(tip.diameter) * Math.sqrt(pressure);
       return `<tr><td>${escapeHtml(tip.label)}</td><td>${Math.round(gpm)}</td></tr>`;
     }).join("")}</tbody></table>`;
-    return `<section class="rf-pop-section rf-pop-smoothbore"><h2>Smoothbore References</h2><div>${table(50)}${table(80)}</div></section>`;
+    return `<section class="rf-pop-section rf-pop-smoothbore rf-pop-tip-count-${tips.length}"><h2>Smoothbore References</h2><div>${table("Handline Smoothbore (50 PSI)", 50, handlineTips)}${table("Masterstream Smoothbore (80 PSI)", 80, masterStreamTips)}</div></section>`;
   }
 
   function renderPageContent(model, page) {
     if (page.kind === "operational") {
-      return `${renderWorksheet()}${renderSetupTable(page.setupRows, false)}${renderModules("Operational Reference", page.supportModules, "rf-pop-support")}`;
+      return `${renderWorksheet()}${renderSetupTable(page.setupRows)}${renderModules("Operational Reference", page.referenceModules, "rf-pop-support")}`;
     }
-    if (page.kind === "operational-continuation") return renderSetupTable(page.setupRows, true);
     if (page.kind === "hydraulic") {
-      return `${renderFrictionLossChart(page.hoses)}${renderSmoothbore(page.tips)}${renderModules("Formulas", page.formulaModules, "rf-pop-formulas")}${renderModules("Operational Reference", page.supportModules, "rf-pop-support")}${renderModules("Supplemental Quick Info", page.optionalModules, "rf-pop-optional")}`;
+      return `${renderFrictionLossChart(page.hoses)}${renderSmoothbore(page.tips)}${renderModules("Quick Reference", page.referenceModules, "rf-pop-page-two-reference")}`;
     }
-    return `${renderModules("Operational Reference", page.supportModules, "rf-pop-support")}${renderModules("Supplemental Quick Info", page.optionalModules, "rf-pop-optional")}`;
+    return "";
   }
 
   function renderPageHtml(model, page, pageNumber) {
-    return `<article class="rf-pop-page" data-package-page="${pageNumber}" data-page-kind="${escapeHtml(page.kind)}" aria-label="Pump Operator Package page ${pageNumber}">
+    const pageClass = page.kind === "operational" && !page.referenceModules.length ? " rf-pop-page-operational-expanded" : "";
+    return `<article class="rf-pop-page${pageClass}" data-package-page="${pageNumber}" data-page-kind="${escapeHtml(page.kind)}" aria-label="Pump Operator Package page ${pageNumber}">
       ${renderHeader(page)}<main>${renderPageContent(model, page)}</main>${renderFooter(model, pageNumber)}
     </article>`;
   }
@@ -306,18 +290,22 @@
   }
 
   const PAGE_STYLES = `
-    .rf-pop-render-root{font-family:Arial,Helvetica,sans-serif;color:#181f2a;background:#d8dde4;padding:24px;display:grid;gap:24px}
-    .rf-pop-page{box-sizing:border-box;width:${PAGE_WIDTH_PX}px;height:${PAGE_HEIGHT_PX}px;background:#fff;padding:40px 48px 34px;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.18)}
-    .rf-pop-page *{box-sizing:border-box}.rf-pop-header{border-top:4px solid #d71920;border-bottom:1px solid #bfc6d0;padding:14px 0 13px;display:flex;justify-content:space-between;align-items:center;min-height:74px}
-    .rf-pop-header p{margin:0 0 4px;color:#525c6b;font-size:10px;font-weight:800;letter-spacing:.14em}.rf-pop-header h1{margin:0;font-size:24px;line-height:1.05;max-width:510px}.rf-pop-brand{text-align:right;display:grid;gap:2px}.rf-pop-brand strong{font-size:11px}.rf-pop-brand span{font-size:8px;color:#525c6b;letter-spacing:.08em}
-    .rf-pop-page main{padding-top:12px;overflow:hidden}.rf-pop-section{margin:0 0 12px}.rf-pop-section h2{font-size:14px;line-height:1.1;margin:0 0 7px;padding:5px 0 6px 9px;border-left:4px solid #d71920;border-bottom:1px solid #bfc6d0;letter-spacing:.01em}.rf-pop-section h2 span{font-size:9px;font-weight:400;color:#525c6b;margin-left:5px}
-    table{width:100%;border-collapse:collapse;table-layout:fixed}.rf-pop-worksheet th{height:44px;background:#f8eeee;color:#181f2a;font-size:10px;line-height:1.18;border:1px solid #bfc6d0;border-top:3px solid #d71920;padding:5px}.rf-pop-worksheet td{height:64px;border:1px solid #bfc6d0}
+    .rf-pop-render-root{font-family:Arial,Helvetica,sans-serif;color:#18202b;background:#d8dde4;padding:24px;display:grid;gap:24px}
+    .rf-pop-page{box-sizing:border-box;width:${PAGE_WIDTH_PX}px;height:${PAGE_HEIGHT_PX}px;background:#fff;padding:34px 42px 30px;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.18)}
+    .rf-pop-page *{box-sizing:border-box}.rf-pop-header{width:100%;border-top:8px solid #d71920;border-bottom:3px solid #313a47;padding:10px 0 10px;display:flex;justify-content:space-between;align-items:center;min-height:76px}.rf-pop-header>div:first-child{min-width:0;flex:1 1 auto}
+    .rf-pop-header p{margin:0 0 4px;color:#a3141a;font-size:10px;font-weight:900;letter-spacing:.18em}.rf-pop-header h1{margin:0;padding-right:12px;font-size:25px;line-height:1.05;max-width:500px;white-space:nowrap;overflow:hidden}.rf-pop-brand{display:flex;flex:0 0 auto;align-items:center;gap:7px;text-align:left;padding:6px 9px 6px 8px;border-left:4px solid #d71920;border-radius:4px;background:#f8eeee}.rf-pop-brand img{width:37px;height:37px;object-fit:contain}.rf-pop-brand div{display:grid;gap:2px}.rf-pop-brand strong{font-size:12px;line-height:1;font-weight:900;letter-spacing:.055em}.rf-pop-brand span{font-size:7.5px;font-weight:700;color:#525c6b;letter-spacing:.1em}
+    .rf-pop-page main{padding-top:12px;overflow:hidden}.rf-pop-section{margin:0 0 11px}.rf-pop-section h2{font-size:14px;line-height:1.1;margin:0 0 7px;padding:7px 10px;background:#d71920;color:#fff;border-left:7px solid #a3141a;border-bottom:2px solid #a3141a;border-radius:4px;letter-spacing:.025em}.rf-pop-section h2 span{font-size:9px;font-weight:700;color:#fff;margin-left:6px;opacity:.88;letter-spacing:.04em}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}.rf-pop-worksheet th{height:43px;background:#f4e2e3;color:#181f2a;font-size:10px;line-height:1.18;border:1px solid #aeb7c2;border-top:4px solid #d71920;padding:5px;font-weight:900}.rf-pop-worksheet th:first-child,.rf-pop-worksheet th:last-child{background:#ecd0d2;color:#7f1116}.rf-pop-worksheet td{height:67px;border:1px solid #aeb7c2}
     .rf-pop-worksheet th:nth-child(1){width:10%}.rf-pop-worksheet th:nth-child(2){width:10%}.rf-pop-worksheet th:nth-child(3){width:9%}.rf-pop-worksheet th:nth-child(4){width:10%}.rf-pop-worksheet th:nth-child(5){width:12%}.rf-pop-worksheet th:nth-child(6){width:10%}.rf-pop-worksheet th:nth-child(7),.rf-pop-worksheet th:nth-child(8){width:13%}.rf-pop-worksheet th:nth-child(9){width:13%}
-    .rf-pop-setups thead{background:#f8eeee;color:#181f2a}.rf-pop-setups th{height:34px;padding:5px 4px;font-size:8.5px;line-height:1.1;text-align:left;border-top:3px solid #d71920;border-bottom:1px solid #aeb7c2}.rf-pop-setups td{height:42px;padding:6px 4px;font-size:10.5px;line-height:1.15;border-bottom:1px solid #d5dbe3;overflow-wrap:anywhere;vertical-align:middle}.rf-pop-setups tbody tr:nth-child(even){background:#f6f8fa}.rf-pop-setups th:first-child,.rf-pop-setups td:first-child{width:21%;font-weight:700}.rf-pop-setups th:nth-child(2),.rf-pop-setups td:nth-child(2),.rf-pop-setups th:last-child,.rf-pop-setups td:last-child{font-weight:900;text-align:right;color:#b4151b}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:last-child{font-size:13px}.rf-pop-setups th:nth-child(2){width:8%}.rf-pop-setups th:nth-child(3){width:9%}.rf-pop-setups th:nth-child(4){width:9%}.rf-pop-setups th:nth-child(5){width:7%}.rf-pop-setups th:nth-child(6){width:11%}.rf-pop-setups th:nth-child(7){width:7%}.rf-pop-setups th:nth-child(8){width:11%}.rf-pop-setups th:nth-child(9){width:8%}.rf-pop-setups th:nth-child(10){width:9%}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:nth-child(4),.rf-pop-setups td:nth-child(5),.rf-pop-setups td:nth-child(7),.rf-pop-setups td:nth-child(9),.rf-pop-setups td:nth-child(10){text-align:right}
-    .rf-pop-module-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.rf-pop-module{border:1px solid #c7ced7;border-top:2px solid #d71920;border-radius:7px;padding:8px;min-height:58px}.rf-pop-module h3{font-size:9px;margin:0 0 5px;color:#a6151a}.rf-pop-module p{font-size:8px;line-height:1.25;margin:2px 0}.rf-pop-formulas .rf-pop-module-grid,.rf-pop-optional .rf-pop-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .rf-pop-friction table{font-variant-numeric:tabular-nums}.rf-pop-friction th,.rf-pop-friction td{height:18px;padding:2px 3px;border-bottom:1px solid #e0e5ea;font-size:8px;text-align:right}.rf-pop-friction thead th{height:28px;background:#f8eeee;color:#181f2a;border-top:3px solid #d71920;border-bottom:1px solid #aeb7c2;font-size:8.5px;text-align:center}.rf-pop-friction tbody tr:nth-child(even){background:#f6f8fa}.rf-pop-friction tbody th{font-weight:800;width:48px;color:#a6151a}.rf-pop-friction table[class*="rf-pop-hose-count-9"] th,.rf-pop-friction table[class*="rf-pop-hose-count-9"] td,.rf-pop-friction .rf-pop-hose-count-10 th,.rf-pop-friction .rf-pop-hose-count-10 td,.rf-pop-friction .rf-pop-hose-count-11 th,.rf-pop-friction .rf-pop-hose-count-11 td{font-size:7px;padding:2px 1px}.rf-pop-coefficients{margin:6px 0 0;font-size:8px;line-height:1.3;color:#414c5c}
-    .rf-pop-smoothbore>div{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rf-pop-smoothbore th,.rf-pop-smoothbore td{height:17px;padding:2px 7px;border-bottom:1px solid #e0e5ea;font-size:8px}.rf-pop-smoothbore thead tr:first-child th{height:25px;background:#f8eeee;color:#181f2a;border-top:3px solid #d71920;font-size:9.5px}.rf-pop-smoothbore th:first-child,.rf-pop-smoothbore td:first-child{text-align:left}.rf-pop-smoothbore th:last-child,.rf-pop-smoothbore td:last-child{text-align:right}.rf-pop-smoothbore tbody tr:nth-child(even){background:#f6f8fa}
-    .rf-pop-footer{border-top:1px solid #d5dae1;padding-top:8px;display:flex;justify-content:space-between;color:#525c6b;font-size:8px}
+    .rf-pop-setups table{border-bottom:2px solid #313a47}.rf-pop-setups thead{background:#313a47;color:#fff}.rf-pop-setups th{height:35px;padding:6px 4px;font-size:8.5px;line-height:1.1;text-align:center;border-top:4px solid #d71920;border-bottom:0;font-weight:800;letter-spacing:.015em}.rf-pop-setups td{height:43px;padding:7px 5px;font-size:10px;line-height:1.14;border-bottom:1px solid #c7ced7;overflow-wrap:anywhere;vertical-align:middle;text-align:center}.rf-pop-setups tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-setups tbody tr:last-child td{border-bottom:0}.rf-pop-setups th:first-child,.rf-pop-setups td:first-child{width:21%;font-weight:900;text-align:left}.rf-pop-setups td:first-child{padding-left:9px;border-left:4px solid #d71920;font-size:10.5px}.rf-pop-setups th:nth-child(2),.rf-pop-setups th:last-child{font-weight:900;color:#fff;background:#a3141a}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:last-child{font-weight:900;color:#a3141a;background:#fbefef;font-size:15px}.rf-pop-setups th:nth-child(2){width:8%}.rf-pop-setups th:nth-child(3){width:9%}.rf-pop-setups th:nth-child(4){width:9%}.rf-pop-setups th:nth-child(5){width:7%}.rf-pop-setups th:nth-child(6){width:11%}.rf-pop-setups th:nth-child(7){width:7%}.rf-pop-setups th:nth-child(8){width:11%}.rf-pop-setups th:nth-child(9){width:8%}.rf-pop-setups th:nth-child(10){width:9%}.rf-pop-setups th:nth-child(3),.rf-pop-setups td:nth-child(3),.rf-pop-setups th:nth-child(6),.rf-pop-setups td:nth-child(6),.rf-pop-setups th:nth-child(9),.rf-pop-setups td:nth-child(9){border-left:2px solid #9fa9b5}
+    .rf-pop-page-operational-expanded .rf-pop-setups td{height:65px}
+    .rf-pop-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.rf-pop-module{border:0;border-top:4px solid #d71920;border-bottom:1px solid #aeb7c2;border-radius:0;background:#fff}.rf-pop-module h3{font-size:10px;margin:0;padding:6px 8px;background:#f4e2e3;border:0;color:#7f1116;letter-spacing:.02em;font-weight:900}.rf-pop-module-body{padding:8px 8px 7px}.rf-pop-reference-table th,.rf-pop-reference-table td{font-size:8px;line-height:1.22;padding:3px 4px;border-bottom:1px solid #e1e5ea}.rf-pop-reference-table tbody tr:last-child td{border-bottom:0}.rf-pop-reference-table th{background:transparent;color:#525c6b;font-size:7.5px;font-weight:900;text-align:left;text-transform:uppercase;letter-spacing:.035em}.rf-pop-reference-table th:last-child,.rf-pop-reference-table td:last-child{text-align:right;font-weight:900}.rf-pop-module-footer{font-size:8px!important;font-weight:700;margin:5px 0 0!important;color:#414c5c}.rf-pop-formula-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}.rf-pop-formula-grid div{border-left:4px solid #d71920;padding-left:8px}.rf-pop-formula-grid h4{font-size:7px;margin:0 0 3px;color:#525c6b;text-transform:uppercase;letter-spacing:.04em}.rf-pop-formula-grid p{font-size:10px;line-height:1.08;margin:0;font-weight:900;white-space:nowrap}.rf-pop-bullet-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}.rf-pop-bullet-groups>div+div{border-left:1px solid #c7ced7;padding-left:11px}.rf-pop-bullet-groups h4{font-size:7px;line-height:1;margin:0 0 6px;color:#a3141a;text-transform:uppercase;letter-spacing:.06em;font-weight:900}.rf-pop-bullet-groups ul{margin:0;padding-left:13px}.rf-pop-bullet-groups li{font-size:8.3px;line-height:1.25;margin:0 0 3px}
+    .rf-pop-support .rf-pop-reference-table th,.rf-pop-support .rf-pop-reference-table td{padding-top:2px;padding-bottom:2px}
+    .rf-pop-module-appliance-loss .rf-pop-reference-table th:first-child,.rf-pop-module-appliance-loss .rf-pop-reference-table td:first-child{width:82%;white-space:nowrap}.rf-pop-module-appliance-loss .rf-pop-reference-table th:last-child,.rf-pop-module-appliance-loss .rf-pop-reference-table td:last-child{width:18%}
+    .rf-pop-friction table{font-variant-numeric:tabular-nums}.rf-pop-friction th,.rf-pop-friction td{height:18px;padding:2px 8px;border-bottom:1px solid #dfe3e8;font-size:8px;text-align:right}.rf-pop-friction thead th{height:29px;background:#313a47;color:#fff;border-top:4px solid #d71920;border-bottom:0;font-size:8.5px;text-align:right;font-weight:900}.rf-pop-friction tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-friction tbody th{font-weight:900;width:48px;color:#a3141a}.rf-pop-friction table[class*="rf-pop-hose-count-9"] th,.rf-pop-friction table[class*="rf-pop-hose-count-9"] td,.rf-pop-friction .rf-pop-hose-count-10 th,.rf-pop-friction .rf-pop-hose-count-10 td,.rf-pop-friction .rf-pop-hose-count-11 th,.rf-pop-friction .rf-pop-hose-count-11 td{font-size:7px;padding:2px 3px}.rf-pop-coefficients{margin:6px 0 0;padding-left:6px;border-left:3px solid #d71920;font-size:8px;line-height:1.35;color:#303a48;font-weight:700}
+    .rf-pop-smoothbore>div{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rf-pop-smoothbore th,.rf-pop-smoothbore td{height:18px;padding:2px 7px;border-bottom:1px solid #dfe3e8;font-size:8.5px}.rf-pop-smoothbore thead tr:first-child th{height:26px;background:#313a47;color:#fff;border-top:4px solid #d71920;font-size:9.5px;font-weight:900}.rf-pop-smoothbore thead tr:nth-child(2) th{color:#525c6b;font-size:7.5px;text-transform:uppercase;letter-spacing:.04em}.rf-pop-smoothbore th:first-child,.rf-pop-smoothbore td:first-child{text-align:left}.rf-pop-smoothbore th:last-child,.rf-pop-smoothbore td:last-child{text-align:right}.rf-pop-smoothbore tbody tr:nth-child(even){background:#f3f5f7}
+    .rf-pop-tip-count-11 th,.rf-pop-tip-count-11 td,.rf-pop-tip-count-12 th,.rf-pop-tip-count-12 td,.rf-pop-tip-count-13 th,.rf-pop-tip-count-13 td,.rf-pop-tip-count-14 th,.rf-pop-tip-count-14 td,.rf-pop-tip-count-15 th,.rf-pop-tip-count-15 td,.rf-pop-tip-count-16 th,.rf-pop-tip-count-16 td,.rf-pop-tip-count-17 th,.rf-pop-tip-count-17 td,.rf-pop-tip-count-18 th,.rf-pop-tip-count-18 td,.rf-pop-tip-count-19 th,.rf-pop-tip-count-19 td{height:17px;font-size:8px}
+    .rf-pop-footer{border-top:1px solid #aeb7c2;padding-top:7px;display:flex;justify-content:space-between;color:#657080;font-size:7.5px}.rf-pop-footer span:last-child{color:#a3141a;font-weight:800}
   `;
 
   function mountPackagePages(model, documentObject) {
@@ -335,6 +323,7 @@
 
   return {
     SETUP_NAME_MAX_LENGTH,
+    MAX_EXPORT_SETUPS,
     PAGE_WIDTH_PX,
     PAGE_HEIGHT_PX,
     PAGE_STYLES,

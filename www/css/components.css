@@ -955,6 +955,15 @@ main,
   margin-top: 3px;
 }
 
+.pump-operator-setup-choice.is-unavailable {
+  opacity: 0.48;
+}
+
+.pump-operator-setup-choice.is-unavailable strong,
+.pump-operator-setup-choice.is-unavailable small {
+  color: var(--muted);
+}
+
 .pump-operator-setup-choice span,
 .pump-operator-setup-choice small {
   display: block;
