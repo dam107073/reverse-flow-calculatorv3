@@ -1,6 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
 const packageApi = require("../www/js/pump-operator-package.js");
+
+const appSource = fs.readFileSync(path.join(__dirname, "../www/js/app.js"), "utf8");
+
+function readAppFunction(name, nextName) {
+  const start = appSource.indexOf(`function ${name}`);
+  const asyncStart = appSource.indexOf(`async function ${name}`);
+  const resolvedStart = asyncStart >= 0 ? asyncStart : start;
+  const end = appSource.indexOf(`async function ${nextName}`, resolvedStart + 1);
+  assert.notEqual(resolvedStart, -1, `${name} should exist in app.js`);
+  assert.notEqual(end, -1, `${nextName} should follow ${name} in app.js`);
+  return appSource.slice(resolvedStart, end);
+}
 
 function makeSetup(id, name = `Setup ${id}`) {
   return {
@@ -155,4 +170,88 @@ test("rendered package contains five worksheet rows, exact formulas, and no remo
   assert.match(html, /NR = 1\.57 × d<sup>2<\/sup> × NP/);
   assert.match(html, /NR = 0\.0505 × GPM × √NP/);
   assert.doesNotMatch(html, /Inline Foam Eductor|Relay Pumping|Pressure Adjustments|Typical Nozzle Pressures|Class A Foam Settings/);
+});
+
+test("export result removes the embedded document preview and uses final share wording", () => {
+  const previewSource = readAppFunction("renderPumpOperatorPackagePreview", "createPumpOperatorPackagePngFiles");
+  assert.doesNotMatch(previewSource, /pump-operator-preview-pages|renderPackageHtml|PAGE_STYLES/);
+  assert.match(previewSource, /Change Setups/);
+  assert.match(appSource, /pngButton\.textContent = "Share PNG Pages"/);
+  assert.match(appSource, /pdfButton\.textContent = "Share PDF"/);
+  assert.match(previewSource, /contains.*full-resolution pages/);
+});
+
+test("native package sharing writes and shares both PNG files in page order", async () => {
+  const shareSource = readAppFunction("sharePumpOperatorPackageFiles", "sharePumpOperatorPackage");
+  const writtenPaths = [];
+  const shareCalls = [];
+  let browserShareCalls = 0;
+  const context = {
+    getPumpChartSharePlatform: () => ({ supportsNativeFileShare: true, platform: "ios" }),
+    blobToBase64Payload: async file => `base64:${file.name}`,
+    window: {
+      Capacitor: {
+        Plugins: {
+          Filesystem: {
+            writeFile: async options => {
+              writtenPaths.push(options.path);
+              return { uri: `file:///cache/${options.path}` };
+            }
+          },
+          Share: {
+            share: async options => { shareCalls.push(options); }
+          }
+        }
+      },
+      setTimeout
+    },
+    navigator: {
+      share: async () => { browserShareCalls += 1; },
+      canShare: () => true
+    },
+    URL,
+    document: {}
+  };
+  const shareFiles = vm.runInNewContext(`${shareSource}; sharePumpOperatorPackageFiles`, context);
+  const files = [
+    { name: "Engine-1-Pump-Operator-Package-Page-1.png" },
+    { name: "Engine-1-Pump-Operator-Package-Page-2.png" }
+  ];
+
+  const result = await shareFiles(files, "Engine 1 Pump Operator Package", "pump-operator-packages");
+
+  assert.deepEqual(writtenPaths, [
+    "pump-operator-packages/Engine-1-Pump-Operator-Package-Page-1.png",
+    "pump-operator-packages/Engine-1-Pump-Operator-Package-Page-2.png"
+  ]);
+  assert.equal(shareCalls.length, 1);
+  assert.deepEqual(Array.from(shareCalls[0].files), [
+    "file:///cache/pump-operator-packages/Engine-1-Pump-Operator-Package-Page-1.png",
+    "file:///cache/pump-operator-packages/Engine-1-Pump-Operator-Package-Page-2.png"
+  ]);
+  assert.equal(browserShareCalls, 0);
+  assert.deepEqual({ ...result }, { shared: true, downloaded: false });
+});
+
+test("native package sharing never falls through to browser sharing", async () => {
+  const shareSource = readAppFunction("sharePumpOperatorPackageFiles", "sharePumpOperatorPackage");
+  let browserShareCalls = 0;
+  const context = {
+    getPumpChartSharePlatform: () => ({ supportsNativeFileShare: true, platform: "ios" }),
+    blobToBase64Payload: async () => "base64",
+    window: { Capacitor: { Plugins: {} }, setTimeout },
+    navigator: {
+      share: async () => { browserShareCalls += 1; },
+      canShare: () => true
+    },
+    URL,
+    document: {}
+  };
+  const shareFiles = vm.runInNewContext(`${shareSource}; sharePumpOperatorPackageFiles`, context);
+
+  await assert.rejects(
+    shareFiles([{ name: "Page-1.png" }, { name: "Page-2.png" }], "Package", "packages"),
+    /Native ios share is unavailable/
+  );
+  assert.equal(browserShareCalls, 0);
 });

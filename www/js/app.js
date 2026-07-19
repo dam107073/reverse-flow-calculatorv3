@@ -4380,7 +4380,7 @@ function renderPumpChartDetail(chartId, options = {}) {
   els.pumpChartList.innerHTML = `
     <div class="pump-chart-toolbar">
       <button class="small-button" type="button" onclick="showPumpChartsList()">Back</button>
-      <button class="small-button" type="button" onclick="exportPumpChart('${chart.id}')">Pump Operator Package</button>
+      <button class="small-button" type="button" onclick="exportPumpChart('${chart.id}')">Export</button>
     </div>
     <article class="pump-chart-document">
       <header class="pump-chart-document-header">
@@ -9387,7 +9387,7 @@ function renderPumpOperatorPackageSelection(chartId) {
         `).join("") || `<p class="disabled-note">No saved setups are available.</p>`}
       </div>
       <p class="pump-operator-validation" id="pumpOperatorPackageValidation" role="alert" hidden></p>
-      <button class="small-button pump-chart-primary-action" type="submit" ${chart.setups.length ? "" : "disabled"}>Preview Pump Operator Package</button>
+      <button class="small-button pump-chart-primary-action" type="submit" ${chart.setups.length ? "" : "disabled"}>Generate Pump Operator Package</button>
     </form>
   `;
   const selectionForm = document.getElementById("pumpOperatorPackageSelectionForm");
@@ -9439,15 +9439,14 @@ function renderPumpOperatorPackagePreview(chartId) {
     renderPumpChart();
     return;
   }
-  setPumpChartSubtitle(`${packageState.model.pageCount}-page Pump Operator Package preview.`);
+  setPumpChartSubtitle(`${packageState.model.pageCount}-page Pump Operator Package.`);
   els.pumpChartList.innerHTML = `
     <div class="pump-operator-preview-toolbar">
       <button class="small-button" type="button" onclick="exportPumpChart('${escapeHtml(chart.id)}')">Change Setups</button>
       <button class="small-button pump-chart-primary-action" id="sharePumpOperatorPngButton" type="button" disabled>Preparing PNGs...</button>
       <button class="small-button" id="sharePumpOperatorPdfButton" type="button" disabled>Preparing PDF...</button>
     </div>
-    <p class="helper">PNG pages are the primary export. Each preview below becomes one full-resolution letter-size PNG; the PDF uses those exact page images.</p>
-    <div class="pump-operator-preview-pages"><style>${window.ReverseFlowPumpOperatorPackage.PAGE_STYLES}</style>${window.ReverseFlowPumpOperatorPackage.renderPackageHtml(packageState.model)}</div>
+    <p class="helper">This package contains ${packageState.model.pageCount} full-resolution pages. Share both PNG pages together, or share the assembled PDF, to inspect them in your device's native viewer.</p>
     <p class="pump-operator-export-status" id="pumpOperatorExportStatus" role="status" aria-live="polite"></p>
   `;
   document.getElementById("sharePumpOperatorPngButton")?.addEventListener("click", () => sharePumpOperatorPackage("png"));
@@ -9571,7 +9570,7 @@ async function preparePumpOperatorPackageExports() {
     state.pdfFile = await createPumpOperatorPackagePdfFile(state.model, state.pngFiles);
     if (pngButton) {
       pngButton.disabled = false;
-      pngButton.textContent = "Share Package PNGs";
+      pngButton.textContent = "Share PNG Pages";
     }
     if (pdfButton) {
       pdfButton.disabled = false;
@@ -9590,22 +9589,26 @@ async function sharePumpOperatorPackageFiles(files, title, folder) {
   const platform = getPumpChartSharePlatform();
   if (platform.supportsNativeFileShare) {
     const plugins = window.Capacitor?.Plugins || {};
-    if (plugins.Filesystem && plugins.Share) {
-      const uris = [];
-      for (const file of files) {
-        const result = await plugins.Filesystem.writeFile({
-          path: `${folder}/${file.name}`,
-          data: await blobToBase64Payload(file),
-          directory: "CACHE",
-          recursive: true
-        });
-        if (result.uri) uris.push(result.uri);
-      }
-      if (uris.length === files.length) {
-        await plugins.Share.share({ title, files: uris, dialogTitle: "Share Pump Operator Package" });
-        return { shared: true, downloaded: false };
-      }
+    if (!plugins.Filesystem || !plugins.Share) {
+      throw new Error(`Native ${platform.platform} share is unavailable.`);
     }
+
+    const uris = [];
+    for (const file of files) {
+      const result = await plugins.Filesystem.writeFile({
+        path: `${folder}/${file.name}`,
+        data: await blobToBase64Payload(file),
+        directory: "CACHE",
+        recursive: true
+      });
+      if (!result.uri) {
+        throw new Error(`Native file URI was not returned for ${file.name}.`);
+      }
+      uris.push(result.uri);
+    }
+
+    await plugins.Share.share({ title, files: uris, dialogTitle: "Share Pump Operator Package" });
+    return { shared: true, downloaded: false };
   }
 
   if (navigator.share && navigator.canShare?.({ files })) {
@@ -9649,6 +9652,9 @@ async function sharePumpOperatorPackage(format) {
     const files = format === "pdf"
       ? [state.pdfFile]
       : state.pngFiles;
+    if (format === "png" && files.length !== state.model.pageCount) {
+      throw new Error(`Expected ${state.model.pageCount} PNG pages but prepared ${files.length}.`);
+    }
     const result = await sharePumpOperatorPackageFiles(
       files,
       `${state.model.chartName} Pump Operator Package`,

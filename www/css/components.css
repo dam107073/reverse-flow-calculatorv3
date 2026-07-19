@@ -996,19 +996,6 @@ main,
   width: auto;
 }
 
-.pump-operator-preview-pages {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #d8dde4;
-}
-
-.pump-operator-preview-pages .rf-pop-render-root {
-  padding: 12px;
-  gap: 14px;
-  zoom: 0.79;
-}
-
 .pump-operator-export-status {
   min-height: 20px;
   margin: 0;
@@ -1017,19 +1004,9 @@ main,
   font-weight: 800;
 }
 
-@media (max-width: 900px) {
-  .pump-operator-preview-pages .rf-pop-render-root {
-    zoom: 0.52;
-  }
-}
-
 @media (max-width: 600px) {
   .pump-operator-preview-toolbar {
     grid-template-columns: 1fr;
-  }
-
-  .pump-operator-preview-pages .rf-pop-render-root {
-    zoom: 0.4;
   }
 }
 
