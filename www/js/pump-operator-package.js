@@ -196,6 +196,17 @@
     return APPLIANCE_LABELS[cleanText(inputs.reverseSupplyAppliance)] || "";
   }
 
+  function formatSmoothboreNozzle(value) {
+    const tip = cleanText(value)
+      .replace(/^Smoothbore\b\s*(?:[•-]\s*)?/i, "")
+      .replace(/^SB\s*/i, "")
+      .replace(/(^|\s)1\/4(?=\")/g, "$1¼")
+      .replace(/(^|\s)1\/2(?=\")/g, "$1½")
+      .replace(/(^|\s)3\/4(?=\")/g, "$1¾")
+      .replace(/\s+([¼½¾])(?=\")/g, "$1");
+    return tip ? `SB ${tip}` : "SB";
+  }
+
   function selectSetupsInChartOrder(setups, selectedIds) {
     const selected = new Set((selectedIds || []).map(String));
     return (setups || []).filter(setup => selected.has(String(setup.id)));
@@ -341,7 +352,10 @@
       return `<td class="rf-pop-cell-frictionLoss">${value}</td>`;
     }
     if (key === "nozzle" || key === "appliance") {
-      const label = cleanText(row[key]);
+      const rawLabel = cleanText(row[key]);
+      const label = key === "nozzle" && /^(?:Smoothbore\b|SB\b)/i.test(rawLabel)
+        ? formatSmoothboreNozzle(rawLabel)
+        : rawLabel;
       return label
         ? `<td class="rf-pop-cell-${escapeHtml(key)}"><span class="rf-pop-nowrap-label">${escapeHtml(label)}</span></td>`
         : `<td class="rf-pop-cell-${escapeHtml(key)}">${EMPTY_VALUE}</td>`;
@@ -433,7 +447,8 @@
     .rf-pop-page main{padding-top:12px;overflow:hidden}.rf-pop-section{margin:0 0 11px}.rf-pop-section h2{font-size:14px;line-height:1.1;margin:0 0 7px;padding:7px 10px;background:#d71920;color:#fff;border-left:7px solid #a3141a;border-bottom:2px solid #a3141a;border-radius:4px;letter-spacing:.025em}.rf-pop-section h2 span{font-size:9px;font-weight:700;color:#fff;margin-left:6px;opacity:.88;letter-spacing:.04em}
     table{width:100%;border-collapse:collapse;table-layout:fixed}.rf-pop-worksheet th{height:43px;background:#f4e2e3;color:#181f2a;font-size:10px;line-height:1.18;border:1px solid #aeb7c2;border-top:4px solid #d71920;padding:5px;font-weight:900}.rf-pop-worksheet th:first-child,.rf-pop-worksheet th:last-child{background:#ecd0d2;color:#7f1116}.rf-pop-worksheet td{height:67px;border:1px solid #aeb7c2}
     .rf-pop-worksheet th:nth-child(1){width:13%}.rf-pop-worksheet th:nth-child(2){width:14%}.rf-pop-worksheet th:nth-child(3){width:22%}.rf-pop-worksheet th:nth-child(4){width:12%}.rf-pop-worksheet th:nth-child(5){width:13%}.rf-pop-worksheet th:nth-child(6){width:12%}.rf-pop-worksheet th:nth-child(7){width:14%}
-    .rf-pop-setups table{border-bottom:2px solid #313a47}.rf-pop-setups thead{background:#313a47;color:#fff}.rf-pop-setups th{height:35px;padding:6px 4px;font-size:8.5px;line-height:1.1;text-align:center;border-top:4px solid #d71920;border-bottom:0;font-weight:800;letter-spacing:.015em}.rf-pop-setups td{height:43px;padding:7px 5px;font-size:10px;line-height:1.14;border-bottom:1px solid #c7ced7;overflow-wrap:normal;word-break:normal;vertical-align:middle;text-align:center}.rf-pop-setups tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-setups tbody tr:last-child td{border-bottom:0}.rf-pop-setups th:first-child,.rf-pop-setups td:first-child{width:20%;font-weight:900;text-align:left}.rf-pop-setups td:first-child{padding-left:9px;border-left:4px solid #d71920;font-size:10.5px}.rf-pop-setups th:nth-child(2),.rf-pop-setups th:last-child{font-weight:900;color:#fff;background:#a3141a}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:last-child{font-weight:900;color:#a3141a;background:#fbefef;font-size:15px}.rf-pop-setups th:nth-child(2){width:8%}.rf-pop-setups th:nth-child(3){width:20%}.rf-pop-setups th:nth-child(4){width:10%}.rf-pop-setups th:nth-child(5){width:11%}.rf-pop-setups th:nth-child(6){width:6%}.rf-pop-setups th:nth-child(7){width:8%}.rf-pop-setups th:nth-child(8){width:7%}.rf-pop-setups th:nth-child(9){width:10%}.rf-pop-setups th:nth-child(3),.rf-pop-setups td:nth-child(3),.rf-pop-setups th:nth-child(5),.rf-pop-setups td:nth-child(5),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8){border-left:2px solid #9fa9b5}
+    .rf-pop-setups table{border-bottom:2px solid #313a47}.rf-pop-setups thead{background:#313a47;color:#fff}.rf-pop-setups th{height:35px;padding:6px 4px;font-size:8.5px;line-height:1.1;text-align:center;border-top:4px solid #d71920;border-bottom:0;font-weight:800;letter-spacing:.015em}.rf-pop-setups td{height:43px;padding:7px 5px;font-size:10px;line-height:1.14;border-bottom:1px solid #c7ced7;overflow-wrap:normal;word-break:normal;vertical-align:middle;text-align:center}.rf-pop-setups tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-setups tbody tr:last-child td{border-bottom:0}.rf-pop-setups th:first-child,.rf-pop-setups td:first-child{width:20%;font-weight:900;text-align:left}.rf-pop-setups td:first-child{padding-left:9px;border-left:4px solid #d71920;font-size:10.5px}.rf-pop-setups th:nth-child(2),.rf-pop-setups th:last-child{font-weight:900;color:#fff;background:#a3141a}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:last-child{font-weight:900;color:#a3141a;background:#fbefef;font-size:15px}
+    .rf-pop-setups th:nth-child(2){width:8%}.rf-pop-setups th:nth-child(3){width:21%}.rf-pop-setups th:nth-child(4){width:10%}.rf-pop-setups th:nth-child(5){width:12%}.rf-pop-setups th:nth-child(6){width:6%}.rf-pop-setups th:nth-child(7){width:9%}.rf-pop-setups th:nth-child(8){width:7%}.rf-pop-setups th:nth-child(9){width:7%}.rf-pop-setups th:nth-child(3),.rf-pop-setups td:nth-child(3),.rf-pop-setups th:nth-child(5),.rf-pop-setups td:nth-child(5),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8){border-left:2px solid #9fa9b5}
     .rf-pop-hose-content,.rf-pop-nowrap-label{display:inline-block;max-width:100%;white-space:nowrap}.rf-pop-hose-section,.rf-pop-hose-arrow{white-space:nowrap}.rf-pop-cell-hose.rf-pop-hose-tight,.rf-pop-cell-nozzle.rf-pop-label-tight,.rf-pop-cell-appliance.rf-pop-label-tight{font-size:9px}.rf-pop-fl-stack{display:grid;gap:2px;line-height:1.05}.rf-pop-setups th:nth-child(2),.rf-pop-setups td:nth-child(2),.rf-pop-setups th:nth-child(4),.rf-pop-setups td:nth-child(4),.rf-pop-setups th:nth-child(6),.rf-pop-setups td:nth-child(6),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8),.rf-pop-setups th:nth-child(9),.rf-pop-setups td:nth-child(9){text-align:right}
     .rf-pop-page-operational-expanded .rf-pop-setups td{height:65px}
     .rf-pop-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.rf-pop-module{border:0;border-top:4px solid #d71920;border-bottom:1px solid #aeb7c2;border-radius:0;background:#fff}.rf-pop-module h3{font-size:10px;margin:0;padding:6px 8px;background:#f4e2e3;border:0;color:#7f1116;letter-spacing:.02em;font-weight:900}.rf-pop-module-body{padding:8px 8px 7px}.rf-pop-reference-table th,.rf-pop-reference-table td{font-size:8px;line-height:1.22;padding:3px 4px;border-bottom:1px solid #e1e5ea}.rf-pop-reference-table tbody tr:last-child td{border-bottom:0}.rf-pop-reference-table th{background:transparent;color:#525c6b;font-size:7.5px;font-weight:900;text-align:left;text-transform:uppercase;letter-spacing:.035em}.rf-pop-reference-table th:last-child,.rf-pop-reference-table td:last-child{text-align:right;font-weight:900}.rf-pop-module-footer{font-size:8px!important;font-weight:700;margin:5px 0 0!important;color:#414c5c}.rf-pop-formula-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}.rf-pop-formula-grid div{border-left:4px solid #d71920;padding-left:8px}.rf-pop-formula-grid h4{font-size:7px;margin:0 0 3px;color:#525c6b;text-transform:uppercase;letter-spacing:.04em}.rf-pop-formula-grid p{font-size:10px;line-height:1.08;margin:0;font-weight:900;white-space:nowrap}.rf-pop-bullet-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}.rf-pop-bullet-groups>div+div{border-left:1px solid #c7ced7;padding-left:11px}.rf-pop-bullet-groups h4{font-size:7px;line-height:1;margin:0 0 6px;color:#a3141a;text-transform:uppercase;letter-spacing:.06em;font-weight:900}.rf-pop-bullet-groups ul{margin:0;padding-left:13px}.rf-pop-bullet-groups li{font-size:8.3px;line-height:1.25;margin:0 0 3px}
@@ -489,6 +504,7 @@
     formatHosePath,
     formatSectionFrictionLoss,
     formatSavedAppliance,
+    formatSmoothboreNozzle,
     selectSetupsInChartOrder,
     validateExportSelection,
     createLayoutModel,

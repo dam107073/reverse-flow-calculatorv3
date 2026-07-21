@@ -400,10 +400,10 @@ test("setup and worksheet widths are balanced without globally shrinking hose te
   assert.match(styles, /rf-pop-worksheet th:nth-child\(3\)\{width:22%\}/);
   assert.match(styles, /rf-pop-worksheet th:nth-child\(7\)\{width:14%\}/);
   assert.match(styles, /rf-pop-setups th:first-child,[^{]+\{width:20%/);
-  assert.match(styles, /rf-pop-setups th:nth-child\(3\)\{width:20%\}/);
-  assert.match(styles, /rf-pop-setups th:nth-child\(5\)\{width:11%\}/);
-  assert.match(styles, /rf-pop-setups th:nth-child\(7\)\{width:8%\}/);
-  assert.match(styles, /rf-pop-setups th:nth-child\(9\)\{width:10%\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(3\)\{width:21%\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(5\)\{width:12%\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(7\)\{width:9%\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(9\)\{width:7%\}/);
   assert.match(styles, /rf-pop-cell-hose\.rf-pop-hose-tight,[^{]+\{font-size:9px\}/);
   assert.doesNotMatch(styles, /\.rf-pop-cell-hose\{[^}]*font-size/);
   assert.match(packageApi.mountPackagePages.toString(), /content\.getBoundingClientRect\(\)\.width/);
@@ -413,13 +413,13 @@ test("setup and worksheet widths are balanced without globally shrinking hose te
 test("common nozzle and appliance labels stay whole with measured local fallback", () => {
   const model = packageApi.createLayoutModel(makeData({
     setups: [
-      { ...makeSetup("smooth"), nozzle: "Smoothbore", appliance: "Gate Valve" },
+      { ...makeSetup("smooth"), nozzle: 'Smoothbore • 1 3/16"', appliance: "Gate Valve" },
       { ...makeSetup("fixed"), nozzle: "Fixed Fog", appliance: "Gated Wye" },
       { ...makeSetup("automatic"), nozzle: "Automatic Fog", appliance: "" }
     ]
   }));
   const html = packageApi.renderPackageHtml(model);
-  assert.match(html, /rf-pop-nowrap-label">Smoothbore<\/span>/);
+  assert.match(html, /rf-pop-nowrap-label">SB 1 3\/16&quot;<\/span>/);
   assert.match(html, /rf-pop-nowrap-label">Fixed Fog<\/span>/);
   assert.match(html, /rf-pop-nowrap-label">Automatic Fog<\/span>/);
   assert.match(html, /rf-pop-nowrap-label">Gate Valve<\/span>/);
@@ -427,6 +427,52 @@ test("common nozzle and appliance labels stay whole with measured local fallback
   assert.match(packageApi.PAGE_STYLES, /rf-pop-nowrap-label\{[^}]*white-space:nowrap/);
   assert.match(packageApi.PAGE_STYLES, /rf-pop-cell-nozzle\.rf-pop-label-tight,[^{]+\{font-size:9px\}/);
   assert.match(packageApi.mountPackagePages.toString(), /rf-pop-cell-nozzle, \.rf-pop-cell-appliance/);
+});
+
+test("smoothbore setup labels use concise export-only SB typography", () => {
+  assert.equal(packageApi.formatSmoothboreNozzle('7/8"'), 'SB 7/8"');
+  assert.equal(packageApi.formatSmoothboreNozzle('Smoothbore • 15/16"'), 'SB 15/16"');
+  assert.equal(packageApi.formatSmoothboreNozzle('SB 1 3/16"'), 'SB 1 3/16"');
+  assert.equal(packageApi.formatSmoothboreNozzle('1 1/4"'), 'SB 1¼"');
+
+  const adapterSource = appSource.slice(
+    appSource.indexOf("function getPumpOperatorNozzleLabel"),
+    appSource.indexOf("function getPumpOperatorSetupRow")
+  );
+  assert.match(adapterSource, /splitLay\.attack1SmoothboreTip/);
+  assert.match(adapterSource, /standpipe\.attack1SmoothboreTip/);
+  assert.match(adapterSource, /inputs\.smoothboreTip/);
+  assert.match(adapterSource, /packageApi\.formatSmoothboreNozzle/);
+
+  const tipLabels = {
+    "7/8": '7/8"',
+    "15/16": '15/16"',
+    "1-3/16": '1 3/16"',
+    "1-1/4": '1 1/4"'
+  };
+  const context = {
+    window: { ReverseFlowPumpOperatorPackage: packageApi },
+    normalizeNozzleType: value => value,
+    getStandpipeTipLabel: value => tipLabels[value] || "",
+    getSplitNozzleConfigurationLabel: () => "Fixed Fog",
+    getStandpipeOpsData: setup => setup.inputs.standpipeOps,
+    getStandpipeNozzleSummary: () => "Automatic Fog 150 GPM",
+    getNozzleConfigurationLabel: () => "Fixed Fog • 150 GPM @ 50 PSI"
+  };
+  const getLabel = vm.runInNewContext(`${adapterSource}; getPumpOperatorNozzleLabel`, context);
+  assert.equal(getLabel({ inputs: { nozzleType: "smoothbore", smoothboreTip: "7/8" } }), 'SB 7/8"');
+  assert.equal(getLabel({
+    mode: "splitLay",
+    inputs: { splitLay: { attack1NozzleType: "smoothbore", attack1SmoothboreTip: "15/16" } }
+  }), 'SB 15/16"');
+  assert.equal(getLabel({
+    mode: "standpipeOps",
+    inputs: { standpipeOps: { attack1NozzleType: "smoothbore", attack1SmoothboreTip: "1-3/16" } }
+  }), 'SB 1 3/16"');
+  assert.equal(getLabel({
+    inputs: { nozzleType: "masterstream", masterStreamType: "smoothbore", smoothboreTip: "1-1/4" }
+  }), 'SB 1¼"');
+  assert.equal(getLabel({ inputs: { nozzleType: "fixedFog" } }), "Fixed Fog");
 });
 
 test("empty optional setup values render as em dashes", () => {
@@ -469,7 +515,7 @@ test("ordinary package body content is pinned to the dark print palette", () => 
   assert.match(html, /rf-pop-cell-name">Dark Setup Name/);
   assert.match(html, /rf-pop-cell-hose">/);
   assert.match(html, /rf-pop-cell-frictionLoss"><span class="rf-pop-fl-stack"><span>S 18<\/span><span>A 32<\/span>/);
-  assert.match(html, /rf-pop-cell-nozzle"><span class="rf-pop-nowrap-label">Smoothbore/);
+  assert.match(html, /rf-pop-cell-nozzle"><span class="rf-pop-nowrap-label">SB/);
   assert.match(html, /rf-pop-friction[\s\S]*?<td>15\.5<\/td>/);
   assert.match(html, /rf-pop-smoothbore[\s\S]*?<td>161<\/td>/);
   assert.match(html, /rf-pop-formula-grid[\s\S]*?FL = C ×/);

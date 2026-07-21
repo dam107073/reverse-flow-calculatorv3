@@ -9392,12 +9392,23 @@ function getPumpOperatorSetupCandidate(setup) {
 
 function getPumpOperatorNozzleLabel(setup) {
   const inputs = setup.inputs || {};
+  const packageApi = window.ReverseFlowPumpOperatorPackage;
   if (setup.mode === "splitLay") {
-    return getSplitNozzleConfigurationLabel(inputs.splitLay || {}, "1").replace("Automatic Fog", "Auto Fog");
+    const splitLay = inputs.splitLay || {};
+    if (normalizeNozzleType(splitLay.attack1NozzleType) === "smoothbore") {
+      return packageApi.formatSmoothboreNozzle(getStandpipeTipLabel(splitLay.attack1SmoothboreTip));
+    }
+    return getSplitNozzleConfigurationLabel(splitLay, "1").replace("Automatic Fog", "Auto Fog");
   }
   if (setup.mode === "standpipeOps") {
     const standpipe = getStandpipeOpsData(setup);
+    if (standpipe.attack1NozzleType === "smoothbore") {
+      return packageApi.formatSmoothboreNozzle(getStandpipeTipLabel(standpipe.attack1SmoothboreTip));
+    }
     return getStandpipeNozzleSummary(standpipe, "1").replace("Automatic Fog", "Auto Fog");
+  }
+  if (inputs.nozzleType === "smoothbore" || inputs.masterStreamType === "smoothbore") {
+    return packageApi.formatSmoothboreNozzle(getStandpipeTipLabel(inputs.smoothboreTip));
   }
   return getNozzleConfigurationLabel(inputs)
     .replace("Automatic Fog", "Auto Fog")
