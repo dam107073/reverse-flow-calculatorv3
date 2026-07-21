@@ -63,6 +63,33 @@ struct TankTimeWidgetTests {
             "The widget should enter Tank Empty at the deadline"
         )
 
+        let urgencyEnd = startDate.addingTimeInterval(60)
+        let urgencyState = TankTimeState(flowGPM: 150, startDate: startDate, endDate: urgencyEnd)
+        expect(
+            TankTimeDisplayStatus.resolve(state: urgencyState, at: startDate) == .remaining,
+            "More than 30 seconds should use the normal remaining state"
+        )
+        expect(
+            TankTimeDisplayStatus.resolve(state: urgencyState, at: urgencyEnd.addingTimeInterval(-30)) == .lowWater,
+            "10 through 30 seconds should use the low-water state"
+        )
+        expect(
+            TankTimeDisplayStatus.resolve(state: urgencyState, at: urgencyEnd.addingTimeInterval(-9)) == .critical,
+            "1 through 9 seconds should use the critical state"
+        )
+        expect(
+            TankTimeDisplayStatus.resolve(state: urgencyState, at: urgencyEnd) == .empty,
+            "Zero seconds should use the tank-empty state"
+        )
+        expect(
+            TankTimeDisplayStatus.transitionDates(endDate: urgencyEnd, after: startDate) == [
+                urgencyEnd.addingTimeInterval(-30),
+                urgencyEnd.addingTimeInterval(-9),
+                urgencyEnd
+            ],
+            "The timeline should refresh exactly at each visual urgency transition"
+        )
+
         TankTimeStateStore.reset(tankGallons: testTank)
         let reset = TankTimeStateStore.load(tankGallons: testTank)
         expect(reset == .initial, "Reset should restore the initial state")

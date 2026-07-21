@@ -28,6 +28,30 @@ struct TankTimeState: Codable, Equatable {
     }
 }
 
+enum TankTimeDisplayStatus: Equatable {
+    case estimated
+    case remaining
+    case lowWater
+    case critical
+    case empty
+
+    static func resolve(state: TankTimeState, at date: Date) -> TankTimeDisplayStatus {
+        guard state.isLocked else { return .estimated }
+        guard let endDate = state.endDate else { return .empty }
+
+        let secondsRemaining = max(0, Int(ceil(endDate.timeIntervalSince(date))))
+        if secondsRemaining == 0 { return .empty }
+        if secondsRemaining < 10 { return .critical }
+        if secondsRemaining <= 30 { return .lowWater }
+        return .remaining
+    }
+
+    static func transitionDates(endDate: Date, after date: Date) -> [Date] {
+        [endDate.addingTimeInterval(-30), endDate.addingTimeInterval(-9), endDate]
+            .filter { $0 > date }
+    }
+}
+
 enum TankTimeStateStore {
     private static let encoder = JSONEncoder()
     private static let decoder = JSONDecoder()

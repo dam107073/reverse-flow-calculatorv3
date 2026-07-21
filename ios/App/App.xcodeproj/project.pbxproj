@@ -16,6 +16,7 @@
 		AA1000072E20000100A10007 /* TankTimeCalculation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000012E20000100A20001 /* TankTimeCalculation.swift */; };
 		AA1000082E20000100A10008 /* TankTimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000022E20000100A20002 /* TankTimeState.swift */; };
 		AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000032E20000100A20003 /* TankTimeIntents.swift */; };
+		AA1000102E20000100A10010 /* AppIcon-1024.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2000082E20000100A20008 /* AppIcon-1024.png */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		3F0E75572FF0588800AE0600 /* FacebookCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3F0E75562FF0588800AE0600 /* FacebookCore */; };
 		3F5F9B342FD0547D007A4BF1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F5F9B332FD0547D007A4BF1 /* StoreKit.framework */; };
@@ -61,6 +62,7 @@
 		AA2000052E20000100A20005 /* TankTimeWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeWidgetBundle.swift; sourceTree = "<group>"; };
 		AA2000062E20000100A20006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA2000072E20000100A20007 /* TankTimeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TankTimeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA2000082E20000100A20008 /* AppIcon-1024.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "AppIcon-1024.png"; path = "../App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		3F0E75532FF0578000AE0600 /* Accessibility.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accessibility.framework; path = System/Library/Frameworks/Accessibility.framework; sourceTree = SDKROOT; };
 		3F5F9B332FD0547D007A4BF1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
@@ -151,6 +153,7 @@
 				AA2000042E20000100A20004 /* TankTimeWidget.swift */,
 				AA2000052E20000100A20005 /* TankTimeWidgetBundle.swift */,
 				AA2000062E20000100A20006 /* Info.plist */,
+				AA2000082E20000100A20008 /* AppIcon-1024.png */,
 			);
 			path = TankTimeWidget;
 			sourceTree = "<group>";
@@ -248,6 +251,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA1000102E20000100A10010 /* AppIcon-1024.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

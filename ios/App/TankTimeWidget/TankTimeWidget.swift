@@ -1,5 +1,6 @@
 import AppIntents
 import SwiftUI
+import UIKit
 import WidgetKit
 
 struct TankTimeEntry: TimelineEntry {
@@ -23,13 +24,13 @@ struct TankTimeProvider: AppIntentTimelineProvider {
         var entries = [current]
 
         if let endDate = current.state.endDate, endDate > now {
-            entries.append(
+            entries.append(contentsOf: TankTimeDisplayStatus.transitionDates(endDate: endDate, after: now).map {
                 TankTimeEntry(
-                    date: endDate,
+                    date: $0,
                     tankGallons: current.tankGallons,
                     state: current.state
                 )
-            )
+            })
         }
 
         return Timeline(entries: entries, policy: .never)
@@ -46,28 +47,70 @@ struct TankTimeProvider: AppIntentTimelineProvider {
 }
 
 struct TankTimeWidgetView: View {
+    @Environment(\.widgetFamily) private var family
     @Environment(\.widgetRenderingMode) private var renderingMode
+
     let entry: TankTimeEntry
+    let familyOverride: WidgetFamily?
+
+    init(entry: TankTimeEntry, familyOverride: WidgetFamily? = nil) {
+        self.entry = entry
+        self.familyOverride = familyOverride
+    }
 
     private let orange = Color(red: 0.984, green: 0.573, blue: 0.235)
     private let panel = Color(red: 0.055, green: 0.075, blue: 0.105)
+    private let softPanel = Color.white.opacity(0.075)
+    private let green = Color(red: 0.30, green: 0.82, blue: 0.49)
+    private let yellow = Color(red: 1.0, green: 0.80, blue: 0.25)
+    private let red = Color(red: 0.98, green: 0.29, blue: 0.27)
+
+    private var status: TankTimeDisplayStatus {
+        TankTimeDisplayStatus.resolve(state: entry.state, at: entry.date)
+    }
+
+    private var effectiveFamily: WidgetFamily { familyOverride ?? family }
 
     private var isRunning: Bool { entry.state.isRunning(at: entry.date) }
-    private var isEmpty: Bool { entry.state.isEmpty(at: entry.date) }
     private var isAccented: Bool { renderingMode == .accented }
 
-    var body: some View {
-        VStack(spacing: 8) {
-            header
-            HStack(alignment: .center, spacing: 14) {
-                countdown
-                Spacer(minLength: 0)
-                flowPanel
-            }
-            controls
+    private var appIconImage: Image {
+        guard
+            let iconURL = Bundle.main.url(forResource: "AppIcon-1024", withExtension: "png"),
+            let icon = UIImage(contentsOfFile: iconURL.path)
+        else {
+            return Image(systemName: "flame.fill")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 13)
+        return Image(uiImage: icon)
+    }
+
+    private var statusText: String {
+        switch status {
+        case .estimated: "ESTIMATED TIME"
+        case .remaining: "TIME REMAINING"
+        case .lowWater: "LOW WATER"
+        case .critical: "CRITICAL"
+        case .empty: "TANK EMPTY"
+        }
+    }
+
+    private var countdownColor: Color {
+        if isAccented { return .white }
+        return switch status {
+        case .estimated, .remaining: green
+        case .lowWater: yellow
+        case .critical, .empty: red
+        }
+    }
+
+    var body: some View {
+        Group {
+            if effectiveFamily == .systemLarge {
+                largeLayout
+            } else {
+                mediumLayout
+            }
+        }
         .foregroundStyle(.white)
         .containerBackground(for: .widget) {
             ZStack {
@@ -87,45 +130,130 @@ struct TankTimeWidgetView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 8) {
-            Text("RF")
-                .font(.system(size: 10, weight: .black, design: .rounded))
-                .foregroundStyle(isAccented ? .white : orange)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(isAccented ? Color.white : orange, lineWidth: 1.5)
-                )
-                .widgetAccentable()
-            Text("REVERSE FLOW")
-                .font(.system(size: 11, weight: .black, design: .rounded))
-                .tracking(0.8)
-            Text("TANK TIME")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.65))
-                .tracking(0.7)
-            Spacer(minLength: 4)
-            Text("\(entry.tankGallons) GAL")
-                .font(.system(size: 11, weight: .black, design: .rounded))
-                .foregroundStyle(isAccented ? .white : orange)
-                .widgetAccentable()
+    private var mediumLayout: some View {
+        VStack(spacing: 6) {
+            brandHeader(iconSize: 31, capacityFontSize: 11)
+            HStack(alignment: .bottom, spacing: 12) {
+                countdown(fontSize: 50, alignment: .leading)
+                Spacer(minLength: 0)
+                flowSummary(valueSize: 25, compact: true)
+            }
+            mediumControls
         }
-        .lineLimit(1)
-        .minimumScaleFactor(0.75)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
     }
 
-    private var countdown: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(isEmpty ? "TANK EMPTY" : isRunning ? "REMAINING" : "ESTIMATED TIME")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
-                .foregroundStyle(isEmpty && !isAccented ? orange : .white.opacity(0.62))
-                .tracking(0.8)
-                .widgetAccentable(isEmpty)
+    private var mediumControls: some View {
+        HStack(spacing: 8) {
+            if entry.state.isLocked {
+                Spacer(minLength: 0)
+                resetButton(height: 32, horizontalPadding: 18)
+            } else {
+                flowButton(label: "−50", delta: -TankTimeCalculation.flowStepGPM, height: 32)
+                flowButton(label: "+50", delta: TankTimeCalculation.flowStepGPM, height: 32)
+                Spacer(minLength: 4)
+                startButton(height: 32, horizontalPadding: 18)
+            }
+        }
+    }
 
+    private var largeLayout: some View {
+        Group {
+            if entry.state.isLocked {
+                largeRunningLayout
+            } else {
+                largeIdleLayout
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+    }
+
+    private var largeIdleLayout: some View {
+        VStack(spacing: 16) {
+            brandHeader(iconSize: 48, capacityFontSize: 14)
+            HStack(spacing: 14) {
+                informationPanel {
+                    countdown(fontSize: 76, alignment: .leading)
+                }
+                informationPanel {
+                    flowSummary(valueSize: 44, compact: false)
+                }
+                .frame(width: 116)
+            }
+            Spacer(minLength: 0)
+            HStack(spacing: 12) {
+                flowButton(label: "−50", delta: -TankTimeCalculation.flowStepGPM, height: 52)
+                flowButton(label: "+50", delta: TankTimeCalculation.flowStepGPM, height: 52)
+                startButton(height: 52, horizontalPadding: 28)
+            }
+        }
+    }
+
+    private var largeRunningLayout: some View {
+        VStack(spacing: 16) {
+            brandHeader(iconSize: 42, capacityFontSize: 14)
+            countdown(fontSize: 94, alignment: .center)
+                .frame(maxWidth: .infinity)
+            HStack(spacing: 12) {
+                metricPanel(label: "TANK CAPACITY", value: "\(entry.tankGallons)", unit: "GAL")
+                metricPanel(label: "LOCKED FLOW", value: "\(entry.state.flowGPM)", unit: "GPM")
+            }
+            Spacer(minLength: 0)
+            resetButton(height: 52, horizontalPadding: 34)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    private func brandHeader(iconSize: CGFloat, capacityFontSize: CGFloat) -> some View {
+        HStack(spacing: 10) {
+            appIconImage
+                .resizable()
+                .scaledToFit()
+                .frame(width: iconSize, height: iconSize)
+                .clipShape(RoundedRectangle(cornerRadius: iconSize * 0.22, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: iconSize * 0.22, style: .continuous)
+                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                )
+                .widgetAccentable()
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("REVERSE FLOW")
+                    .font(.system(size: iconSize >= 40 ? 13 : 11, weight: .black, design: .rounded))
+                    .tracking(0.8)
+                Text("TANK TIME")
+                    .font(.system(size: iconSize >= 40 ? 10 : 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.64))
+                    .tracking(0.8)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            Spacer(minLength: 6)
+            VStack(alignment: .trailing, spacing: 0) {
+                Text("\(entry.tankGallons)")
+                    .font(.system(size: capacityFontSize + 5, weight: .black, design: .rounded))
+                    .monospacedDigit()
+                Text("GAL")
+                    .font(.system(size: capacityFontSize - 2, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(isAccented ? .white : orange)
+            .widgetAccentable()
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Tank capacity \(entry.tankGallons) gallons")
+        }
+    }
+
+    private func countdown(fontSize: CGFloat, alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 0) {
+            Text(statusText)
+                .font(.system(size: fontSize >= 70 ? 12 : 9, weight: .black, design: .rounded))
+                .tracking(1)
+                .foregroundStyle(countdownColor)
+                .widgetAccentable()
             Group {
-                if isEmpty {
+                if status == .empty {
                     Text("00:00")
                 } else if isRunning, let startDate = entry.state.startDate, let endDate = entry.state.endDate {
                     Text(timerInterval: startDate...endDate, countsDown: true, showsHours: false)
@@ -136,79 +264,114 @@ struct TankTimeWidgetView: View {
                     )))
                 }
             }
-            .font(.system(size: 43, weight: .black, design: .rounded))
+            .font(.system(size: fontSize, weight: .black, design: .rounded))
             .monospacedDigit()
             .lineLimit(1)
-            .minimumScaleFactor(0.7)
+            .minimumScaleFactor(0.62)
             .contentTransition(.numericText())
+            .foregroundStyle(countdownColor)
+            .widgetAccentable()
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(isEmpty ? "Tank empty" : "Estimated remaining tank time")
+        .accessibilityLabel(status == .empty ? "Tank empty, zero minutes" : "\(statusText.lowercased()), tank time")
     }
 
-    private var flowPanel: some View {
-        VStack(spacing: 5) {
-            Text("FLOW")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+    private func flowSummary(valueSize: CGFloat, compact: Bool) -> some View {
+        VStack(spacing: compact ? 1 : 3) {
+            Text(entry.state.isLocked ? "LOCKED FLOW" : "FLOW")
+                .font(.system(size: compact ? 8 : 10, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.62))
                 .tracking(0.8)
             Text("\(entry.state.flowGPM)")
-                .font(.system(size: 24, weight: .black, design: .rounded))
+                .font(.system(size: valueSize, weight: .black, design: .rounded))
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Text("GPM")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .font(.system(size: compact ? 8 : 10, weight: .bold, design: .rounded))
                 .foregroundStyle(isAccented ? .white : orange)
                 .widgetAccentable()
         }
-        .frame(width: 62)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Flow \(entry.state.flowGPM) gallons per minute")
+        .accessibilityLabel("Flow \(entry.state.flowGPM) gallons per minute\(entry.state.isLocked ? ", locked" : "")")
     }
 
-    private var controls: some View {
-        HStack(spacing: 8) {
-            flowButton(label: "−50", delta: -TankTimeCalculation.flowStepGPM)
-            flowButton(label: "+50", delta: TankTimeCalculation.flowStepGPM)
-            Spacer(minLength: 4)
-            if !entry.state.isLocked {
-                Button(intent: StartTankTimeIntent(tankGallons: entry.tankGallons)) {
-                    controlLabel("START", prominent: true)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Start tank time")
+    private func informationPanel<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 16).fill(softPanel))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.12), lineWidth: 1))
+    }
+
+    private func metricPanel(label: String, value: String, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.62))
+                .tracking(0.8)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(value)
+                    .font(.system(size: 32, weight: .black, design: .rounded))
+                    .monospacedDigit()
+                Text(unit)
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(isAccented ? .white : orange)
+                    .widgetAccentable()
             }
-            Button(intent: ResetTankTimeIntent(tankGallons: entry.tankGallons)) {
-                controlLabel("RESET", prominent: false)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Reset tank time")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 14).fill(softPanel))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.12), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label.lowercased()) \(value) \(unit.lowercased())")
     }
 
-    private func flowButton(label: String, delta: Int) -> some View {
+    private func flowButton(label: String, delta: Int, height: CGFloat) -> some View {
         Button(intent: AdjustTankFlowIntent(tankGallons: entry.tankGallons, delta: delta)) {
-            controlLabel(label, prominent: false)
-                .opacity(entry.state.isLocked ? 0.35 : 1)
+            controlLabel(label, style: .secondary, height: height, horizontalPadding: 18)
         }
         .buttonStyle(.plain)
-        .disabled(entry.state.isLocked)
         .accessibilityLabel(delta < 0 ? "Decrease flow by 50 gallons per minute" : "Increase flow by 50 gallons per minute")
     }
 
-    private func controlLabel(_ text: String, prominent: Bool) -> some View {
-        Text(text)
-            .font(.system(size: 10, weight: .black, design: .rounded))
-            .tracking(0.3)
+    private func startButton(height: CGFloat, horizontalPadding: CGFloat) -> some View {
+        Button(intent: StartTankTimeIntent(tankGallons: entry.tankGallons)) {
+            controlLabel("START", style: .primary, height: height, horizontalPadding: horizontalPadding)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Start tank time")
+    }
+
+    private func resetButton(height: CGFloat, horizontalPadding: CGFloat) -> some View {
+        Button(intent: ResetTankTimeIntent(tankGallons: entry.tankGallons)) {
+            controlLabel("RESET", style: .secondary, height: height, horizontalPadding: horizontalPadding)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Reset tank time")
+    }
+
+    private enum ControlStyle {
+        case primary
+        case secondary
+    }
+
+    private func controlLabel(_ text: String, style: ControlStyle, height: CGFloat, horizontalPadding: CGFloat) -> some View {
+        let prominent = style == .primary
+        return Text(text)
+            .font(.system(size: height >= 44 ? 13 : 10, weight: .black, design: .rounded))
+            .tracking(0.4)
             .foregroundStyle(prominent && !isAccented ? panel : .white)
-            .padding(.horizontal, 12)
-            .frame(height: 27)
+            .padding(.horizontal, horizontalPadding)
+            .frame(height: height)
             .background(
-                RoundedRectangle(cornerRadius: 7)
+                RoundedRectangle(cornerRadius: height * 0.25)
                     .fill(prominent && !isAccented ? orange : Color.white.opacity(0.11))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(prominent && !isAccented ? orange : Color.white.opacity(0.2), lineWidth: 1)
+                RoundedRectangle(cornerRadius: height * 0.25)
+                    .stroke(prominent && !isAccented ? orange : Color.white.opacity(0.22), lineWidth: 1)
             )
             .widgetAccentable(prominent)
     }
@@ -227,15 +390,20 @@ struct TankTimeWidget: Widget {
         }
         .configurationDisplayName("Tank Time")
         .description("Estimate remaining apparatus tank time at a constant flow.")
-        .supportedFamilies([.systemMedium])
+        .supportedFamilies([.systemMedium, .systemLarge])
         .contentMarginsDisabled()
     }
 }
 
-#Preview(as: .systemMedium) {
+#Preview("Medium — Idle", as: .systemMedium) {
     TankTimeWidget()
 } timeline: {
     TankTimeEntry(date: .now, tankGallons: 750, state: .initial)
+}
+
+#Preview("Large — Running", as: .systemLarge) {
+    TankTimeWidget()
+} timeline: {
     TankTimeEntry(
         date: .now,
         tankGallons: 750,
