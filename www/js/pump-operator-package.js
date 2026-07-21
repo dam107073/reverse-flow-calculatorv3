@@ -10,6 +10,12 @@
   const PAGE_WIDTH_PX = 816;
   const PAGE_HEIGHT_PX = 1056;
   const MAX_PAGE_ONE_REFERENCE_UNITS = 4.5;
+  const PRINT_PALETTE = Object.freeze({
+    bodyText: "#18202b",
+    mutedText: "#525c6b",
+    subtleText: "#657080",
+    pageBackground: "#ffffff"
+  });
 
   const SUPPORT_MODULES = [
     {
@@ -304,10 +310,10 @@
   ];
 
   function renderSetupCell(row, key) {
-    if (key !== "hose") return `<td>${escapeHtml(row[key] || "-")}</td>`;
+    if (key !== "hose") return `<td class="rf-pop-cell-${escapeHtml(key)}">${escapeHtml(row[key] || "-")}</td>`;
     const sections = cleanText(row[key]).split(/\s+→\s+/).filter(Boolean);
-    if (!sections.length) return "<td>-</td>";
-    return `<td>${sections.map(section => `<span class="rf-pop-hose-section">${escapeHtml(section)}</span>`).join(`<span class="rf-pop-hose-arrow"> → </span>`)}</td>`;
+    if (!sections.length) return `<td class="rf-pop-cell-hose">-</td>`;
+    return `<td class="rf-pop-cell-hose">${sections.map(section => `<span class="rf-pop-hose-section">${escapeHtml(section)}</span>`).join(`<span class="rf-pop-hose-arrow"> → </span>`)}</td>`;
   }
 
   function renderSetupTable(rows) {
@@ -383,8 +389,9 @@
   }
 
   const PAGE_STYLES = `
-    .rf-pop-render-root{font-family:Arial,Helvetica,sans-serif;color:#18202b;background:#d8dde4;padding:24px;display:grid;gap:24px}
-    .rf-pop-page{box-sizing:border-box;width:${PAGE_WIDTH_PX}px;height:${PAGE_HEIGHT_PX}px;background:#fff;padding:34px 42px 30px;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.18)}
+    .rf-pop-render-root{font-family:Arial,Helvetica,sans-serif;color:${PRINT_PALETTE.bodyText};background:#d8dde4;padding:24px;display:grid;gap:24px}
+    .rf-pop-page{box-sizing:border-box;width:${PAGE_WIDTH_PX}px;height:${PAGE_HEIGHT_PX}px;background:${PRINT_PALETTE.pageBackground};color:${PRINT_PALETTE.bodyText};color-scheme:light;opacity:1;filter:none;padding:34px 42px 30px;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.18)}
+    .rf-pop-page main,.rf-pop-page table,.rf-pop-page td,.rf-pop-page li,.rf-pop-page h1,.rf-pop-page .rf-pop-brand strong,.rf-pop-page .rf-pop-formula-grid p{color:${PRINT_PALETTE.bodyText}}
     .rf-pop-page *{box-sizing:border-box}.rf-pop-header{width:100%;border-top:8px solid #d71920;border-bottom:3px solid #313a47;padding:10px 0 10px;display:flex;justify-content:space-between;align-items:center;min-height:76px}.rf-pop-header>div:first-child{min-width:0;flex:1 1 auto}
     .rf-pop-header p{margin:0 0 4px;color:#a3141a;font-size:10px;font-weight:900;letter-spacing:.18em}.rf-pop-header h1{margin:0;padding-right:12px;font-size:25px;line-height:1.05;max-width:500px;white-space:nowrap;overflow:hidden}.rf-pop-brand{display:flex;flex:0 0 auto;align-items:center;gap:7px;text-align:left;padding:6px 9px 6px 8px;border-left:4px solid #d71920;border-radius:4px;background:#f8eeee}.rf-pop-brand img{width:37px;height:37px;object-fit:contain}.rf-pop-brand div{display:grid;gap:2px}.rf-pop-brand strong{font-size:12px;line-height:1;font-weight:900;letter-spacing:.055em}.rf-pop-brand span{font-size:7.5px;font-weight:700;color:#525c6b;letter-spacing:.1em}
     .rf-pop-page main{padding-top:12px;overflow:hidden}.rf-pop-section{margin:0 0 11px}.rf-pop-section h2{font-size:14px;line-height:1.1;margin:0 0 7px;padding:7px 10px;background:#d71920;color:#fff;border-left:7px solid #a3141a;border-bottom:2px solid #a3141a;border-radius:4px;letter-spacing:.025em}.rf-pop-section h2 span{font-size:9px;font-weight:700;color:#fff;margin-left:6px;opacity:.88;letter-spacing:.04em}
@@ -399,7 +406,7 @@
     .rf-pop-friction table{font-variant-numeric:tabular-nums}.rf-pop-friction th,.rf-pop-friction td{height:18px;padding:2px 8px;border-bottom:1px solid #dfe3e8;font-size:8px;text-align:right}.rf-pop-friction thead th{height:29px;background:#313a47;color:#fff;border-top:4px solid #d71920;border-bottom:0;font-size:8.5px;text-align:right;font-weight:900}.rf-pop-friction tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-friction tbody th{font-weight:900;width:48px;color:#a3141a}.rf-pop-friction table[class*="rf-pop-hose-count-9"] th,.rf-pop-friction table[class*="rf-pop-hose-count-9"] td,.rf-pop-friction .rf-pop-hose-count-10 th,.rf-pop-friction .rf-pop-hose-count-10 td,.rf-pop-friction .rf-pop-hose-count-11 th,.rf-pop-friction .rf-pop-hose-count-11 td{font-size:7px;padding:2px 3px}.rf-pop-coefficients{margin:6px 0 0;padding-left:6px;border-left:3px solid #d71920;font-size:8px;line-height:1.35;color:#303a48;font-weight:700}
     .rf-pop-smoothbore>div{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rf-pop-smoothbore th,.rf-pop-smoothbore td{height:18px;padding:2px 7px;border-bottom:1px solid #dfe3e8;font-size:8.5px}.rf-pop-smoothbore thead tr:first-child th{height:26px;background:#313a47;color:#fff;border-top:4px solid #d71920;font-size:9.5px;font-weight:900}.rf-pop-smoothbore thead tr:nth-child(2) th{color:#525c6b;font-size:7.5px;text-transform:uppercase;letter-spacing:.04em}.rf-pop-smoothbore th:first-child,.rf-pop-smoothbore td:first-child{text-align:left}.rf-pop-smoothbore th:last-child,.rf-pop-smoothbore td:last-child{text-align:right}.rf-pop-smoothbore tbody tr:nth-child(even){background:#f3f5f7}
     .rf-pop-tip-count-11 th,.rf-pop-tip-count-11 td,.rf-pop-tip-count-12 th,.rf-pop-tip-count-12 td,.rf-pop-tip-count-13 th,.rf-pop-tip-count-13 td,.rf-pop-tip-count-14 th,.rf-pop-tip-count-14 td,.rf-pop-tip-count-15 th,.rf-pop-tip-count-15 td,.rf-pop-tip-count-16 th,.rf-pop-tip-count-16 td,.rf-pop-tip-count-17 th,.rf-pop-tip-count-17 td,.rf-pop-tip-count-18 th,.rf-pop-tip-count-18 td,.rf-pop-tip-count-19 th,.rf-pop-tip-count-19 td{height:17px;font-size:8px}
-    .rf-pop-footer{border-top:1px solid #aeb7c2;padding-top:7px;display:flex;justify-content:space-between;color:#657080;font-size:7.5px}.rf-pop-footer span:last-child{color:#a3141a;font-weight:800}
+    .rf-pop-footer{border-top:1px solid #aeb7c2;padding-top:7px;display:flex;justify-content:space-between;color:${PRINT_PALETTE.subtleText};font-size:7.5px}.rf-pop-footer span:last-child{color:#a3141a;font-weight:800}
   `;
 
   function mountPackagePages(model, documentObject) {
@@ -420,6 +427,7 @@
     MAX_EXPORT_SETUPS,
     PAGE_WIDTH_PX,
     PAGE_HEIGHT_PX,
+    PRINT_PALETTE,
     PAGE_STYLES,
     SUPPORT_MODULES,
     FORMULA_MODULES,

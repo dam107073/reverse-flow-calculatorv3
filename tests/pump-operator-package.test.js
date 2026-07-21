@@ -280,6 +280,46 @@ test("operational export uses combined Hose and FL columns without changing page
   assert.equal(model.pageCount, 2);
 });
 
+test("ordinary package body content is pinned to the dark print palette", () => {
+  const model = packageApi.createLayoutModel(makeData({
+    setups: [{
+      ...makeSetup("print-color", "Dark Setup Name"),
+      hose: `3" × 500' → 1.75" × 200'`,
+      frictionLoss: "S 18 · A 32",
+      nozzle: "Smoothbore"
+    }]
+  }));
+  const html = packageApi.renderPackageHtml(model);
+  const styles = packageApi.PAGE_STYLES;
+
+  assert.equal(packageApi.PRINT_PALETTE.bodyText, "#18202b");
+  assert.equal(packageApi.PRINT_PALETTE.pageBackground, "#ffffff");
+  assert.match(styles, /\.rf-pop-page\{[^}]*color:#18202b;[^}]*color-scheme:light;[^}]*opacity:1;filter:none/);
+  assert.match(styles, /\.rf-pop-page main,[^{]+\{color:#18202b\}/);
+  assert.doesNotMatch(styles, /var\(--ink\)|var\(--muted\)|currentColor/);
+
+  assert.match(html, /rf-pop-cell-name">Dark Setup Name/);
+  assert.match(html, /rf-pop-cell-hose">/);
+  assert.match(html, /rf-pop-cell-frictionLoss">S 18 · A 32/);
+  assert.match(html, /rf-pop-cell-nozzle">Smoothbore/);
+  assert.match(html, /rf-pop-friction[\s\S]*?<td>15\.5<\/td>/);
+  assert.match(html, /rf-pop-smoothbore[\s\S]*?<td>161<\/td>/);
+  assert.match(html, /rf-pop-formula-grid[\s\S]*?FL = C ×/);
+  assert.match(html, /rf-pop-bullet-groups[\s\S]*?Riser supports/);
+});
+
+test("package capture host and clone force the fixed print palette before html2canvas", () => {
+  const captureSource = appSource.slice(
+    appSource.indexOf("async function createPumpOperatorPackagePngFiles"),
+    appSource.indexOf("function readBlobAsDataUrl")
+  );
+  assert.match(captureSource, /captureHost\.style\.color = packageApi\.PRINT_PALETTE\.bodyText/);
+  assert.match(captureSource, /captureHost\.style\.colorScheme = "light"/);
+  assert.match(captureSource, /pageClone\.style\.color = packageApi\.PRINT_PALETTE\.bodyText/);
+  assert.match(captureSource, /pageClone\.style\.opacity = "1"/);
+  assert.match(captureSource, /pageClone\.style\.filter = "none"/);
+});
+
 test("selection UI identifies simple scope, explains complex setups, and preserves focus and dark contrast rules", () => {
   assert.match(appSource, /Choose up to \$\{maxSetups\} Simple Setups/);
   assert.match(appSource, /Complex setup<\/b> — Saved and reloadable, but not supported in Pump Chart export/);

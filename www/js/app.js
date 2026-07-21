@@ -9601,7 +9601,11 @@ async function createPumpOperatorPackagePngFiles(model) {
       captureHost.style.zIndex = "-2147483647";
       captureHost.style.width = `${packageApi.PAGE_WIDTH_PX}px`;
       captureHost.style.height = `${packageApi.PAGE_HEIGHT_PX}px`;
-      captureHost.style.background = "#ffffff";
+      captureHost.style.background = packageApi.PRINT_PALETTE.pageBackground;
+      captureHost.style.color = packageApi.PRINT_PALETTE.bodyText;
+      captureHost.style.colorScheme = "light";
+      captureHost.style.opacity = "1";
+      captureHost.style.filter = "none";
       captureHost.style.overflow = "hidden";
       captureHost.style.pointerEvents = "none";
       const pageClone = mounted.pages[index].cloneNode(true);
@@ -9610,6 +9614,10 @@ async function createPumpOperatorPackagePngFiles(model) {
       pageClone.style.margin = "0";
       pageClone.style.transform = "none";
       pageClone.style.boxShadow = "none";
+      pageClone.style.color = packageApi.PRINT_PALETTE.bodyText;
+      pageClone.style.colorScheme = "light";
+      pageClone.style.opacity = "1";
+      pageClone.style.filter = "none";
       captureHost.appendChild(pageClone);
       document.body.appendChild(captureHost);
       resetPumpOperatorCaptureScroll();
