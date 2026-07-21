@@ -6,6 +6,8 @@ const vm = require("node:vm");
 const packageApi = require("../www/js/pump-operator-package.js");
 
 const appSource = fs.readFileSync(path.join(__dirname, "../www/js/app.js"), "utf8");
+const componentsCss = fs.readFileSync(path.join(__dirname, "../www/css/components.css"), "utf8");
+const responsiveCss = fs.readFileSync(path.join(__dirname, "../www/css/responsive.css"), "utf8");
 
 function readAppFunction(name, nextName) {
   const start = appSource.indexOf(`function ${name}`);
@@ -29,7 +31,27 @@ function makeSetup(id, name = `Setup ${id}`) {
     nozzlePressure: "50",
     appliance: "-",
     elevation: "0",
-    pdp: "85"
+    pdp: "85",
+    hydraulicStructure: {
+      confidence: "confident",
+      supplySections: [],
+      attackSections: [{ hoseSize: '1.75"', hoseLength: "200", frictionLoss: "35" }]
+    }
+  };
+}
+
+function withStructure(setup, supplyCount, attackCount, confidence = "confident") {
+  return {
+    ...setup,
+    hydraulicStructure: {
+      confidence,
+      supplySections: Array.from({ length: supplyCount }, (_, index) => ({
+        hoseSize: '3"', hoseLength: String(500 + index * 100), frictionLoss: "18"
+      })),
+      attackSections: Array.from({ length: attackCount }, (_, index) => ({
+        hoseSize: '1.75"', hoseLength: String(200 + index * 50), frictionLoss: "32"
+      }))
+    }
   };
 }
 
@@ -61,6 +83,72 @@ test("setup name validation accepts 28 characters and rejects 29 without truncat
   assert.equal(packageApi.validateSetupName(invalid).name, invalid);
 });
 
+test("setup classification uses hydraulic section counts and fails closed for ambiguity", () => {
+  assert.equal(packageApi.classifySetupStructure(withStructure(makeSetup(1), 0, 1)).className, "simple");
+  assert.equal(packageApi.classifySetupStructure(withStructure(makeSetup(2), 1, 1)).className, "simple");
+  assert.equal(packageApi.classifySetupStructure(withStructure(makeSetup(3), 2, 1)).className, "complex");
+  assert.equal(packageApi.classifySetupStructure(withStructure(makeSetup(4), 1, 2)).className, "complex");
+  assert.equal(packageApi.classifySetupStructure(withStructure(makeSetup(5), 0, 0)).exportable, false);
+  assert.equal(packageApi.classifySetupStructure(withStructure(makeSetup(6), 0, 1, "ambiguous")).exportable, false);
+});
+
+test("classification is independent of calculator type", () => {
+  const structure = withStructure(makeSetup("same"), 1, 1).hydraulicStructure;
+  assert.equal(packageApi.classifySetupStructure({ id: "a", mode: "futureManifold", hydraulicStructure: structure }).className, "simple");
+  assert.equal(packageApi.classifySetupStructure({ id: "b", mode: "reverse", hydraulicStructure: structure }).className, "simple");
+});
+
+test("selector state keeps complex setups visible and excludes them from the six-simple limit", () => {
+  const simple = Array.from({ length: 7 }, (_, index) => withStructure(makeSetup(`s${index + 1}`), 0, 1));
+  const complex = withStructure(makeSetup("complex"), 1, 2);
+  const selectedIds = [...simple.slice(0, 6).map(setup => setup.id), complex.id];
+  const states = packageApi.getExportSelectionState([...simple, complex], selectedIds);
+
+  assert.equal(states.length, 8);
+  assert.equal(states.filter(state => state.selected).length, 6);
+  assert.equal(states[6].disabledReason, "limit");
+  assert.equal(states[7].disabledReason, "complex");
+  assert.equal(states[7].selected, false);
+});
+
+test("programmatic complex selection is rejected before export payload creation", () => {
+  const simple = withStructure(makeSetup("simple"), 0, 1);
+  const complex = withStructure(makeSetup("complex"), 1, 2);
+  const result = packageApi.validateExportSelection([simple, complex], [simple.id, complex.id]);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.selected.map(setup => setup.id), ["simple"]);
+  assert.deepEqual(result.ineligible.map(setup => setup.id), ["complex"]);
+});
+
+test("hose paths and section friction loss use the normalized structured model", () => {
+  const attackOnly = withStructure(makeSetup("attack"), 0, 1).hydraulicStructure;
+  const supplyAndAttack = withStructure(makeSetup("both"), 1, 1).hydraulicStructure;
+  assert.equal(packageApi.formatHosePath(attackOnly), `1.75" × 200'`);
+  assert.equal(packageApi.formatHosePath(supplyAndAttack), `3" × 500' → 1.75" × 200'`);
+  assert.equal(packageApi.formatSectionFrictionLoss(attackOnly), "32");
+  assert.equal(packageApi.formatSectionFrictionLoss(supplyAndAttack), "S 18 · A 32");
+});
+
+test("six attack-only, six supply-and-attack, and mixed simple rows retain their hydraulic fields", () => {
+  const variants = [
+    Array.from({ length: 6 }, (_, index) => withStructure(makeSetup(`attack-${index}`), 0, 1)),
+    Array.from({ length: 6 }, (_, index) => withStructure(makeSetup(`supply-${index}`), 1, 1)),
+    Array.from({ length: 6 }, (_, index) => withStructure(makeSetup(`mixed-${index}`), index % 2, 1))
+  ];
+
+  variants.forEach(setups => {
+    const rows = setups.map(setup => ({
+      ...setup,
+      hose: packageApi.formatHosePath(setup.hydraulicStructure),
+      frictionLoss: packageApi.formatSectionFrictionLoss(setup.hydraulicStructure)
+    }));
+    const model = packageApi.createLayoutModel(makeData({ setups: rows }));
+    assert.equal(model.pages[0].setupRows.length, 6);
+    assert.equal(model.pages[0].setupRows.every(row => row.hose && row.frictionLoss), true);
+    assert.equal(model.pageCount, 2);
+  });
+});
+
 test("export selection blocks zero selections and selected legacy over-limit names", () => {
   const legacy = makeSetup("legacy", "L".repeat(29));
   const setups = [makeSetup("one"), legacy];
@@ -87,7 +175,7 @@ test("export selection enforces the six-setup operational limit without changing
   assert.equal(result.ok, false);
   assert.equal(result.limitExceeded, true);
   assert.equal(result.selected.length, 7);
-  assert.match(result.message, /no more than 6 setups/i);
+  assert.match(result.message, /no more than 6 simple setups/i);
 });
 
 test("standard layout is two letter-size pages with all hero elements protected", () => {
@@ -170,6 +258,50 @@ test("rendered package contains five worksheet rows, exact formulas, and no remo
   assert.match(html, /NR = 1\.57 × d<sup>2<\/sup> × NP/);
   assert.match(html, /NR = 0\.0505 × GPM × √NP/);
   assert.doesNotMatch(html, /Inline Foam Eductor|Relay Pumping|Pressure Adjustments|Typical Nozzle Pressures|Class A Foam Settings/);
+});
+
+test("operational export uses combined Hose and FL columns without changing page dimensions", () => {
+  const model = packageApi.createLayoutModel(makeData({
+    setups: [{
+      ...makeSetup("path"),
+      hose: `3" × 500' → 1.75" × 200'`,
+      frictionLoss: "S 18 · A 32"
+    }]
+  }));
+  const html = packageApi.renderPackageHtml(model);
+  assert.match(html, />Hose<\/th>/);
+  assert.doesNotMatch(html, />Hose Size<\/th>|>Hose Length<\/th>/);
+  assert.match(html, /rf-pop-hose-section">3&quot; × 500&#039;<\/span>/);
+  assert.match(html, /rf-pop-hose-arrow"> → <\/span>/);
+  assert.match(html, /rf-pop-hose-section">1\.75&quot; × 200&#039;<\/span>/);
+  assert.match(html, /S 18 · A 32/);
+  assert.equal(packageApi.PAGE_WIDTH_PX, 816);
+  assert.equal(packageApi.PAGE_HEIGHT_PX, 1056);
+  assert.equal(model.pageCount, 2);
+});
+
+test("selection UI identifies simple scope, explains complex setups, and preserves focus and dark contrast rules", () => {
+  assert.match(appSource, /Choose up to \$\{maxSetups\} Simple Setups/);
+  assert.match(appSource, /Complex setup<\/b> — Saved and reloadable, but not supported in Pump Chart export/);
+  assert.match(appSource, /getExportSelectionState\(setupCandidates, selectedIds\)/);
+  assert.match(componentsCss, /\.pump-operator-setup-choice:focus-within/);
+  assert.match(componentsCss, /appearance:\s*none/);
+  assert.match(componentsCss, /\.pump-operator-setup-choice\.is-complex/);
+  assert.match(componentsCss, /\.pump-operator-setup-choice\.is-limit-disabled/);
+  assert.match(responsiveCss, /data-resolved-theme="dark"\] \.pump-operator-setup-choice\.is-selected/);
+  assert.match(responsiveCss, /data-resolved-theme="dark"\] \.pump-operator-setup-choice\.is-complex/);
+});
+
+test("legacy export adapter reads hose fields structurally and fails closed when sections are incomplete", () => {
+  const adapterSource = appSource.slice(
+    appSource.indexOf("function getPumpOperatorHydraulicStructure"),
+    appSource.indexOf("function getPumpOperatorSetupCandidate")
+  );
+  assert.match(adapterSource, /const nested = inputs\[setup\.mode\] \|\| setup\[setup\.mode\]/);
+  assert.match(adapterSource, /confidence: hasCompleteSections \? "confident" : "ambiguous"/);
+  assert.match(adapterSource, /nested\.attack1HoseSize, nested\.attack1Length/);
+  assert.match(adapterSource, /inputs\.reverseSupplyHoseSize/);
+  assert.doesNotMatch(adapterSource, /parse.*(?:hoseSize|hoseLength)/i);
 });
 
 test("export result removes the embedded document preview and uses final share wording", () => {

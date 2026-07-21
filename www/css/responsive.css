@@ -451,6 +451,43 @@
         color: #64748b;
       }
 
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice {
+        border-color: #334155;
+        background: #111827;
+        color: #f8fafc;
+      }
+
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice.is-selected {
+        border-color: #fb923c;
+        background: #172033;
+      }
+
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice.is-complex {
+        border-color: #475569;
+        background: #0b1220;
+      }
+
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice.is-limit-disabled {
+        background: #0f172a;
+      }
+
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice input,
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice input:disabled {
+        border-color: #94a3b8;
+        background: transparent;
+      }
+
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice input:checked {
+        border-color: #fb923c;
+        background: #fb923c;
+        color: #020617;
+      }
+
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice small,
+      html[data-resolved-theme="dark"] .pump-operator-setup-choice .pump-operator-unavailable-reason {
+        color: #cbd5e1;
+      }
+
       html[data-resolved-theme="dark"] #pumpChartButtons {
         border-color: rgba(148, 163, 184, 0.34);
         background: #1e293b;

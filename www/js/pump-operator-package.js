@@ -93,6 +93,79 @@
     return { ok: true, name, message: "" };
   }
 
+  function classifySetupStructure(setup) {
+    const structure = setup && setup.hydraulicStructure;
+    const supplySections = Array.isArray(structure && structure.supplySections)
+      ? structure.supplySections
+      : null;
+    const attackSections = Array.isArray(structure && structure.attackSections)
+      ? structure.attackSections
+      : null;
+    const confident = structure && structure.confidence === "confident";
+
+    if (!confident || !supplySections || !attackSections) {
+      return {
+        className: "complex",
+        exportable: false,
+        ambiguous: true,
+        supplySectionCount: supplySections ? supplySections.length : null,
+        attackSectionCount: attackSections ? attackSections.length : null
+      };
+    }
+
+    const supplySectionCount = supplySections.length;
+    const attackSectionCount = attackSections.length;
+    const exportable = supplySectionCount <= 1 && attackSectionCount === 1;
+    return {
+      className: exportable ? "simple" : "complex",
+      exportable,
+      ambiguous: false,
+      supplySectionCount,
+      attackSectionCount
+    };
+  }
+
+  function getExportSelectionState(setups, selectedIds) {
+    const selected = new Set((selectedIds || []).map(String));
+    const simpleSelectedCount = (setups || []).reduce((count, setup) => (
+      count + (selected.has(String(setup.id)) && classifySetupStructure(setup).exportable ? 1 : 0)
+    ), 0);
+    const limitReached = simpleSelectedCount >= MAX_EXPORT_SETUPS;
+
+    return (setups || []).map(setup => {
+      const classification = classifySetupStructure(setup);
+      const isSelected = classification.exportable && selected.has(String(setup.id));
+      const disabledReason = !classification.exportable
+        ? "complex"
+        : limitReached && !isSelected
+          ? "limit"
+          : "";
+      return { setup, classification, selected: isSelected, disabled: Boolean(disabledReason), disabledReason };
+    });
+  }
+
+  function formatHosePath(structure, formatSize) {
+    const formatter = typeof formatSize === "function" ? formatSize : value => cleanText(value);
+    const sections = [
+      ...(structure && Array.isArray(structure.supplySections) ? structure.supplySections : []),
+      ...(structure && Array.isArray(structure.attackSections) ? structure.attackSections : [])
+    ];
+    return sections.map(section => {
+      const size = formatter(section && section.hoseSize);
+      const length = cleanText(section && section.hoseLength).match(/-?\d+(?:\.\d+)?/)?.[0] || "";
+      return size && length ? `${size} × ${length}'` : "";
+    }).filter(Boolean).join(" → ");
+  }
+
+  function formatSectionFrictionLoss(structure) {
+    const supplySections = structure && Array.isArray(structure.supplySections) ? structure.supplySections : [];
+    const attackSections = structure && Array.isArray(structure.attackSections) ? structure.attackSections : [];
+    const attackLoss = cleanText(attackSections[0] && attackSections[0].frictionLoss);
+    if (!supplySections.length) return attackLoss;
+    const supplyLoss = cleanText(supplySections[0] && supplySections[0].frictionLoss);
+    return `S ${supplyLoss || "-"} · A ${attackLoss || "-"}`;
+  }
+
   function selectSetupsInChartOrder(setups, selectedIds) {
     const selected = new Set((selectedIds || []).map(String));
     return (setups || []).filter(setup => selected.has(String(setup.id)));
@@ -100,16 +173,28 @@
 
   function validateExportSelection(setups, selectedIds) {
     const selected = selectSetupsInChartOrder(setups, selectedIds);
+    const ineligible = selected.filter(setup => !classifySetupStructure(setup).exportable);
+    if (ineligible.length) {
+      return {
+        ok: false,
+        selected: selected.filter(setup => classifySetupStructure(setup).exportable),
+        ineligible,
+        overLimit: [],
+        limitExceeded: false,
+        message: "Complex setups are saved and reloadable, but are not supported in Pump Chart export."
+      };
+    }
     if (!selected.length) {
-      return { ok: false, selected, overLimit: [], limitExceeded: false, message: "Select at least one saved setup." };
+      return { ok: false, selected, ineligible: [], overLimit: [], limitExceeded: false, message: "Select at least one simple saved setup." };
     }
     if (selected.length > MAX_EXPORT_SETUPS) {
       return {
         ok: false,
         selected,
+        ineligible: [],
         overLimit: [],
         limitExceeded: true,
-        message: `Choose no more than ${MAX_EXPORT_SETUPS} setups.`
+        message: `Choose no more than ${MAX_EXPORT_SETUPS} simple setups.`
       };
     }
     const overLimit = selected.filter(setup => cleanText(setup.name).length > SETUP_NAME_MAX_LENGTH);
@@ -117,12 +202,13 @@
       return {
         ok: false,
         selected,
+        ineligible: [],
         overLimit,
         limitExceeded: false,
         message: `Rename ${overLimit.map(setup => `\"${cleanText(setup.name)}\"`).join(", ")} to ${SETUP_NAME_MAX_LENGTH} characters or fewer before exporting.`
       };
     }
-    return { ok: true, selected, overLimit: [], limitExceeded: false, message: "" };
+    return { ok: true, selected, ineligible: [], overLimit: [], limitExceeded: false, message: "" };
   }
 
   function getSetupRowUnits(setup) {
@@ -212,15 +298,22 @@
   }
 
   const SETUP_COLUMNS = [
-    ["name", "Setup"], ["gpm", "GPM"], ["hoseSize", "Hose Size"], ["hoseLength", "Hose Length"],
-    ["frictionLoss", "FL"], ["nozzle", "Nozzle"], ["nozzlePressure", "NP"],
+    ["name", "Setup"], ["gpm", "GPM"], ["hose", "Hose"], ["frictionLoss", "FL"],
+    ["nozzle", "Nozzle"], ["nozzlePressure", "NP"],
     ["appliance", "Appliance"], ["elevation", "Elevation"], ["pdp", "PDP"]
   ];
+
+  function renderSetupCell(row, key) {
+    if (key !== "hose") return `<td>${escapeHtml(row[key] || "-")}</td>`;
+    const sections = cleanText(row[key]).split(/\s+→\s+/).filter(Boolean);
+    if (!sections.length) return "<td>-</td>";
+    return `<td>${sections.map(section => `<span class="rf-pop-hose-section">${escapeHtml(section)}</span>`).join(`<span class="rf-pop-hose-arrow"> → </span>`)}</td>`;
+  }
 
   function renderSetupTable(rows) {
     return `<section class="rf-pop-section rf-pop-setups"><h2>Setups</h2>
       <table><thead><tr>${SETUP_COLUMNS.map(([, label]) => `<th>${label}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map(row => `<tr>${SETUP_COLUMNS.map(([key]) => `<td>${escapeHtml(row[key] || "-")}</td>`).join("")}</tr>`).join("")}</tbody></table>
+      <tbody>${rows.map(row => `<tr>${SETUP_COLUMNS.map(([key]) => renderSetupCell(row, key)).join("")}</tr>`).join("")}</tbody></table>
     </section>`;
   }
 
@@ -297,7 +390,8 @@
     .rf-pop-page main{padding-top:12px;overflow:hidden}.rf-pop-section{margin:0 0 11px}.rf-pop-section h2{font-size:14px;line-height:1.1;margin:0 0 7px;padding:7px 10px;background:#d71920;color:#fff;border-left:7px solid #a3141a;border-bottom:2px solid #a3141a;border-radius:4px;letter-spacing:.025em}.rf-pop-section h2 span{font-size:9px;font-weight:700;color:#fff;margin-left:6px;opacity:.88;letter-spacing:.04em}
     table{width:100%;border-collapse:collapse;table-layout:fixed}.rf-pop-worksheet th{height:43px;background:#f4e2e3;color:#181f2a;font-size:10px;line-height:1.18;border:1px solid #aeb7c2;border-top:4px solid #d71920;padding:5px;font-weight:900}.rf-pop-worksheet th:first-child,.rf-pop-worksheet th:last-child{background:#ecd0d2;color:#7f1116}.rf-pop-worksheet td{height:67px;border:1px solid #aeb7c2}
     .rf-pop-worksheet th:nth-child(1){width:10%}.rf-pop-worksheet th:nth-child(2){width:10%}.rf-pop-worksheet th:nth-child(3){width:9%}.rf-pop-worksheet th:nth-child(4){width:10%}.rf-pop-worksheet th:nth-child(5){width:12%}.rf-pop-worksheet th:nth-child(6){width:10%}.rf-pop-worksheet th:nth-child(7),.rf-pop-worksheet th:nth-child(8){width:13%}.rf-pop-worksheet th:nth-child(9){width:13%}
-    .rf-pop-setups table{border-bottom:2px solid #313a47}.rf-pop-setups thead{background:#313a47;color:#fff}.rf-pop-setups th{height:35px;padding:6px 4px;font-size:8.5px;line-height:1.1;text-align:center;border-top:4px solid #d71920;border-bottom:0;font-weight:800;letter-spacing:.015em}.rf-pop-setups td{height:43px;padding:7px 5px;font-size:10px;line-height:1.14;border-bottom:1px solid #c7ced7;overflow-wrap:anywhere;vertical-align:middle;text-align:center}.rf-pop-setups tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-setups tbody tr:last-child td{border-bottom:0}.rf-pop-setups th:first-child,.rf-pop-setups td:first-child{width:21%;font-weight:900;text-align:left}.rf-pop-setups td:first-child{padding-left:9px;border-left:4px solid #d71920;font-size:10.5px}.rf-pop-setups th:nth-child(2),.rf-pop-setups th:last-child{font-weight:900;color:#fff;background:#a3141a}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:last-child{font-weight:900;color:#a3141a;background:#fbefef;font-size:15px}.rf-pop-setups th:nth-child(2){width:8%}.rf-pop-setups th:nth-child(3){width:9%}.rf-pop-setups th:nth-child(4){width:9%}.rf-pop-setups th:nth-child(5){width:7%}.rf-pop-setups th:nth-child(6){width:11%}.rf-pop-setups th:nth-child(7){width:7%}.rf-pop-setups th:nth-child(8){width:11%}.rf-pop-setups th:nth-child(9){width:8%}.rf-pop-setups th:nth-child(10){width:9%}.rf-pop-setups th:nth-child(3),.rf-pop-setups td:nth-child(3),.rf-pop-setups th:nth-child(6),.rf-pop-setups td:nth-child(6),.rf-pop-setups th:nth-child(9),.rf-pop-setups td:nth-child(9){border-left:2px solid #9fa9b5}
+    .rf-pop-setups table{border-bottom:2px solid #313a47}.rf-pop-setups thead{background:#313a47;color:#fff}.rf-pop-setups th{height:35px;padding:6px 4px;font-size:8.5px;line-height:1.1;text-align:center;border-top:4px solid #d71920;border-bottom:0;font-weight:800;letter-spacing:.015em}.rf-pop-setups td{height:43px;padding:7px 5px;font-size:10px;line-height:1.14;border-bottom:1px solid #c7ced7;overflow-wrap:anywhere;vertical-align:middle;text-align:center}.rf-pop-setups tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-setups tbody tr:last-child td{border-bottom:0}.rf-pop-setups th:first-child,.rf-pop-setups td:first-child{width:19%;font-weight:900;text-align:left}.rf-pop-setups td:first-child{padding-left:9px;border-left:4px solid #d71920;font-size:10.5px}.rf-pop-setups th:nth-child(2),.rf-pop-setups th:last-child{font-weight:900;color:#fff;background:#a3141a}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:last-child{font-weight:900;color:#a3141a;background:#fbefef;font-size:15px}.rf-pop-setups th:nth-child(2){width:8%}.rf-pop-setups th:nth-child(3){width:20%}.rf-pop-setups td:nth-child(3){overflow-wrap:normal;word-break:normal}.rf-pop-setups th:nth-child(4){width:10%}.rf-pop-setups th:nth-child(5){width:10%}.rf-pop-setups th:nth-child(6){width:7%}.rf-pop-setups th:nth-child(7){width:10%}.rf-pop-setups th:nth-child(8){width:8%}.rf-pop-setups th:nth-child(9){width:8%}.rf-pop-setups th:nth-child(3),.rf-pop-setups td:nth-child(3),.rf-pop-setups th:nth-child(5),.rf-pop-setups td:nth-child(5),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8){border-left:2px solid #9fa9b5}
+    .rf-pop-hose-section,.rf-pop-hose-arrow{white-space:nowrap}.rf-pop-setups th:nth-child(2),.rf-pop-setups td:nth-child(2),.rf-pop-setups th:nth-child(4),.rf-pop-setups td:nth-child(4),.rf-pop-setups th:nth-child(6),.rf-pop-setups td:nth-child(6),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8),.rf-pop-setups th:nth-child(9),.rf-pop-setups td:nth-child(9){text-align:right}
     .rf-pop-page-operational-expanded .rf-pop-setups td{height:65px}
     .rf-pop-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.rf-pop-module{border:0;border-top:4px solid #d71920;border-bottom:1px solid #aeb7c2;border-radius:0;background:#fff}.rf-pop-module h3{font-size:10px;margin:0;padding:6px 8px;background:#f4e2e3;border:0;color:#7f1116;letter-spacing:.02em;font-weight:900}.rf-pop-module-body{padding:8px 8px 7px}.rf-pop-reference-table th,.rf-pop-reference-table td{font-size:8px;line-height:1.22;padding:3px 4px;border-bottom:1px solid #e1e5ea}.rf-pop-reference-table tbody tr:last-child td{border-bottom:0}.rf-pop-reference-table th{background:transparent;color:#525c6b;font-size:7.5px;font-weight:900;text-align:left;text-transform:uppercase;letter-spacing:.035em}.rf-pop-reference-table th:last-child,.rf-pop-reference-table td:last-child{text-align:right;font-weight:900}.rf-pop-module-footer{font-size:8px!important;font-weight:700;margin:5px 0 0!important;color:#414c5c}.rf-pop-formula-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}.rf-pop-formula-grid div{border-left:4px solid #d71920;padding-left:8px}.rf-pop-formula-grid h4{font-size:7px;margin:0 0 3px;color:#525c6b;text-transform:uppercase;letter-spacing:.04em}.rf-pop-formula-grid p{font-size:10px;line-height:1.08;margin:0;font-weight:900;white-space:nowrap}.rf-pop-bullet-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}.rf-pop-bullet-groups>div+div{border-left:1px solid #c7ced7;padding-left:11px}.rf-pop-bullet-groups h4{font-size:7px;line-height:1;margin:0 0 6px;color:#a3141a;text-transform:uppercase;letter-spacing:.06em;font-weight:900}.rf-pop-bullet-groups ul{margin:0;padding-left:13px}.rf-pop-bullet-groups li{font-size:8.3px;line-height:1.25;margin:0 0 3px}
     .rf-pop-support .rf-pop-reference-table th,.rf-pop-support .rf-pop-reference-table td{padding-top:2px;padding-bottom:2px}
@@ -331,6 +425,10 @@
     FORMULA_MODULES,
     OPTIONAL_MODULES,
     validateSetupName,
+    classifySetupStructure,
+    getExportSelectionState,
+    formatHosePath,
+    formatSectionFrictionLoss,
     selectSetupsInChartOrder,
     validateExportSelection,
     createLayoutModel,

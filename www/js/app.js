@@ -9281,6 +9281,101 @@ function getPumpOperatorNumericValue(value) {
   return match ? match[0] : "";
 }
 
+function getPumpOperatorResultField(result, pattern) {
+  const entry = Object.entries(result || {}).find(([key, value]) => pattern.test(key) && String(value || "").trim());
+  return entry ? entry[1] : "";
+}
+
+function getLegacyLabeledFrictionLoss(value, label) {
+  const match = String(value || "").match(new RegExp(`(?:^|[\\s/])${label}\\s+(-?\\d+(?:\\.\\d+)?)`, "i"));
+  return match ? match[1] : "";
+}
+
+function createPumpOperatorSection(hoseSize, hoseLength, frictionLoss) {
+  return {
+    hoseSize: String(hoseSize || "").trim(),
+    hoseLength: String(hoseLength || "").trim(),
+    frictionLoss: getPumpOperatorNumericValue(frictionLoss)
+  };
+}
+
+function getPumpOperatorHydraulicStructure(setup) {
+  if (
+    setup.hydraulicStructure?.confidence === "confident" &&
+    Array.isArray(setup.hydraulicStructure.supplySections) &&
+    Array.isArray(setup.hydraulicStructure.attackSections)
+  ) {
+    return setup.hydraulicStructure;
+  }
+
+  const inputs = setup.inputs || {};
+  const result = setup.result || {};
+  const nested = inputs[setup.mode] || setup[setup.mode];
+  let supplySections = [];
+  let attackSections = [];
+
+  if (nested && typeof nested === "object" && ("attack1HoseSize" in nested || "attack1Length" in nested)) {
+    const supplyLoss = getPumpOperatorResultField(result, /SupplyLoss$/i);
+    const attack1Loss = getPumpOperatorResultField(result, /Attack1FlResult$/i);
+    const attack2Loss = getPumpOperatorResultField(result, /Attack2FlResult$/i);
+    const firstSupply = createPumpOperatorSection(nested.supplyHoseSize, nested.supplyLength, supplyLoss);
+    const supplyLineCount = nested.dualSupply ? 2 : 1;
+
+    if ("supplyHoseSize" in nested || "supplyLength" in nested) {
+      supplySections = Array.from({ length: supplyLineCount }, () => ({ ...firstSupply }));
+    }
+    if (String(nested.sectionCount || "") === "3") {
+      supplySections.push(createPumpOperatorSection(
+        nested.supply2HoseSize,
+        nested.supply2Length,
+        getPumpOperatorResultField(result, /Supply2Loss$/i)
+      ));
+    }
+
+    attackSections.push(createPumpOperatorSection(nested.attack1HoseSize, nested.attack1Length, attack1Loss));
+    const hasExplicitAttackCount = "attack2Enabled" in nested || "attackLines" in nested;
+    const hasSecondAttack = nested.attack2Enabled === true ||
+      String(nested.attackLines || "") === "2" ||
+      (!hasExplicitAttackCount && Boolean(nested.attack2HoseSize || nested.attack2Length));
+    if (hasSecondAttack) {
+      attackSections.push(createPumpOperatorSection(nested.attack2HoseSize, nested.attack2Length, attack2Loss));
+    }
+  } else {
+    const hasAttack = Boolean(inputs.hoseSize || inputs.hoseLength);
+    const hasSupply = inputs.reverseSupplyEnabled === true;
+    const attackLoss = hasSupply
+      ? result.attackFrictionLoss || getLegacyLabeledFrictionLoss(result.flPer100, "A")
+      : result.attackFrictionLoss || result.totalFl;
+    const supplyLoss = result.supplyFrictionLoss || getLegacyLabeledFrictionLoss(result.flPer100, "S");
+
+    if (hasSupply) {
+      supplySections.push(createPumpOperatorSection(
+        inputs.reverseSupplyHoseSize,
+        inputs.reverseSupplyLength,
+        supplyLoss
+      ));
+    }
+    if (hasAttack) {
+      attackSections.push(createPumpOperatorSection(inputs.hoseSize, inputs.hoseLength, attackLoss));
+      if (inputs.dualLineSupply === true) {
+        attackSections.push(createPumpOperatorSection(inputs.hoseSize, inputs.hoseLength, attackLoss));
+      }
+    }
+  }
+
+  const hasCompleteSections = attackSections.length > 0 &&
+    [...supplySections, ...attackSections].every(section => section.hoseSize && section.hoseLength);
+  return {
+    confidence: hasCompleteSections ? "confident" : "ambiguous",
+    supplySections,
+    attackSections
+  };
+}
+
+function getPumpOperatorSetupCandidate(setup) {
+  return { ...setup, hydraulicStructure: getPumpOperatorHydraulicStructure(setup) };
+}
+
 function getPumpOperatorNozzleLabel(setup) {
   const inputs = setup.inputs || {};
   if (setup.mode === "splitLay") {
@@ -9298,25 +9393,20 @@ function getPumpOperatorNozzleLabel(setup) {
 function getPumpOperatorSetupRow(setup) {
   const inputs = setup.inputs || {};
   const result = setup.result || {};
-  let hoseSize = inputs.hoseSize;
-  let hoseLength = inputs.hoseLength;
-  let frictionLoss = result.totalFl || result.flPer100;
+  const structure = getPumpOperatorHydraulicStructure(setup);
+  const packageApi = window.ReverseFlowPumpOperatorPackage;
+  const hose = packageApi.formatHosePath(structure, formatHoseSize);
+  const frictionLoss = packageApi.formatSectionFrictionLoss(structure);
   let nozzlePressure = getNozzlePressureSummary(inputs);
   let appliance = getApplianceLabel(inputs.reverseSupplyAppliance);
   let elevation = inputs.apparatusElevation || "";
 
   if (setup.mode === "splitLay") {
     const split = inputs.splitLay || {};
-    hoseSize = split.attack1HoseSize;
-    hoseLength = split.attack1Length;
-    frictionLoss = result.splitAttack1FlResult;
     nozzlePressure = result.splitAttack1NpResult;
     appliance = getApplianceLabel(split.appliance1);
   } else if (setup.mode === "standpipeOps") {
     const standpipe = getStandpipeOpsData(setup);
-    hoseSize = standpipe.attack1HoseSize;
-    hoseLength = standpipe.attack1Length;
-    frictionLoss = result.standpipeAttack1FlResult;
     nozzlePressure = result.standpipeAttack1NpResult;
     appliance = "FDC";
     elevation = standpipe.attack1Elevation || standpipe.elevation || "";
@@ -9328,9 +9418,8 @@ function getPumpOperatorSetupRow(setup) {
     gpm: getPumpOperatorNumericValue(
       result.flowSummary || result.splitSupplyFlow || result.standpipeTotalFlow || result.calculatedFlow || inputs.targetGpm
     ),
-    hoseSize: formatHoseSize(hoseSize),
-    hoseLength: getPumpOperatorNumericValue(hoseLength),
-    frictionLoss: getPumpOperatorNumericValue(frictionLoss),
+    hose,
+    frictionLoss,
     nozzle: getPumpOperatorNozzleLabel(setup),
     nozzlePressure: getPumpOperatorNumericValue(nozzlePressure),
     appliance: appliance || (hasManualApplianceLoss(inputs.applianceLoss) ? "Loss" : "-"),
@@ -9371,34 +9460,55 @@ function renderPumpOperatorPackageSelection(chartId) {
   }
   const packageApi = window.ReverseFlowPumpOperatorPackage;
   const maxSetups = packageApi.MAX_EXPORT_SETUPS;
-  const selectAllByDefault = chart.setups.length <= maxSetups;
-  setPumpChartSubtitle(`Choose up to ${maxSetups} Setups`);
+  const setupCandidates = chart.setups.map(getPumpOperatorSetupCandidate);
+  const simpleSetups = setupCandidates.filter(setup => packageApi.classifySetupStructure(setup).exportable);
+  const selectedByDefault = new Set(
+    simpleSetups.length <= maxSetups ? simpleSetups.map(setup => String(setup.id)) : []
+  );
+  setPumpChartSubtitle(`Choose up to ${maxSetups} Simple Setups`);
   els.pumpChartList.innerHTML = `
     <form class="pump-operator-selection" id="pumpOperatorPackageSelectionForm">
       <div class="pump-chart-toolbar">
         <button class="small-button" type="button" onclick="openPumpChartDetail('${escapeHtml(chart.id)}')">Back</button>
       </div>
       <div class="pump-operator-selection-list" role="group" aria-label="Saved setups to include">
-        ${chart.setups.map(setup => `
-          <label class="pump-operator-setup-choice">
-            <input type="checkbox" name="pumpOperatorSetup" value="${escapeHtml(setup.id)}" ${selectAllByDefault ? "checked" : ""} />
-            <span><strong>${escapeHtml(setup.name)}</strong><small>${escapeHtml(getSetupConfigurationSummary(setup).replace(/\n+/g, " / "))}</small></span>
+        ${setupCandidates.map(setup => {
+          const classification = packageApi.classifySetupStructure(setup);
+          const isComplex = !classification.exportable;
+          return `
+          <label class="pump-operator-setup-choice${isComplex ? " is-complex" : ""}">
+            <input type="checkbox" name="pumpOperatorSetup" value="${escapeHtml(setup.id)}" ${selectedByDefault.has(String(setup.id)) ? "checked" : ""} ${isComplex ? "disabled" : ""} />
+            <span><strong>${escapeHtml(setup.name)}</strong><small>${escapeHtml(getSetupConfigurationSummary(setup).replace(/\n+/g, " / "))}</small>${isComplex ? `<small class="pump-operator-unavailable-reason"><b>Complex setup</b> — Saved and reloadable, but not supported in Pump Chart export.</small>` : `<small class="pump-operator-unavailable-reason" hidden></small>`}</span>
           </label>
-        `).join("") || `<p class="disabled-note">No saved setups are available.</p>`}
+        `;}).join("") || `<p class="disabled-note">No saved setups are available.</p>`}
       </div>
       <p class="pump-operator-validation" id="pumpOperatorPackageValidation" role="alert" hidden></p>
-      <button class="small-button pump-chart-primary-action" type="submit" ${chart.setups.length ? "" : "disabled"}>Generate Pump Operator Package</button>
+      <button class="small-button pump-chart-primary-action" type="submit" ${simpleSetups.length ? "" : "disabled"}>Generate Pump Operator Package</button>
     </form>
   `;
   const selectionForm = document.getElementById("pumpOperatorPackageSelectionForm");
   const selectionInputs = [...selectionForm?.querySelectorAll('input[name="pumpOperatorSetup"]') || []];
   const validationNode = document.getElementById("pumpOperatorPackageValidation");
   const updateSelectionAvailability = () => {
-    const selectedCount = selectionInputs.filter(input => input.checked).length;
+    const selectedIds = selectionInputs.filter(input => input.checked).map(input => input.value);
+    const selectionState = packageApi.getExportSelectionState(setupCandidates, selectedIds);
+    const selectedCount = selectionState.filter(item => item.selected).length;
     const maximumReached = selectedCount >= maxSetups;
-    selectionInputs.forEach(input => {
-      input.disabled = maximumReached && !input.checked;
-      input.closest(".pump-operator-setup-choice")?.classList.toggle("is-unavailable", input.disabled);
+    selectionInputs.forEach((input, index) => {
+      const state = selectionState[index];
+      const choice = input.closest(".pump-operator-setup-choice");
+      const reason = choice?.querySelector(".pump-operator-unavailable-reason");
+      input.checked = state.selected;
+      input.disabled = state.disabled;
+      choice?.classList.toggle("is-selected", state.selected);
+      choice?.classList.toggle("is-limit-disabled", state.disabledReason === "limit");
+      if (state.disabledReason === "limit" && reason) {
+        reason.hidden = false;
+        reason.textContent = "Selection limit reached.";
+      } else if (!state.disabledReason && reason) {
+        reason.hidden = true;
+        reason.textContent = "";
+      }
     });
     if (maximumReached) {
       validationNode.hidden = false;
@@ -9413,7 +9523,7 @@ function renderPumpOperatorPackageSelection(chartId) {
   selectionForm?.addEventListener("submit", event => {
     event.preventDefault();
     const selectedIds = selectionInputs.filter(input => input.checked).map(input => input.value);
-    const validation = packageApi.validateExportSelection(chart.setups, selectedIds);
+    const validation = packageApi.validateExportSelection(setupCandidates, selectedIds);
     if (!validation.ok) {
       validationNode.hidden = false;
       validationNode.innerHTML = `${escapeHtml(validation.message)}${validation.overLimit.length ? ` <button class="small-button" type="button" data-rename-over-limit="${escapeHtml(validation.overLimit[0].id)}">Rename Setup</button>` : ""}`;

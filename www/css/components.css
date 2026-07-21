@@ -948,25 +948,94 @@ main,
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 9px;
-  background: rgba(248, 250, 252, 0.72);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
 }
 
 .pump-operator-setup-choice input {
   margin-top: 3px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0;
+  border: 2px solid var(--border-strong);
+  border-radius: 5px;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
 }
 
-.pump-operator-setup-choice.is-unavailable {
-  opacity: 0.48;
+.pump-operator-setup-choice input::before {
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  content: "";
+  opacity: 0;
+  transform: translateY(-1px) rotate(-45deg);
 }
 
-.pump-operator-setup-choice.is-unavailable strong,
-.pump-operator-setup-choice.is-unavailable small {
+.pump-operator-setup-choice input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.pump-operator-setup-choice input:checked::before {
+  opacity: 1;
+}
+
+.pump-operator-setup-choice:focus-within {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pump-operator-setup-choice.is-selected {
+  border-color: var(--accent);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.pump-operator-setup-choice.is-complex,
+.pump-operator-setup-choice.is-limit-disabled {
+  cursor: not-allowed;
+}
+
+.pump-operator-setup-choice.is-complex {
+  border-style: dashed;
+  background: var(--surface-strong);
+}
+
+.pump-operator-setup-choice.is-limit-disabled {
+  opacity: 0.72;
+}
+
+.pump-operator-setup-choice.is-complex > span > strong,
+.pump-operator-setup-choice.is-limit-disabled > span > strong {
   color: var(--muted);
+}
+
+.pump-operator-setup-choice input:disabled {
+  border-color: var(--border-strong);
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .pump-operator-setup-choice span,
 .pump-operator-setup-choice small {
   display: block;
+}
+
+.pump-operator-setup-choice .pump-operator-unavailable-reason {
+  color: var(--ink);
+}
+
+.pump-operator-setup-choice .pump-operator-unavailable-reason b {
+  color: var(--accent);
 }
 
 .pump-operator-setup-choice small {
