@@ -16,6 +16,13 @@
     subtleText: "#657080",
     pageBackground: "#ffffff"
   });
+  const EMPTY_VALUE = "—";
+  const APPLIANCE_LABELS = Object.freeze({
+    gatedWye: "Gated Wye",
+    gateValve: "Gate Valve",
+    reducer: "Reducer",
+    siamese: "Siamese"
+  });
 
   const SUPPORT_MODULES = [
     {
@@ -169,7 +176,24 @@
     const attackLoss = cleanText(attackSections[0] && attackSections[0].frictionLoss);
     if (!supplySections.length) return attackLoss;
     const supplyLoss = cleanText(supplySections[0] && supplySections[0].frictionLoss);
-    return `S ${supplyLoss || "-"} · A ${attackLoss || "-"}`;
+    return `S ${supplyLoss || EMPTY_VALUE}\nA ${attackLoss || EMPTY_VALUE}`;
+  }
+
+  function formatSavedAppliance(setup) {
+    const inputs = setup && setup.inputs && typeof setup.inputs === "object" ? setup.inputs : {};
+    if (setup && setup.mode === "splitLay") {
+      const splitLay = inputs.splitLay && typeof inputs.splitLay === "object"
+        ? inputs.splitLay
+        : setup.splitLay && typeof setup.splitLay === "object"
+          ? setup.splitLay
+          : null;
+      if (!splitLay || !Object.prototype.hasOwnProperty.call(splitLay, "appliance1")) return "";
+      return APPLIANCE_LABELS[cleanText(splitLay.appliance1)] || "";
+    }
+    if (inputs.reverseSupplyEnabled !== true || !Object.prototype.hasOwnProperty.call(inputs, "reverseSupplyAppliance")) {
+      return "";
+    }
+    return APPLIANCE_LABELS[cleanText(inputs.reverseSupplyAppliance)] || "";
   }
 
   function selectSetupsInChartOrder(setups, selectedIds) {
@@ -294,12 +318,11 @@
 
   function renderWorksheet() {
     const columns = [
-      "GPM /<br>Tip Size", "Nozzle<br>Pressure", "Hose<br>Size", "Hose<br>Length", "Appliance",
-      "Elevation", "Attack Line<br>Friction Loss", "Supply Line<br>Friction Loss", "PDP"
+      "GPM /<br>Tip Size", "Nozzle<br>Pressure", "Hose", "FL", "Appliance", "Elevation", "PDP"
     ];
     return `<section class="rf-pop-section rf-pop-worksheet"><h2>Operator Worksheet</h2>
       <table><thead><tr>${columns.map(column => `<th>${column}</th>`).join("")}</tr></thead>
-      <tbody>${Array.from({ length: 5 }, () => `<tr>${columns.map(() => "<td></td>").join("")}</tr>`).join("")}</tbody></table>
+      <tbody>${Array.from({ length: 4 }, () => `<tr>${columns.map(() => "<td></td>").join("")}</tr>`).join("")}</tbody></table>
     </section>`;
   }
 
@@ -310,10 +333,17 @@
   ];
 
   function renderSetupCell(row, key) {
-    if (key !== "hose") return `<td class="rf-pop-cell-${escapeHtml(key)}">${escapeHtml(row[key] || "-")}</td>`;
+    if (key === "frictionLoss") {
+      const parts = cleanText(row[key]).split(/\s*(?:·|\n)\s*/).filter(Boolean);
+      const value = parts.length > 1
+        ? `<span class="rf-pop-fl-stack">${parts.map(part => `<span>${escapeHtml(part)}</span>`).join("")}</span>`
+        : escapeHtml(row[key] || EMPTY_VALUE);
+      return `<td class="rf-pop-cell-frictionLoss">${value}</td>`;
+    }
+    if (key !== "hose") return `<td class="rf-pop-cell-${escapeHtml(key)}">${escapeHtml(row[key] || EMPTY_VALUE)}</td>`;
     const sections = cleanText(row[key]).split(/\s+→\s+/).filter(Boolean);
-    if (!sections.length) return `<td class="rf-pop-cell-hose">-</td>`;
-    return `<td class="rf-pop-cell-hose">${sections.map(section => `<span class="rf-pop-hose-section">${escapeHtml(section)}</span>`).join(`<span class="rf-pop-hose-arrow"> → </span>`)}</td>`;
+    if (!sections.length) return `<td class="rf-pop-cell-hose">${EMPTY_VALUE}</td>`;
+    return `<td class="rf-pop-cell-hose"><span class="rf-pop-hose-content">${sections.map(section => `<span class="rf-pop-hose-section">${escapeHtml(section)}</span>`).join(`<span class="rf-pop-hose-arrow"> → </span>`)}</span></td>`;
   }
 
   function renderSetupTable(rows) {
@@ -396,9 +426,9 @@
     .rf-pop-header p{margin:0 0 4px;color:#a3141a;font-size:10px;font-weight:900;letter-spacing:.18em}.rf-pop-header h1{margin:0;padding-right:12px;font-size:25px;line-height:1.05;max-width:500px;white-space:nowrap;overflow:hidden}.rf-pop-brand{display:flex;flex:0 0 auto;align-items:center;gap:7px;text-align:left;padding:6px 9px 6px 8px;border-left:4px solid #d71920;border-radius:4px;background:#f8eeee}.rf-pop-brand img{width:37px;height:37px;object-fit:contain}.rf-pop-brand div{display:grid;gap:2px}.rf-pop-brand strong{font-size:12px;line-height:1;font-weight:900;letter-spacing:.055em}.rf-pop-brand span{font-size:7.5px;font-weight:700;color:#525c6b;letter-spacing:.1em}
     .rf-pop-page main{padding-top:12px;overflow:hidden}.rf-pop-section{margin:0 0 11px}.rf-pop-section h2{font-size:14px;line-height:1.1;margin:0 0 7px;padding:7px 10px;background:#d71920;color:#fff;border-left:7px solid #a3141a;border-bottom:2px solid #a3141a;border-radius:4px;letter-spacing:.025em}.rf-pop-section h2 span{font-size:9px;font-weight:700;color:#fff;margin-left:6px;opacity:.88;letter-spacing:.04em}
     table{width:100%;border-collapse:collapse;table-layout:fixed}.rf-pop-worksheet th{height:43px;background:#f4e2e3;color:#181f2a;font-size:10px;line-height:1.18;border:1px solid #aeb7c2;border-top:4px solid #d71920;padding:5px;font-weight:900}.rf-pop-worksheet th:first-child,.rf-pop-worksheet th:last-child{background:#ecd0d2;color:#7f1116}.rf-pop-worksheet td{height:67px;border:1px solid #aeb7c2}
-    .rf-pop-worksheet th:nth-child(1){width:10%}.rf-pop-worksheet th:nth-child(2){width:10%}.rf-pop-worksheet th:nth-child(3){width:9%}.rf-pop-worksheet th:nth-child(4){width:10%}.rf-pop-worksheet th:nth-child(5){width:12%}.rf-pop-worksheet th:nth-child(6){width:10%}.rf-pop-worksheet th:nth-child(7),.rf-pop-worksheet th:nth-child(8){width:13%}.rf-pop-worksheet th:nth-child(9){width:13%}
-    .rf-pop-setups table{border-bottom:2px solid #313a47}.rf-pop-setups thead{background:#313a47;color:#fff}.rf-pop-setups th{height:35px;padding:6px 4px;font-size:8.5px;line-height:1.1;text-align:center;border-top:4px solid #d71920;border-bottom:0;font-weight:800;letter-spacing:.015em}.rf-pop-setups td{height:43px;padding:7px 5px;font-size:10px;line-height:1.14;border-bottom:1px solid #c7ced7;overflow-wrap:anywhere;vertical-align:middle;text-align:center}.rf-pop-setups tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-setups tbody tr:last-child td{border-bottom:0}.rf-pop-setups th:first-child,.rf-pop-setups td:first-child{width:19%;font-weight:900;text-align:left}.rf-pop-setups td:first-child{padding-left:9px;border-left:4px solid #d71920;font-size:10.5px}.rf-pop-setups th:nth-child(2),.rf-pop-setups th:last-child{font-weight:900;color:#fff;background:#a3141a}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:last-child{font-weight:900;color:#a3141a;background:#fbefef;font-size:15px}.rf-pop-setups th:nth-child(2){width:8%}.rf-pop-setups th:nth-child(3){width:20%}.rf-pop-setups td:nth-child(3){overflow-wrap:normal;word-break:normal}.rf-pop-setups th:nth-child(4){width:10%}.rf-pop-setups th:nth-child(5){width:10%}.rf-pop-setups th:nth-child(6){width:7%}.rf-pop-setups th:nth-child(7){width:10%}.rf-pop-setups th:nth-child(8){width:8%}.rf-pop-setups th:nth-child(9){width:8%}.rf-pop-setups th:nth-child(3),.rf-pop-setups td:nth-child(3),.rf-pop-setups th:nth-child(5),.rf-pop-setups td:nth-child(5),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8){border-left:2px solid #9fa9b5}
-    .rf-pop-hose-section,.rf-pop-hose-arrow{white-space:nowrap}.rf-pop-setups th:nth-child(2),.rf-pop-setups td:nth-child(2),.rf-pop-setups th:nth-child(4),.rf-pop-setups td:nth-child(4),.rf-pop-setups th:nth-child(6),.rf-pop-setups td:nth-child(6),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8),.rf-pop-setups th:nth-child(9),.rf-pop-setups td:nth-child(9){text-align:right}
+    .rf-pop-worksheet th:nth-child(1){width:13%}.rf-pop-worksheet th:nth-child(2){width:14%}.rf-pop-worksheet th:nth-child(3){width:22%}.rf-pop-worksheet th:nth-child(4){width:12%}.rf-pop-worksheet th:nth-child(5){width:13%}.rf-pop-worksheet th:nth-child(6){width:12%}.rf-pop-worksheet th:nth-child(7){width:14%}
+    .rf-pop-setups table{border-bottom:2px solid #313a47}.rf-pop-setups thead{background:#313a47;color:#fff}.rf-pop-setups th{height:35px;padding:6px 4px;font-size:8.5px;line-height:1.1;text-align:center;border-top:4px solid #d71920;border-bottom:0;font-weight:800;letter-spacing:.015em}.rf-pop-setups td{height:43px;padding:7px 5px;font-size:10px;line-height:1.14;border-bottom:1px solid #c7ced7;overflow-wrap:anywhere;vertical-align:middle;text-align:center}.rf-pop-setups tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-setups tbody tr:last-child td{border-bottom:0}.rf-pop-setups th:first-child,.rf-pop-setups td:first-child{width:22%;font-weight:900;text-align:left}.rf-pop-setups td:first-child{padding-left:9px;border-left:4px solid #d71920;font-size:10.5px}.rf-pop-setups th:nth-child(2),.rf-pop-setups th:last-child{font-weight:900;color:#fff;background:#a3141a}.rf-pop-setups td:nth-child(2),.rf-pop-setups td:last-child{font-weight:900;color:#a3141a;background:#fbefef;font-size:15px}.rf-pop-setups th:nth-child(2){width:8%}.rf-pop-setups th:nth-child(3){width:20%}.rf-pop-setups td:nth-child(3){overflow-wrap:normal;word-break:normal}.rf-pop-setups th:nth-child(4){width:10%}.rf-pop-setups th:nth-child(5){width:9%}.rf-pop-setups th:nth-child(6){width:7%}.rf-pop-setups th:nth-child(7){width:7%}.rf-pop-setups th:nth-child(8){width:8%}.rf-pop-setups th:nth-child(9){width:9%}.rf-pop-setups th:nth-child(3),.rf-pop-setups td:nth-child(3),.rf-pop-setups th:nth-child(5),.rf-pop-setups td:nth-child(5),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8){border-left:2px solid #9fa9b5}
+    .rf-pop-hose-content{display:inline-block;max-width:100%;white-space:nowrap}.rf-pop-hose-section,.rf-pop-hose-arrow{white-space:nowrap}.rf-pop-cell-hose.rf-pop-hose-tight{font-size:9px}.rf-pop-fl-stack{display:grid;gap:2px;line-height:1.05}.rf-pop-setups th:nth-child(2),.rf-pop-setups td:nth-child(2),.rf-pop-setups th:nth-child(4),.rf-pop-setups td:nth-child(4),.rf-pop-setups th:nth-child(6),.rf-pop-setups td:nth-child(6),.rf-pop-setups th:nth-child(8),.rf-pop-setups td:nth-child(8),.rf-pop-setups th:nth-child(9),.rf-pop-setups td:nth-child(9){text-align:right}
     .rf-pop-page-operational-expanded .rf-pop-setups td{height:65px}
     .rf-pop-module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.rf-pop-module{border:0;border-top:4px solid #d71920;border-bottom:1px solid #aeb7c2;border-radius:0;background:#fff}.rf-pop-module h3{font-size:10px;margin:0;padding:6px 8px;background:#f4e2e3;border:0;color:#7f1116;letter-spacing:.02em;font-weight:900}.rf-pop-module-body{padding:8px 8px 7px}.rf-pop-reference-table th,.rf-pop-reference-table td{font-size:8px;line-height:1.22;padding:3px 4px;border-bottom:1px solid #e1e5ea}.rf-pop-reference-table tbody tr:last-child td{border-bottom:0}.rf-pop-reference-table th{background:transparent;color:#525c6b;font-size:7.5px;font-weight:900;text-align:left;text-transform:uppercase;letter-spacing:.035em}.rf-pop-reference-table th:last-child,.rf-pop-reference-table td:last-child{text-align:right;font-weight:900}.rf-pop-module-footer{font-size:8px!important;font-weight:700;margin:5px 0 0!important;color:#414c5c}.rf-pop-formula-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}.rf-pop-formula-grid div{border-left:4px solid #d71920;padding-left:8px}.rf-pop-formula-grid h4{font-size:7px;margin:0 0 3px;color:#525c6b;text-transform:uppercase;letter-spacing:.04em}.rf-pop-formula-grid p{font-size:10px;line-height:1.08;margin:0;font-weight:900;white-space:nowrap}.rf-pop-bullet-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}.rf-pop-bullet-groups>div+div{border-left:1px solid #c7ced7;padding-left:11px}.rf-pop-bullet-groups h4{font-size:7px;line-height:1;margin:0 0 6px;color:#a3141a;text-transform:uppercase;letter-spacing:.06em;font-weight:900}.rf-pop-bullet-groups ul{margin:0;padding-left:13px}.rf-pop-bullet-groups li{font-size:8.3px;line-height:1.25;margin:0 0 3px}
     .rf-pop-support .rf-pop-reference-table th,.rf-pop-support .rf-pop-reference-table td{padding-top:2px;padding-bottom:2px}
@@ -419,7 +449,20 @@
     wrapper.style.pointerEvents = "none";
     wrapper.innerHTML = `<style>${PAGE_STYLES}</style>${renderPackageHtml(model)}`;
     documentObject.body.appendChild(wrapper);
-    return { wrapper, pages: Array.from(wrapper.querySelectorAll(".rf-pop-page")) };
+    const pages = Array.from(wrapper.querySelectorAll(".rf-pop-page"));
+    pages.forEach(page => page.querySelectorAll(".rf-pop-cell-hose").forEach(cell => {
+      const content = cell.querySelector(".rf-pop-hose-content");
+      if (!content) return;
+      const cellStyle = documentObject.defaultView && documentObject.defaultView.getComputedStyle(cell);
+      const availableWidth = cell.clientWidth -
+        (Number.parseFloat(cellStyle && cellStyle.paddingLeft) || 0) -
+        (Number.parseFloat(cellStyle && cellStyle.paddingRight) || 0);
+      content.style.maxWidth = "none";
+      const measuredWidth = content.getBoundingClientRect().width;
+      content.style.maxWidth = "";
+      if (measuredWidth > availableWidth + 0.5) cell.classList.add("rf-pop-hose-tight");
+    }));
+    return { wrapper, pages };
   }
 
   return {
@@ -437,6 +480,7 @@
     getExportSelectionState,
     formatHosePath,
     formatSectionFrictionLoss,
+    formatSavedAppliance,
     selectSetupsInChartOrder,
     validateExportSelection,
     createLayoutModel,

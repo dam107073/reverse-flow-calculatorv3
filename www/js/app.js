@@ -9398,17 +9398,13 @@ function getPumpOperatorSetupRow(setup) {
   const hose = packageApi.formatHosePath(structure, formatHoseSize);
   const frictionLoss = packageApi.formatSectionFrictionLoss(structure);
   let nozzlePressure = getNozzlePressureSummary(inputs);
-  let appliance = getApplianceLabel(inputs.reverseSupplyAppliance);
   let elevation = inputs.apparatusElevation || "";
 
   if (setup.mode === "splitLay") {
-    const split = inputs.splitLay || {};
     nozzlePressure = result.splitAttack1NpResult;
-    appliance = getApplianceLabel(split.appliance1);
   } else if (setup.mode === "standpipeOps") {
     const standpipe = getStandpipeOpsData(setup);
     nozzlePressure = result.standpipeAttack1NpResult;
-    appliance = "FDC";
     elevation = standpipe.attack1Elevation || standpipe.elevation || "";
   }
 
@@ -9422,7 +9418,7 @@ function getPumpOperatorSetupRow(setup) {
     frictionLoss,
     nozzle: getPumpOperatorNozzleLabel(setup),
     nozzlePressure: getPumpOperatorNumericValue(nozzlePressure),
-    appliance: appliance || (hasManualApplianceLoss(inputs.applianceLoss) ? "Loss" : "-"),
+    appliance: packageApi.formatSavedAppliance(setup),
     elevation: getPumpOperatorNumericValue(elevation),
     pdp: getPumpOperatorNumericValue(result.pdpSummary || result.calculatedPdp || getSetupPdpSummary(setup))
   };

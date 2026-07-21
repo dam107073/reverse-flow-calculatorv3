@@ -126,7 +126,34 @@ test("hose paths and section friction loss use the normalized structured model",
   assert.equal(packageApi.formatHosePath(attackOnly), `1.75" × 200'`);
   assert.equal(packageApi.formatHosePath(supplyAndAttack), `3" × 500' → 1.75" × 200'`);
   assert.equal(packageApi.formatSectionFrictionLoss(attackOnly), "32");
-  assert.equal(packageApi.formatSectionFrictionLoss(supplyAndAttack), "S 18 · A 32");
+  assert.equal(packageApi.formatSectionFrictionLoss(supplyAndAttack), "S 18\nA 32");
+});
+
+test("appliance export uses only explicit saved operational appliance data", () => {
+  assert.equal(packageApi.formatSavedAppliance({
+    mode: "reverse",
+    inputs: { reverseSupplyEnabled: false, reverseSupplyAppliance: "gateValve" }
+  }), "");
+  assert.equal(packageApi.formatSavedAppliance({
+    mode: "reverse",
+    inputs: { reverseSupplyEnabled: true, reverseSupplyAppliance: "gateValve" }
+  }), "Gate Valve");
+  assert.equal(packageApi.formatSavedAppliance({
+    mode: "splitLay",
+    inputs: { splitLay: { appliance1: "gatedWye" } }
+  }), "Gated Wye");
+  assert.equal(packageApi.formatSavedAppliance({
+    mode: "reverse",
+    inputs: { reverseSupplyEnabled: true }
+  }), "");
+  assert.equal(packageApi.formatSavedAppliance({
+    mode: "gateValve",
+    inputs: { nozzleType: "gateValve", reverseSupplyEnabled: false }
+  }), "");
+  assert.equal(packageApi.formatSavedAppliance({
+    mode: "standpipeOps",
+    inputs: { nozzleType: "gatedWye", standpipeOps: {} }
+  }), "");
 });
 
 test("six attack-only, six supply-and-attack, and mixed simple rows retain their hydraulic fields", () => {
@@ -237,7 +264,7 @@ test("maximum realistic setup selection stays on Page 1 and preserves order", ()
   assert.deepEqual(model.omittedReferenceModules, ["Appliance Loss Guide", "Additional Water Available"]);
 });
 
-test("rendered package contains five worksheet rows, exact formulas, and no removed modules", () => {
+test("rendered package contains four seven-column worksheet rows, exact formulas, and no removed modules", () => {
   const model = packageApi.createLayoutModel(makeData({ chartName: "Banana" }));
   const html = packageApi.renderPackageHtml(model);
   assert.match(html, />Banana</);
@@ -252,7 +279,8 @@ test("rendered package contains five worksheet rows, exact formulas, and no remo
   assert.doesNotMatch(masterStreamHtml, /7\/8&quot;/);
   assert.match(masterStreamHtml, /1 1\/4&quot;/);
   assert.match(masterStreamHtml, /1 1\/2&quot;/);
-  assert.equal((html.match(/<tr><td><\/td><td><\/td><td><\/td><td><\/td><td><\/td><td><\/td><td><\/td><td><\/td><td><\/td><\/tr>/g) || []).length, 5);
+  assert.match(html, /GPM \/<br>Tip Size<\/th><th>Nozzle<br>Pressure<\/th><th>Hose<\/th><th>FL<\/th><th>Appliance<\/th><th>Elevation<\/th><th>PDP<\/th>/);
+  assert.equal((html.match(/<tr><td><\/td><td><\/td><td><\/td><td><\/td><td><\/td><td><\/td><td><\/td><\/tr>/g) || []).length, 4);
   assert.match(html, /FL = C × \(Q ÷ 100\)<sup>2<\/sup> × \(L ÷ 100\)/);
   assert.match(html, /GPM = 29\.7 × d<sup>2<\/sup> × √NP/);
   assert.match(html, /NR = 1\.57 × d<sup>2<\/sup> × NP/);
@@ -265,19 +293,53 @@ test("operational export uses combined Hose and FL columns without changing page
     setups: [{
       ...makeSetup("path"),
       hose: `3" × 500' → 1.75" × 200'`,
-      frictionLoss: "S 18 · A 32"
+      frictionLoss: "S 18\nA 32"
     }]
   }));
   const html = packageApi.renderPackageHtml(model);
   assert.match(html, />Hose<\/th>/);
   assert.doesNotMatch(html, />Hose Size<\/th>|>Hose Length<\/th>/);
-  assert.match(html, /rf-pop-hose-section">3&quot; × 500&#039;<\/span>/);
+  assert.match(html, /rf-pop-hose-content"><span class="rf-pop-hose-section">3&quot; × 500&#039;<\/span>/);
   assert.match(html, /rf-pop-hose-arrow"> → <\/span>/);
   assert.match(html, /rf-pop-hose-section">1\.75&quot; × 200&#039;<\/span>/);
-  assert.match(html, /S 18 · A 32/);
+  assert.match(html, /rf-pop-fl-stack"><span>S 18<\/span><span>A 32<\/span>/);
   assert.equal(packageApi.PAGE_WIDTH_PX, 816);
   assert.equal(packageApi.PAGE_HEIGHT_PX, 1056);
   assert.equal(model.pageCount, 2);
+});
+
+test("setup and worksheet widths are balanced without globally shrinking hose text", () => {
+  const styles = packageApi.PAGE_STYLES;
+  assert.match(styles, /rf-pop-worksheet th:nth-child\(1\)\{width:13%\}/);
+  assert.match(styles, /rf-pop-worksheet th:nth-child\(3\)\{width:22%\}/);
+  assert.match(styles, /rf-pop-worksheet th:nth-child\(7\)\{width:14%\}/);
+  assert.match(styles, /rf-pop-setups th:first-child,[^{]+\{width:22%/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(3\)\{width:20%\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(7\)\{width:7%\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(9\)\{width:9%\}/);
+  assert.match(styles, /rf-pop-cell-hose\.rf-pop-hose-tight\{font-size:9px\}/);
+  assert.doesNotMatch(styles, /\.rf-pop-cell-hose\{[^}]*font-size/);
+  assert.match(packageApi.mountPackagePages.toString(), /content\.getBoundingClientRect\(\)\.width/);
+  assert.match(packageApi.mountPackagePages.toString(), /measuredWidth > availableWidth/);
+});
+
+test("empty optional setup values render as em dashes", () => {
+  const model = packageApi.createLayoutModel(makeData({
+    setups: [{ ...makeSetup("empty"), appliance: "", elevation: "", nozzle: "" }]
+  }));
+  const html = packageApi.renderPackageHtml(model);
+  assert.match(html, /rf-pop-cell-appliance">—<\/td>/);
+  assert.match(html, /rf-pop-cell-elevation">—<\/td>/);
+  assert.match(html, /rf-pop-cell-nozzle">—<\/td>/);
+});
+
+test("setup row adapter does not infer appliance from defaults, calculator type, nozzle type, or manual loss", () => {
+  const source = appSource.slice(
+    appSource.indexOf("function getPumpOperatorSetupRow"),
+    appSource.indexOf("function getPumpOperatorPackageData")
+  );
+  assert.match(source, /appliance: packageApi\.formatSavedAppliance\(setup\)/);
+  assert.doesNotMatch(source, /getApplianceLabel|appliance = "FDC"|hasManualApplianceLoss/);
 });
 
 test("ordinary package body content is pinned to the dark print palette", () => {
@@ -285,7 +347,7 @@ test("ordinary package body content is pinned to the dark print palette", () => 
     setups: [{
       ...makeSetup("print-color", "Dark Setup Name"),
       hose: `3" × 500' → 1.75" × 200'`,
-      frictionLoss: "S 18 · A 32",
+      frictionLoss: "S 18\nA 32",
       nozzle: "Smoothbore"
     }]
   }));
@@ -300,7 +362,7 @@ test("ordinary package body content is pinned to the dark print palette", () => 
 
   assert.match(html, /rf-pop-cell-name">Dark Setup Name/);
   assert.match(html, /rf-pop-cell-hose">/);
-  assert.match(html, /rf-pop-cell-frictionLoss">S 18 · A 32/);
+  assert.match(html, /rf-pop-cell-frictionLoss"><span class="rf-pop-fl-stack"><span>S 18<\/span><span>A 32<\/span>/);
   assert.match(html, /rf-pop-cell-nozzle">Smoothbore/);
   assert.match(html, /rf-pop-friction[\s\S]*?<td>15\.5<\/td>/);
   assert.match(html, /rf-pop-smoothbore[\s\S]*?<td>161<\/td>/);
