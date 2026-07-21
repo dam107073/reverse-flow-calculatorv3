@@ -131,31 +131,33 @@ struct TankTimeWidgetView: View {
     }
 
     private var mediumLayout: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 2) {
             brandHeader(iconSize: 31, capacityFontSize: 11)
-            HStack(alignment: .bottom, spacing: 12) {
-                countdown(fontSize: 50, alignment: .leading)
-                Spacer(minLength: 0)
-                flowSummary(valueSize: 25, compact: true)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 0) {
+                    countdown(fontSize: 50, alignment: .leading)
+                    if entry.state.isLocked {
+                        resetButton(height: 32, horizontalPadding: 18)
+                    } else {
+                        startButton(height: 32, horizontalPadding: 18)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .trailing, spacing: 0) {
+                    flowSummary(valueSize: 25, compact: true)
+                    if !entry.state.isLocked {
+                        HStack(spacing: 8) {
+                            flowButton(label: "−50", delta: -TankTimeCalculation.flowStepGPM, height: 32)
+                            flowButton(label: "+50", delta: TankTimeCalculation.flowStepGPM, height: 32)
+                        }
+                    }
+                }
+                .frame(width: 136, alignment: .trailing)
             }
-            mediumControls
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-    }
-
-    private var mediumControls: some View {
-        HStack(spacing: 8) {
-            if entry.state.isLocked {
-                Spacer(minLength: 0)
-                resetButton(height: 32, horizontalPadding: 18)
-            } else {
-                flowButton(label: "−50", delta: -TankTimeCalculation.flowStepGPM, height: 32)
-                flowButton(label: "+50", delta: TankTimeCalculation.flowStepGPM, height: 32)
-                Spacer(minLength: 4)
-                startButton(height: 32, horizontalPadding: 18)
-            }
-        }
+        .padding(.vertical, 2)
     }
 
     private var largeLayout: some View {
