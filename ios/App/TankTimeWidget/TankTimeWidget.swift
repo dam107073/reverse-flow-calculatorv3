@@ -173,38 +173,41 @@ struct TankTimeWidgetView: View {
     }
 
     private var largeIdleLayout: some View {
-        VStack(spacing: 16) {
-            brandHeader(iconSize: 48, capacityFontSize: 14)
-            HStack(spacing: 14) {
-                informationPanel {
-                    countdown(fontSize: 76, alignment: .leading)
-                }
-                informationPanel {
-                    flowSummary(valueSize: 44, compact: false)
-                }
-                .frame(width: 116)
-            }
-            Spacer(minLength: 0)
+        VStack(spacing: 0) {
+            brandHeader(iconSize: 42, capacityFontSize: 14)
+            Spacer(minLength: 6)
+            countdown(fontSize: 78, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            startButton(height: 44, horizontalPadding: 30)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 8)
+            Divider()
+                .overlay(Color.white.opacity(0.14))
+            Spacer(minLength: 8)
+            flowSummary(valueSize: 44, compact: false)
+                .frame(maxWidth: .infinity)
+            Spacer(minLength: 4)
             HStack(spacing: 12) {
-                flowButton(label: "−50", delta: -TankTimeCalculation.flowStepGPM, height: 52)
-                flowButton(label: "+50", delta: TankTimeCalculation.flowStepGPM, height: 52)
-                startButton(height: 52, horizontalPadding: 28)
+                flowButton(label: "−50", delta: -TankTimeCalculation.flowStepGPM, height: 44)
+                flowButton(label: "+50", delta: TankTimeCalculation.flowStepGPM, height: 44)
             }
         }
     }
 
     private var largeRunningLayout: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             brandHeader(iconSize: 42, capacityFontSize: 14)
-            countdown(fontSize: 94, alignment: .center)
+            Spacer(minLength: 8)
+            countdown(fontSize: 96, alignment: .center)
                 .frame(maxWidth: .infinity)
+            Spacer(minLength: 10)
             HStack(spacing: 12) {
                 metricPanel(label: "TANK CAPACITY", value: "\(entry.tankGallons)", unit: "GAL")
                 metricPanel(label: "LOCKED FLOW", value: "\(entry.state.flowGPM)", unit: "GPM")
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 10)
             resetButton(height: 52, horizontalPadding: 34)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
@@ -298,29 +301,20 @@ struct TankTimeWidgetView: View {
         .accessibilityLabel("Flow \(entry.state.flowGPM) gallons per minute\(entry.state.isLocked ? ", locked" : "")")
     }
 
-    private func informationPanel<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: 16).fill(softPanel))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.12), lineWidth: 1))
-    }
-
     private func metricPanel(label: String, value: String, unit: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.62))
                 .tracking(0.8)
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(value)
-                    .font(.system(size: 32, weight: .black, design: .rounded))
-                    .monospacedDigit()
-                Text(unit)
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .foregroundStyle(isAccented ? .white : orange)
-                    .widgetAccentable()
-            }
+            Text(value)
+                .font(.system(size: 36, weight: .black, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+            Text(unit)
+                .font(.system(size: 10, weight: .black, design: .rounded))
+                .foregroundStyle(isAccented ? .white : orange)
+                .widgetAccentable()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
