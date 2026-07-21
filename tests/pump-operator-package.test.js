@@ -19,6 +19,30 @@ function readAppFunction(name, nextName) {
   return appSource.slice(resolvedStart, end);
 }
 
+function readStandaloneFunction(name) {
+  const start = appSource.indexOf(`function ${name}`);
+  assert.notEqual(start, -1, `${name} should exist in app.js`);
+  const parametersStart = appSource.indexOf("(", start);
+  let parameterDepth = 0;
+  let bodyStart = -1;
+  for (let index = parametersStart; index < appSource.length; index += 1) {
+    if (appSource[index] === "(") parameterDepth += 1;
+    if (appSource[index] === ")") parameterDepth -= 1;
+    if (parameterDepth === 0) {
+      bodyStart = appSource.indexOf("{", index);
+      break;
+    }
+  }
+  assert.notEqual(bodyStart, -1, `${name} body should exist in app.js`);
+  let depth = 0;
+  for (let index = bodyStart; index < appSource.length; index += 1) {
+    if (appSource[index] === "{") depth += 1;
+    if (appSource[index] === "}") depth -= 1;
+    if (depth === 0) return appSource.slice(start, index + 1);
+  }
+  throw new Error(`Unable to read ${name} from app.js`);
+}
+
 function makeSetup(id, name = `Setup ${id}`) {
   return {
     id: String(id),
@@ -163,6 +187,136 @@ test("Standpipe export maps saved supply and attack hose FL without using system
   assert.equal(packageApi.formatSectionFrictionLoss(structure), "S 0.4\nA 8.0");
   assert.notEqual(structure.supplySections[0].frictionLoss, "25");
   assert.notEqual(structure.attackSections[0].frictionLoss, "25");
+});
+
+test("Standpipe elevation uses the live floor convention and survives saved-result normalization", () => {
+  const context = {
+    numberOrNull: value => value === "" || value === null || value === undefined
+      ? null
+      : Number.isFinite(Number(value)) ? Number(value) : null
+  };
+  vm.runInNewContext([
+    readStandaloneFunction("getStandpipeElevationPressure"),
+    readStandaloneFunction("getApparatusElevationPressure"),
+    readStandaloneFunction("normalizePumpChartResult")
+  ].join("\n"), context);
+
+  assert.equal(context.getStandpipeElevationPressure("1"), 0);
+  assert.equal(context.getStandpipeElevationPressure("3"), 10);
+  assert.equal(context.getStandpipeElevationPressure("8"), 35);
+  assert.equal(context.getStandpipeElevationPressure("0"), null);
+  assert.equal(context.getStandpipeElevationPressure("-2"), null);
+  assert.equal(context.getStandpipeElevationPressure(""), null);
+
+  const saved = {
+    mode: "standpipeOps",
+    inputs: { standpipeOps: { attack1Floor: "3", attack2Enabled: false } },
+    result: { pdpSummary: "143 PSI", calculatedPdp: "143" }
+  };
+  const reloaded = JSON.parse(JSON.stringify(saved));
+  reloaded.result = context.normalizePumpChartResult(
+    reloaded.mode,
+    reloaded.inputs,
+    reloaded.result
+  );
+  assert.equal(reloaded.inputs.standpipeOps.attack1Floor, "3");
+  assert.equal(reloaded.result.standpipeAttack1ElevationResult, "10 psi");
+  assert.equal(reloaded.result.standpipePrimaryPdp, "143 PSI");
+
+  const firstFloor = context.normalizePumpChartResult(
+    "standpipeOps",
+    { standpipeOps: { attack1Floor: "1" } },
+    { standpipePrimaryPdp: "132 PSI" }
+  );
+  assert.equal(firstFloor.standpipeAttack1ElevationResult, "0 psi");
+
+  const missingLegacy = context.normalizePumpChartResult(
+    "standpipeOps",
+    { standpipeOps: {} },
+    { calculatedPdp: "132" }
+  );
+  assert.equal(missingLegacy.standpipeAttack1ElevationResult, undefined);
+});
+
+test("Standpipe package row exposes saved elevation pressure and exact authoritative PDP", () => {
+  const source = readStandaloneFunction("getPumpOperatorSetupRow");
+  const context = {
+    window: { ReverseFlowPumpOperatorPackage: packageApi },
+    getPumpOperatorHydraulicStructure: () => ({
+      confidence: "confident",
+      supplySections: [{ hoseSize: "3", hoseLength: "50", frictionLoss: "0.4" }],
+      attackSections: [{ hoseSize: "2.5", hoseLength: "100", frictionLoss: "8.0" }]
+    }),
+    formatHoseSize: value => value,
+    getNozzlePressureSummary: () => "50 psi",
+    getSetupPdpSummary: () => "999 PSI",
+    getPumpOperatorNumericValue: value => {
+      const match = String(value || "").match(/-?\d+(?:\.\d+)?/);
+      return match ? match[0] : "";
+    },
+    getPumpOperatorNozzleLabel: () => "Fixed Fog"
+  };
+  const getRow = vm.runInNewContext(`${source}; getPumpOperatorSetupRow`, context);
+  const row = getRow({
+    id: "standpipe-third-floor",
+    name: "Third Floor Standpipe",
+    mode: "standpipeOps",
+    inputs: { standpipeOps: { attack1Floor: "3" } },
+    result: {
+      flowSummary: "185 GPM",
+      standpipeAttack1NpResult: "50 psi",
+      standpipeAttack1ElevationResult: "10 psi",
+      standpipePrimaryPdp: "143 PSI",
+      pdpSummary: "143 PSI"
+    }
+  });
+  assert.equal(row.elevation, "10");
+  assert.equal(row.pdp, "143");
+  assert.equal(row.frictionLoss, "S 0.4\nA 8.0");
+});
+
+test("apparatus-mounted elevation exports calculated pressure while other setups stay unchanged", () => {
+  const context = {
+    numberOrNull: value => value === "" || value === null || value === undefined
+      ? null
+      : Number.isFinite(Number(value)) ? Number(value) : null
+  };
+  vm.runInNewContext([
+    readStandaloneFunction("getStandpipeElevationPressure"),
+    readStandaloneFunction("getApparatusElevationPressure"),
+    readStandaloneFunction("normalizePumpChartResult")
+  ].join("\n"), context);
+
+  const apparatus = context.normalizePumpChartResult(
+    "apparatusMounted",
+    { apparatusElevation: "30" },
+    { pdpSummary: "88 PSI" }
+  );
+  assert.equal(apparatus.apparatusElevationLoss, "13.0 psi");
+  assert.equal(apparatus.pdpSummary, "88 PSI");
+
+  const ordinary = { pdpSummary: "85 PSI", totalFl: "35 psi" };
+  const unchanged = context.normalizePumpChartResult(
+    "requiredPdp",
+    { applianceLoss: "0" },
+    ordinary
+  );
+  assert.deepEqual({ ...unchanged }, ordinary);
+});
+
+test("live Standpipe and apparatus calculations share the export elevation helpers", () => {
+  const standpipeSource = readStandaloneFunction("calculateStandpipeAttackLine");
+  const standpipeOpsSource = readStandaloneFunction("calculateStandpipeOps");
+  const apparatusSource = readStandaloneFunction("calculateApparatusMounted");
+  const snapshotSource = readStandaloneFunction("captureCurrentResultSnapshot");
+  assert.match(standpipeSource, /getStandpipeElevationPressure\(floor\)/);
+  assert.doesNotMatch(standpipeSource, /\(floor - 1\) \* 5/);
+  assert.match(standpipeSource, /requiredPdp = nozzlePressure \+ totalFl \+ elevationLoss/);
+  assert.match(standpipeOpsSource, /highestAttackSidePdp \+\s*standpipeLoss \+\s*supplyTotalFl/);
+  assert.match(apparatusSource, /getApparatusElevationPressure\(elevationFeet\)/);
+  assert.match(snapshotSource, /standpipeAttack1ElevationResult/);
+  assert.match(snapshotSource, /standpipePrimaryPdp/);
+  assert.match(snapshotSource, /apparatusElevationLoss/);
 });
 
 test("legacy Standpipe export with missing saved hose FL fails safely", () => {

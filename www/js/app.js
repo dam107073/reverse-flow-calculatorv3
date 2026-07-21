@@ -2604,6 +2604,7 @@ function normalizePumpChartSetup(setup) {
       : {})
   };
   normalizeStateNozzleTypes(normalizedInputs);
+  const normalizedResult = normalizePumpChartResult(mode, normalizedInputs, result);
 
   return {
     id: setup.id || generatePumpChartId("setup"),
@@ -2614,9 +2615,51 @@ function normalizePumpChartSetup(setup) {
     createdAt: setup.createdAt || nowIsoString(),
     updatedAt: setup.updatedAt || setup.createdAt || nowIsoString(),
     inputs: JSON.parse(JSON.stringify(normalizedInputs)),
-    result: JSON.parse(JSON.stringify(result || {})),
+    result: JSON.parse(JSON.stringify(normalizedResult)),
     warnings: Array.isArray(setup.warnings) ? [...setup.warnings] : []
   };
+}
+
+function getStandpipeElevationPressure(floorValue) {
+  const floor = numberOrNull(floorValue);
+  return floor !== null && floor >= 1 ? (floor - 1) * 5 : null;
+}
+
+function getApparatusElevationPressure(feetValue) {
+  const feet = numberOrNull(feetValue);
+  return feet !== null && feet >= 0 ? feet * 0.434 : null;
+}
+
+function normalizePumpChartResult(mode, inputs = {}, result = {}) {
+  const normalized = { ...(result || {}) };
+
+  if (mode === "standpipeOps") {
+    const standpipe = inputs.standpipeOps || {};
+    const line1Elevation = getStandpipeElevationPressure(standpipe.attack1Floor);
+    const line2Elevation = standpipe.attack2Enabled
+      ? getStandpipeElevationPressure(standpipe.attack2Floor)
+      : null;
+
+    if (!normalized.standpipeAttack1ElevationResult && line1Elevation !== null) {
+      normalized.standpipeAttack1ElevationResult = `${Math.round(line1Elevation)} psi`;
+    }
+    if (!normalized.standpipeAttack2ElevationResult && line2Elevation !== null) {
+      normalized.standpipeAttack2ElevationResult = `${Math.round(line2Elevation)} psi`;
+    }
+    if (!normalized.standpipePrimaryPdp) {
+      normalized.standpipePrimaryPdp =
+        normalized.pdpSummary || normalized.calculatedPdp || normalized.primaryResult || "";
+    }
+  }
+
+  if (mode === "apparatusMounted" && !normalized.apparatusElevationLoss) {
+    const elevationPressure = getApparatusElevationPressure(inputs.apparatusElevation);
+    if (elevationPressure !== null) {
+      normalized.apparatusElevationLoss = `${elevationPressure.toFixed(1)} psi`;
+    }
+  }
+
+  return normalized;
 }
 
 function loadPumpCharts() {
@@ -4843,9 +4886,14 @@ function captureCurrentResultSnapshot(presetData) {
     standpipeAttack1FlowResult: els.standpipeAttack1FlowResult?.textContent || "",
     standpipeAttack1NpResult: els.standpipeAttack1NpResult?.textContent || "",
     standpipeAttack1FlResult: els.standpipeAttack1FlResult?.textContent || "",
+    standpipeAttack1ElevationResult: els.standpipeAttack1ElevationResult?.textContent || "",
     standpipeAttack2FlowResult: els.standpipeAttack2FlowResult?.textContent || "",
     standpipeAttack2NpResult: els.standpipeAttack2NpResult?.textContent || "",
     standpipeAttack2FlResult: els.standpipeAttack2FlResult?.textContent || "",
+    standpipeAttack2ElevationResult: els.standpipeAttack2ElevationResult?.textContent || "",
+    standpipePrimaryPdp: els.standpipePrimaryPdp?.textContent || "",
+    apparatusElevationLoss:
+      state.mode === "apparatusMounted" ? els.flPer100?.textContent || "" : "",
     summary: buildLegacyPresetSummary(presetData)
   };
 }
@@ -9423,14 +9471,17 @@ function getPumpOperatorSetupRow(setup) {
   const hose = packageApi.formatHosePath(structure, formatHoseSize);
   const frictionLoss = packageApi.formatSectionFrictionLoss(structure);
   let nozzlePressure = getNozzlePressureSummary(inputs);
-  let elevation = inputs.apparatusElevation || "";
+  let elevation = setup.mode === "apparatusMounted"
+    ? result.apparatusElevationLoss || ""
+    : "";
+  let pdp = result.pdpSummary || result.calculatedPdp || getSetupPdpSummary(setup);
 
   if (setup.mode === "splitLay") {
     nozzlePressure = result.splitAttack1NpResult;
   } else if (setup.mode === "standpipeOps") {
-    const standpipe = getStandpipeOpsData(setup);
     nozzlePressure = result.standpipeAttack1NpResult;
-    elevation = standpipe.attack1Elevation || standpipe.elevation || "";
+    elevation = result.standpipeAttack1ElevationResult || "";
+    pdp = result.standpipePrimaryPdp || pdp;
   }
 
   return {
@@ -9445,7 +9496,7 @@ function getPumpOperatorSetupRow(setup) {
     nozzlePressure: getPumpOperatorNumericValue(nozzlePressure),
     appliance: packageApi.formatSavedAppliance(setup),
     elevation: getPumpOperatorNumericValue(elevation),
-    pdp: getPumpOperatorNumericValue(result.pdpSummary || result.calculatedPdp || getSetupPdpSummary(setup))
+    pdp: getPumpOperatorNumericValue(pdp)
   };
 }
 
@@ -12988,7 +13039,7 @@ function calculateApparatusMounted({ nozzlePressure, nozzleType, ratedPressure, 
     return;
   }
 
-  const elevationLoss = elevationFeet * 0.434;
+  const elevationLoss = getApparatusElevationPressure(elevationFeet);
   const requiredPdp =
     effectiveNozzlePressure +
     elevationLoss +
@@ -13200,7 +13251,7 @@ function calculateStandpipeAttackLine(lineNumber, warnings) {
   const coefficient = getActiveHoseCoefficient(hose.id);
   const flPer100 = coefficient * Math.pow(flow / 100, 2);
   const totalFl = flPer100 * (length / 100);
-  const elevationLoss = (floor - 1) * 5;
+  const elevationLoss = getStandpipeElevationPressure(floor);
   const requiredPdp = nozzlePressure + totalFl + elevationLoss;
   const reaction =
     nozzleType === "smoothbore" || nozzleType === "blade"
