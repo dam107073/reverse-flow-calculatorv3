@@ -7,6 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA1000012E20000100A10001 /* TankTimeCalculation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000012E20000100A20001 /* TankTimeCalculation.swift */; };
+		AA1000022E20000100A10002 /* TankTimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000022E20000100A20002 /* TankTimeState.swift */; };
+		AA1000032E20000100A10003 /* TankTimeIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000032E20000100A20003 /* TankTimeIntents.swift */; };
+		AA1000042E20000100A10004 /* TankTimeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000042E20000100A20004 /* TankTimeWidget.swift */; };
+		AA1000052E20000100A10005 /* TankTimeWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000052E20000100A20005 /* TankTimeWidgetBundle.swift */; };
+		AA1000062E20000100A10006 /* TankTimeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = AA2000072E20000100A20007 /* TankTimeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA1000072E20000100A10007 /* TankTimeCalculation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000012E20000100A20001 /* TankTimeCalculation.swift */; };
+		AA1000082E20000100A10008 /* TankTimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000022E20000100A20002 /* TankTimeState.swift */; };
+		AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000032E20000100A20003 /* TankTimeIntents.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		3F0E75572FF0588800AE0600 /* FacebookCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3F0E75562FF0588800AE0600 /* FacebookCore */; };
 		3F5F9B342FD0547D007A4BF1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F5F9B332FD0547D007A4BF1 /* StoreKit.framework */; };
@@ -20,7 +29,38 @@
 		D401FA2E2E10000100FB2518 /* MetaAppEventsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		AA6000022E20000100A60002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA4000012E20000100A40001;
+			remoteInfo = TankTimeWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AA3000042E20000100A30004 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AA1000062E20000100A10006 /* TankTimeWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		AA2000012E20000100A20001 /* TankTimeCalculation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeCalculation.swift; sourceTree = "<group>"; };
+		AA2000022E20000100A20002 /* TankTimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeState.swift; sourceTree = "<group>"; };
+		AA2000032E20000100A20003 /* TankTimeIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeIntents.swift; sourceTree = "<group>"; };
+		AA2000042E20000100A20004 /* TankTimeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeWidget.swift; sourceTree = "<group>"; };
+		AA2000052E20000100A20005 /* TankTimeWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeWidgetBundle.swift; sourceTree = "<group>"; };
+		AA2000062E20000100A20006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AA2000072E20000100A20007 /* TankTimeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TankTimeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		3F0E75532FF0578000AE0600 /* Accessibility.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accessibility.framework; path = System/Library/Frameworks/Accessibility.framework; sourceTree = SDKROOT; };
 		3F5F9B332FD0547D007A4BF1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
@@ -37,6 +77,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		AA3000012E20000100A30001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3011FED79650016851F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -64,6 +111,7 @@
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
+				AA3000052E20000100A30005 /* TankTimeWidget */,
 				3F5F9B322FD0547D007A4BF1 /* Frameworks */,
 				504EC3051FED79650016851F /* Products */,
 			);
@@ -73,6 +121,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* Reverse Flow: Fire Hydraulics.app */,
+				AA2000072E20000100A20007 /* TankTimeWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -93,6 +142,19 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		AA3000052E20000100A30005 /* TankTimeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				AA2000012E20000100A20001 /* TankTimeCalculation.swift */,
+				AA2000022E20000100A20002 /* TankTimeState.swift */,
+				AA2000032E20000100A20003 /* TankTimeIntents.swift */,
+				AA2000042E20000100A20004 /* TankTimeWidget.swift */,
+				AA2000052E20000100A20005 /* TankTimeWidgetBundle.swift */,
+				AA2000062E20000100A20006 /* Info.plist */,
+			);
+			path = TankTimeWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -103,10 +165,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				AA3000042E20000100A30004 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AA6000012E20000100A60001 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -116,6 +180,25 @@
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* Reverse Flow: Fire Hydraulics.app */;
 			productType = "com.apple.product-type.application";
+		};
+		AA4000012E20000100A40001 /* TankTimeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA5000032E20000100A50003 /* Build configuration list for PBXNativeTarget "TankTimeWidget" */;
+			buildPhases = (
+				AA3000022E20000100A30002 /* Sources */,
+				AA3000012E20000100A30001 /* Frameworks */,
+				AA3000032E20000100A30003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TankTimeWidget;
+			packageProductDependencies = (
+			);
+			productName = TankTimeWidget;
+			productReference = AA2000072E20000100A20007 /* TankTimeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -129,6 +212,10 @@
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1100;
+						ProvisioningStyle = Automatic;
+					};
+					AA4000012E20000100A40001 = {
+						CreatedOnToolsVersion = 26.6;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -151,11 +238,19 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				AA4000012E20000100A40001 /* TankTimeWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		AA3000032E20000100A30003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3021FED79650016851F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -172,16 +267,39 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AA3000022E20000100A30002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA1000012E20000100A10001 /* TankTimeCalculation.swift in Sources */,
+				AA1000022E20000100A10002 /* TankTimeState.swift in Sources */,
+				AA1000032E20000100A10003 /* TankTimeIntents.swift in Sources */,
+				AA1000042E20000100A10004 /* TankTimeWidget.swift in Sources */,
+				AA1000052E20000100A10005 /* TankTimeWidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3001FED79650016851F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA1000072E20000100A10007 /* TankTimeCalculation.swift in Sources */,
+				AA1000082E20000100A10008 /* TankTimeState.swift in Sources */,
+				AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				D401FA2E2E10000100FB2518 /* MetaAppEventsPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA6000012E20000100A60001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA4000012E20000100A40001 /* TankTimeWidget */;
+			targetProxy = AA6000022E20000100A60002 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -203,6 +321,55 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		AA5000012E20000100A50001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K5JKR34DQ7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TankTimeWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.3.3;
+				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile.tanktimewidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA5000022E20000100A50002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K5JKR34DQ7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TankTimeWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.3.3;
+				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile.tanktimewidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		504EC3141FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
@@ -361,6 +528,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AA5000032E20000100A50003 /* Build configuration list for PBXNativeTarget "TankTimeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA5000012E20000100A50001 /* Debug */,
+				AA5000022E20000100A50002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
