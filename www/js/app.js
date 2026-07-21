@@ -9299,6 +9299,13 @@ function createPumpOperatorSection(hoseSize, hoseLength, frictionLoss) {
   };
 }
 
+function getPumpOperatorStandpipeFrictionLosses(result) {
+  return {
+    supplyFl: getPumpOperatorNumericValue(result?.standpipeSupplyLoss),
+    attackFl: getPumpOperatorNumericValue(result?.standpipeAttack1FlResult)
+  };
+}
+
 function getPumpOperatorHydraulicStructure(setup) {
   if (
     setup.hydraulicStructure?.confidence === "confident" &&
@@ -9315,8 +9322,15 @@ function getPumpOperatorHydraulicStructure(setup) {
   let attackSections = [];
 
   if (nested && typeof nested === "object" && ("attack1HoseSize" in nested || "attack1Length" in nested)) {
-    const supplyLoss = getPumpOperatorResultField(result, /SupplyLoss$/i);
-    const attack1Loss = getPumpOperatorResultField(result, /Attack1FlResult$/i);
+    const standpipeFl = setup.mode === "standpipeOps"
+      ? getPumpOperatorStandpipeFrictionLosses(result)
+      : null;
+    const supplyLoss = standpipeFl
+      ? standpipeFl.supplyFl
+      : getPumpOperatorResultField(result, /SupplyLoss$/i);
+    const attack1Loss = standpipeFl
+      ? standpipeFl.attackFl
+      : getPumpOperatorResultField(result, /Attack1FlResult$/i);
     const attack2Loss = getPumpOperatorResultField(result, /Attack2FlResult$/i);
     const firstSupply = createPumpOperatorSection(nested.supplyHoseSize, nested.supplyLength, supplyLoss);
     const supplyLineCount = nested.dualSupply ? 2 : 1;

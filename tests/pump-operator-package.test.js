@@ -129,6 +129,92 @@ test("hose paths and section friction loss use the normalized structured model",
   assert.equal(packageApi.formatSectionFrictionLoss(supplyAndAttack), "S 18\nA 32");
 });
 
+test("Standpipe export maps saved supply and attack hose FL without using system loss", () => {
+  const adapterSource = appSource.slice(
+    appSource.indexOf("function getPumpOperatorNumericValue"),
+    appSource.indexOf("function getPumpOperatorSetupCandidate")
+  );
+  const context = {};
+  vm.runInNewContext(`${adapterSource}; this.getPumpOperatorHydraulicStructure = getPumpOperatorHydraulicStructure;`, context);
+  const setup = {
+    mode: "standpipeOps",
+    inputs: {
+      standpipeOps: {
+        supplyHoseSize: "3",
+        supplyLength: "50",
+        dualSupply: false,
+        attack1HoseSize: "2.5",
+        attack1Length: "100",
+        attack2Enabled: false
+      }
+    },
+    result: {
+      splitSupplyLoss: "—",
+      splitAttack1FlResult: "—",
+      standpipeSupplyLoss: "0.4 psi",
+      standpipeAttack1FlResult: "8.0 psi",
+      standpipeLossResult: "25 psi"
+    }
+  };
+  const structure = context.getPumpOperatorHydraulicStructure(setup);
+  assert.equal(structure.confidence, "confident");
+  assert.equal(structure.supplySections[0].frictionLoss, "0.4");
+  assert.equal(structure.attackSections[0].frictionLoss, "8.0");
+  assert.equal(packageApi.formatSectionFrictionLoss(structure), "S 0.4\nA 8.0");
+  assert.notEqual(structure.supplySections[0].frictionLoss, "25");
+  assert.notEqual(structure.attackSections[0].frictionLoss, "25");
+});
+
+test("legacy Standpipe export with missing saved hose FL fails safely", () => {
+  const adapterSource = appSource.slice(
+    appSource.indexOf("function getPumpOperatorNumericValue"),
+    appSource.indexOf("function getPumpOperatorSetupCandidate")
+  );
+  const context = {};
+  vm.runInNewContext(`${adapterSource}; this.getPumpOperatorHydraulicStructure = getPumpOperatorHydraulicStructure;`, context);
+  const structure = context.getPumpOperatorHydraulicStructure({
+    mode: "standpipeOps",
+    inputs: {
+      standpipeOps: {
+        supplyHoseSize: "3",
+        supplyLength: "50",
+        attack1HoseSize: "2.5",
+        attack1Length: "100",
+        attack2Enabled: false
+      }
+    },
+    result: { standpipeLossResult: "25 psi" }
+  });
+  assert.equal(packageApi.formatSectionFrictionLoss(structure), "S —\nA —");
+});
+
+test("non-Standpipe no-supply and one-supply FL normalization is unchanged", () => {
+  const adapterSource = appSource.slice(
+    appSource.indexOf("function getPumpOperatorNumericValue"),
+    appSource.indexOf("function getPumpOperatorSetupCandidate")
+  );
+  const context = {};
+  vm.runInNewContext(`${adapterSource}; this.getPumpOperatorHydraulicStructure = getPumpOperatorHydraulicStructure;`, context);
+  const attackOnly = context.getPumpOperatorHydraulicStructure({
+    mode: "requiredPdp",
+    inputs: { hoseSize: "1.75", hoseLength: "200", reverseSupplyEnabled: false },
+    result: { totalFl: "32 psi" }
+  });
+  const oneSupply = context.getPumpOperatorHydraulicStructure({
+    mode: "requiredPdp",
+    inputs: {
+      hoseSize: "1.75",
+      hoseLength: "200",
+      reverseSupplyEnabled: true,
+      reverseSupplyHoseSize: "3",
+      reverseSupplyLength: "500"
+    },
+    result: { supplyFrictionLoss: "18 psi", attackFrictionLoss: "32 psi" }
+  });
+  assert.equal(packageApi.formatSectionFrictionLoss(attackOnly), "32");
+  assert.equal(packageApi.formatSectionFrictionLoss(oneSupply), "S 18\nA 32");
+});
+
 test("appliance export uses only explicit saved operational appliance data", () => {
   assert.equal(packageApi.formatSavedAppliance({
     mode: "reverse",
@@ -313,14 +399,34 @@ test("setup and worksheet widths are balanced without globally shrinking hose te
   assert.match(styles, /rf-pop-worksheet th:nth-child\(1\)\{width:13%\}/);
   assert.match(styles, /rf-pop-worksheet th:nth-child\(3\)\{width:22%\}/);
   assert.match(styles, /rf-pop-worksheet th:nth-child\(7\)\{width:14%\}/);
-  assert.match(styles, /rf-pop-setups th:first-child,[^{]+\{width:22%/);
+  assert.match(styles, /rf-pop-setups th:first-child,[^{]+\{width:20%/);
   assert.match(styles, /rf-pop-setups th:nth-child\(3\)\{width:20%\}/);
-  assert.match(styles, /rf-pop-setups th:nth-child\(7\)\{width:7%\}/);
-  assert.match(styles, /rf-pop-setups th:nth-child\(9\)\{width:9%\}/);
-  assert.match(styles, /rf-pop-cell-hose\.rf-pop-hose-tight\{font-size:9px\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(5\)\{width:11%\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(7\)\{width:8%\}/);
+  assert.match(styles, /rf-pop-setups th:nth-child\(9\)\{width:10%\}/);
+  assert.match(styles, /rf-pop-cell-hose\.rf-pop-hose-tight,[^{]+\{font-size:9px\}/);
   assert.doesNotMatch(styles, /\.rf-pop-cell-hose\{[^}]*font-size/);
   assert.match(packageApi.mountPackagePages.toString(), /content\.getBoundingClientRect\(\)\.width/);
   assert.match(packageApi.mountPackagePages.toString(), /measuredWidth > availableWidth/);
+});
+
+test("common nozzle and appliance labels stay whole with measured local fallback", () => {
+  const model = packageApi.createLayoutModel(makeData({
+    setups: [
+      { ...makeSetup("smooth"), nozzle: "Smoothbore", appliance: "Gate Valve" },
+      { ...makeSetup("fixed"), nozzle: "Fixed Fog", appliance: "Gated Wye" },
+      { ...makeSetup("automatic"), nozzle: "Automatic Fog", appliance: "" }
+    ]
+  }));
+  const html = packageApi.renderPackageHtml(model);
+  assert.match(html, /rf-pop-nowrap-label">Smoothbore<\/span>/);
+  assert.match(html, /rf-pop-nowrap-label">Fixed Fog<\/span>/);
+  assert.match(html, /rf-pop-nowrap-label">Automatic Fog<\/span>/);
+  assert.match(html, /rf-pop-nowrap-label">Gate Valve<\/span>/);
+  assert.match(html, /rf-pop-nowrap-label">Gated Wye<\/span>/);
+  assert.match(packageApi.PAGE_STYLES, /rf-pop-nowrap-label\{[^}]*white-space:nowrap/);
+  assert.match(packageApi.PAGE_STYLES, /rf-pop-cell-nozzle\.rf-pop-label-tight,[^{]+\{font-size:9px\}/);
+  assert.match(packageApi.mountPackagePages.toString(), /rf-pop-cell-nozzle, \.rf-pop-cell-appliance/);
 });
 
 test("empty optional setup values render as em dashes", () => {
@@ -363,7 +469,7 @@ test("ordinary package body content is pinned to the dark print palette", () => 
   assert.match(html, /rf-pop-cell-name">Dark Setup Name/);
   assert.match(html, /rf-pop-cell-hose">/);
   assert.match(html, /rf-pop-cell-frictionLoss"><span class="rf-pop-fl-stack"><span>S 18<\/span><span>A 32<\/span>/);
-  assert.match(html, /rf-pop-cell-nozzle">Smoothbore/);
+  assert.match(html, /rf-pop-cell-nozzle"><span class="rf-pop-nowrap-label">Smoothbore/);
   assert.match(html, /rf-pop-friction[\s\S]*?<td>15\.5<\/td>/);
   assert.match(html, /rf-pop-smoothbore[\s\S]*?<td>161<\/td>/);
   assert.match(html, /rf-pop-formula-grid[\s\S]*?FL = C ×/);
