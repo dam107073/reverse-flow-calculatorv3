@@ -549,7 +549,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
 	  if (state === "ready") {
 	    els.buyProButton.disabled = false;
-	    els.buyProButton.textContent = "Upgrade to Pro";
+	    els.buyProButton.textContent = "Legacy product unavailable";
 	  } else if (state === "loading") {
 	    els.buyProButton.disabled = true;
 	    els.buyProButton.textContent = "Loading purchase...";
@@ -558,13 +558,13 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 		    els.buyProButton.textContent = "Processing purchase...";
 		  } else if (state === "owned") {
 		    els.buyProButton.disabled = true;
-		    els.buyProButton.textContent = "Pro Active";
+		    els.buyProButton.textContent = "Previous purchase detected";
 		  } else if (state === "confirmationPending") {
 		    els.buyProButton.disabled = true;
-		    els.buyProButton.textContent = "Pro Active - Confirming Purchase";
+		    els.buyProButton.textContent = "Previous purchase detected - confirming";
 	  } else if (state === "restoreRequired") {
 	    els.buyProButton.disabled = true;
-	    els.buyProButton.textContent = "Pro Owned - Restore to Activate";
+	    els.buyProButton.textContent = "Previous purchase detected";
 	  } else if (state === "web") {
 	    els.buyProButton.disabled = true;
 	    els.buyProButton.textContent = "Purchase in Mobile App";
@@ -772,37 +772,6 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  const grantWasRestore = Boolean(options.restore);
 	  const grantWasPurchase = Boolean(options.purchase);
 
-	  if (!grantWasRestore && !grantWasPurchase) {
-	    if (wasAlreadyPro) {
-	      updateBuyProButtonState("owned", {
-	        reason: "stored Pro entitlement is already active",
-	        trigger,
-	        source: ownership.source
-	      });
-	      return true;
-	    }
-
-	    logProAccessEvent("sdk-owned-startup-grant-suppressed", {
-	      trigger,
-	      source: ownership.source,
-	      productId: ownership.productId,
-	      ...(IAP_DEBUG_DIAGNOSTICS
-	        ? {
-	            ownership,
-	            storeSnapshot: getReverseFlowProStoreSnapshot(store)
-	          }
-	        : {}),
-	      reason: "explicit purchase or restore is required to activate Pro on this device"
-	    });
-
-	    updateBuyProButtonState("restoreRequired", {
-	      reason: "SDK reports exact Pro product ownership but local entitlement is not active",
-	      trigger,
-	      source: ownership.source
-	    });
-	    return false;
-	  }
-
 	  logProAccessEvent("sdk-owned-detected-pro", {
 	    trigger,
 	    source: ownership.source,
@@ -856,7 +825,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  }
 
 	  if (!wasAlreadyPro && grantWasPurchase && !grantWasRestore) {
-	    alert("Reverse Flow Pro Unlocked");
+	    alert("Previous purchase detected. You can claim Supporter status.");
 	  }
 
 	  return true;
@@ -1014,6 +983,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      source: "purchase",
 	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
 	      trigger,
+	      originalTransactionId: transaction?.transactionId || transaction?.purchaseId || null,
+	      purchaseToken: transaction?.purchaseToken || transaction?.token || null,
 	      verifiedAt: new Date().toISOString()
 	    };
 	    localStorage.setItem(
@@ -1058,6 +1029,9 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    transactionRef: redactAndroidTransactionId(transaction),
 	    trigger
 	  });
+	  document.dispatchEvent(new CustomEvent("reverseflow:legacy-entitlement-changed", {
+	    detail: { hasLegacyProEntitlement: true }
+	  }));
 	  return true;
 	}
 
@@ -1168,7 +1142,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    els.restorePurchaseButton.disabled = false;
 	    els.restorePurchaseButton.textContent = options.restore
 	      ? "Restore Complete"
-	      : "Restore Purchase";
+	      : "Check Previous Purchase";
 	  }
 
 	  if (els.proModal) {
@@ -1176,7 +1150,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  }
 
 	  if (options.purchase && !options.wasAlreadyPro) {
-	    alert("Reverse Flow Pro Unlocked");
+	    alert("Previous purchase detected. You can claim Supporter status.");
 	  }
 	}
 
@@ -1297,13 +1271,6 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      state: assessment.state
 	    });
 
-	    if (!wasAlreadyPro && !purchase && !restore) {
-	      updateBuyProButtonState("restoreRequired", {
-	        reason: "Google Play owns Pro; explicit restore is required on this device"
-	      });
-	      return true;
-	    }
-
 	    if (!wasAlreadyPro && !persistAndroidProEntitlement(transaction, trigger)) {
 	      return false;
 	    }
@@ -1336,7 +1303,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      reverseFlowPurchaseInProgress = false;
 	      reverseFlowRestoreInProgress = false;
 	      if (purchase || restore) {
-	        alert("Your purchase was received, but Pro could not be saved on this device. Please reopen the app or tap Restore Purchase to retry.");
+	        alert("Your purchase was received, but previous purchase eligibility could not be saved on this device. Please reopen the app or tap Check Previous Purchase to retry.");
 	      }
 	      return false;
 	    }
@@ -1416,7 +1383,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      "acknowledgement confirmation timeout"
 	    );
 	    if ((purchase || restore) && !options.retry) {
-	      alert("Reverse Flow Pro is active. Google Play confirmation is still pending, and the app will retry automatically.");
+	      alert("Previous purchase eligibility is active. Google Play confirmation is still pending, and the app will retry automatically.");
 	    }
 	    return false;
 	  })();
@@ -1808,27 +1775,6 @@ logStoreEvent("initialize-start", {
 	      const grantWasRestore = receiptWasRestore;
 	      const grantSource = receiptInspection;
 
-	      if (!wasAlreadyPro && !grantWasRestore && !reverseFlowPurchaseInProgress) {
-	        logProAccessEvent("verified-receipt-startup-grant-suppressed", {
-	          trigger: "store.when().verified",
-	          source: "verified-receipt",
-	          productId: grantSource.productId,
-	          matchingPath: grantSource.canonicalPath,
-	          storeOwnsPro,
-	          ...getIapDiagnosticPayload({
-	            matchingCandidate: grantSource.matchingCandidate,
-	            verifiedReceiptValuePaths,
-	            storeSnapshot: getReverseFlowProStoreSnapshot(store)
-	          }),
-	          reason: "explicit purchase or restore is required to activate Pro on this device"
-	        });
-	        updateBuyProButtonState("restoreRequired", {
-	          reason: "verified receipt contains Pro but local entitlement is not active",
-	          trigger: "store.when().verified"
-	        });
-	        return;
-	      }
-
 	      logProAccessEvent("verified-receipt-detected-pro", {
 	        trigger: "store.when().verified",
 	        source: grantWasRestore ? "restore" : "purchase",
@@ -1845,7 +1791,11 @@ logStoreEvent("initialize-start", {
 	      const proWasGranted = setAccessLevel(ACCESS_LEVELS.PRO, {
 	        trigger: "store.when().verified",
 	        source: "purchase",
-	        productId: grantSource.productId
+	        productId: grantSource.productId,
+	        originalTransactionId:
+	          grantSource.matchingCandidate?.transactionId ||
+	          grantSource.matchingCandidate?.purchaseId ||
+	          null
 	      });
 
 	      if (!proWasGranted) return;
@@ -1853,7 +1803,7 @@ logStoreEvent("initialize-start", {
 	      reverseFlowRestoreInProgress = false;
 	      if (els.restorePurchaseButton) {
 	        els.restorePurchaseButton.disabled = false;
-	        els.restorePurchaseButton.textContent = "Restore Purchase";
+	        els.restorePurchaseButton.textContent = "Check Previous Purchase";
 	      }
 
 	      logProAccessEvent("pro-grant-succeeded", {
@@ -1871,7 +1821,7 @@ logStoreEvent("initialize-start", {
 	        if (reverseFlowPurchaseInProgress && !grantWasRestore) {
 	          logMetaProPurchaseEvent(grantSource);
 	        }
-	        alert("Reverse Flow Pro Unlocked");
+	        alert("Previous purchase detected. You can claim Supporter status.");
       }
 
       reverseFlowPurchaseInProgress = false;
@@ -2066,18 +2016,6 @@ logStoreEvent("initialize-start", {
     updateToolsGate();
     bindSupportPageEvents();
 
-    if (
-      els.toolsPage &&
-      typeof guardToolsAccess === "function" &&
-      !guardToolsAccess({
-        safeUrl: "index.html",
-        redirectDelayMs: 250,
-        reason: "tools-page-load"
-      })
-    ) {
-      return;
-    }
-
       renderSupportPageToolsContent();
       return;
     }
@@ -2105,12 +2043,6 @@ logStoreEvent("initialize-start", {
 }
 
 function updateAccessBadge() {
-
-  document.body.classList.toggle(
-    "pro-user",
-    isProUser()
-  );
-
   document.body.classList.add("access-ready");
 
   if (els.toolsPage) {
@@ -2123,22 +2055,10 @@ function updateAccessBadge() {
     }
   }
 
-  const badge = document.getElementById("accessBadge");
-
-  if (!badge) return;
-
-  if (userAccessLevel === ACCESS_LEVELS.PRO) {
-    badge.textContent = "PRO";
-    return;
-  }
-
-  badge.textContent = "BASIC";
 }
 
 function updateToolsGate() {
   if (!els.toolsPage) return;
-
-  const hasProAccess = isProUser();
 
   if (typeof guardToolsAccess === "function") {
     guardToolsAccess({
@@ -2148,17 +2068,17 @@ function updateToolsGate() {
     });
   } else {
     if (els.toolsProContent) {
-      els.toolsProContent.hidden = !hasProAccess;
-      els.toolsProContent.inert = !hasProAccess;
-      els.toolsProContent.setAttribute("aria-hidden", hasProAccess ? "false" : "true");
+      els.toolsProContent.hidden = false;
+      els.toolsProContent.inert = false;
+      els.toolsProContent.setAttribute("aria-hidden", "false");
     }
 
     if (els.toolsProLockedMessage) {
-      els.toolsProLockedMessage.hidden = hasProAccess;
+      els.toolsProLockedMessage.hidden = true;
     }
   }
 
-  if (hasProAccess && els.proModal) {
+  if (els.proModal) {
     els.proModal.hidden = true;
   }
 }
@@ -2181,7 +2101,7 @@ function renderSupportPageToolsContent() {
     }
 
     function isProGatedCalculatorMode(mode) {
-      return PRO_GATED_CALCULATOR_MODES.has(mode);
+      return false;
     }
 
     function getSessionActiveMode() {
@@ -2205,10 +2125,7 @@ function renderSupportPageToolsContent() {
   const sessionMode = getSessionActiveMode();
   const freshState = {
     ...DEFAULT_STATE,
-    mode:
-      isProGatedCalculatorMode(sessionMode) && !isProUser()
-        ? DEFAULT_STATE.mode
-        : sessionMode,
+    mode: sessionMode,
     hoseSize: resolveVisibleHoseDefault(DEFAULT_STATE.hoseSize, HOSE_OPTIONS),
     reverseSupplyHoseSize: resolveVisibleHoseDefault(
       DEFAULT_STATE.reverseSupplyHoseSize,
@@ -2251,10 +2168,7 @@ function renderSupportPageToolsContent() {
               parsed.reverseSupplyHoseSize || DEFAULT_STATE.reverseSupplyHoseSize,
               getSupplyHoseOptions()
             ),
-            mode:
-              isProGatedCalculatorMode(sessionMode) && !isProUser()
-                ? DEFAULT_STATE.mode
-                : sessionMode,
+            mode: sessionMode,
             splitLay: {
               ...getVisibleDefaultSplitLayState(),
               ...(parsed.splitLay || {})
@@ -2314,11 +2228,6 @@ function renderSupportPageToolsContent() {
     }
 
     function savePresets(presets) {
-  if (!isProUser()) {
-    openProModal();
-    return false;
-  }
-
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
   return true;
 }
@@ -2678,11 +2587,6 @@ function loadPumpCharts() {
 }
 
 function savePumpCharts(data) {
-  if (!isProUser()) {
-    openProModal();
-    return false;
-  }
-
   const packageApi = window.ReverseFlowPumpOperatorPackage;
   if (packageApi) {
     let persistedNames = new Map();
@@ -4705,11 +4609,6 @@ function renderPumpChartSetupRenameForm(chartId, setupId) {
 }
 
 function submitPumpChartSaveForm() {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
   const setupName = document.getElementById("pumpChartSetupName")?.value.trim();
   const setupNotes = document.getElementById("pumpChartSetupNotes")?.value.trim() || "";
   const saveMode = document.getElementById("pumpChartSaveMode")?.value || "existing";
@@ -4770,11 +4669,6 @@ function submitPumpChartSaveForm() {
 }
 
 function updateActivePumpChartSetup() {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
   if (!activePumpChartEdit) {
     alert("Load a saved Pump Chart setup before updating it.");
     return;
@@ -7245,17 +7139,6 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
       const isSettings = viewName === "settings";
       const isTools = viewName === "tools";
 
-      if (
-        isTools &&
-        typeof guardToolsAccess === "function" &&
-        !guardToolsAccess({
-          redirect: false,
-          reason: "in-app-tools-view"
-        })
-      ) {
-        return;
-      }
-
       els.calculatorView.hidden = isSettings || isTools;
       els.settingsView.hidden = !isSettings;
       els.toolsView.hidden = !isTools;
@@ -7265,7 +7148,7 @@ els.coefficientHelper.textContent = state.useCustomCoefficient
 
 function openProModal() {
       if (!els.proModal) {
-        alert("Reverse Flow Pro is required for this feature.");
+        alert("This feature is available to everyone.");
         return;
       }
 
@@ -7273,21 +7156,11 @@ function openProModal() {
     }
 
     function enforceRestoredSessionModeAccess() {
-      const sessionMode = getSessionActiveMode();
-
-      if (!isProGatedCalculatorMode(sessionMode) || isProUser()) return;
-
-      saveSessionActiveMode(DEFAULT_STATE.mode);
-      openProModal();
+      return;
     }
 
     function activateCarouselMode(mode, options = {}) {
       if (!isValidCalculatorMode(mode)) return;
-
-      if (isProGatedCalculatorMode(mode) && !isProUser()) {
-        openProModal();
-        return;
-      }
 
       const targetButton = options.targetButton || null;
       const shouldPreserveCarouselTarget =
@@ -7391,26 +7264,7 @@ function openProModal() {
     }
 
     function bindToolsNavigationGuard() {
-      if (document.body.dataset.toolsNavigationGuard === "ready") return;
-
-      document.body.dataset.toolsNavigationGuard = "ready";
-      document.addEventListener("click", event => {
-        const link = event.target.closest?.("a[href]");
-        if (!link || !isToolsNavigationHref(link.href) || isProUser()) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (typeof guardToolsAccess === "function") {
-          guardToolsAccess({
-            redirect: false,
-            reason: "tools-link-click"
-          });
-          return;
-        }
-
-        openProModal();
-      });
+      document.body.dataset.toolsNavigationGuard = "universal-access";
     }
 
     function getReverseFlowStoreForSupportPage() {
@@ -7460,7 +7314,7 @@ function openProModal() {
           productId: REVERSE_FLOW_PRO_PRODUCT_ID
         });
         if (!isProUser()) {
-	          alert("Reverse Flow Pro is already owned by this store account. Tap Restore Purchase to activate it on this device.");
+	          alert("A previous purchase was detected for this store account.");
         }
         return;
       }
@@ -7471,7 +7325,7 @@ function openProModal() {
           ready: reverseFlowProProductReady,
           initialized: reverseFlowProStoreInitialized
         });
-        alert("Reverse Flow Pro purchase is not available yet. Please try again in a moment.");
+        alert("The legacy product is no longer offered.");
         return;
       }
 
@@ -7490,7 +7344,7 @@ function openProModal() {
           event: "support-page-purchase-denied-product-missing",
           productId: REVERSE_FLOW_PRO_PRODUCT_ID
         });
-        alert("Reverse Flow Pro is not available yet. Please try again in a moment.");
+        alert("The legacy product is no longer offered.");
         return;
       }
 
@@ -7507,7 +7361,7 @@ function openProModal() {
 	          });
 	        }
 	        if (!isProUser()) {
-	          alert("Reverse Flow Pro is already owned by this store account. Tap Restore Purchase to activate it on this device.");
+	          alert("A previous purchase was detected for this store account.");
         }
         return;
       }
@@ -7524,7 +7378,7 @@ function openProModal() {
             rawProduct: product
           })
         });
-        alert("Reverse Flow Pro purchase offer is not available yet.");
+        alert("The legacy product is no longer offered.");
         return;
       }
 
@@ -7632,7 +7486,7 @@ function openProModal() {
           reverseFlowRestoreInProgress = false;
           if (els.restorePurchaseButton) {
             els.restorePurchaseButton.disabled = false;
-            els.restorePurchaseButton.textContent = "Restore Purchase";
+            els.restorePurchaseButton.textContent = "Check Previous Purchase";
           }
 
           if (!isProUser()) {
@@ -7640,14 +7494,14 @@ function openProModal() {
               event: "support-page-restore-complete-no-pro-entitlement",
               reason: "restore did not produce a verified lifetime product receipt"
             });
-            alert("No valid Reverse Flow Pro purchase was found to restore.");
+            alert("No verified previous purchase was found.");
           }
         }, 5000);
       } catch (error) {
         reverseFlowRestoreInProgress = false;
         if (els.restorePurchaseButton) {
           els.restorePurchaseButton.disabled = false;
-          els.restorePurchaseButton.textContent = "Restore Purchase";
+          els.restorePurchaseButton.textContent = "Check Previous Purchase";
         }
         logReverseFlowRestoreDiagnostic("support-page-restore-failed", store, {
           error
@@ -7727,11 +7581,6 @@ function openProModal() {
     button?.addEventListener("click", event => {
   event.preventDefault();
   event.stopPropagation();
-
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
 
   openSavePumpChartSheet();
 });
@@ -7881,7 +7730,7 @@ async function purchaseReverseFlowPro() {
       productId: REVERSE_FLOW_PRO_PRODUCT_ID
     });
     if (!isProUser()) {
-	      alert("Reverse Flow Pro is already owned by this store account. Tap Restore Purchase to activate it on this device.");
+	      alert("A previous purchase was detected for this store account.");
     }
     return;
   }
@@ -7892,7 +7741,7 @@ async function purchaseReverseFlowPro() {
 	    ready: reverseFlowProProductReady,
 	    initialized: reverseFlowProStoreInitialized
 	  });
-	  alert("Reverse Flow Pro purchase is not available yet. Please try again in a moment.");
+	  alert("The legacy product is no longer offered.");
 	  return;
 	}
 
@@ -7912,7 +7761,7 @@ const product =
 	      event: "purchase-denied-product-missing",
 	      productId: REVERSE_FLOW_PRO_PRODUCT_ID
 	    });
-	    alert("Reverse Flow Pro is not available yet. Please try again in a moment.");
+	    alert("The legacy product is no longer offered.");
 	    return;
 	  }
 
@@ -7929,7 +7778,7 @@ const product =
 	      });
 	    }
 	    if (!isProUser()) {
-	      alert("Reverse Flow Pro is already owned by this store account. Tap Restore Purchase to activate it on this device.");
+	      alert("A previous purchase was detected for this store account.");
     }
     return;
   }
@@ -7958,7 +7807,7 @@ const product =
 	        rawProduct: product
 	      })
 	    });
-	  alert("Reverse Flow Pro purchase offer is not available yet.");
+	  alert("The legacy product is no longer offered.");
 	  return;
 	}
 
@@ -8066,7 +7915,7 @@ const product =
 	      reverseFlowRestoreInProgress = false;
 	      if (els.restorePurchaseButton) {
 	        els.restorePurchaseButton.disabled = false;
-	        els.restorePurchaseButton.textContent = "Restore Purchase";
+	        els.restorePurchaseButton.textContent = "Check Previous Purchase";
 	      }
 
 	      if (!isProUser()) {
@@ -8074,14 +7923,14 @@ const product =
 	          event: "restore-complete-no-pro-entitlement",
 	          reason: "restore did not produce a verified lifetime product receipt"
 	        });
-	        alert("No valid Reverse Flow Pro purchase was found to restore.");
+	        alert("No verified previous purchase was found.");
 	      }
 	    }, 5000);
 	  } catch (error) {
 	    reverseFlowRestoreInProgress = false;
 	    if (els.restorePurchaseButton) {
 	      els.restorePurchaseButton.disabled = false;
-	      els.restorePurchaseButton.textContent = "Restore Purchase";
+	      els.restorePurchaseButton.textContent = "Check Previous Purchase";
 	    }
 	    logReverseFlowRestoreDiagnostic("restore-failed", store, {
 	      error
@@ -8094,12 +7943,6 @@ els.closeProModal.addEventListener("click", () => {
   els.proModal.hidden = true;
 });
       els.viewPumpChartButton.addEventListener("click", () => {
-
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
   shouldScrollToTopAfterPumpChartSaveClose = false;
   const data = loadPumpCharts();
   const lastViewedChartId = getLastViewedPumpChartId();
@@ -8766,11 +8609,6 @@ function resetCalculator() {
     // PRESETS
     // ========================================
     function saveCurrentSetupAsPreset() {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
   const name = prompt("Enter a name for this setup:");
       if (!name || !name.trim()) return;
 
@@ -9161,11 +8999,6 @@ function applyPumpChartSetup(chartId, setupId) {
 }
 
 window.openSavePumpChartSheet = function() {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
   if (!hasValidRenderedCalculation()) {
     alert("Enter the required values to generate a valid calculation before saving to a Pump Chart.");
     return;
@@ -9204,11 +9037,6 @@ window.renamePumpChartSetup = function(chartId, setupId) {
 };
 
 window.loadPumpChartSetup = function(chartId, setupId) {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
   applyPumpChartSetup(chartId, setupId);
   setPumpChartEditState(chartId, setupId);
   closePumpChartModal({ allowPostSaveScroll: false });
@@ -9637,11 +9465,6 @@ function renderPumpOperatorPackagePreview(chartId) {
 }
 
 window.exportPumpChart = function(chartId) {
-  if (!isProUser()) {
-    openProModal();
-    return;
-  }
-
   const chart = findPumpChart(chartId);
   if (!chart) return;
 

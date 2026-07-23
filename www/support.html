@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Support Reverse Flow</title>
+  <script src="js/appearance.js?v=build-1"></script>
+  <link rel="stylesheet" href="css/base.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/components.css?v=community-1" />
+  <link rel="stylesheet" href="css/support.css?v=community-1" />
+  <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <div class="app-title-row">
+          <h1 class="app-header-title">Reverse Flow</h1>
+          <a class="supporter-badge" data-supporter-badge href="support.html" hidden>Supporter</a>
+        </div>
+        <p class="app-header-subtitle">Fire Hydraulics</p>
+      </div>
+    </div>
+  </header>
+
+  <main id="supportPage">
+    <nav class="page-nav" aria-label="Primary">
+      <a class="reset-button nav-action-button nav-button-link" href="index.html">Calculator</a>
+      <a class="reset-button nav-action-button nav-button-link" href="tools.html">Tools</a>
+      <a class="reset-button nav-action-button nav-button-link" href="resources.html">Resources</a>
+      <a class="reset-button nav-action-button nav-button-link" href="settings.html">Settings</a>
+    </nav>
+
+    <section class="card support-page-hero">
+      <p class="support-eyebrow">Community Supported</p>
+      <h2 id="supportPageTitle">Support Reverse Flow</h2>
+      <p id="supportPageIntro"></p>
+      <p class="support-equality-note">
+        Support is voluntary. Production tools are available to everyone, regardless of payment.
+      </p>
+    </section>
+
+    <section class="card" id="supportOptionsSection">
+      <h2>Choose how you would like to help</h2>
+      <p>
+        Every option provides the same Supporter status. Choose the amount that works for you.
+      </p>
+      <div class="support-options" id="supportOptions"></div>
+      <p class="helper" id="supportProductsUnavailable">
+        Support products are being prepared for App Store Connect and Google Play. Contributions are unavailable in this build until store configuration and verified registration are connected.
+      </p>
+      <h3>Supporters may receive</h3>
+      <ul class="support-benefits">
+        <li>Supporter recognition</li>
+        <li>Beta and early access to new features</li>
+        <li>Invitation to the private Supporter community</li>
+        <li>Opportunities to provide feedback and influence development</li>
+      </ul>
+    </section>
+
+    <section class="card" id="legacyClaimSection" hidden>
+      <h2>Claim permanent Supporter status</h2>
+      <p>
+        Your verified previous purchase includes permanent Supporter status. No additional purchase, screenshot, receipt upload, or manual transaction entry is required.
+      </p>
+      <form id="legacyClaimForm" class="support-identity-form" novalidate>
+        <label for="supporterFullName">Full name</label>
+        <input id="supporterFullName" name="fullName" type="text" autocomplete="name" required />
+        <label for="supporterEmail">Email address</label>
+        <input id="supporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
+        <button class="support-primary-action" type="submit">Submit Claim</button>
+        <p id="legacyClaimStatus" class="support-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card" id="manageSupportSection" hidden>
+      <h2>Recurring support</h2>
+      <p id="manageSupportDetails"></p>
+      <p>
+        Apple or Google remains the billing authority. Ending recurring support never removes permanent Supporter status.
+      </p>
+      <div class="support-options" id="manageSupportOptions"></div>
+      <button id="manageSubscriptionButton" type="button">Open Subscription Management</button>
+    </section>
+
+    <section class="card" id="supportRegistrationSection" hidden>
+      <h2>Register verified support</h2>
+      <p>After the store verifies a contribution, provide your name and email so the Supporter Registry can confirm your status.</p>
+      <form id="supportRegistrationForm" class="support-identity-form" novalidate>
+        <label for="registrationFullName">Full name</label>
+        <input id="registrationFullName" name="fullName" type="text" autocomplete="name" required />
+        <label for="registrationEmail">Email address</label>
+        <input id="registrationEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
+        <button class="support-primary-action" type="submit">Register Support</button>
+      </form>
+    </section>
+
+    <p id="supportPageStatus" class="support-status" role="status" aria-live="polite"></p>
+    <p class="version-footer">Reverse Flow: Fire Hydraulics © 2026</p>
+  </main>
+
+  <script src="js/constants.js?v=community-1"></script>
+  <script src="js/services/entitlement.js?v=community-1"></script>
+  <script src="js/services/supporter.js?v=1"></script>
+</body>
+</html>

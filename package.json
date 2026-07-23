@@ -4,6 +4,8 @@
     "patch:android-purchase": "node scripts/patch-android-purchase-plugin.js",
     "sync:android": "npm run patch:android-purchase && npx cap sync android",
     "test:android-billing": "node --test tests/android-billing-hotfix.test.js",
+    "test:supporter": "node --test tests/supporter-state.test.js tests/universal-access.test.js",
+    "test": "node --test tests/*.test.js",
     "test:ios-tank-time-widget": "swiftc -parse-as-library ios/App/TankTimeWidget/TankTimeCalculation.swift ios/App/TankTimeWidget/TankTimeState.swift tests/ios-tank-time-widget-tests.swift -o /tmp/reverse-flow-tank-time-widget-tests && /tmp/reverse-flow-tank-time-widget-tests",
     "test:pump-operator-package": "node --test tests/pump-operator-package.test.js"
   },

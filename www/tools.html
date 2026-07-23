@@ -34,9 +34,9 @@
   <title>Tools | Reverse Flow</title>
 
   <link rel="stylesheet" href="css/base.css?v=appearance-1" />
-  <link rel="stylesheet" href="css/components.css?v=pump-operator-v4" />
+  <link rel="stylesheet" href="css/components.css?v=community-1" />
   <link rel="stylesheet" href="css/calculators.css?v=flash-3" />
-  <link rel="stylesheet" href="css/support.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/support.css?v=community-1" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
 </head>
 
@@ -44,17 +44,16 @@
   <header class="app-header">
     <div class="app-header-inner">
       <div>
-        <h1 class="app-header-title">Reverse Flow</h1>
+        <div class="app-title-row">
+          <h1 class="app-header-title">Reverse Flow</h1>
+          <a class="supporter-badge" data-supporter-badge href="support.html" hidden>Supporter</a>
+        </div>
         <p class="app-header-subtitle">
           Fire Hydraulics
         </p>
       </div>
     </div>
   </header>
-
-  <div id="webProBanner" class="web-pro-banner" hidden>
-    To unlock Pro features, download Reverse Flow from the App Store or Google Play.
-  </div>
 
   <main id="toolsPage">
     <nav class="page-nav" aria-label="Primary">
@@ -69,7 +68,7 @@
         <div class="field full">
           <label>Tools</label>
           <p class="helper">
-            Hydraulic workspace, defaults, references, and future tools for Reverse Flow Pro.
+            Hydraulic workspace, defaults, references, and operational tools for Reverse Flow.
           </p>
         </div>
 
@@ -379,63 +378,14 @@
           </details>
         </div>
 
-        <div id="toolsProLockedMessage" class="settings-tool-card muted-card" hidden>
-          <strong>Reverse Flow Pro Required</strong>
-          <p class="helper">
-            Tools is the Pro hydraulic workspace. Unlock Pro to manage hose defaults, custom hoses, hydraulic references, and future tools.
-          </p>
-          <button id="toolsProUpgradeButton" class="reset-button" type="button">
-            Unlock Pro
-          </button>
-        </div>
+        <div id="toolsProLockedMessage" hidden></div>
       </div>
     </section>
 
-    <div id="proModal" class="pro-modal" hidden>
-      <div class="pro-modal-content">
-        <div class="pro-modal-header">
-          <div>
-            <h2>Reverse Flow Pro</h2>
-            <p>Built for Professional Pump Operators</p>
-          </div>
-
-          <button id="closeProModal" class="modal-close-button" type="button" aria-label="Close Pro upgrade modal">
-            X
-          </button>
-        </div>
-
-        <div class="pro-price-card">
-          <strong>$4.99 One-Time Purchase</strong>
-          <span>Lifetime Access &bull; No Subscription</span>
-        </div>
-
-        <div class="pro-summary-list" aria-label="Reverse Flow Pro includes">
-          <section class="pro-summary-item">
-            <h3>Advanced Calculations</h3>
-            <p>Relay Pumping, Split Lay, Standpipe Ops, Apparatus Mounted, and more.</p>
-          </section>
-
-          <section class="pro-summary-item">
-            <h3>Customize Your Workspace</h3>
-            <p>Equipment Visibility, department defaults, Pump Charts, and more.</p>
-          </section>
-
-          <section class="pro-summary-item">
-            <h3>Tools</h3>
-            <p>My Hose Profiles, hose-management utilities, hydraulic tools, and more.</p>
-          </section>
-        </div>
-
-        <p class="pro-future-note">Includes all future Reverse Flow Pro features.</p>
-
-        <button type="button" id="buyProButton">
-          Upgrade to Pro
-        </button>
-
-        <button type="button" id="restorePurchaseButton">
-          Restore Purchase
-        </button>
-      </div>
+    <div id="proModal" hidden aria-hidden="true">
+      <button id="closeProModal" type="button" hidden></button>
+      <button id="buyProButton" type="button" hidden disabled></button>
+      <button id="restorePurchaseButton" type="button" hidden disabled></button>
     </div>
 
     <p class="version-footer">
@@ -445,11 +395,12 @@
     <p class="version-footer" id="versionFooter"></p>
   </main>
 
-  <script src="js/constants.js?v=build-6"></script>
-  <script src="js/services/entitlement.js?v=build-2"></script>
+  <script src="js/constants.js?v=community-1"></script>
+  <script src="js/services/entitlement.js?v=community-1"></script>
+  <script src="js/services/supporter.js?v=1"></script>
   <script src="js/data/hydraulics.js?v=build-8"></script>
   <script src="js/pump-operator-package.js?v=25"></script>
-  <script src="js/app.js?v=pump-operator-v36"></script>
+  <script src="js/app.js?v=community-1"></script>
   <script src="js/tools-calculators.js?v=build-13"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>

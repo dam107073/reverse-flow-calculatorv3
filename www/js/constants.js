@@ -33,6 +33,24 @@ const VISIBLE_SMOOTHBORE_TIPS_MIGRATION_KEY =
 const APPEARANCE_PREFERENCE_KEY = "reverse-flow-appearance-preference";
 const PRO_ENTITLEMENT_STORAGE_KEY =
   "reverse-flow-pro-entitlement-v1";
+const SUPPORTER_CACHE_STORAGE_KEY =
+  "reverse-flow-supporter-cache-v1";
+
+// Store products are intentionally unavailable until they are configured in
+// App Store Connect and Google Play Console. Add real identifiers here in the
+// next store-configuration pass; never duplicate identifiers in UI code.
+const SUPPORT_PRODUCT_CONFIG = Object.freeze({
+  apple: Object.freeze({
+    oneTime5: null,
+    monthly3: null,
+    monthly10: null
+  }),
+  google: Object.freeze({
+    oneTime5: null,
+    monthly3: null,
+    monthly10: null
+  })
+});
 
   function getReverseFlowPurchasePlatform() {
   if (!window.CdvPurchase || !window.Capacitor) {

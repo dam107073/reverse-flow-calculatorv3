@@ -70,6 +70,23 @@ function isProUser() {
   return userAccessLevel === ACCESS_LEVELS.PRO;
 }
 
+// Legacy purchase state is retained only as evidence that the user may claim
+// permanent Supporter status. It must never be used for feature access.
+function hasLegacyProEntitlement() {
+  return isProUser();
+}
+
+function getLegacyProEntitlementEvidence() {
+  try {
+    const entitlement = JSON.parse(
+      localStorage.getItem(PRO_ENTITLEMENT_STORAGE_KEY) || "null"
+    );
+    return isValidStoredProEntitlement(entitlement) ? entitlement : null;
+  } catch {
+    return null;
+  }
+}
+
 function getToolsSafeRedirectUrl() {
   try {
     const referrer = document.referrer ? new URL(document.referrer, window.location.href) : null;
@@ -118,7 +135,7 @@ function openToolsProModal() {
     return;
   }
 
-  alert("Reverse Flow Pro is required for Tools.");
+  return;
 }
 
 function redirectFromLockedTools(options = {}) {
@@ -135,31 +152,8 @@ function redirectFromLockedTools(options = {}) {
 }
 
 function guardToolsAccess(options = {}) {
-  const hasAccess = isProUser();
-  setToolsContentLocked(!hasAccess);
-
-  if (hasAccess) {
-    const modal = document.getElementById("proModal");
-    if (modal) modal.hidden = true;
-    return true;
-  }
-
-  if (options.showModal !== false) {
-    openToolsProModal();
-  }
-
-  if (options.redirect !== false) {
-    redirectFromLockedTools(options);
-  }
-
-  logProAccessEvent("tools-access-blocked", {
-    page: window.location.pathname,
-    search: window.location.search,
-    hash: window.location.hash,
-    reason: options.reason || "missing Pro entitlement"
-  });
-
-  return false;
+  setToolsContentLocked(false);
+  return true;
 }
 
 function setAccessLevel(level, grantDetails = {}) {
@@ -191,6 +185,8 @@ function setAccessLevel(level, grantDetails = {}) {
         source: grantDetails.source,
         productId: grantDetails.productId,
         trigger: grantDetails.trigger,
+        originalTransactionId: grantDetails.originalTransactionId || null,
+        purchaseToken: grantDetails.purchaseToken || null,
         verifiedAt: new Date().toISOString()
       })
     );
@@ -202,6 +198,12 @@ function setAccessLevel(level, grantDetails = {}) {
     "pro-user",
     isProUser()
   );
+
+  document.dispatchEvent(new CustomEvent("reverseflow:legacy-entitlement-changed", {
+    detail: {
+      hasLegacyProEntitlement: hasLegacyProEntitlement()
+    }
+  }));
 
   updateAccessBadge();
   logProAccessEvent("access-level-updated", {
@@ -220,33 +222,27 @@ function setAccessLevel(level, grantDetails = {}) {
 
 const FEATURES = {
   reverseFlow: {
-    name: "Reverse Flow",
-    access: ACCESS_LEVELS.BASIC
+    name: "Reverse Flow"
   },
 
   requiredPdp: {
-    name: "Required PDP",
-    access: ACCESS_LEVELS.BASIC
+    name: "Required PDP"
   },
 
   relayPumping: {
-  name: "Relay Pumping",
-  access: ACCESS_LEVELS.PRO
+    name: "Relay Pumping"
 },
 
   splitLay: {
-    name: "Split Lay",
-    access: ACCESS_LEVELS.PRO
+    name: "Split Lay"
   },
 
   equipmentCatalog: {
-    name: "Equipment Catalog",
-    access: ACCESS_LEVELS.PRO
+    name: "Equipment Catalog"
   },
 
   departmentProfiles: {
-    name: "Department Profiles",
-    access: ACCESS_LEVELS.PRO
+    name: "Department Profiles"
   }
 };
 
@@ -254,12 +250,7 @@ function canAccessFeature(featureKey) {
   const feature = FEATURES[featureKey];
 
   if (!feature) return false;
-
-  if (feature.access === ACCESS_LEVELS.BASIC) {
-    return true;
-  }
-
-  return isProUser();
+  return true;
 }
 
 console.log(`Reverse Flow Calculator v${APP_VERSION}`);

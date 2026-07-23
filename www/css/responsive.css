@@ -268,12 +268,6 @@
         color: #fed7aa;
       }
 
-      html[data-resolved-theme="dark"] .web-pro-banner {
-        background: rgba(69, 26, 3, 0.62);
-        border-color: rgba(251, 146, 60, 0.34);
-        color: #fed7aa;
-      }
-
       html[data-resolved-theme="dark"] label { color: #cbd5e1; }
 
       html[data-resolved-theme="dark"] input,
@@ -418,8 +412,7 @@
       html[data-resolved-theme="dark"] #splitSectionButtons button.active,
       html[data-resolved-theme="dark"] #splitAttackLineButtons button.active,
       html[data-resolved-theme="dark"] #pumpChartButtons button.active,
-      html[data-resolved-theme="dark"] #pumpChartButtons .nav-button-link.active,
-      html[data-resolved-theme="dark"] body.pro-user .mode-card-pro.active {
+      html[data-resolved-theme="dark"] #pumpChartButtons .nav-button-link.active {
         background:
           linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
           linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
@@ -430,20 +423,6 @@
           inset 0 -3px 0 rgba(251,146,60,0.72),
           0 0 0 3px rgba(251, 146, 60, 0.14),
           0 8px 18px rgba(0, 0, 0, 0.26);
-      }
-
-      html[data-resolved-theme="dark"] .mode-carousel button.mode-card-pro.active {
-        background:
-          linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98)),
-          linear-gradient(90deg, rgba(251,146,60,0.14), transparent 50%);
-        color: #f8fafc;
-        -webkit-text-fill-color: #f8fafc;
-        border-color: #fb923c;
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.06),
-          inset 0 -3px 0 rgba(251,146,60,0.68),
-          0 0 0 3px rgba(251, 146, 60, 0.15),
-          0 8px 18px rgba(0, 0, 0, 0.28);
       }
 
       html[data-resolved-theme="dark"] button:disabled {
@@ -504,20 +483,6 @@
           linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));
       }
 
-      html[data-resolved-theme="dark"] .mode-card-pro::after {
-        background: #f8fafc;
-        color: #020617 !important;
-        -webkit-text-fill-color: #020617 !important;
-      }
-
-      html[data-resolved-theme="dark"] body.pro-user #toolsProLockedMessage {
-        display: none !important;
-      }
-
-      html[data-resolved-theme="dark"] body.pro-user #toolsProContent {
-        display: grid !important;
-      }
-
       html[data-resolved-theme="dark"] .toggle-row,
       html[data-resolved-theme="dark"] .disabled-note,
       html[data-resolved-theme="dark"] .calculated-pressure-card {
@@ -538,7 +503,7 @@
         background: #020617;
       }
 
-      html[data-resolved-theme="dark"] #pumpChartModal .pro-modal-content {
+      html[data-resolved-theme="dark"] #pumpChartModal .app-modal-content {
         background:
           linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.96)),
           #0f172a;

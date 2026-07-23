@@ -151,14 +151,6 @@
       gap: 12px;
     }
 
-    body.pro-user #toolsProLockedMessage {
-      display: none !important;
-    }
-
-    body.pro-user #toolsProContent {
-      display: grid !important;
-    }
-
     .settings-tool-card {
       grid-column: 1 / -1;
       display: grid;
@@ -1383,3 +1375,166 @@
   padding: 10px 0 0;
   line-height: 1.5;
 }
+    .app-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+
+    .supporter-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.25rem;
+      padding: 0.25rem 0.65rem;
+      border: 1px solid rgba(250, 204, 21, 0.7);
+      border-radius: 999px;
+      background: rgba(250, 204, 21, 0.14);
+      color: #854d0e;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .supporter-badge[hidden],
+    .support-feature-card[hidden],
+    #legacyClaimSection[hidden],
+    #manageSupportSection[hidden],
+    #supportOptionsSection[hidden],
+    #supportRegistrationSection[hidden] {
+      display: none !important;
+    }
+
+    .support-feature-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1rem;
+      margin: 1rem 0;
+      padding: 1rem 1.1rem;
+      overflow: hidden;
+      border: 1px solid rgba(217, 119, 6, 0.38);
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(250, 204, 21, 0.22), transparent 48%),
+        linear-gradient(135deg, #fffdf5, #fff7dc);
+      box-shadow: 0 12px 30px rgba(120, 53, 15, 0.12);
+      animation: support-card-enter 360ms ease-out both;
+    }
+
+    .support-eyebrow {
+      margin: 0 0 0.3rem;
+      color: #92400e;
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .support-card-message {
+      margin: 0;
+      color: #422006;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .support-primary-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.75rem;
+      padding: 0.7rem 1rem;
+      border: 1px solid #9a3412;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #c2410c, #9a3412);
+      box-shadow: 0 7px 18px rgba(154, 52, 18, 0.24);
+      color: #fff;
+      font-weight: 850;
+      text-align: center;
+      text-decoration: none;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+
+    .support-primary-action:active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow: 0 4px 10px rgba(154, 52, 18, 0.2);
+    }
+
+    .support-page-hero h2 {
+      margin-top: 0.25rem;
+    }
+
+    .support-equality-note {
+      padding: 0.8rem;
+      border-left: 4px solid #d97706;
+      background: rgba(250, 204, 21, 0.1);
+      font-weight: 700;
+    }
+
+    .support-options {
+      display: grid;
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+
+    .support-option {
+      width: 100%;
+      min-height: 3.25rem;
+      text-align: left;
+    }
+
+    .support-identity-form {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .support-identity-form input {
+      min-height: 2.75rem;
+    }
+
+    .support-status {
+      min-height: 1.5em;
+      font-weight: 700;
+    }
+
+    @keyframes support-card-enter {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 520px) {
+      .support-feature-card {
+        grid-template-columns: 1fr;
+      }
+
+      .support-primary-action {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .support-feature-card {
+        animation: none;
+      }
+    }
+
+    html[data-resolved-theme="dark"] .supporter-badge {
+      color: #fde68a;
+      background: rgba(250, 204, 21, 0.1);
+    }
+
+    html[data-resolved-theme="dark"] .support-feature-card {
+      border-color: rgba(251, 191, 36, 0.4);
+      background:
+        radial-gradient(circle at 100% 0%, rgba(217, 119, 6, 0.22), transparent 48%),
+        linear-gradient(135deg, #1c1917, #292016);
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    html[data-resolved-theme="dark"] .support-eyebrow,
+    html[data-resolved-theme="dark"] .support-card-message {
+      color: #fde68a;
+    }
