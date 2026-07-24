@@ -270,23 +270,61 @@
       this.fetch = dependencies.fetch || global.fetch?.bind(global);
       this.AbortController = dependencies.AbortController || global.AbortController;
       this.navigator = dependencies.navigator || global.navigator;
+      this.console = dependencies.console || global.console;
+      this.platform = dependencies.platform || getPlatform();
+    }
+
+    logRegistration(level, details) {
+      const logger = this.console?.[level] || this.console?.log;
+      if (typeof logger !== "function") return;
+      logger.call(this.console, "[Reverse Flow Supporter Registration]", {
+        ...details
+      });
     }
 
     async request(routeKey, body, timeoutKey) {
+      const route = this.config.routes[routeKey];
+      const url = `${this.config.baseUrl}${route}`;
+      const backendHost = new URL(url).host;
+      const isRegistration = routeKey === "verifyPurchase";
+      if (isRegistration) {
+        this.logRegistration("info", {
+          event: "supporter-registration-request-started",
+          backendHost,
+          environment: this.config.environment,
+          platform: this.platform
+        });
+      }
       if (this.navigator?.onLine === false) {
+        if (isRegistration) {
+          this.logRegistration("warn", {
+            event: "supporter-registration-failed",
+            backendHost,
+            environment: this.config.environment,
+            platform: this.platform,
+            failureCategory: "offline"
+          });
+        }
         throw new SupporterRegistryError(
           "An internet connection is required to update your supporter status.",
           { code: "offline" }
         );
       }
       if (typeof this.fetch !== "function") {
+        if (isRegistration) {
+          this.logRegistration("warn", {
+            event: "supporter-registration-failed",
+            backendHost,
+            environment: this.config.environment,
+            platform: this.platform,
+            failureCategory: "transport_unavailable"
+          });
+        }
         throw new SupporterRegistryError(
           "The Supporter Directory is unavailable on this device.",
           { code: "transport_unavailable" }
         );
       }
-      const route = this.config.routes[routeKey];
-      const url = `${this.config.baseUrl}${route}`;
       const timeoutMs = this.config.timeoutsMs[timeoutKey];
       const controller = this.AbortController ? new this.AbortController() : null;
       const timeout = controller
@@ -306,6 +344,15 @@
         });
       } catch (error) {
         const timedOut = error?.name === "AbortError";
+        if (isRegistration) {
+          this.logRegistration("warn", {
+            event: "supporter-registration-failed",
+            backendHost,
+            environment: this.config.environment,
+            platform: this.platform,
+            failureCategory: timedOut ? "timeout" : "network_exception"
+          });
+        }
         throw new SupporterRegistryError(
           timedOut
             ? "The Supporter Directory request timed out. Please try again."
@@ -316,11 +363,31 @@
         if (timeout) clearTimeout(timeout);
       }
 
+      if (isRegistration) {
+        this.logRegistration("info", {
+          event: "supporter-registration-response",
+          backendHost,
+          environment: this.config.environment,
+          platform: this.platform,
+          responseStatus: response.status
+        });
+      }
+
       let payload;
       try {
         const text = await response.text();
         payload = text ? JSON.parse(text) : null;
       } catch {
+        if (isRegistration) {
+          this.logRegistration("warn", {
+            event: "supporter-registration-failed",
+            backendHost,
+            environment: this.config.environment,
+            platform: this.platform,
+            responseStatus: response.status,
+            failureCategory: "malformed_response"
+          });
+        }
         throw new SupporterRegistryError(
           "The Supporter Directory returned an invalid response. Please try again.",
           { code: "malformed_response", status: response.status }
@@ -335,6 +402,21 @@
         const fallback =
           typeof payload?.error === "string" ? payload.error : null;
         const retryAfter = Number(response.headers?.get?.("Retry-After"));
+        if (isRegistration) {
+          this.logRegistration("warn", {
+            event: "supporter-registration-failed",
+            backendHost,
+            environment: this.config.environment,
+            platform: this.platform,
+            responseStatus: response.status,
+            failureCategory:
+              response.status === 429
+                ? "rate_limited"
+                : response.status >= 500
+                  ? "backend_server_error"
+                  : "backend_rejected"
+          });
+        }
         throw new SupporterRegistryError(
           getRegistryErrorMessage(response.status, code, fallback),
           {
@@ -344,7 +426,18 @@
           }
         );
       }
-      return normalizeApiResponse(payload);
+      const normalized = normalizeApiResponse(payload);
+      if (isRegistration) {
+        this.logRegistration("info", {
+          event: "supporter-registration-request-completed",
+          backendHost,
+          environment: this.config.environment,
+          platform: this.platform,
+          responseStatus: response.status,
+          outcome: "success"
+        });
+      }
+      return normalized;
     }
 
     async getStatus(email) {
@@ -611,6 +704,8 @@
             id: value.productId,
             type: value.productType === "paid subscription"
               ? ProductType.PAID_SUBSCRIPTION
+              : value.productType === "consumable"
+                ? ProductType.CONSUMABLE
               : ProductType.NON_CONSUMABLE,
             platform: this.storePlatform
           }));
@@ -1253,6 +1348,13 @@
           registrationForm.reset();
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
+          registryService.logRegistration("info", {
+            event: "supporter-registration-retry-available",
+            backendHost: new URL(registryService.config.baseUrl).host,
+            environment: registryService.config.environment,
+            platform: payload.platform,
+            failureCategory: error?.code || "supporter_registry_error"
+          });
           status.textContent = `${error.message} Your support was not registered.`;
         } finally {
           submit.disabled = false;

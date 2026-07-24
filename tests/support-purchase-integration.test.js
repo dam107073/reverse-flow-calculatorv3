@@ -12,12 +12,20 @@ const constantsSource = fs.readFileSync(
   path.join(__dirname, "..", "www", "js", "constants.js"),
   "utf8"
 );
+const iosProjectSource = fs.readFileSync(
+  path.join(__dirname, "..", "ios", "App", "App.xcodeproj", "project.pbxproj"),
+  "utf8"
+);
+const androidBuildSource = fs.readFileSync(
+  path.join(__dirname, "..", "android", "app", "build.gradle"),
+  "utf8"
+);
 
 const CONFIG = {
   apple: {
     oneTime5: {
       productId: "reverse_flow_support_one_time_5",
-      productType: "non consumable"
+      productType: "consumable"
     },
     monthly3: {
       productId: "support_reverse_flow_monthly_3",
@@ -31,7 +39,7 @@ const CONFIG = {
   google: {
     oneTime5: {
       productId: "reverse_flow_support_one_time_5",
-      productType: "non consumable",
+      productType: "consumable",
       purchaseOptionId: "buy"
     },
     monthly3: {
@@ -166,6 +174,7 @@ function installPurchaseGlobals(platform, store) {
       GOOGLE_PLAY: "android-playstore"
     },
     ProductType: {
+      CONSUMABLE: "consumable",
       NON_CONSUMABLE: "non consumable",
       PAID_SUBSCRIPTION: "paid subscription"
     },
@@ -183,7 +192,75 @@ test("canonical Apple and Google product identifiers and plan IDs are configured
   assert.match(constantsSource, /purchaseOptionId:\s*"buy"/);
   assert.match(constantsSource, /basePlanId:\s*"monthly-3"/);
   assert.match(constantsSource, /basePlanId:\s*"monthly-10"/);
+  assert.equal(
+    (constantsSource.match(/productType:\s*"consumable"/g) || []).length,
+    2
+  );
   assert.doesNotMatch(constantsSource, /Coming Soon/i);
+});
+
+test("supporter APIs use stable Preview and Production hosts", () => {
+  assert.match(
+    constantsSource,
+    /preview:\s*"https:\/\/reverese-flow-website-dam107073-reverse-flow-llc\.vercel\.app"/
+  );
+  assert.match(
+    constantsSource,
+    /production:\s*"https:\/\/reverse-flow\.app"/
+  );
+  assert.equal(
+    (constantsSource.match(/reverse-flow-llc\.vercel\.app/g) || []).length,
+    1
+  );
+});
+
+test("native versions are intentional and app/widget iOS builds are aligned", () => {
+  assert.equal(
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 3;/g) || []).length,
+    6
+  );
+  assert.equal(
+    (iosProjectSource.match(/MARKETING_VERSION = 1\.3\.3;/g) || []).length,
+    6
+  );
+  assert.match(androidBuildSource, /versionCode 141/);
+  assert.match(androidBuildSource, /versionName "1\.3\.3"/);
+});
+
+test("iOS Debug and Release package Preview while Production packages Production", () => {
+  assert.equal(
+    (iosProjectSource.match(/SUPPORTER_API_ENVIRONMENT = preview;/g) || []).length,
+    2
+  );
+  assert.equal(
+    (iosProjectSource.match(/SUPPORTER_API_ENVIRONMENT = production;/g) || []).length,
+    1
+  );
+  assert.match(iosProjectSource, /Configure Supporter Backend/);
+  assert.equal(
+    (iosProjectSource.match(/name = Production;/g) || []).length,
+    3
+  );
+});
+
+test("Android Debug and Preview package Preview while Release packages Production", () => {
+  assert.match(
+    androidBuildSource,
+    /registerSupporterBackendAssets\("debug", "preview"\)/
+  );
+  assert.match(
+    androidBuildSource,
+    /registerSupporterBackendAssets\("preview", "preview"\)/
+  );
+  assert.match(
+    androidBuildSource,
+    /registerSupporterBackendAssets\("release", "production"\)/
+  );
+  assert.match(androidBuildSource, /inputs\.file\(sourceConstants\)/);
+  assert.match(
+    androidBuildSource,
+    /const SUPPORTER_API_ENVIRONMENT = \\"\$\{environment\}\\";/
+  );
 });
 
 test("Apple products load localized pricing and exact product types", async () => {
@@ -204,7 +281,7 @@ test("Apple products load localized pricing and exact product types", async () =
   assert.deepEqual(
     fixture.registered.map(item => [item.id, item.type]),
     [
-      ["reverse_flow_support_one_time_5", "non consumable"],
+      ["reverse_flow_support_one_time_5", "consumable"],
       ["support_reverse_flow_monthly_3", "paid subscription"],
       ["support_reverse_flow_monthly_10", "paid subscription"]
     ]

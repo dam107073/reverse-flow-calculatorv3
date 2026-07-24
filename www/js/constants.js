@@ -39,7 +39,7 @@ const SUPPORTER_API_ENVIRONMENT = "preview";
 const SUPPORTER_API_CONFIG = Object.freeze({
   environment: SUPPORTER_API_ENVIRONMENT,
   baseUrls: Object.freeze({
-    preview: "https://reverese-flow-website-pkkuuucew-reverse-flow-llc.vercel.app",
+    preview: "https://reverese-flow-website-dam107073-reverse-flow-llc.vercel.app",
     production: "https://reverse-flow.app"
   }),
   routes: Object.freeze({
@@ -58,7 +58,7 @@ const SUPPORT_PRODUCT_CONFIG = Object.freeze({
   apple: Object.freeze({
     oneTime5: Object.freeze({
       productId: "reverse_flow_support_one_time_5",
-      productType: "non consumable"
+      productType: "consumable"
     }),
     monthly3: Object.freeze({
       productId: "support_reverse_flow_monthly_3",
@@ -72,7 +72,7 @@ const SUPPORT_PRODUCT_CONFIG = Object.freeze({
   google: Object.freeze({
     oneTime5: Object.freeze({
       productId: "reverse_flow_support_one_time_5",
-      productType: "non consumable",
+      productType: "consumable",
       purchaseOptionId: "buy"
     }),
     monthly3: Object.freeze({

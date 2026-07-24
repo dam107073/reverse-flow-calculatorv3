@@ -122,6 +122,7 @@ function extractEvidence(platform, transactions, stored = {}) {
 test("claim client uses the exact route, JSON headers, body, and no sensitive URL data", async () => {
   const calls = [];
   const service = new SupporterRegistryService(API_CONFIG, {
+    platform: "ios",
     navigator: { onLine: true },
     fetch: async (url, options) => {
       calls.push({ url, options });
@@ -165,8 +166,14 @@ test("status client normalizes email and uses POST body", async () => {
 
 test("native purchase registration uses the public verification route without secrets", async () => {
   const calls = [];
+  const logs = [];
   const service = new SupporterRegistryService(API_CONFIG, {
+    platform: "ios",
     navigator: { onLine: true },
+    console: {
+      info: (label, details) => logs.push({ level: "info", label, details }),
+      warn: (label, details) => logs.push({ level: "warn", label, details })
+    },
     fetch: async (url, options) => {
       calls.push({ url, options });
       return response(200, {
@@ -195,6 +202,75 @@ test("native purchase registration uses the public verification route without se
   assert.deepEqual(JSON.parse(calls[0].options.body), payload);
   assert.equal("x-supporter-registration-token" in calls[0].options.headers, false);
   assert.doesNotMatch(calls[0].url, /2000000123456789/);
+  assert.deepEqual(logs.map(entry => entry.details), [
+    {
+      event: "supporter-registration-request-started",
+      backendHost: "preview.example.test",
+      environment: "preview",
+      platform: "ios"
+    },
+    {
+      event: "supporter-registration-response",
+      backendHost: "preview.example.test",
+      environment: "preview",
+      platform: "ios",
+      responseStatus: 200
+    },
+    {
+      event: "supporter-registration-request-completed",
+      backendHost: "preview.example.test",
+      environment: "preview",
+      platform: "ios",
+      responseStatus: 200,
+      outcome: "success"
+    }
+  ]);
+  assert.doesNotMatch(
+    JSON.stringify(logs),
+    /firefighter@example\.com|2000000123456789/i
+  );
+});
+
+test("registration network failures log only host and normalized category", async () => {
+  const logs = [];
+  const service = new SupporterRegistryService(API_CONFIG, {
+    platform: "ios",
+    navigator: { onLine: true },
+    console: {
+      info: (label, details) => logs.push({ level: "info", label, details }),
+      warn: (label, details) => logs.push({ level: "warn", label, details })
+    },
+    fetch: async () => {
+      throw new TypeError("Load failed for a sensitive request");
+    }
+  });
+
+  await assert.rejects(
+    service.registerVerifiedPurchase({
+      email: "private@example.com",
+      transactionEvidence: { transactionId: "sensitive-transaction" }
+    }),
+    error => error.code === "network_error"
+  );
+  assert.deepEqual(logs.map(entry => entry.details), [
+    {
+      event: "supporter-registration-request-started",
+      backendHost: "preview.example.test",
+      environment: "preview",
+      platform: "ios"
+    },
+    {
+      event: "supporter-registration-failed",
+      backendHost: "preview.example.test",
+      environment: "preview",
+      platform: "ios",
+      failureCategory: "network_exception"
+    }
+  ]);
+  assert.doesNotMatch(
+    JSON.stringify(logs),
+    /private@example\.com|sensitive-transaction|Load failed/i
+  );
 });
 
 test("Apple and Google claims use only the contract evidence fields", () => {
