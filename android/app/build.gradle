@@ -132,6 +132,7 @@ registerSupporterBackendAssets("productionTest", "production")
 registerSupporterBackendAssets("release", "production")
 
 apply from: 'capacitor.build.gradle'
+apply from: rootProject.file('duplicate-generated-artifacts.gradle')
 
 try {
     def servicesJSON = file('google-services.json')

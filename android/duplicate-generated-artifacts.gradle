@@ -1,0 +1,88 @@
+import java.nio.file.Files
+
+def generatedConflictPattern = ~/^.+ \d+\.(jar|dex|class)$/
+
+def generatedConflictCopies = {
+    def intermediates = layout.buildDirectory.dir("intermediates").get().asFile
+    if (!intermediates.exists()) {
+        return []
+    }
+    fileTree(intermediates) {
+        include "**/*.jar"
+        include "**/*.dex"
+        include "**/*.class"
+    }.files.findAll { file ->
+        file.name ==~ generatedConflictPattern
+    }.sort { left, right ->
+        left.absolutePath <=> right.absolutePath
+    }
+}
+
+def sanitizeGeneratedConflictCopies = {
+    generatedConflictCopies().each { conflict ->
+        def canonicalName = conflict.name.replaceFirst(
+            / \d+(\.(?:jar|dex|class))$/,
+            '$1'
+        )
+        def canonical = new File(conflict.parentFile, canonicalName)
+        if (!canonical.exists()) {
+            throw new GradleException(
+                "Generated conflict copy has no canonical artifact: " +
+                    conflict.absolutePath
+            )
+        }
+        if (Files.mismatch(canonical.toPath(), conflict.toPath()) != -1L) {
+            throw new GradleException(
+                "Generated conflict copy differs from its canonical artifact: " +
+                    conflict.absolutePath
+            )
+        }
+        logger.lifecycle(
+            "Removing stale generated conflict copy: ${conflict.absolutePath}"
+        )
+        Files.deleteIfExists(conflict.toPath())
+    }
+}
+
+def sanitizeDuplicateGeneratedArtifacts = tasks.register(
+    "sanitizeDuplicateGeneratedArtifacts"
+) {
+    group = "build setup"
+    description =
+        "Removes byte-identical macOS conflict copies from generated intermediates."
+    doLast {
+        sanitizeGeneratedConflictCopies()
+    }
+}
+
+def verifyNoDuplicateGeneratedArtifacts = tasks.register(
+    "verifyNoDuplicateGeneratedArtifacts"
+) {
+    group = "verification"
+    description =
+        "Fails when generated intermediates contain Finder-style conflict copies."
+    doLast {
+        def conflicts = generatedConflictCopies()
+        if (!conflicts.isEmpty()) {
+            throw new GradleException(
+                "Generated conflict copies remain after the build:\n" +
+                    conflicts.collect { it.absolutePath }.join("\n")
+            )
+        }
+    }
+}
+
+tasks.matching { task ->
+    task.name.startsWith("mergeDex")
+}.configureEach {
+    dependsOn(sanitizeDuplicateGeneratedArtifacts)
+    doFirst {
+        sanitizeGeneratedConflictCopies()
+    }
+}
+
+tasks.matching { task ->
+    task.name.startsWith("assemble") || task.name.startsWith("bundle")
+}.configureEach {
+    finalizedBy(verifyNoDuplicateGeneratedArtifacts)
+}
