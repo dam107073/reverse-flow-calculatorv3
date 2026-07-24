@@ -1317,6 +1317,35 @@
     }
   }
 
+  async function recoverSupporterIdentity(
+    cache,
+    registryService,
+    email,
+    platform = getPlatform()
+  ) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      throw new SupporterRegistryError(
+        "Enter the email used to register your Supporter status.",
+        { code: "email_invalid" }
+      );
+    }
+    const confirmed = await registryService.getStatus(normalizedEmail);
+    if (!confirmed.isSupporter) {
+      return {
+        recovered: false,
+        record: confirmed
+      };
+    }
+    return {
+      recovered: true,
+      record: cache.writeConfirmed(confirmed, {
+        email: normalizedEmail,
+        platform
+      })
+    };
+  }
+
   function renderSupportOptions(container, purchaseService, platform, onPurchase) {
     if (!container) return;
     const storePlatform = platform === "ios" ? "apple" : platform === "android" ? "google" : null;
@@ -1617,16 +1646,17 @@
         submit.disabled = true;
         message.textContent = "Checking the Supporter Directory…";
         try {
-          const confirmed = await registryService.getStatus(email);
-          if (!confirmed.isSupporter) {
+          const recovery = await recoverSupporterIdentity(
+            cache,
+            registryService,
+            email,
+            getPlatform()
+          );
+          if (!recovery.recovered) {
             message.textContent =
               "No registered Supporter was found for that email. No local status was changed.";
             return;
           }
-          cache.writeConfirmed(confirmed, {
-            email,
-            platform: getPlatform()
-          });
           message.textContent = "Supporter status recovered from the Supporter Directory.";
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
@@ -1870,6 +1900,7 @@
     createLegacyClaimPayload,
     createPurchaseRegistrationPayload,
     refreshSupporterStatus,
+    recoverSupporterIdentity,
     getConfiguredApi,
     isValidEmail
   };

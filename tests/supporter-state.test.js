@@ -6,6 +6,7 @@ const {
   resolveSupportAction,
   normalizeSupporterRecord,
   SupporterCache,
+  recoverSupporterIdentity,
   isValidEmail
 } = require("../www/js/services/supporter.js");
 
@@ -112,4 +113,86 @@ test("claim email validation rejects malformed addresses", () => {
   assert.equal(isValidEmail(" firefighter@example.org "), true);
   assert.equal(isValidEmail("not-an-email"), false);
   assert.equal(isValidEmail(""), false);
+});
+
+test("Supporter identity recovery is provider-agnostic across app platforms", async () => {
+  const cases = [
+    ["stripe", "ios", "2024-01-02"],
+    ["apple", "android", "2024-02-03"],
+    ["google", "android", "2024-03-04"],
+    ["legacy_apple", "ios", "2020-04-05"]
+  ];
+
+  for (const [source, currentPlatform, supporterSince] of cases) {
+    const values = new Map();
+    const cache = new SupporterCache({
+      getItem: key => values.get(key) || null,
+      setItem: (key, value) => values.set(key, value)
+    }, `provider-neutral-${source}-${currentPlatform}`);
+    let lookupEmail = null;
+    const recovery = await recoverSupporterIdentity(
+      cache,
+      {
+        async getStatus(email) {
+          lookupEmail = email;
+          return {
+            isSupporter: true,
+            supporterSince,
+            source,
+            hasActiveRecurringSupport: false,
+            recurringStatus: "inactive",
+            contribution: {
+              type: "none",
+              status: "inactive",
+              platform: source
+            },
+            lastVerifiedAt: "2026-07-24T17:00:00.000Z"
+          };
+        }
+      },
+      " Supporter@Example.com ",
+      currentPlatform
+    );
+
+    assert.equal(lookupEmail, "supporter@example.com");
+    assert.equal(recovery.recovered, true);
+    assert.equal(recovery.record.isSupporter, true);
+    assert.equal(recovery.record.source, source);
+    assert.equal(recovery.record.platform, currentPlatform);
+  }
+});
+
+test("expired monthly support retains permanent identity after recovery", async () => {
+  const values = new Map();
+  const cache = new SupporterCache({
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value)
+  }, "expired-provider-neutral");
+  const recovery = await recoverSupporterIdentity(
+    cache,
+    {
+      async getStatus() {
+        return {
+          isSupporter: true,
+          supporterSince: "2024-01-02",
+          source: "stripe",
+          hasActiveRecurringSupport: false,
+          recurringStatus: "expired",
+          contribution: {
+            type: "monthly",
+            status: "expired",
+            platform: "stripe"
+          },
+          lastVerifiedAt: "2026-07-24T17:00:00.000Z"
+        };
+      }
+    },
+    "supporter@example.com",
+    "android"
+  );
+
+  assert.equal(recovery.record.isSupporter, true);
+  assert.equal(recovery.record.hasActiveRecurringSupport, false);
+  assert.equal(recovery.record.recurringStatus, "expired");
+  assert.equal(resolveSupportAction(recovery.record), ACTIONS.CONTINUE);
 });

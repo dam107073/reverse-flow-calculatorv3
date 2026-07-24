@@ -52,6 +52,9 @@ Store transactions and Supporter identity are separate:
   and current recurring status after registration.
 - **Recover Supporter Status** performs only an email-based directory lookup.
   It does not access StoreKit, restore a purchase, or send a welcome email.
+  The lookup is provider- and platform-neutral: Stripe, Apple, Google, and
+  legacy-claim Supporters can recover on iOS or Android with the same normalized
+  registered email.
 - Subscription refresh and the original lifetime-PRO claim keep their existing
   store history flows.
 - Apple one-time support is a consumable and is never represented as restorable
@@ -66,6 +69,10 @@ transaction reference and product, verifies/registers it through the backend,
 persists the backend-confirmed Supporter cache, confirms welcome-email
 processing, and only then calls `finish()`. Any failure leaves the retry record
 and StoreKit transaction unfinished.
+
+Store-specific state controls only active financial-support management. An
+expired or canceled monthly contribution changes recurring-management state but
+does not remove permanent Supporter identity, its badge, or `supporter_since`.
 
 `POST /api/supporters/register` remains server-to-server only. Native purchase
 registration uses `POST /api/supporters/verify-purchase`.
