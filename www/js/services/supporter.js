@@ -92,6 +92,13 @@
         monthlyAmount: Number.isFinite(contribution.monthlyAmount)
           ? contribution.monthlyAmount
           : null,
+        productId: contribution.productId || null,
+        pendingReplacementProductId:
+          contribution.pendingReplacementProductId || null,
+        pendingReplacementMonthlyAmount:
+          Number.isFinite(contribution.pendingReplacementMonthlyAmount)
+            ? contribution.pendingReplacementMonthlyAmount
+            : null,
         platform: contribution.platform || null,
         renewsOrExpiresAt: contribution.renewsOrExpiresAt || null
       },
@@ -119,7 +126,7 @@
       !isValidTimestamp(payload.lastVerifiedAt)
     ) {
       throw new SupporterRegistryError(
-        "The Supporter Directory returned an invalid response. Please try again.",
+        "Your Supporter status could not be confirmed. Please try again.",
         { code: "malformed_response" }
       );
     }
@@ -130,7 +137,7 @@
         !payload.source)
     ) {
       throw new SupporterRegistryError(
-        "The Supporter Directory returned an incomplete confirmation. Please try again.",
+        "Your Supporter status could not be confirmed. Please try again.",
         { code: "malformed_response" }
       );
     }
@@ -141,7 +148,7 @@
         payload.recurringStatus !== "inactive")
     ) {
       throw new SupporterRegistryError(
-        "The Supporter Directory returned an inconsistent response. Please try again.",
+        "Your Supporter status could not be confirmed. Please try again.",
         { code: "malformed_response" }
       );
     }
@@ -151,7 +158,7 @@
         payload.recurringStatus === "canceling");
     if (payload.hasActiveRecurringSupport !== recurringShouldBeActive) {
       throw new SupporterRegistryError(
-        "The Supporter Directory returned an inconsistent recurring status. Please try again.",
+        "Your Supporter status could not be confirmed. Please try again.",
         { code: "malformed_response" }
       );
     }
@@ -271,21 +278,21 @@
 
   function getRegistryErrorMessage(status, code, fallback) {
     if (code === "legacy_verification_unavailable") {
-      return "Supporter claims are not available yet while purchase verification is being completed. Your existing purchase remains recognized, and every tool is already available.";
+      return "Previous PRO purchase claims are temporarily unavailable. Your existing purchase remains recognized, and every tool is already available.";
     }
     if (status === 429 || code === "supporter_rate_limited") {
-      return "Too many Supporter Directory requests were made. Please wait and try again.";
+      return "Too many requests were made. Please wait and try again.";
     }
     if (status === 422) {
-      return fallback || "The store could not verify this previous purchase. Please refresh your purchase history and try again.";
+      return fallback || "This previous purchase could not be confirmed. Please refresh your purchase history and try again.";
     }
     if (status === 400) {
-      return fallback || "The claim information or purchase evidence was incomplete.";
+      return fallback || "Some information was incomplete. Please review it and try again.";
     }
     if (status >= 500) {
-      return "The Supporter Directory is temporarily unavailable. Please try again later.";
+      return "Supporter status is temporarily unavailable. Please try again later.";
     }
-    return fallback || "The Supporter Directory request could not be completed.";
+    return fallback || "Your Supporter status could not be updated.";
   }
 
   class SupporterRegistryService {
@@ -345,7 +352,7 @@
           });
         }
         throw new SupporterRegistryError(
-          "The Supporter Directory is unavailable on this device.",
+          "Supporter status is unavailable on this device.",
           { code: "transport_unavailable" }
         );
       }
@@ -386,8 +393,8 @@
         }
         throw new SupporterRegistryError(
           timedOut
-            ? "The Supporter Directory request timed out. Please try again."
-            : "The Supporter Directory could not be reached. Check your connection and try again.",
+            ? "The request timed out. Please try again."
+            : "Supporter status could not be reached. Check your connection and try again.",
           { code: timedOut ? "timeout" : "network_error" }
         );
       } finally {
@@ -420,7 +427,7 @@
           });
         }
         throw new SupporterRegistryError(
-          "The Supporter Directory returned an invalid response. Please try again.",
+          "Your Supporter status could not be confirmed. Please try again.",
           { code: "malformed_response", status: response.status }
         );
       }
@@ -573,7 +580,7 @@
     write(evidence) {
       if (!this.storage?.setItem) {
         throw new SupportPurchaseError(
-          "The pending registration could not be saved on this device.",
+          "Your Supporter setup could not be saved on this device. Please try again.",
           "purchase_retry_persistence_unavailable"
         );
       }
@@ -1003,7 +1010,7 @@
       return this.initialization;
     }
 
-    async purchase(option) {
+    async purchase(option, context = {}) {
       if (this.purchaseInFlight) {
         throw new SupportPurchaseError(
           "A store purchase is already in progress.",
@@ -1036,7 +1043,9 @@
             timeout
           });
         });
-        const orderError = await current.offer.order();
+        const orderError = await current.offer.order(
+          this.subscriptionReplacementData(current, context)
+        );
         if (orderError) {
           const waiter = this.waiters.get(current.productId);
           if (waiter) {
@@ -1078,6 +1087,50 @@
       append(this.store?.localTransactions);
       (this.store?.localReceipts || []).forEach(receipt => append(receipt?.transactions));
       return transactions;
+    }
+
+    activeRecurringPurchaseEvidence(productId) {
+      return this.allSupportTransactions()
+        .map(transaction => this.transactionEvidence(transaction))
+        .filter(evidence =>
+          evidence.purchaseType === "monthly" &&
+          (!productId || evidence.productIdentifier === productId) &&
+          Boolean(evidence.purchaseToken)
+        )
+        .sort((left, right) =>
+          Date.parse(right.purchaseTimestamp || 0) -
+          Date.parse(left.purchaseTimestamp || 0)
+        )[0] || null;
+    }
+
+    subscriptionReplacementData(option, context = {}) {
+      const fromProductId = context.currentRecurringProductId;
+      if (
+        getPlatform() !== "android" ||
+        option?.type !== "monthly" ||
+        !fromProductId ||
+        fromProductId === option.productId
+      ) {
+        return undefined;
+      }
+      const current = this.activeRecurringPurchaseEvidence(fromProductId);
+      if (!current?.purchaseToken) {
+        throw new SupportPurchaseError(
+          "Your current Google Play subscription could not be prepared for a plan change. Refresh your status and try again.",
+          "subscription_replacement_token_unavailable"
+        );
+      }
+      const modes = this.global.CdvPurchase?.GooglePlay?.ReplacementMode || {};
+      const replacementMode =
+        Number(option.amount) > Number(context.currentMonthlyAmount)
+          ? modes.CHARGE_PRORATED_PRICE || "IMMEDIATE_AND_CHARGE_PRORATED_PRICE"
+          : modes.DEFERRED || "DEFERRED";
+      return {
+        googlePlay: {
+          oldPurchaseToken: current.purchaseToken,
+          replacementMode
+        }
+      };
     }
 
     readPendingRegistration() {
@@ -1250,7 +1303,7 @@
         completion.supporterCached !== true
       ) {
         throw new SupportPurchaseError(
-          "Supporter confirmation must be saved before the store transaction can finish.",
+          "Your Supporter status must be saved before setup can finish.",
           "purchase_finish_preconditions_not_met"
         );
       }
@@ -1273,14 +1326,14 @@
           return;
         }
         throw new SupportPurchaseError(
-          "StoreKit completion is temporarily unavailable. The verified purchase remains recoverable.",
+          "Your Supporter status is saved. We’ll finish this step automatically when the store is available.",
           "consumable_finish_unavailable"
         );
       }
       const transaction = verifiedPurchase?.transaction;
       if (typeof transaction?.finish !== "function") {
         throw new SupportPurchaseError(
-          "Store completion is temporarily unavailable. Registration remains saved for retry.",
+          "Your Supporter status is saved. We’ll finish this step automatically when the store is available.",
           "purchase_finish_unavailable"
         );
       }
@@ -1418,8 +1471,8 @@
     document.querySelectorAll("[data-supporter-badge]").forEach(badge => {
       badge.hidden = !state.isSupporter;
       if (state.isSupporter) {
-        badge.href = getActionUrl(action);
-        badge.setAttribute("aria-label", `${content.label}. Open Support Reverse Flow.`);
+        badge.textContent = "❤️ Supporter";
+        badge.setAttribute("aria-label", "Reverse Flow Supporter");
       }
     });
 
@@ -1486,25 +1539,38 @@
     };
   }
 
-  function renderSupportOptions(container, purchaseService, platform, onPurchase) {
+  function renderSupportOptions(
+    container,
+    purchaseService,
+    platform,
+    onPurchase,
+    state = {}
+  ) {
     if (!container) return;
     const storePlatform = platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
+    const pendingProductId = purchaseService.readPendingRegistration()?.productId;
     container.innerHTML = "";
 
     options.forEach(option => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "support-option";
-      button.disabled = option.state !== "ready";
+      const isPendingProduct = option.productId === pendingProductId;
+      button.disabled = option.state !== "ready" || isPendingProduct;
       const label = document.createElement("span");
       label.className = "support-option-label";
-      label.textContent = option.label;
+      label.textContent =
+        state.isSupporter && option.type === "one-time" && option.localizedPrice
+          ? `Add One-Time Support — ${option.localizedPrice}`
+          : option.label;
       button.appendChild(label);
       const availability = document.createElement("span");
       availability.className = "support-option-availability";
       availability.textContent =
-        option.state === "loading"
+        isPendingProduct
+          ? "Finishing your support…"
+          : option.state === "loading"
           ? "Loading price…"
           : option.state === "ready"
             ? "Purchase"
@@ -1525,11 +1591,125 @@
           status.textContent = error.message;
         } finally {
           button.dataset.purchasing = "false";
-          button.disabled = option.state !== "ready";
+          button.disabled = option.state !== "ready" || isPendingProduct;
         }
       });
       container.appendChild(button);
     });
+  }
+
+  function recurringOptionForState(options, contribution) {
+    return options.find(option =>
+      option.type === "monthly" &&
+      (
+        option.productId === contribution?.productId ||
+        (
+          !contribution?.productId &&
+          Number(option.amount) === Number(contribution?.monthlyAmount)
+        )
+      )
+    ) || null;
+  }
+
+  function renderManageSupportOptions(
+    container,
+    purchaseService,
+    platform,
+    state,
+    onPurchase
+  ) {
+    if (!container) return;
+    const storePlatform =
+      platform === "ios" ? "apple" : platform === "android" ? "google" : null;
+    const options = purchaseService.getOptions(storePlatform);
+    const current = recurringOptionForState(options, state.contribution);
+    const pendingProductId = purchaseService.readPendingRegistration()?.productId;
+    const scheduledProductId = state.contribution?.pendingReplacementProductId;
+    container.innerHTML = "";
+
+    const monthlyOptions = options.filter(option =>
+      option.type === "monthly" && option.productId !== current?.productId
+    );
+    monthlyOptions.forEach(option => {
+      const isDowngrade = Number(option.amount) < Number(current?.amount);
+      if (isDowngrade) {
+        const note = document.createElement("p");
+        note.className = "helper support-plan-change-note";
+        note.textContent =
+          `Your monthly support will change to ${option.localizedPrice || "the lower amount"} at the next renewal.`;
+        container.appendChild(note);
+      }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "support-secondary-action";
+      button.textContent = option.localizedPrice
+        ? `Change to ${option.localizedPrice}/month`
+        : "Change Monthly Support";
+      button.disabled =
+        option.state !== "ready" ||
+        Boolean(scheduledProductId) ||
+        option.productId === pendingProductId;
+      button.addEventListener("click", async () => {
+        if (button.dataset.purchasing === "true") return;
+        const status = document.getElementById("supportPageStatus");
+        button.dataset.purchasing = "true";
+        button.disabled = true;
+        status.textContent = isDowngrade
+          ? `Your monthly support will change to ${option.localizedPrice || "the lower amount"} at the next renewal. Continue in the store to confirm.`
+          : "Continue in the store to confirm your monthly support change.";
+        try {
+          const pendingPurchase = await purchaseService.purchase(option, {
+            currentRecurringProductId: current?.productId,
+            currentMonthlyAmount: current?.amount
+          });
+          await onPurchase(pendingPurchase);
+        } catch (error) {
+          status.textContent = error.message;
+        } finally {
+          button.dataset.purchasing = "false";
+          button.disabled =
+            option.state !== "ready" ||
+            Boolean(scheduledProductId) ||
+            option.productId === pendingProductId;
+        }
+      });
+      container.appendChild(button);
+    });
+
+    const oneTime = options.find(option => option.type === "one-time");
+    if (oneTime) {
+      const oneTimeHeading = document.createElement("h3");
+      oneTimeHeading.textContent = "One-time support";
+      container.appendChild(oneTimeHeading);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "support-secondary-action";
+      button.textContent = oneTime.localizedPrice
+        ? `Add One-Time Support — ${oneTime.localizedPrice}`
+        : "Add One-Time Support";
+      button.disabled =
+        oneTime.state !== "ready" ||
+        oneTime.productId === pendingProductId;
+      button.addEventListener("click", async () => {
+        if (button.dataset.purchasing === "true") return;
+        const status = document.getElementById("supportPageStatus");
+        button.dataset.purchasing = "true";
+        button.disabled = true;
+        status.textContent = "Connecting to the store…";
+        try {
+          const pendingPurchase = await purchaseService.purchase(oneTime);
+          await onPurchase(pendingPurchase);
+        } catch (error) {
+          status.textContent = error.message;
+        } finally {
+          button.dataset.purchasing = "false";
+          button.disabled =
+            oneTime.state !== "ready" ||
+            oneTime.productId === pendingProductId;
+        }
+      });
+      container.appendChild(button);
+    }
   }
 
   function renderSupportPage(cache, registryService, purchaseService) {
@@ -1548,12 +1728,12 @@
     const cacheStatus = document.getElementById("supportCacheStatus");
     if (cacheStatus) {
       cacheStatus.textContent = state.isSupporter && state.lastVerifiedAt
-        ? `Last confirmed by the Supporter Directory: ${new Date(state.lastVerifiedAt).toLocaleString()}.`
+        ? `Last confirmed: ${new Date(state.lastVerifiedAt).toLocaleString()}.`
         : "";
     }
     const supporterRecoverySection = document.getElementById("recoverSupporterStatusSection");
     const pendingRecord = purchaseService.readPendingRegistration();
-    const hasPendingRegistration = Boolean(pendingRecord);
+    const hasPendingRegistration = Boolean(pendingRecord) && !state.isSupporter;
     if (supporterRecoverySection) {
       supporterRecoverySection.hidden = state.isSupporter || hasPendingRegistration;
     }
@@ -1586,10 +1766,32 @@
     }
 
     const contribution = state.contribution;
+    const storePlatform =
+      getPlatform() === "ios" ? "apple" : getPlatform() === "android" ? "google" : null;
+    const supportOptions = purchaseService.getOptions(storePlatform);
+    const currentRecurringOption = recurringOptionForState(
+      supportOptions,
+      contribution
+    );
     document.getElementById("manageSupportDetails").textContent =
       state.hasActiveRecurringSupport
-        ? `$${contribution.monthlyAmount || "—"} monthly · ${contribution.platform || "platform unavailable"} · ${contribution.status}`
+        ? `Current monthly support: ${
+            currentRecurringOption?.localizedPrice ||
+            "current store price"
+          }/month`
         : "Current recurring contribution details are unavailable.";
+    const scheduledSupportChange = document.getElementById("scheduledSupportChange");
+    if (scheduledSupportChange) {
+      const scheduled = supportOptions.find(option =>
+        option.productId === contribution.pendingReplacementProductId
+      );
+      scheduledSupportChange.hidden = !scheduled;
+      scheduledSupportChange.textContent = scheduled
+        ? `Your monthly support will change to ${
+            scheduled.localizedPrice || "the selected amount"
+          } on your next renewal date.`
+        : "";
+    }
 
     const handlePendingPurchase = async pendingPurchase => {
       if (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken) {
@@ -1616,7 +1818,7 @@
         cached.supporterEmail &&
         (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken)
       ) {
-        pageStatus.textContent = "Verifying the purchase with the store…";
+        pageStatus.textContent = "Confirming your support…";
         purchaseService.retryStore.markAttempt("registration-started");
         const payload = createPurchaseRegistrationPayload({
           name: "",
@@ -1633,16 +1835,15 @@
             outcome: "success"
           });
         }
-        cache.writeConfirmed(confirmed, {
+        const cachedConfirmation = cache.writeConfirmed(confirmed, {
           email: cached.supporterEmail,
           platform: payload.platform
         });
-        if (confirmed.welcomeEmailConfirmed !== true) {
-          global.reverseFlowPendingVerifiedSupportPurchase = pendingPurchase;
-          pageStatus.textContent =
-            "Supporter status is confirmed, but welcome email delivery is not yet confirmed. The StoreKit transaction remains unfinished for retry.";
-          renderSupportPage(cache, registryService, purchaseService);
-          return;
+        if (!cachedConfirmation.isSupporter || !cache.read().isSupporter) {
+          throw new SupportPurchaseError(
+            "Your Supporter status could not be saved on this device. Please try again.",
+            "supporter_cache_confirmation_failed"
+          );
         }
         try {
           purchaseService.retryStore.markAttempt("confirmed-awaiting-finish");
@@ -1652,11 +1853,12 @@
             supporterCached: true
           });
           global.reverseFlowPendingVerifiedSupportPurchase = null;
-          pageStatus.textContent = "Supporter status updated. Thank you.";
+          pageStatus.textContent =
+            "Thank you for continuing to support Reverse Flow.";
         } catch (finishError) {
           purchaseService.retryStore.markAttempt("finish-failed");
           pageStatus.textContent =
-            "Supporter status is confirmed. StoreKit completion remains pending and will be retried.";
+            "Thank you for continuing to support Reverse Flow.";
           console.warn("[Reverse Flow Support Purchase]", {
             event: "consumable-finish-deferred",
             failureCategory: finishError?.code || "storekit_finish_failed"
@@ -1683,14 +1885,24 @@
       document.getElementById("supportOptions"),
       purchaseService,
       getPlatform(),
-      handlePendingPurchase
+      handlePendingPurchase,
+      state
     );
+    if (state.hasActiveRecurringSupport) {
+      renderManageSupportOptions(
+        document.getElementById("manageSupportOptions"),
+        purchaseService,
+        getPlatform(),
+        state,
+        handlePendingPurchase
+      );
+    }
     if (page.dataset.purchaseRecoveryBound !== "true") {
       page.dataset.purchaseRecoveryBound = "true";
       purchaseService.onRecovery(pendingPurchase => {
         void handlePendingPurchase(pendingPurchase).catch(error => {
           pageStatus.textContent = error?.message ||
-            "The recovered purchase could not be prepared for registration.";
+            "We couldn’t resume your Supporter setup automatically. Please try again.";
         });
       });
     }
@@ -1807,7 +2019,7 @@
         }
         supporterRecoveryForm.dataset.submitting = "true";
         submit.disabled = true;
-        message.textContent = "Checking the Supporter Directory…";
+        message.textContent = "Checking your Supporter status…";
         try {
           const recovery = await recoverSupporterIdentity(
             cache,
@@ -1817,15 +2029,15 @@
           );
           if (!recovery.recovered) {
             message.textContent =
-              "No registered Supporter was found for that email. No local status was changed.";
+              "We couldn’t find Supporter status for that email.";
             return;
           }
-          message.textContent = "Supporter status recovered from the Supporter Directory.";
+          message.textContent = "Your Supporter status has been restored on this device.";
           await refreshSupporterStatus(cache, registryService);
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
           message.textContent = error.message ||
-            "The Supporter Directory could not complete recovery.";
+            "We couldn’t recover your Supporter status. Please try again.";
         } finally {
           supporterRecoveryForm.dataset.submitting = "false";
           submit.disabled = false;
@@ -1932,7 +2144,7 @@
               )
             : Boolean(payload.transactionEvidence.purchaseToken);
         if (!payload.productIdentifier || !hasStoreEvidence) {
-          status.textContent = "A verified store transaction is required before registration.";
+          status.textContent = "Complete your support purchase before finishing setup.";
           return;
         }
         if (!navigator.onLine) {
@@ -1956,15 +2168,15 @@
               outcome: "success"
             });
           }
-          cache.writeConfirmed(confirmed, {
+          const cachedConfirmation = cache.writeConfirmed(confirmed, {
             email: payload.email,
             platform: payload.platform
           });
-          if (confirmed.welcomeEmailConfirmed !== true) {
-            status.textContent =
-              "Supporter status is confirmed, but welcome email delivery is not yet confirmed. The StoreKit transaction remains unfinished for retry.";
-            renderSupportPage(cache, registryService, purchaseService);
-            return;
+          if (!cachedConfirmation.isSupporter || !cache.read().isSupporter) {
+            throw new SupportPurchaseError(
+              "Your Supporter status could not be saved on this device. Please try again.",
+              "supporter_cache_confirmation_failed"
+            );
           }
           try {
             purchaseService.retryStore.markAttempt("confirmed-awaiting-finish");
@@ -1974,11 +2186,12 @@
               supporterCached: true
             });
             global.reverseFlowPendingVerifiedSupportPurchase = null;
-            status.textContent = "Supporter status confirmed. Welcome to the Reverse Flow community.";
+            status.textContent =
+              "You’re officially a Reverse Flow Supporter. Thank you for helping build what comes next.";
           } catch (finishError) {
             purchaseService.retryStore.markAttempt("finish-failed");
             status.textContent =
-              "Supporter status is confirmed. StoreKit completion remains pending and will be retried.";
+              "You’re officially a Reverse Flow Supporter. Thank you for helping build what comes next.";
             console.warn("[Reverse Flow Support Purchase]", {
               event: "consumable-finish-deferred",
               failureCategory: finishError?.code || "storekit_finish_failed"
@@ -2053,6 +2266,7 @@
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") requestStatusRefresh();
     });
+    global.addEventListener?.("online", requestStatusRefresh);
 
     document.addEventListener("reverseflow:legacy-entitlement-changed", () => {
       renderSharedSupportUi(cache);

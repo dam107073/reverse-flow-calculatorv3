@@ -453,14 +453,14 @@ test("malformed server records cannot become confirmed cache entries", () => {
       ...confirmedResponse,
       lastVerifiedAt: null
     }),
-    /invalid response/
+    error => error.code === "malformed_response"
   );
   assert.throws(
     () => normalizeApiResponse({
       ...confirmedResponse,
       supporterSince: null
     }),
-    /incomplete confirmation/
+    error => error.code === "malformed_response"
   );
 });
 

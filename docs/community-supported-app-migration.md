@@ -63,16 +63,42 @@ Store transactions and Supporter identity are separate:
 The iOS `SupportPurchaseRecovery` bridge observes `Transaction.updates` and
 scans `Transaction.unfinished` for the exact
 `reverse_flow_support_one_time_5` product. Only when a verified unfinished
-transaction exists does the page expose **Complete Pending Support
-Registration**. The app persists a narrow retry record containing the
-transaction reference and product, verifies/registers it through the backend,
-persists the backend-confirmed Supporter cache, confirms welcome-email
-processing, and only then calls `finish()`. Any failure leaves the retry record
-and StoreKit transaction unfinished.
+transaction exists does the page expose **Finish Becoming a Supporter**. The
+app persists a narrow retry record containing the transaction reference and
+product, verifies/registers it through the backend, persists and rereads the
+backend-confirmed Supporter cache, and then calls `finish()`. The retry record
+is cleared only after store completion succeeds.
+
+Welcome-email delivery is a separate backend operation. A delayed, failed, or
+manually retried welcome email never rolls back Supporter identity, prevents
+the badge, keeps the registration form visible, or holds an Apple/Google
+transaction open.
 
 Store-specific state controls only active financial-support management. An
 expired or canceled monthly contribution changes recurring-management state but
 does not remove permanent Supporter identity, its badge, or `supporter_since`.
+
+## In-app support changes
+
+The two monthly products keep their canonical identifiers on both stores:
+
+- `support_reverse_flow_monthly_3` (`monthly-3` on Google Play)
+- `support_reverse_flow_monthly_10` (`monthly-10` on Google Play)
+
+An active subscriber sees the other monthly amount in **Manage Your Support**
+and can confirm the change in the native store. Apple uses the alternate
+product in the same subscription group. Google Play sends the current purchase
+token as `oldPurchaseToken`; an increase uses
+`IMMEDIATE_AND_CHARGE_PRORATED_PRICE`, while a decrease uses `DEFERRED` so it
+takes effect at the next renewal. A scheduled replacement disables additional
+monthly changes until the backend status no longer reports it.
+
+Confirmed Supporters may also purchase
+`reverse_flow_support_one_time_5` again on either platform. The contribution
+still follows backend verification, durable pending-state, cache-confirmation,
+and store-completion rules, but it reuses the existing backend identity,
+preserves the original `supporter_since`, skips the registration form, and
+does not trigger another automatic welcome email.
 
 `POST /api/supporters/register` remains server-to-server only. Native purchase
 registration uses `POST /api/supporters/verify-purchase`.

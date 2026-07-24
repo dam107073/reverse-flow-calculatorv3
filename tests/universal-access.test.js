@@ -50,10 +50,16 @@ test("support UI uses one compact action, live store options, and approved copy"
     /Having trouble with your subscription\? Refresh status/
   );
   assert.doesNotMatch(supportHtml, /Restore Support Purchases/);
+  assert.doesNotMatch(supporter, /confirmed\.welcomeEmailConfirmed !== true/);
+  assert.doesNotMatch(
+    supporter,
+    /welcome email delivery is not yet confirmed|transaction remains unfinished|StoreKit completion is temporarily unavailable|pending registration could not be saved|recovered purchase could not be prepared/i
+  );
   assert.match(
     supporter,
-    /confirmed\.welcomeEmailConfirmed !== true[\s\S]*transaction remains unfinished/
+    /cache\.writeConfirmed[\s\S]*supporterCached:\s*true[\s\S]*finishPurchase/
   );
+  assert.match(supportHtml, /You’re officially a Reverse Flow Supporter|Finish Becoming a Supporter/);
   assert.match(supportCss, /\.support-option\.is-unavailable:disabled\s*\{[\s\S]*opacity:\s*1/);
   assert.match(supportCss, /\.support-action-bar\s*\{[\s\S]*min-height:\s*46px/);
   const retiredAccessPhrase = new RegExp(
@@ -73,4 +79,26 @@ test("legacy eligibility alone never renders a Supporter badge", () => {
     supporter,
     /badge\.hidden\s*=\s*!state\.hasLegacyProEntitlement/
   );
+});
+
+test("Supporter recognition is quiet, non-interactive, and backend-cache gated", () => {
+  const supporter = read("www/js/services/supporter.js");
+  const supportCss = read("www/css/support.css");
+  const headers = [
+    read("www/index.html"),
+    read("www/support.html"),
+    read("www/settings.html"),
+    read("www/tools.html")
+  ].join("\n");
+
+  assert.match(headers, /<span class="supporter-badge" data-supporter-badge hidden>❤️ Supporter<\/span>/);
+  assert.doesNotMatch(headers, /<a class="supporter-badge"/);
+  assert.match(supporter, /badge\.hidden = !state\.isSupporter/);
+  assert.match(supporter, /badge\.textContent = "❤️ Supporter"/);
+  assert.match(supportCss, /\.supporter-badge\s*\{[\s\S]*color:\s*#fff/);
+  assert.match(supportCss, /\.supporter-badge\s*\{[\s\S]*border:\s*0/);
+  assert.match(supportCss, /\.supporter-badge\s*\{[\s\S]*background:\s*none/);
+  assert.match(supportCss, /\.supporter-badge\s*\{[\s\S]*box-shadow:\s*none/);
+  assert.match(supportCss, /\.supporter-badge\s*\{[\s\S]*border-radius:\s*0/);
+  assert.match(supportCss, /\.app-title-row\s*\{[\s\S]*justify-content:\s*space-between/);
 });

@@ -9,7 +9,7 @@
   <script src="js/appearance.js?v=build-1"></script>
   <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
   <link rel="stylesheet" href="css/components.css?v=community-1" />
-  <link rel="stylesheet" href="css/support.css?v=community-polish-3" />
+  <link rel="stylesheet" href="css/support.css?v=community-polish-4e2" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
 </head>
 <body>
@@ -18,7 +18,7 @@
       <div>
         <div class="app-title-row">
           <h1 class="app-header-title">Reverse Flow</h1>
-          <a class="supporter-badge" data-supporter-badge href="support.html" hidden>Supporter</a>
+          <span class="supporter-badge" data-supporter-badge hidden>❤️ Supporter</span>
         </div>
         <p class="app-header-subtitle">Fire Hydraulics</p>
       </div>
@@ -66,11 +66,11 @@
 
     <section class="support-help" id="recoverSupporterStatusSection">
       <details id="supporterRecoveryDisclosure">
-        <summary>Already supported Reverse Flow?</summary>
+        <summary>Already a Supporter?</summary>
         <div class="support-help-panel">
-          <h2>Already a Supporter?</h2>
+          <h2>Recover Your Supporter Status</h2>
           <p>
-            Enter the same email you used when registering to recover your Supporter status on this device.
+            Enter the email you used when you registered to restore your Supporter status on this device.
           </p>
           <form id="recoverSupporterStatusForm" class="support-identity-form" novalidate>
             <label for="recoverSupporterEmail">Email address</label>
@@ -109,12 +109,11 @@
     </section>
 
     <section class="card" id="manageSupportSection" hidden>
-      <h2>Recurring support</h2>
+      <h2>Manage Your Support</h2>
       <p id="manageSupportDetails"></p>
-      <p>
-        Apple or Google remains the billing authority. Ending recurring support never removes permanent Supporter status.
-      </p>
-      <button id="manageSubscriptionButton" type="button">Open Subscription Management</button>
+      <p id="scheduledSupportChange" class="support-state-note" hidden></p>
+      <div id="manageSupportOptions" class="manage-support-options"></div>
+      <button id="manageSubscriptionButton" class="support-troubleshooting-action" type="button">Manage Billing or Cancel</button>
       <button
         id="refreshSupportSubscriptionsButton"
         class="support-troubleshooting-action"
@@ -123,7 +122,7 @@
     </section>
 
     <section class="card" id="supportRegistrationSection" hidden>
-      <p class="support-section-kicker">Your support was received</p>
+      <p class="support-section-kicker">YOUR SUPPORT WAS RECEIVED</p>
       <h2>Finish Becoming a Supporter</h2>
       <p>Your support was received. Add your name and email to finish setting up your Supporter status.</p>
       <form id="supportRegistrationForm" class="support-identity-form" novalidate>
@@ -141,6 +140,6 @@
 
   <script src="js/constants.js?v=community-4d"></script>
   <script src="js/services/entitlement.js?v=community-4b"></script>
-  <script src="js/services/supporter.js?v=community-4d-ux1"></script>
+  <script src="js/services/supporter.js?v=community-4e2"></script>
 </body>
 </html>

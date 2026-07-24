@@ -96,6 +96,7 @@ function createStore(platform, behavior = "approved") {
   let restoreCalls = 0;
   let manageCalls = 0;
   let finishCalls = 0;
+  const orders = [];
   const storePlatform = platform === "ios" ? "ios-appstore" : "android-playstore";
   const productConfig = platform === "ios" ? CONFIG.apple : CONFIG.google;
   const products = new Map();
@@ -116,7 +117,8 @@ function createStore(platform, behavior = "approved") {
         priceMicros: Number(priceByKey[key].replace(/\D/g, "")) * 10000,
         billingPeriod: key === "oneTime5" ? null : "P1M"
       }],
-      async order() {
+      async order(additionalData) {
+        orders.push({ productId: configured.productId, additionalData });
         if (behavior === "cancel") {
           return { isError: true, code: 6777006, productId: configured.productId };
         }
@@ -196,6 +198,7 @@ function createStore(platform, behavior = "approved") {
     store,
     products,
     registered,
+    orders,
     counts: () => ({ restoreCalls, manageCalls, finishCalls })
   };
 }
@@ -215,6 +218,12 @@ function installPurchaseGlobals(platform, store) {
     },
     ErrorCode: {
       PAYMENT_CANCELLED: 6777006
+    },
+    GooglePlay: {
+      ReplacementMode: {
+        CHARGE_PRORATED_PRICE: "IMMEDIATE_AND_CHARGE_PRORATED_PRICE",
+        DEFERRED: "DEFERRED"
+      }
     }
   };
   global.APP_VERSION = "1.3.3";
@@ -461,7 +470,8 @@ test("pending and recovery presentation uses plain-language state-aware actions"
     supportPageSource,
     /Your support was received\. Add your name and email to finish setting up your Supporter status\./
   );
-  assert.match(supportPageSource, /Already supported Reverse Flow\?/);
+  assert.match(supportPageSource, /Already a Supporter\?/);
+  assert.match(supportPageSource, /Recover Your Supporter Status/);
   assert.match(supportPageSource, /Recover My Supporter Status/);
   assert.match(supportPageSource, /Purchased the original Reverse Flow PRO\?/);
   assert.match(supportPageSource, /Check Previous PRO Purchase/);
@@ -478,6 +488,37 @@ test("pending and recovery presentation uses plain-language state-aware actions"
   assert.match(
     supporterServiceSource,
     /document\.addEventListener\("resume", requestStatusRefresh\)/
+  );
+  assert.match(
+    supporterServiceSource,
+    /global\.addEventListener\?\.\("online", requestStatusRefresh\)/
+  );
+  assert.doesNotMatch(
+    supporterServiceSource,
+    /confirmed\.welcomeEmailConfirmed !== true/
+  );
+  assert.match(
+    supporterServiceSource,
+    /You’re officially a Reverse Flow Supporter/
+  );
+});
+
+test("welcome delivery never gates store completion after confirmed cache persistence", () => {
+  assert.doesNotMatch(
+    supporterServiceSource,
+    /welcomeEmailConfirmed[\s\S]{0,500}finishPurchase/
+  );
+  assert.match(
+    supporterServiceSource,
+    /const cachedConfirmation = cache\.writeConfirmed[\s\S]*cache\.read\(\)\.isSupporter[\s\S]*finishPurchase/
+  );
+  assert.match(
+    supporterServiceSource,
+    /purchaseService\.retryStore\.markAttempt\("confirmed-awaiting-finish"\)/
+  );
+  assert.match(
+    supporterServiceSource,
+    /global\.reverseFlowPendingVerifiedSupportPurchase = null/
   );
 });
 
@@ -536,6 +577,74 @@ test("subscription refresh returns only recurring support and management opens n
     manageCalls: 1,
     finishCalls: 0
   });
+});
+
+test("Apple monthly changes use the alternate subscription product in-app", async () => {
+  for (const [fromKey, toKey] of [[1, 2], [2, 1]]) {
+    const fixture = createStore("ios");
+    installPurchaseGlobals("ios", fixture.store);
+    const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+    await service.initialize();
+    const options = service.getOptions("apple");
+    await service.purchase(options[toKey], {
+      currentRecurringProductId: options[fromKey].productId,
+      currentMonthlyAmount: options[fromKey].amount
+    });
+    assert.equal(fixture.orders.at(-1).productId, options[toKey].productId);
+    assert.equal(fixture.orders.at(-1).additionalData, undefined);
+  }
+});
+
+test("Google monthly changes replace the active purchase with deliberate modes", async () => {
+  for (const [fromKey, toKey, expectedMode] of [
+    [1, 2, "IMMEDIATE_AND_CHARGE_PRORATED_PRICE"],
+    [2, 1, "DEFERRED"]
+  ]) {
+    const fixture = createStore("android");
+    installPurchaseGlobals("android", fixture.store);
+    const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+    await service.initialize();
+    const options = service.getOptions("google");
+    fixture.store.localTransactions.push({
+      platform: "android-playstore",
+      products: [{
+        id: options[fromKey].productId,
+        offerId: options[fromKey].offer.id
+      }],
+      purchaseId: `current-token-${fromKey}`,
+      purchaseDate: new Date("2026-07-24T10:00:00Z"),
+      state: "finished"
+    });
+    await service.purchase(options[toKey], {
+      currentRecurringProductId: options[fromKey].productId,
+      currentMonthlyAmount: options[fromKey].amount
+    });
+    assert.deepEqual(fixture.orders.at(-1).additionalData, {
+      googlePlay: {
+        oldPurchaseToken: `current-token-${fromKey}`,
+        replacementMode: expectedMode
+      }
+    });
+  }
+});
+
+test("active Supporter management keeps billing secondary and offers repeat support", () => {
+  assert.match(supportPageSource, /Manage Your Support/);
+  assert.match(supportPageSource, /Manage Billing or Cancel/);
+  assert.match(supporterServiceSource, /Change to \$\{option\.localizedPrice\}\/month/);
+  assert.match(supporterServiceSource, /Add One-Time Support — \$\{oneTime\.localizedPrice\}/);
+  assert.match(
+    supporterServiceSource,
+    /option\.productId !== current\?\.productId/
+  );
+  assert.match(
+    supporterServiceSource,
+    /pendingReplacementProductId[\s\S]*on your next renewal date/
+  );
+  assert.match(
+    supporterServiceSource,
+    /Thank you for continuing to support Reverse Flow\./
+  );
 });
 
 test("iOS consumable recovery uses Transaction.unfinished without restore semantics", async () => {

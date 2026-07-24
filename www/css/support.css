@@ -1378,8 +1378,14 @@
     .app-title-row {
       display: flex;
       align-items: center;
-      gap: 0.55rem;
+      justify-content: space-between;
+      gap: 1rem;
       min-width: 0;
+      width: 100%;
+    }
+
+    .app-header-inner > div {
+      width: 100%;
     }
 
     :root {
@@ -1392,18 +1398,17 @@
     .supporter-badge {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      min-height: 2.25rem;
-      padding: 0.25rem 0.65rem;
-      border: 1px solid rgba(255, 138, 31, 0.82);
-      border-radius: 999px;
-      background: linear-gradient(135deg, rgba(255, 138, 31, 0.2), rgba(255, 101, 0, 0.1));
-      box-shadow: 0 0 14px rgba(255, 101, 0, 0.18);
-      color: #9b2f00;
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      text-decoration: none;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 0;
+      background: none;
+      box-shadow: none;
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 1.2;
+      pointer-events: none;
       white-space: nowrap;
     }
 
@@ -1412,7 +1417,9 @@
     #legacyClaimSection[hidden],
     #manageSupportSection[hidden],
     #supportOptionsSection[hidden],
-    #supportRegistrationSection[hidden] {
+    #supportRegistrationSection[hidden],
+    .support-help[hidden],
+    .support-benefits-card[hidden] {
       display: none !important;
     }
 
@@ -1733,6 +1740,27 @@
       box-shadow: none;
     }
 
+    .manage-support-options {
+      display: grid;
+      gap: 0.65rem;
+      margin: 1rem 0;
+    }
+
+    .manage-support-options h3 {
+      margin: 0.7rem 0 0;
+      color: var(--ink);
+      font-size: 0.95rem;
+    }
+
+    .manage-support-options .support-secondary-action {
+      width: 100%;
+    }
+
+    .support-plan-change-note {
+      margin: 0;
+      font-weight: 600;
+    }
+
     .support-identity-form {
       display: grid;
       gap: 0.65rem;
@@ -1773,8 +1801,8 @@
     }
 
     html[data-resolved-theme="dark"] .supporter-badge {
-      color: #ffd3ad;
-      background: rgba(255, 101, 0, 0.12);
+      color: #fff;
+      background: none;
     }
 
     html[data-resolved-theme="dark"] .support-kicker,
