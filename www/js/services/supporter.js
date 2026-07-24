@@ -870,6 +870,8 @@
       this.supporterCache = dependencies.supporterCache ||
         new SupporterCache(storage);
       this.storage = storage || null;
+      this.googlePurchaseAcknowledger =
+        dependencies.googlePurchaseAcknowledger || null;
       this.apiEnvironment =
         dependencies.apiEnvironment ||
         this.global.SUPPORTER_API_CONFIG?.environment ||
@@ -890,6 +892,7 @@
       this.receivedTransactionKeys = new Set();
       this.completedTransactionKeys = new Set();
       this.reconciliationRequests = new Map();
+      this.acknowledgedTransactionKeys = new Set();
       this.finishedTransactionKeys = new Set();
       this.supportUiState = SUPPORT_UI_STATES.NOT_SUPPORTER;
       this.lastConfirmedSupporterState = null;
@@ -1183,7 +1186,7 @@
       if (kind === "approved") {
         const evidence = this.transactionEvidence(transaction, waiter.option);
         const key = this.transactionKey(evidence);
-        this.logTransaction("store-transaction-received", evidence, {
+        this.logTransaction("purchase-discovered", evidence, {
           lifecycle: "approved"
         });
         if (this.receivedTransactionKeys.has(key)) {
@@ -1205,6 +1208,7 @@
             retryable: true
           });
         } catch (error) {
+          this.receivedTransactionKeys.delete(key);
           waiter.reject(error);
           return true;
         }
@@ -1277,7 +1281,7 @@
           if (!settled) {
             const evidence = this.transactionEvidence(transaction);
             const key = this.transactionKey(evidence);
-            this.logTransaction("store-transaction-received", evidence, {
+            this.logTransaction("purchase-discovered", evidence, {
               lifecycle: "approved-redelivery"
             });
             if (this.receivedTransactionKeys.has(key)) {
@@ -1286,15 +1290,51 @@
               });
               return;
             }
-            this.receivedTransactionKeys.add(key);
             const pending = this.retryStoreForEvidence(evidence).read();
             if (!pending || !this.transactionMatchesPending(evidence, pending)) {
+              if (
+                getPlatform() === "android" &&
+                evidence.acknowledged !== true
+              ) {
+                try {
+                  this.persistPendingEvidence(evidence);
+                  this.receivedTransactionKeys.add(key);
+                  this.logTransaction(
+                    "support-pending-state-written",
+                    evidence,
+                    {
+                      stage: "approved-redelivery",
+                      localPendingStateWritten: true,
+                      retryable: true
+                    }
+                  );
+                  this.notifyRecovery({
+                    ...evidence,
+                    recoverySource: "store-approved-redelivery"
+                  });
+                } catch (error) {
+                  this.logTransaction(
+                    "support-pending-state-write-deferred",
+                    evidence,
+                    {
+                      stage: "approved-redelivery",
+                      failureCategory:
+                        error?.code || "pending_state_write_failed",
+                      localPendingStateWritten: false,
+                      retryable: true
+                    }
+                  );
+                }
+                return;
+              }
+              this.receivedTransactionKeys.add(key);
               this.logTransaction("store-transaction-duplicate-ignored", evidence, {
                 lifecycle: "historical-callback",
                 reason: "no-current-pending-record"
               });
               return;
             }
+            this.receivedTransactionKeys.add(key);
             if (
               getPlatform() === "ios" &&
               evidence.productIdentifier === this.oneTimeSupportProductId()
@@ -1684,40 +1724,96 @@
       );
     }
 
-    async acknowledgeVerifiedPendingSubscription(
+    async acknowledgeGoogleOneTimePurchase(verifiedPurchase) {
+      if (typeof this.googlePurchaseAcknowledger === "function") {
+        await this.googlePurchaseAcknowledger(verifiedPurchase);
+        return;
+      }
+      const purchaseToken = verifiedPurchase?.purchaseToken;
+      const exec = this.global.cordova?.exec;
+      if (!purchaseToken || typeof exec !== "function") {
+        throw new SupportPurchaseError(
+          "Google Play acknowledgment is temporarily unavailable.",
+          "google_acknowledgment_unavailable"
+        );
+      }
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new SupportPurchaseError(
+            "Google Play acknowledgment timed out and will retry automatically.",
+            "google_acknowledgment_timeout"
+          ));
+        }, 15000);
+        const complete = callback => value => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          callback(value);
+        };
+        exec(
+          complete(resolve),
+          complete(error => reject(new SupportPurchaseError(
+            "Google Play acknowledgment will retry automatically.",
+            error?.code || "google_acknowledgment_failed"
+          ))),
+          "InAppBillingPlugin",
+          "acknowledgePurchase",
+          [purchaseToken]
+        );
+      });
+    }
+
+    async acknowledgeVerifiedGooglePurchase(
       verifiedPurchase,
       completion = {}
     ) {
-      if (
-        verifiedPurchase?.paymentSource !== "android" ||
-        verifiedPurchase?.purchaseType !== "monthly"
-      ) {
+      if (verifiedPurchase?.paymentSource !== "android") {
         return false;
       }
-      const pending = this.subscriptionRetryStore.read();
+      const pendingStore = this.retryStoreForEvidence(verifiedPurchase);
+      const pending = pendingStore.read();
       if (
         completion.backendVerified !== true ||
         completion.pendingPersisted !== true ||
         !pending ||
         !this.transactionMatchesPending(verifiedPurchase, pending)
       ) {
+        this.logTransaction(
+          "google-purchase-acknowledgment-deferred",
+          verifiedPurchase,
+          {
+            stage: "store-acknowledgment",
+            backendOutcome: "deferred",
+            failureCategory:
+              completion.backendVerified === true
+                ? "durable_pending_state_unavailable"
+                : "backend_verification_not_succeeded",
+            retryable: true,
+            localPendingStateWritten:
+              completion.pendingPersisted === true,
+            acknowledgmentAttempted: false
+          }
+        );
         throw new SupportPurchaseError(
-          "Your verified monthly support must be saved before Google Play acknowledgment.",
-          "subscription_acknowledgment_preconditions_not_met"
+          "Your verified support must be saved before Google Play acknowledgment.",
+          "google_acknowledgment_preconditions_not_met"
         );
       }
       const transactionKey = this.transactionKey(verifiedPurchase);
       if (
-        this.finishedTransactionKeys.has(transactionKey) ||
+        this.acknowledgedTransactionKeys.has(transactionKey) ||
         verifiedPurchase.acknowledged === true
       ) {
-        this.finishedTransactionKeys.add(transactionKey);
+        this.acknowledgedTransactionKeys.add(transactionKey);
         this.markPendingAttempt(
           verifiedPurchase,
           "verified-awaiting-registration"
         );
         this.logTransaction(
-          "google-subscription-acknowledgment-deduplicated",
+          "google-purchase-acknowledgment-deduplicated",
           verifiedPurchase,
           {
             stage: "store-acknowledgment",
@@ -1730,12 +1826,12 @@
       }
       if (typeof verifiedPurchase?.transaction?.finish !== "function") {
         throw new SupportPurchaseError(
-          "Your monthly support is saved and acknowledgment will retry automatically.",
-          "subscription_acknowledgment_unavailable"
+          "Your support is saved and Google Play acknowledgment will retry automatically.",
+          "google_acknowledgment_unavailable"
         );
       }
       this.logTransaction(
-        "google-subscription-acknowledgment-started",
+        "google-purchase-acknowledgment-attempted",
         verifiedPurchase,
         {
           stage: "store-acknowledgment",
@@ -1743,14 +1839,37 @@
           retryable: true
         }
       );
-      await verifiedPurchase.transaction.finish();
-      this.finishedTransactionKeys.add(transactionKey);
+      try {
+        if (this.isOneTimeEvidence(verifiedPurchase)) {
+          await this.acknowledgeGoogleOneTimePurchase(verifiedPurchase);
+        } else {
+          await verifiedPurchase.transaction.finish();
+          this.finishedTransactionKeys.add(transactionKey);
+        }
+      } catch (error) {
+        this.logTransaction(
+          "google-purchase-acknowledgment-deferred",
+          verifiedPurchase,
+          {
+            stage: "store-acknowledgment",
+            backendOutcome: "deferred",
+            failureCategory:
+              error?.code || "google_acknowledgment_failed",
+            retryable: true,
+            localPendingStateWritten: true,
+            acknowledgmentAttempted: true
+          }
+        );
+        throw error;
+      }
+      verifiedPurchase.acknowledged = true;
+      this.acknowledgedTransactionKeys.add(transactionKey);
       this.markPendingAttempt(
         verifiedPurchase,
         "verified-awaiting-registration"
       );
       this.logTransaction(
-        "google-subscription-acknowledgment-completed",
+        "google-purchase-acknowledgment-succeeded",
         verifiedPurchase,
         {
           stage: "store-acknowledgment",
@@ -1760,6 +1879,16 @@
         }
       );
       return true;
+    }
+
+    async acknowledgeVerifiedPendingSubscription(
+      verifiedPurchase,
+      completion = {}
+    ) {
+      return this.acknowledgeVerifiedGooglePurchase(
+        verifiedPurchase,
+        completion
+      );
     }
 
     async reconcileTransaction(evidence, callback) {
@@ -1992,12 +2121,16 @@
       if (
         verifiedPurchase?.paymentSource === "android" &&
         verifiedPurchase?.purchaseType === "monthly" &&
-        verifiedPurchase?.acknowledged === true
+        (
+          verifiedPurchase?.acknowledged === true ||
+          this.acknowledgedTransactionKeys.has(transactionKey)
+        )
       ) {
+        this.acknowledgedTransactionKeys.add(transactionKey);
         this.finishedTransactionKeys.add(transactionKey);
         this.clearPendingRegistration(verifiedPurchase);
         this.logTransaction(
-          "google-subscription-acknowledgment-deduplicated",
+          "google-purchase-acknowledgment-deduplicated",
           verifiedPurchase,
           {
             stage: "store-acknowledgment",
@@ -2028,6 +2161,64 @@
           "Your Supporter status is saved. We’ll finish this step automatically when the store is available.",
           "consumable_finish_unavailable"
         );
+      }
+      if (verifiedPurchase?.paymentSource === "android") {
+        await this.acknowledgeVerifiedGooglePurchase(
+          verifiedPurchase,
+          {
+            backendVerified: true,
+            pendingPersisted: Boolean(
+              this.retryStoreForEvidence(verifiedPurchase).read()
+            )
+          }
+        );
+        if (this.isOneTimeEvidence(verifiedPurchase)) {
+          const transaction = verifiedPurchase?.transaction;
+          if (typeof transaction?.finish !== "function") {
+            throw new SupportPurchaseError(
+              "Your Supporter status is saved. Google Play completion will retry automatically.",
+              "google_consumption_unavailable"
+            );
+          }
+          this.logTransaction(
+            "google-consumable-consumption-attempted",
+            verifiedPurchase,
+            {
+              stage: "store-consumption",
+              acknowledgmentAttempted: false,
+              retryable: true
+            }
+          );
+          try {
+            await transaction.finish();
+          } catch (error) {
+            this.logTransaction(
+              "google-consumable-consumption-deferred",
+              verifiedPurchase,
+              {
+                stage: "store-consumption",
+                failureCategory:
+                  error?.code || "google_consumption_failed",
+                acknowledgmentAttempted: false,
+                retryable: true
+              }
+            );
+            throw error;
+          }
+          this.finishedTransactionKeys.add(transactionKey);
+          this.logTransaction(
+            "google-consumable-consumption-succeeded",
+            verifiedPurchase,
+            {
+              stage: "store-consumption",
+              backendOutcome: "success",
+              acknowledgmentAttempted: false,
+              retryable: false
+            }
+          );
+        }
+        this.clearPendingRegistration(verifiedPurchase);
+        return;
       }
       const transaction = verifiedPurchase?.transaction;
       if (typeof transaction?.finish !== "function") {
@@ -2534,6 +2725,15 @@
         const localPendingStateWritten = Boolean(
           purchaseService.retryStoreForEvidence(pendingPurchase).read()
         );
+        purchaseService.logTransaction(
+          "purchase-verification-started",
+          pendingPurchase,
+          {
+            stage: "purchase-verification",
+            retryable: true,
+            localPendingStateWritten
+          }
+        );
         try {
           await registryService.verifyPendingPurchase(
             createPendingVerificationPayload(pendingPurchase),
@@ -2544,8 +2744,31 @@
             pendingPurchase,
             "verification-succeeded"
           );
+          purchaseService.logTransaction(
+            "purchase-verification-result",
+            pendingPurchase,
+            {
+              stage: "purchase-verification",
+              backendOutcome: "success",
+              retryable: false,
+              localPendingStateWritten
+            }
+          );
         } catch (error) {
           purchaseService.markPendingAttempt(pendingPurchase, "verification-failed");
+          purchaseService.logTransaction(
+            "purchase-verification-result",
+            pendingPurchase,
+            {
+              stage: "purchase-verification",
+              backendOutcome: "failed",
+              failureCategory:
+                error?.code || "supporter_registry_error",
+              retryable: true,
+              localPendingStateWritten,
+              acknowledgmentAttempted: false
+            }
+          );
           registryService.logRegistration("warn", {
             event: "pending-support-verification-deferred",
             provider:
@@ -2562,15 +2785,29 @@
             localPendingStateWritten,
             acknowledgmentAttempted: false
           });
+          if (pendingPurchase.paymentSource === "android") {
+            purchaseService.logTransaction(
+              "google-purchase-acknowledgment-deferred",
+              pendingPurchase,
+              {
+                stage: "store-acknowledgment",
+                backendOutcome: "deferred",
+                failureCategory: "backend_verification_not_succeeded",
+                retryable: true,
+                localPendingStateWritten,
+                acknowledgmentAttempted: false
+              }
+            );
+          }
+          throw error;
         }
         if (
           pendingBackendVerified &&
-          pendingPurchase.paymentSource === "android" &&
-          pendingPurchase.purchaseType === "monthly"
+          pendingPurchase.paymentSource === "android"
         ) {
           try {
             acknowledgmentAttempted =
-              await purchaseService.acknowledgeVerifiedPendingSubscription(
+              await purchaseService.acknowledgeVerifiedGooglePurchase(
                 pendingPurchase,
                 {
                   backendVerified: true,
@@ -2583,18 +2820,19 @@
               "acknowledgment-failed"
             );
             registryService.logRegistration("warn", {
-              event: "google-subscription-acknowledgment-deferred",
+              event: "google-purchase-acknowledgment-deferred",
               provider: "google",
               productId: pendingPurchase.productIdentifier,
               stage: "store-acknowledgment",
               backendOutcome: "deferred",
               failureCategory:
-                error?.code || "subscription_acknowledgment_failed",
+                error?.code || "google_acknowledgment_failed",
               retryable: true,
               verifiedPurchaseEvidencePresent: true,
               localPendingStateWritten,
               acknowledgmentAttempted: true
             });
+            throw error;
           }
         }
       }
@@ -2639,6 +2877,17 @@
             "supporter_cache_confirmation_failed"
           );
         }
+        purchaseService.logTransaction(
+          "supporter-registration-completed",
+          pendingPurchase,
+          {
+            stage: "supporter-registration",
+            backendOutcome: "success",
+            retryable: false,
+            localPendingStateWritten: true,
+            acknowledgmentAttempted
+          }
+        );
         try {
           purchaseService.markPendingAttempt(
             pendingPurchase,
@@ -2972,7 +3221,6 @@
               localPendingStateWritten: pendingStateWritten,
               acknowledgmentAttempted:
                 verifiedPurchase?.paymentSource === "android" &&
-                verifiedPurchase?.purchaseType === "monthly" &&
                 (
                   verifiedPurchase?.acknowledged === true ||
                   purchaseService.finishedTransactionKeys.has(
@@ -2993,8 +3241,7 @@
               verifiedPurchaseEvidencePresent: true,
               localPendingStateWritten: pendingStateWritten,
               acknowledgmentAttempted:
-                verifiedPurchase?.paymentSource === "android" &&
-                verifiedPurchase?.purchaseType === "monthly"
+                verifiedPurchase?.paymentSource === "android"
             });
           }
           const cachedConfirmation = cache.writeConfirmed(confirmed, {
@@ -3007,6 +3254,18 @@
               "supporter_cache_confirmation_failed"
             );
           }
+          purchaseService.logTransaction(
+            "supporter-registration-completed",
+            verifiedPurchase,
+            {
+              stage: "supporter-registration",
+              backendOutcome: "success",
+              retryable: false,
+              localPendingStateWritten: pendingStateWritten,
+              acknowledgmentAttempted:
+                verifiedPurchase?.paymentSource === "android"
+            }
+          );
           try {
             purchaseService.markPendingAttempt(
               verifiedPurchase,
@@ -3049,8 +3308,7 @@
               verifiedPurchaseEvidencePresent: true,
               localPendingStateWritten: true,
               acknowledgmentAttempted:
-                verifiedPurchase?.paymentSource === "android" &&
-                verifiedPurchase?.purchaseType === "monthly"
+                verifiedPurchase?.paymentSource === "android"
             });
           }
           registryService.logRegistration("info", {
@@ -3065,8 +3323,7 @@
             verifiedPurchaseEvidencePresent: true,
             localPendingStateWritten: true,
             acknowledgmentAttempted:
-              verifiedPurchase?.paymentSource === "android" &&
-              verifiedPurchase?.purchaseType === "monthly"
+              verifiedPurchase?.paymentSource === "android"
           });
           status.textContent =
             verifiedPurchase?.purchaseType === "monthly"
@@ -3105,6 +3362,16 @@
     }
     let lastRefreshStartedAt = 0;
     const requestStatusRefresh = () => {
+      void purchases.recoverPendingRegistration().catch(error => {
+        console.warn(
+          `[Reverse Flow Support Purchase] ${JSON.stringify({
+            event: "pending-registration-recovery-deferred",
+            failureCategory:
+              error?.code || "pending_registration_recovery_failed",
+            retryable: true
+          })}`
+        );
+      });
       const now = Date.now();
       if (now - lastRefreshStartedAt < 60000) return;
       lastRefreshStartedAt = now;

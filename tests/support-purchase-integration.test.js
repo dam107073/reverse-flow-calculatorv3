@@ -493,7 +493,122 @@ test("verified pending Google subscription acknowledges exactly once", async () 
   assert.equal(fixture.callbacks.finishCount, 1);
 });
 
-test("Google subscription stays unacknowledged while backend verification is unavailable", async () => {
+test("verified Google one-time support is acknowledged once and consumed only after registration", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  let acknowledgmentCalls = 0;
+  const service = new SupportPurchaseService(CONFIG, {
+    store: fixture.store,
+    googlePurchaseAcknowledger: async () => {
+      acknowledgmentCalls += 1;
+    }
+  });
+  const diagnosticLines = [];
+  const originalInfo = console.info;
+  console.info = line => diagnosticLines.push(String(line));
+  const evidence = {
+    paymentSource: "android",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseType: "one-time",
+    purchaseToken: "private-google-one-time-token",
+    purchaseTimestamp: "2026-07-24T12:00:00Z",
+    acknowledged: false,
+    transaction: {
+      async finish() {
+        fixture.callbacks.finishCount =
+          Number(fixture.callbacks.finishCount || 0) + 1;
+      }
+    }
+  };
+
+  try {
+    service.persistPendingEvidence(evidence);
+    assert.equal(await service.acknowledgeVerifiedGooglePurchase(evidence, {
+      backendVerified: true,
+      pendingPersisted: true
+    }), true);
+    assert.equal(evidence.acknowledged, true);
+    assert.equal(acknowledgmentCalls, 1);
+    assert.equal(fixture.callbacks.finishCount || 0, 0);
+    assert.notEqual(service.readPendingOneTimeRegistration(), null);
+
+    // A registration delay or retry cannot trigger another Play completion.
+    assert.equal(await service.acknowledgeVerifiedGooglePurchase(evidence, {
+      backendVerified: true,
+      pendingPersisted: true
+    }), false);
+    assert.equal(acknowledgmentCalls, 1);
+    assert.equal(fixture.callbacks.finishCount || 0, 0);
+
+    await service.finishPurchase(evidence, {
+      backendVerified: true,
+      registrationSucceeded: true,
+      supporterCached: true
+    });
+    assert.equal(fixture.callbacks.finishCount, 1);
+    assert.equal(acknowledgmentCalls, 1);
+    assert.equal(service.readPendingOneTimeRegistration(), null);
+  } finally {
+    console.info = originalInfo;
+  }
+
+  assert.ok(diagnosticLines.some(line =>
+    line.includes('"event":"google-purchase-acknowledgment-attempted"')
+  ));
+  assert.ok(diagnosticLines.some(line =>
+    line.includes('"event":"google-purchase-acknowledgment-succeeded"')
+  ));
+  assert.ok(diagnosticLines.some(line =>
+    line.includes('"event":"google-purchase-acknowledgment-deduplicated"')
+  ));
+  assert.ok(diagnosticLines.some(line =>
+    line.includes('"event":"google-consumable-consumption-succeeded"')
+  ));
+  assert.ok(diagnosticLines.every(line =>
+    !line.includes("private-google-one-time-token")
+  ));
+});
+
+test("Google one-time acknowledgment uses the native acknowledge action without consuming", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const nativeCalls = [];
+  global.cordova = {
+    exec(success, failure, service, action, args) {
+      nativeCalls.push({ service, action, args });
+      success();
+    }
+  };
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  const evidence = {
+    paymentSource: "android",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseType: "one-time",
+    purchaseToken: "private-native-token",
+    acknowledged: false,
+    transaction: {
+      async finish() {
+        fixture.callbacks.finishCount =
+          Number(fixture.callbacks.finishCount || 0) + 1;
+      }
+    }
+  };
+  service.persistPendingEvidence(evidence);
+
+  assert.equal(await service.acknowledgeVerifiedGooglePurchase(evidence, {
+    backendVerified: true,
+    pendingPersisted: true
+  }), true);
+  assert.deepEqual(nativeCalls, [{
+    service: "InAppBillingPlugin",
+    action: "acknowledgePurchase",
+    args: ["private-native-token"]
+  }]);
+  assert.equal(fixture.callbacks.finishCount || 0, 0);
+  delete global.cordova;
+});
+
+test("Google purchase stays unacknowledged only while backend verification is unavailable", async () => {
   const fixture = createStore("android");
   installPurchaseGlobals("android", fixture.store);
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
@@ -513,12 +628,12 @@ test("Google subscription stays unacknowledged while backend verification is una
   service.persistPendingEvidence(evidence);
 
   await assert.rejects(
-    service.acknowledgeVerifiedPendingSubscription(evidence, {
+    service.acknowledgeVerifiedGooglePurchase(evidence, {
       backendVerified: false,
       pendingPersisted: true
     }),
     error =>
-      error.code === "subscription_acknowledgment_preconditions_not_met"
+      error.code === "google_acknowledgment_preconditions_not_met"
   );
   assert.equal(fixture.callbacks.finishCount || 0, 0);
   assert.notEqual(service.readPendingSubscriptionRegistration(), null);
@@ -603,11 +718,13 @@ test("failed store finish retains the pending marker for retry", async () => {
   installPurchaseGlobals("android", {});
   const service = new SupportPurchaseService(CONFIG, {
     store: {},
-    pendingStore: new PendingSupportRegistrationStore(storage)
+    pendingStore: new PendingSupportRegistrationStore(storage),
+    googlePurchaseAcknowledger: async () => {}
   });
   const evidence = {
     paymentSource: "android",
     productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseType: "one-time",
     purchaseToken: "google-token-for-finish-test",
     purchaseTimestamp: "2026-07-24T12:00:00Z",
     transaction: {
@@ -679,6 +796,44 @@ test("pending and recovery presentation uses plain-language state-aware actions"
   );
   assert.match(analyticsSource, /Capacitor\?\.isNativePlatform/);
   assert.match(analyticsSource, /if \(!isNativeApp\)/);
+});
+
+test("Google acknowledgment is gated only by verified durable purchase state and remains retryable", () => {
+  assert.match(
+    supporterServiceSource,
+    /async acknowledgeVerifiedGooglePurchase/
+  );
+  assert.match(
+    supporterServiceSource,
+    /completion\.backendVerified !== true[\s\S]{0,220}completion\.pendingPersisted !== true/
+  );
+  assert.doesNotMatch(
+    supporterServiceSource,
+    /acknowledgeVerifiedGooglePurchase[\s\S]{0,300}purchaseType !== "monthly"/
+  );
+  for (const event of [
+    "purchase-discovered",
+    "purchase-verification-started",
+    "purchase-verification-result",
+    "support-pending-state-written",
+    "supporter-registration-completed",
+    "google-purchase-acknowledgment-attempted",
+    "google-purchase-acknowledgment-succeeded",
+    "google-purchase-acknowledgment-deferred",
+    "google-consumable-consumption-attempted",
+    "google-consumable-consumption-succeeded",
+    "google-consumable-consumption-deferred"
+  ]) {
+    assert.match(supporterServiceSource, new RegExp(`"${event}"`));
+  }
+  assert.match(
+    supporterServiceSource,
+    /document\.addEventListener\("resume", requestStatusRefresh\)/
+  );
+  assert.match(
+    supporterServiceSource,
+    /const requestStatusRefresh = \(\) => \{[\s\S]{0,160}recoverPendingRegistration/
+  );
 });
 
 test("welcome delivery never gates store completion after confirmed cache persistence", () => {
@@ -773,6 +928,125 @@ test("Google receipt refresh resumes a durable pending registration", async () =
     "support_reverse_flow_monthly_3"
   );
   assert.equal(recovered[0].recoverySource, "store-approved-redelivery");
+});
+
+test("unacknowledged Google redelivery recreates a missing pending marker after storage recovers", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+  const transaction = {
+    platform: "android-playstore",
+    state: "approved",
+    products: [{
+      id: "reverse_flow_support_one_time_5",
+      offerId: "reverse_flow_support_one_time_5@buy"
+    }],
+    purchaseId: "private-redelivery-token",
+    nativePurchase: {
+      purchaseToken: "private-redelivery-token",
+      acknowledged: false
+    },
+    async finish() {}
+  };
+  const recovered = [];
+  service.onRecovery(evidence => recovered.push(evidence));
+  const workingStorage = service.oneTimeRetryStore.storage;
+  service.oneTimeRetryStore.storage = {
+    getItem: () => null,
+    setItem() {
+      throw new Error("storage temporarily unavailable");
+    },
+    removeItem() {}
+  };
+
+  fixture.callbacks.approved(transaction);
+  assert.equal(recovered.length, 0);
+  assert.equal(
+    service.receivedTransactionKeys.has(
+      service.transactionKey(service.transactionEvidence(transaction))
+    ),
+    false
+  );
+
+  service.oneTimeRetryStore.storage = workingStorage;
+  fixture.callbacks.approved(transaction);
+  assert.equal(recovered.length, 1);
+  assert.equal(recovered[0].recoverySource, "store-approved-redelivery");
+  assert.equal(
+    service.readPendingOneTimeRegistration()?.productId,
+    "reverse_flow_support_one_time_5"
+  );
+});
+
+test("Google approved purchase survives restart, retries, acknowledges once, and clears after registration", async () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  };
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const transaction = {
+    platform: "android-playstore",
+    state: "approved",
+    products: [{
+      id: "reverse_flow_support_one_time_5",
+      offerId: "reverse_flow_support_one_time_5@buy"
+    }],
+    purchaseId: "private-restart-token",
+    nativePurchase: {
+      purchaseToken: "private-restart-token",
+      acknowledged: false
+    },
+    purchaseDate: new Date("2026-07-24T12:00:00Z"),
+    async finish() {
+      fixture.callbacks.finishCount =
+        Number(fixture.callbacks.finishCount || 0) + 1;
+    }
+  };
+  const beforeRestart = new SupportPurchaseService(CONFIG, {
+    store: fixture.store,
+    storage
+  });
+  beforeRestart.persistPendingEvidence(
+    beforeRestart.transactionEvidence(transaction)
+  );
+
+  fixture.store.localTransactions.push(transaction);
+  let acknowledgmentCalls = 0;
+  const afterRestart = new SupportPurchaseService(CONFIG, {
+    store: fixture.store,
+    storage,
+    googlePurchaseAcknowledger: async () => {
+      acknowledgmentCalls += 1;
+    }
+  });
+  const recoveredPromise = new Promise(resolve => {
+    afterRestart.onRecovery(resolve);
+  });
+  await afterRestart.initialize();
+  const recovered = await recoveredPromise;
+
+  assert.equal(recovered.recoverySource, "store-approved-redelivery");
+  assert.equal(recovered.productIdentifier, "reverse_flow_support_one_time_5");
+  assert.equal(await afterRestart.acknowledgeVerifiedGooglePurchase(recovered, {
+    backendVerified: true,
+    pendingPersisted: true
+  }), true);
+  assert.equal(acknowledgmentCalls, 1);
+  assert.equal(fixture.callbacks.finishCount || 0, 0);
+  assert.notEqual(afterRestart.readPendingOneTimeRegistration(), null);
+
+  await afterRestart.finishPurchase(recovered, {
+    backendVerified: true,
+    registrationSucceeded: true,
+    supporterCached: true
+  });
+  assert.equal(fixture.callbacks.finishCount, 1);
+  assert.equal(acknowledgmentCalls, 1);
+  assert.equal(afterRestart.readPendingOneTimeRegistration(), null);
 });
 
 test("duplicate taps cannot start a second native purchase", async () => {
