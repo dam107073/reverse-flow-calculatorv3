@@ -3,12 +3,28 @@ const test = require("node:test");
 
 const {
   ACTIONS,
+  SUPPORT_UI_STATES,
   resolveSupportAction,
+  resolveSupporterUiPresentation,
   normalizeSupporterRecord,
   SupporterCache,
+  SupportPurchaseService,
   recoverSupporterIdentity,
   isValidEmail
 } = require("../www/js/services/supporter.js");
+
+const confirmedSubscriber = {
+  isSupporter: true,
+  hasActiveRecurringSupport: true,
+  supporterSince: "2026-07-23",
+  lastVerifiedAt: "2026-07-24T00:00:00.000Z",
+  contribution: {
+    type: "monthly",
+    status: "active",
+    monthlyAmount: 10,
+    productId: "support_reverse_flow_monthly_10"
+  }
+};
 
 test("support action resolver returns exactly one action for every v1 state", () => {
   const cases = [
@@ -38,6 +54,92 @@ test("confirmed Supporter takes precedence over unclaimed legacy eligibility", (
     }),
     ACTIONS.CONTINUE
   );
+});
+
+test("confirmed subscriber presentation remains Manage during refresh and purchase", () => {
+  for (const phase of [
+    SUPPORT_UI_STATES.SUPPORTER_REFRESHING,
+    SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+  ]) {
+    const presentation = resolveSupporterUiPresentation(
+      confirmedSubscriber,
+      {
+        phase,
+        lastConfirmedState: confirmedSubscriber,
+        lastConfirmedAction: ACTIONS.MANAGE
+      }
+    );
+    assert.equal(presentation.uiState, phase);
+    assert.equal(presentation.state.isSupporter, true);
+    assert.equal(presentation.action, ACTIONS.MANAGE);
+  }
+});
+
+test("transient unknown state cannot replace a confirmed Supporter presentation", () => {
+  const presentation = resolveSupporterUiPresentation(
+    normalizeSupporterRecord(null),
+    {
+      phase: SUPPORT_UI_STATES.SUPPORTER_REFRESHING,
+      lastConfirmedState: confirmedSubscriber,
+      lastConfirmedAction: ACTIONS.MANAGE
+    }
+  );
+  assert.equal(presentation.uiState, SUPPORT_UI_STATES.SUPPORTER_REFRESHING);
+  assert.equal(presentation.state.isSupporter, true);
+  assert.equal(presentation.action, ACTIONS.MANAGE);
+});
+
+test("clean user and purchase-in-progress remain distinct non-Supporter states", () => {
+  const cleanState = normalizeSupporterRecord(null);
+  assert.equal(
+    resolveSupporterUiPresentation(cleanState).uiState,
+    SUPPORT_UI_STATES.NOT_SUPPORTER
+  );
+  assert.equal(
+    resolveSupporterUiPresentation(cleanState, {
+      phase: SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+    }).uiState,
+    SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+  );
+});
+
+test("slow reconciliation keeps a cached subscriber on Manage until it settles", async () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  };
+  const cache = new SupporterCache(storage);
+  cache.writeConfirmed(confirmedSubscriber, {
+    email: "firefighter@example.com",
+    platform: "android"
+  });
+  const service = new SupportPurchaseService({}, {
+    storage,
+    supporterCache: cache
+  });
+  assert.equal(
+    service.observeSupporterState(cache.read()).action,
+    ACTIONS.MANAGE
+  );
+
+  let finishRefresh;
+  const refresh = service.refreshConfirmedSupporter(() =>
+    new Promise(resolve => {
+      finishRefresh = resolve;
+    })
+  );
+  const whileSlow = service.observeSupporterState(cache.read());
+  assert.equal(whileSlow.uiState, SUPPORT_UI_STATES.SUPPORTER_REFRESHING);
+  assert.equal(whileSlow.action, ACTIONS.MANAGE);
+  assert.equal(whileSlow.state.isSupporter, true);
+
+  finishRefresh();
+  await refresh;
+  const settled = service.observeSupporterState(cache.read());
+  assert.equal(settled.uiState, SUPPORT_UI_STATES.SUPPORTER);
+  assert.equal(settled.action, ACTIONS.MANAGE);
 });
 
 test("ended recurring support retains Supporter status and continues supporting", () => {

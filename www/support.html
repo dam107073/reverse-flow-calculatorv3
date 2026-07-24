@@ -9,7 +9,7 @@
   <script src="js/appearance.js?v=build-1"></script>
   <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
   <link rel="stylesheet" href="css/components.css?v=community-1" />
-  <link rel="stylesheet" href="css/support.css?v=community-polish-4f" />
+  <link rel="stylesheet" href="css/support.css?v=community-polish-4f-hotfix" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
 </head>
 <body>
@@ -46,8 +46,8 @@
     </section>
 
     <section class="support-editorial-section support-invitation" id="supportOptionsSection">
-      <p class="support-section-kicker">Community Supported</p>
-      <h2>Help Build What Comes Next</h2>
+      <p class="support-section-kicker" id="supportOptionsKicker">Community Supported</p>
+      <h2 id="supportOptionsTitle">Help Build What Comes Next</h2>
       <div class="support-options" id="supportOptions"></div>
       <p class="helper support-products-note" id="supportProductsUnavailable">
         Loading localized prices from the store…
@@ -111,7 +111,6 @@
     <section class="card" id="manageSupportSection" hidden>
       <h2>Manage Your Support</h2>
       <p id="manageSupportDetails"></p>
-      <p id="scheduledSupportChange" class="support-state-note" hidden></p>
       <div id="manageSupportOptions" class="manage-support-options"></div>
       <button id="manageSubscriptionButton" class="support-troubleshooting-action" type="button">Manage Billing or Cancel</button>
       <button
@@ -140,6 +139,6 @@
 
   <script src="js/constants.js?v=community-4d"></script>
   <script src="js/services/entitlement.js?v=community-4b"></script>
-  <script src="js/services/supporter.js?v=community-4f"></script>
+  <script src="js/services/supporter.js?v=community-4f-hotfix"></script>
 </body>
 </html>

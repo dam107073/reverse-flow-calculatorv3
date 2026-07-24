@@ -1761,11 +1761,6 @@
       width: 100%;
     }
 
-    .support-plan-change-note {
-      margin: 0;
-      font-weight: 600;
-    }
-
     .support-identity-form {
       display: grid;
       gap: 0.65rem;

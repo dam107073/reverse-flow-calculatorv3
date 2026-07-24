@@ -644,6 +644,51 @@
 
   const SupportPurchaseRetryStore = PendingSupportRegistrationStore;
 
+  const SUPPORT_UI_STATES = Object.freeze({
+    NOT_SUPPORTER: "not-supporter",
+    SUPPORTER: "supporter",
+    SUPPORTER_REFRESHING: "supporter-refreshing",
+    PURCHASE_IN_PROGRESS: "purchase-in-progress"
+  });
+
+  function resolveSupporterUiPresentation(state, context = {}) {
+    const phase = context.phase || SUPPORT_UI_STATES.NOT_SUPPORTER;
+    const retainedState = context.lastConfirmedState?.isSupporter
+      ? context.lastConfirmedState
+      : null;
+    const effectiveState = state?.isSupporter
+      ? state
+      : phase !== SUPPORT_UI_STATES.NOT_SUPPORTER
+        ? retainedState || state
+        : state;
+    if (!effectiveState?.isSupporter) {
+      return {
+        uiState: phase === SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+          ? SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+          : SUPPORT_UI_STATES.NOT_SUPPORTER,
+        state,
+        action: resolveSupportAction(state)
+      };
+    }
+    const action =
+      (
+        phase === SUPPORT_UI_STATES.SUPPORTER_REFRESHING ||
+        phase === SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+      ) &&
+      context.lastConfirmedAction === ACTIONS.MANAGE
+        ? ACTIONS.MANAGE
+        : resolveSupportAction(effectiveState);
+    return {
+      uiState:
+        phase === SUPPORT_UI_STATES.SUPPORTER_REFRESHING ||
+        phase === SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+          ? phase
+          : SUPPORT_UI_STATES.SUPPORTER,
+      state: effectiveState,
+      action
+    };
+  }
+
   class SupportPurchaseService {
     constructor(config, dependencies = {}) {
       this.config = config || {};
@@ -676,6 +721,9 @@
       this.completedTransactionKeys = new Set();
       this.reconciliationRequests = new Map();
       this.finishedTransactionKeys = new Set();
+      this.supportUiState = SUPPORT_UI_STATES.NOT_SUPPORTER;
+      this.lastConfirmedSupporterState = null;
+      this.lastConfirmedSupportAction = null;
     }
 
     getOptions(platform) {
@@ -769,6 +817,61 @@
           });
         }
       });
+    }
+
+    observeSupporterState(state) {
+      if (state?.isSupporter) {
+        this.lastConfirmedSupporterState = state;
+        if (
+          this.supportUiState !== SUPPORT_UI_STATES.SUPPORTER_REFRESHING &&
+          this.supportUiState !== SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+        ) {
+          this.lastConfirmedSupportAction = resolveSupportAction(state);
+          this.supportUiState = SUPPORT_UI_STATES.SUPPORTER;
+        }
+      } else if (
+        !this.lastConfirmedSupporterState &&
+        this.supportUiState !== SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS
+      ) {
+        this.supportUiState = SUPPORT_UI_STATES.NOT_SUPPORTER;
+      }
+      return resolveSupporterUiPresentation(state, {
+        phase: this.supportUiState,
+        lastConfirmedState: this.lastConfirmedSupporterState,
+        lastConfirmedAction: this.lastConfirmedSupportAction
+      });
+    }
+
+    beginSupportUiOperation(uiState) {
+      const current = this.supporterCache.read();
+      if (current.isSupporter) {
+        this.lastConfirmedSupporterState = current;
+        this.lastConfirmedSupportAction =
+          this.lastConfirmedSupportAction || resolveSupportAction(current);
+      }
+      this.supportUiState = uiState;
+      this.notify();
+    }
+
+    endSupportUiOperation() {
+      const current = this.supporterCache.read();
+      if (current.isSupporter) {
+        this.lastConfirmedSupporterState = current;
+        this.lastConfirmedSupportAction = resolveSupportAction(current);
+        this.supportUiState = SUPPORT_UI_STATES.SUPPORTER;
+      } else if (!this.lastConfirmedSupporterState) {
+        this.supportUiState = SUPPORT_UI_STATES.NOT_SUPPORTER;
+      }
+      this.notify();
+    }
+
+    async refreshConfirmedSupporter(callback) {
+      this.beginSupportUiOperation(SUPPORT_UI_STATES.SUPPORTER_REFRESHING);
+      try {
+        return await callback();
+      } finally {
+        this.endSupportUiOperation();
+      }
     }
 
     supportProductIds(platform = getPlatform()) {
@@ -1118,6 +1221,8 @@
           "purchase_in_progress"
         );
       }
+      this.beginSupportUiOperation(SUPPORT_UI_STATES.PURCHASE_IN_PROGRESS);
+      let approved = false;
       this.purchaseInFlight = (async () => {
         await this.initialize();
         const platform = getPlatform() === "ios" ? "apple" : "google";
@@ -1162,12 +1267,15 @@
             cancelled ? "purchase_cancelled" : "purchase_failed"
           );
         }
-        return transactionPromise;
+        const transaction = await transactionPromise;
+        approved = true;
+        return transaction;
       })();
       try {
         return await this.purchaseInFlight;
       } finally {
         this.purchaseInFlight = null;
+        if (!approved) this.endSupportUiOperation();
       }
     }
 
@@ -1291,6 +1399,7 @@
         return existing;
       }
       this.logTransaction("store-transaction-reconciliation-started", evidence);
+      this.beginSupportUiOperation(SUPPORT_UI_STATES.SUPPORTER_REFRESHING);
       const reconciliation = Promise.resolve()
         .then(callback)
         .then(result => {
@@ -1312,6 +1421,7 @@
         })
         .finally(() => {
           this.reconciliationRequests.delete(key);
+          this.endSupportUiOperation();
         });
       this.reconciliationRequests.set(key, reconciliation);
       return reconciliation;
@@ -1639,9 +1749,9 @@
     return `support.html?action=${encodeURIComponent(action)}`;
   }
 
-  function renderSharedSupportUi(cache) {
-    const state = getRuntimeState(cache);
-    const action = resolveSupportAction(state);
+  function renderSharedSupportUi(cache, stateOverride = null, actionOverride = null) {
+    const state = stateOverride || getRuntimeState(cache);
+    const action = actionOverride || resolveSupportAction(state);
     const content = ACTION_CONTENT[action];
 
     document.querySelectorAll("[data-supporter-badge]").forEach(badge => {
@@ -1829,13 +1939,6 @@
     );
     monthlyOptions.forEach(option => {
       const isDowngrade = Number(option.amount) < Number(current?.amount);
-      if (isDowngrade) {
-        const note = document.createElement("p");
-        note.className = "helper support-plan-change-note";
-        note.textContent =
-          `Your monthly support will change to ${option.localizedPrice || "the lower amount"} at the next renewal.`;
-        container.appendChild(note);
-      }
       const button = document.createElement("button");
       button.type = "button";
       button.className = "support-secondary-action";
@@ -1855,7 +1958,7 @@
         slowMessageTimer = beginStoreProgress(
           status,
           isDowngrade
-            ? `Your monthly support will change to ${option.localizedPrice || "the lower amount"} at the next renewal. Continue in the store to confirm.`
+            ? "Opening store confirmation…"
             : "Confirming your monthly support…"
         );
         try {
@@ -1925,7 +2028,13 @@
     const page = document.getElementById("supportPage");
     if (!page) return;
 
-    const { state, action } = renderSharedSupportUi(cache);
+    const runtimeState = getRuntimeState(cache);
+    const presentation = purchaseService.observeSupporterState(runtimeState);
+    const { state, action } = renderSharedSupportUi(
+      cache,
+      presentation.state,
+      presentation.action
+    );
     const requestedAction = new URLSearchParams(global.location.search).get("action");
     const safeAction = requestedAction === action ? requestedAction : action;
     const title = document.getElementById("supportPageTitle");
@@ -1933,6 +2042,8 @@
     const claimSection = document.getElementById("legacyClaimSection");
     const manageSection = document.getElementById("manageSupportSection");
     const optionsSection = document.getElementById("supportOptionsSection");
+    const optionsKicker = document.getElementById("supportOptionsKicker");
+    const optionsTitle = document.getElementById("supportOptionsTitle");
     const pageStatus = document.getElementById("supportPageStatus");
     const cacheStatus = document.getElementById("supportCacheStatus");
     if (cacheStatus) {
@@ -1961,6 +2072,16 @@
     manageSection.hidden = hasPendingRegistration || safeAction !== ACTIONS.MANAGE;
     optionsSection.hidden = hasPendingRegistration ||
       safeAction === ACTIONS.CLAIM || safeAction === ACTIONS.MANAGE;
+    if (optionsKicker) {
+      optionsKicker.textContent = state.isSupporter
+        ? "Reverse Flow Supporter"
+        : "Community Supported";
+    }
+    if (optionsTitle) {
+      optionsTitle.textContent = state.isSupporter
+        ? "Continue Supporting"
+        : "Help Build What Comes Next";
+    }
 
     if (hasPendingRegistration) {
       intro.textContent = "Your support was received. Finish setting up your Supporter status below.";
@@ -1989,19 +2110,6 @@
             "current store price"
           }/month`
         : "Current recurring contribution details are unavailable.";
-    const scheduledSupportChange = document.getElementById("scheduledSupportChange");
-    if (scheduledSupportChange) {
-      const scheduled = supportOptions.find(option =>
-        option.productId === contribution.pendingReplacementProductId
-      );
-      scheduledSupportChange.hidden = !scheduled;
-      scheduledSupportChange.textContent = scheduled
-        ? `Your monthly support will change to ${
-            scheduled.localizedPrice || "the selected amount"
-          } on your next renewal date.`
-        : "";
-    }
-
     const handlePendingPurchase = async pendingPurchase =>
       purchaseService.reconcileTransaction(pendingPurchase, async () => {
       if (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken) {
@@ -2143,7 +2251,9 @@
       manageButton.addEventListener("click", async () => {
         try {
           await purchaseService.openNativeSubscriptionManagement();
-          await refreshSupporterStatus(cache, registryService);
+          await purchaseService.refreshConfirmedSupporter(() =>
+            refreshSupporterStatus(cache, registryService)
+          );
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
           pageStatus.textContent = error.message;
@@ -2163,7 +2273,9 @@
             ? "Refreshing Apple subscription status…"
             : "Refreshing Google Play subscription status…";
         try {
-          await refreshSupporterStatus(cache, registryService);
+          await purchaseService.refreshConfirmedSupporter(() =>
+            refreshSupporterStatus(cache, registryService)
+          );
           renderSupportPage(cache, registryService, purchaseService);
           pageStatus.textContent = "Support status refreshed.";
         } catch (error) {
@@ -2248,7 +2360,9 @@
             return;
           }
           message.textContent = "Your Supporter status has been restored on this device.";
-          await refreshSupporterStatus(cache, registryService);
+          await purchaseService.refreshConfirmedSupporter(() =>
+            refreshSupporterStatus(cache, registryService)
+          );
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
           message.textContent = error.message ||
@@ -2473,7 +2587,9 @@
       const now = Date.now();
       if (now - lastRefreshStartedAt < 60000) return;
       lastRefreshStartedAt = now;
-      void refreshSupporterStatus(cache, registry).then(() => {
+      void purchases.refreshConfirmedSupporter(() =>
+        refreshSupporterStatus(cache, registry)
+      ).then(() => {
         if (document.getElementById("supportPage")) {
           renderSupportPage(cache, registry, purchases);
         }
@@ -2497,7 +2613,9 @@
   const api = {
     ACTIONS,
     ACTION_CONTENT,
+    SUPPORT_UI_STATES,
     resolveSupportAction,
+    resolveSupporterUiPresentation,
     normalizeSupporterRecord,
     normalizeApiResponse,
     SupporterCache,

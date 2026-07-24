@@ -756,9 +756,14 @@ test("active Supporter management keeps billing secondary and offers repeat supp
     supporterServiceSource,
     /option\.productId !== current\?\.productId/
   );
+  assert.doesNotMatch(
+    `${supportPageSource}\n${supporterServiceSource}`,
+    /Your monthly support will change to|scheduledSupportChange|support-plan-change-note/
+  );
+  assert.match(supportPageSource, /id="supportOptionsTitle">Help Build What Comes Next/);
   assert.match(
     supporterServiceSource,
-    /pendingReplacementProductId[\s\S]*on your next renewal date/
+    /optionsTitle\.textContent = state\.isSupporter[\s\S]*"Continue Supporting"/
   );
   assert.match(
     supporterServiceSource,
