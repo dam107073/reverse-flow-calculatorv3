@@ -28,6 +28,7 @@
     <section class="card support-page-hero">
       <h2 id="supportPageTitle">Support Reverse Flow</h2>
       <p id="supportPageIntro"></p>
+      <p id="supportCacheStatus"></p>
       <div class="support-philosophy">
         <p>Built by firefighters, with firefighters, for the fire service.</p>
         <p>Every firefighter has access to every tool.</p>
@@ -38,7 +39,19 @@
     <section class="card" id="supportOptionsSection">
       <div id="supportOptions"></div>
       <p id="supportProductsUnavailable">Unavailable in this test fixture.</p>
-      <button id="restoreSupportPurchasesButton" type="button">Restore Support Purchases</button>
+      <button id="refreshSupportSubscriptionsButton" type="button">Refresh Subscription Status</button>
+    </section>
+
+    <section id="pendingSupportRegistrationSection" hidden>
+      <button id="completePendingSupportRegistrationButton" type="button">Complete Pending Support Registration</button>
+    </section>
+
+    <section id="recoverSupporterStatusSection">
+      <form id="recoverSupporterStatusForm">
+        <input name="email" type="email" />
+        <button type="submit">Recover Supporter Status</button>
+        <p id="recoverSupporterStatusMessage"></p>
+      </form>
     </section>
 
     <section class="card">

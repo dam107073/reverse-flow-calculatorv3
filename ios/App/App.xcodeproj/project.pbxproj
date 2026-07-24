@@ -30,6 +30,7 @@
 		D401FA2E2E10000100FB2518 /* MetaAppEventsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */; };
 		D401FA302E20000100FB2520 /* LegacyEntitlementPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */; };
 		D401FA322E20000100FB2522 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA312E20000100FB2522 /* MainViewController.swift */; };
+		D401FA352E40000100FB2525 /* SupportPurchaseRecoveryPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA342E40000100FB2524 /* SupportPurchaseRecoveryPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,6 +81,7 @@
 		D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetaAppEventsPlugin.swift; sourceTree = "<group>"; };
 		D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyEntitlementPlugin.swift; sourceTree = "<group>"; };
 		D401FA312E20000100FB2522 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
+		D401FA342E40000100FB2524 /* SupportPurchaseRecoveryPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportPurchaseRecoveryPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -139,6 +141,7 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */,
 				D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */,
+				D401FA342E40000100FB2524 /* SupportPurchaseRecoveryPlugin.swift */,
 				D401FA312E20000100FB2522 /* MainViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -310,6 +313,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				D401FA2E2E10000100FB2518 /* MetaAppEventsPlugin.swift in Sources */,
 				D401FA302E20000100FB2520 /* LegacyEntitlementPlugin.swift in Sources */,
+				D401FA352E40000100FB2525 /* SupportPurchaseRecoveryPlugin.swift in Sources */,
 				D401FA322E20000100FB2522 /* MainViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

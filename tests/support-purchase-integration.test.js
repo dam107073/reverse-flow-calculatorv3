@@ -4,7 +4,9 @@ const path = require("node:path");
 const test = require("node:test");
 
 const {
+  SupporterCache,
   SupportPurchaseService,
+  SupportPurchaseRetryStore,
   createPurchaseRegistrationPayload
 } = require("../www/js/services/supporter.js");
 
@@ -30,6 +32,17 @@ const iosAppSchemeSource = fs.readFileSync(
     "xcshareddata",
     "xcschemes",
     "App.xcscheme"
+  ),
+  "utf8"
+);
+const iosRecoveryPluginSource = fs.readFileSync(
+  path.join(
+    __dirname,
+    "..",
+    "ios",
+    "App",
+    "App",
+    "SupportPurchaseRecoveryPlugin.swift"
   ),
   "utf8"
 );
@@ -196,6 +209,15 @@ function installPurchaseGlobals(platform, store) {
     }
   };
   global.APP_VERSION = "1.3.3";
+  const localValues = new Map();
+  Object.defineProperty(global, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: key => localValues.get(key) || null,
+      setItem: (key, value) => localValues.set(key, value),
+      removeItem: key => localValues.delete(key)
+    }
+  });
 }
 
 test("canonical Apple and Google product identifiers and plan IDs are configured", () => {
@@ -368,7 +390,7 @@ test("duplicate taps cannot start a second native purchase", async () => {
   await firstPurchase;
 });
 
-test("restore/resync returns exact support evidence and management opens natively", async () => {
+test("subscription refresh returns only recurring support and management opens natively", async () => {
   const fixture = createStore("android");
   installPurchaseGlobals("android", fixture.store);
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
@@ -383,7 +405,7 @@ test("restore/resync returns exact support evidence and management opens nativel
   };
   fixture.store.localTransactions.push(transaction);
 
-  const restored = await service.restoreSupportPurchases();
+  const restored = await service.refreshSubscriptionPurchases();
   assert.equal(restored.productIdentifier, "support_reverse_flow_monthly_3");
   assert.equal(restored.purchaseToken, "restored-google-token");
   await service.openNativeSubscriptionManagement();
@@ -392,6 +414,69 @@ test("restore/resync returns exact support evidence and management opens nativel
     manageCalls: 1,
     finishCalls: 0
   });
+});
+
+test("iOS consumable recovery uses Transaction.unfinished without restore semantics", async () => {
+  const fixture = createStore("ios");
+  const storageValues = new Map();
+  const storage = {
+    getItem: key => storageValues.get(key) || null,
+    setItem: (key, value) => storageValues.set(key, value),
+    removeItem: key => storageValues.delete(key)
+  };
+  let recoverCalls = 0;
+  let nativeFinishCalls = 0;
+  installPurchaseGlobals("ios", fixture.store);
+  global.Capacitor.Plugins = {
+    SupportPurchaseRecovery: {
+      async addListener() {},
+      async recoverUnfinishedConsumable() {
+        recoverCalls += 1;
+        return {
+          found: true,
+          productId: "reverse_flow_support_one_time_5",
+          transactionId: "2000000123456789",
+          originalTransactionId: "2000000123456789",
+          purchaseDate: "2026-07-24T12:00:00Z",
+          environment: "Sandbox"
+        };
+      },
+      async finishRecoveredConsumable({ transactionId }) {
+        assert.equal(transactionId, "2000000123456789");
+        nativeFinishCalls += 1;
+      }
+    }
+  };
+  const service = new SupportPurchaseService(CONFIG, {
+    store: fixture.store,
+    retryStore: new SupportPurchaseRetryStore(storage)
+  });
+  await service.initialize();
+  const recovered = await service.recoverUnfinishedConsumable();
+
+  assert.equal(recovered.nativeRecovery, true);
+  assert.equal(recovered.productIdentifier, "reverse_flow_support_one_time_5");
+  assert.equal(recoverCalls >= 1, true);
+  assert.equal(fixture.counts().restoreCalls, 0);
+  assert.equal(storageValues.size, 1);
+  assert.equal(new SupporterCache(storage).read().isSupporter, false);
+
+  await service.finishPurchase(recovered);
+  assert.equal(nativeFinishCalls, 1);
+  assert.equal(storageValues.size, 0);
+});
+
+test("native recovery bridge scans updates and unfinished transactions and never syncs", () => {
+  assert.match(iosRecoveryPluginSource, /Transaction\.updates/);
+  assert.match(iosRecoveryPluginSource, /Transaction\.unfinished/);
+  assert.match(iosRecoveryPluginSource, /unfinished-transaction-found/);
+  assert.match(iosRecoveryPluginSource, /no-recoverable-transaction-found/);
+  assert.doesNotMatch(iosRecoveryPluginSource, /AppStore\.sync/);
+  assert.doesNotMatch(iosRecoveryPluginSource, /restoreCompletedTransactions/);
+  assert.match(
+    iosProjectSource,
+    /SupportPurchaseRecoveryPlugin\.swift in Sources/
+  );
 });
 
 test("registration payload sends store evidence in the POST body only", () => {

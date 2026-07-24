@@ -43,6 +43,14 @@ test("support UI uses one compact action, live store options, and approved copy"
   assert.doesNotMatch(supporter, /Coming Soon/);
   assert.match(supportHtml, /Already purchased Reverse Flow PRO\?/);
   assert.match(supportHtml, />Check Existing Purchase</);
+  assert.match(supportHtml, />Complete Pending Support Registration</);
+  assert.match(supportHtml, />Recover Supporter Status</);
+  assert.match(supportHtml, />Refresh Subscription Status</);
+  assert.doesNotMatch(supportHtml, /Restore Support Purchases/);
+  assert.match(
+    supporter,
+    /confirmed\.welcomeEmailConfirmed !== true[\s\S]*transaction remains unfinished/
+  );
   assert.match(supportCss, /\.support-option\.is-unavailable:disabled\s*\{[\s\S]*opacity:\s*1/);
   assert.match(supportCss, /\.support-action-bar\s*\{[\s\S]*min-height:\s*46px/);
   const retiredAccessPhrase = new RegExp(

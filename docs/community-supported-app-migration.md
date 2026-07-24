@@ -19,9 +19,10 @@ The Reverse Flow Website Supporter Directory is authoritative. The app calls onl
 Current TestFlight/Internal Testing configuration:
 
 - environment: `preview`;
-- base URL: `https://reverese-flow-website-pkkuuucew-reverse-flow-llc.vercel.app`;
+- base URL: `https://reverese-flow-website-dam107073-reverse-flow-llc.vercel.app`;
 - legacy claim: `POST /api/supporters/claim-legacy`, 15-second timeout;
-- status lookup: `POST /api/supporters/status`, 10-second timeout.
+- status lookup: `GET /api/supporters/status` with the normalized registered
+  email in `X-Supporter-Email`, 10-second timeout.
 
 Future production convention:
 
@@ -33,12 +34,38 @@ Claim requests send trimmed name, lowercased/trimmed email, native platform, the
 
 Successful claim and status responses must contain the stable Supporter Directory response shape, including syntactically valid `lastVerifiedAt`. A Supporter confirmation must also contain a valid server-owned `supporterSince` date and source. Malformed, non-2xx, timeout, offline, `429`, `502`, and `503` responses cannot create or downgrade cached Supporter identity.
 
-The cache keeps only the newest confirmed Supporter response plus the normalized email required for later status lookup and the relevant app platform. Status refresh is non-blocking at launch, resumes no more than once per minute, and never delays calculators or tools.
+The cache keeps only the newest backend-confirmed Supporter response plus the
+normalized email required for later status lookup and the relevant app
+platform. It exists for startup, offline badge persistence, and a visible
+"Last confirmed" state. It is not purchase evidence and is never populated by
+StoreKit, Google Billing, or an unverified local flag. Status refresh is
+non-blocking at launch, resumes no more than once per minute, and never delays
+calculators or tools. A network failure retains the last confirmed identity.
 
-The backend intentionally returns `503 legacy_verification_unavailable` until real Apple and Google server verification is configured. This is a normal fail-closed result: the claim form stays available, every tool remains available, and no Supporter record is fabricated.
+## Permanent identity and purchase recovery
 
-`POST /api/supporters/register` is server-to-server only. The app does not call it or contain its registration token. The existing future purchase-registration abstraction remains unavailable until new store products and a verified server registration flow are implemented.
+Store transactions and Supporter identity are separate:
 
-## Store configuration still required
+- Apple and Google transaction evidence is used once by the backend to verify a
+  contribution.
+- The Supporter Directory permanently owns identity, `supporter_since`, source,
+  and current recurring status after registration.
+- **Recover Supporter Status** performs only an email-based directory lookup.
+  It does not access StoreKit, restore a purchase, or send a welcome email.
+- Subscription refresh and the original lifetime-PRO claim keep their existing
+  store history flows.
+- Apple one-time support is a consumable and is never represented as restorable
+  purchase history.
 
-The Apple and Google identifiers for one-time $5, monthly $3, and monthly $10 support are deliberately `null` in centralized `SUPPORT_PRODUCT_CONFIG`. App Store Connect and Google Play Console products, pricing, subscription groups/base plans, review metadata, and verified transaction registration must be configured before contribution buttons can become active.
+The iOS `SupportPurchaseRecovery` bridge observes `Transaction.updates` and
+scans `Transaction.unfinished` for the exact
+`reverse_flow_support_one_time_5` product. Only when a verified unfinished
+transaction exists does the page expose **Complete Pending Support
+Registration**. The app persists a narrow retry record containing the
+transaction reference and product, verifies/registers it through the backend,
+persists the backend-confirmed Supporter cache, confirms welcome-email
+processing, and only then calls `finish()`. Any failure leaves the retry record
+and StoreKit transaction unfinished.
+
+`POST /api/supporters/register` remains server-to-server only. Native purchase
+registration uses `POST /api/supporters/verify-purchase`.

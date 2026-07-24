@@ -42,6 +42,7 @@
         <p>Supporters help build what comes next.</p>
       </div>
       <p id="supportPageIntro" class="support-state-note"></p>
+      <p id="supportCacheStatus" class="helper"></p>
     </section>
 
     <section class="support-editorial-section support-invitation" id="supportOptionsSection">
@@ -52,10 +53,35 @@
         Loading localized prices from the store…
       </p>
       <button
-        id="restoreSupportPurchasesButton"
+        id="refreshSupportSubscriptionsButton"
         class="support-secondary-action"
         type="button"
-      >Restore Support Purchases</button>
+      >Refresh Subscription Status</button>
+    </section>
+
+    <section class="card" id="pendingSupportRegistrationSection" hidden>
+      <h2>Complete Pending Support Registration</h2>
+      <p>
+        StoreKit found verified one-time support that has not been finished. Complete backend registration before this transaction is finished.
+      </p>
+      <button
+        id="completePendingSupportRegistrationButton"
+        class="support-primary-action"
+        type="button"
+      >Complete Pending Support Registration</button>
+    </section>
+
+    <section class="card" id="recoverSupporterStatusSection">
+      <h2>Recover Supporter Status</h2>
+      <p>
+        Already registered? Enter the same email to recover your permanent Supporter identity from the Supporter Directory. No purchase or welcome email is required.
+      </p>
+      <form id="recoverSupporterStatusForm" class="support-identity-form" novalidate>
+        <label for="recoverSupporterEmail">Email address</label>
+        <input id="recoverSupporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
+        <button class="support-secondary-action" type="submit">Recover Supporter Status</button>
+        <p id="recoverSupporterStatusMessage" class="support-status" role="status" aria-live="polite"></p>
+      </form>
     </section>
 
     <section class="support-editorial-section support-benefits-card">
@@ -127,6 +153,6 @@
 
   <script src="js/constants.js?v=community-4b"></script>
   <script src="js/services/entitlement.js?v=community-4b"></script>
-  <script src="js/services/supporter.js?v=community-4b"></script>
+  <script src="js/services/supporter.js?v=community-4d"></script>
 </body>
 </html>

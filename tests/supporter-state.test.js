@@ -89,6 +89,7 @@ test("cache keeps the newest confirmed response and supporter identity survives 
     source: "legacy_apple",
     hasActiveRecurringSupport: false,
     recurringStatus: "inactive",
+    emailHash: "a".repeat(64),
     lastVerifiedAt: "2026-07-23T18:00:02.000Z"
   }, { email: " Firefighter@Example.org ", platform: "ios" });
   cache.writeConfirmed({
@@ -103,6 +104,7 @@ test("cache keeps the newest confirmed response and supporter identity survives 
   const restarted = new SupporterCache(storage, "test-supporter-cache").read();
   assert.equal(restarted.supporterSince, "2021-04-08");
   assert.equal(restarted.supporterEmail, "firefighter@example.org");
+  assert.equal(restarted.emailHash, "a".repeat(64));
   assert.equal(restarted.platform, "ios");
 });
 

@@ -148,7 +148,7 @@ test("claim client uses the exact route, JSON headers, body, and no sensitive UR
   assert.doesNotMatch(calls[0].url, /apple-secret-reference|firefighter%40/i);
 });
 
-test("status client normalizes email and uses POST body", async () => {
+test("status client normalizes email and uses privacy-safe GET header", async () => {
   const calls = [];
   const service = new SupporterRegistryService(API_CONFIG, {
     navigator: { onLine: true },
@@ -159,9 +159,10 @@ test("status client normalizes email and uses POST body", async () => {
   });
   await service.getStatus(" Firefighter@Example.COM ");
   assert.equal(calls[0].url, "https://preview.example.test/api/supporters/status");
-  assert.deepEqual(JSON.parse(calls[0].options.body), {
-    email: "firefighter@example.com"
-  });
+  assert.equal(calls[0].options.method, "GET");
+  assert.equal(calls[0].options.headers["X-Supporter-Email"], "firefighter@example.com");
+  assert.equal(calls[0].options.body, undefined);
+  assert.doesNotMatch(calls[0].url, /firefighter/i);
 });
 
 test("native purchase registration uses the public verification route without secrets", async () => {
