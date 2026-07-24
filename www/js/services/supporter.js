@@ -252,7 +252,7 @@
     if (!configured) {
       throw new Error("Supporter API configuration is unavailable.");
     }
-    const environment = configured.environment || "preview";
+    const environment = configured.environment || "production";
     const baseUrl = configured.baseUrl || configured.baseUrls?.[environment];
     if (
       !baseUrl ||
@@ -355,6 +355,67 @@
         this.console,
         `[Reverse Flow Supporter Registration] ${JSON.stringify(diagnostic)}`
       );
+    }
+
+    async runEnvironmentDiagnostic() {
+      const route = this.config.routes.environment;
+      if (!route || typeof this.fetch !== "function") return null;
+      const controller = this.AbortController ? new this.AbortController() : null;
+      const timeout = controller
+        ? setTimeout(() => controller.abort(), this.config.timeoutsMs.environment || 10000)
+        : null;
+      let response;
+      try {
+        response = await this.fetch(`${this.config.baseUrl}${route}`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: controller?.signal
+        });
+        const payload = await response.json();
+        const platform = this.platform || "unknown";
+        const diagnostic = {
+          event: "mobile-support-environment-diagnostic",
+          appVersion:
+            typeof APP_VERSION === "string" ? APP_VERSION : "unknown",
+          buildNumber:
+            typeof APP_BUILD_NUMBERS === "object"
+              ? APP_BUILD_NUMBERS[platform] || "unknown"
+              : "unknown",
+          platform,
+          buildConfiguration: this.config.environment,
+          resolvedApiOrigin: this.config.baseUrl,
+          resolvedWebsiteOrigin: "https://reverse-flow.app",
+          environmentCategory: payload?.environment || "unknown",
+          backendDeploymentIdentifier:
+            payload?.deploymentId || payload?.deploymentHost || null,
+          backendCommit: payload?.deployedCommit || null,
+          databaseEnvironmentIdentifier: payload?.database?.project || null,
+          databaseMigrationLevel: payload?.database?.migrationLevel || null,
+          httpStatus: response.status
+        };
+        this.console?.info?.(
+          `[Reverse Flow Environment] ${JSON.stringify(diagnostic)}`
+        );
+        return diagnostic;
+      } catch (error) {
+        const diagnostic = {
+          event: "mobile-support-environment-diagnostic-failed",
+          appVersion:
+            typeof APP_VERSION === "string" ? APP_VERSION : "unknown",
+          platform: this.platform || "unknown",
+          buildConfiguration: this.config.environment,
+          resolvedApiOrigin: this.config.baseUrl,
+          environmentCategory: this.config.environment,
+          failureCategory:
+            error?.name === "AbortError" ? "timeout" : "network_error"
+        };
+        this.console?.warn?.(
+          `[Reverse Flow Environment] ${JSON.stringify(diagnostic)}`
+        );
+        return diagnostic;
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
     }
 
     async request(routeKey, body, timeoutKey, options = {}) {
@@ -1603,7 +1664,8 @@
           previousEnvironment === "preview" &&
           this.apiEnvironment === "production"
         ) {
-          item.store.clear();
+          pendingRecordsMigrated += 1;
+          item.store.markEnvironment(this.apiEnvironment);
         }
       }
       this.storage.setItem(
@@ -3029,6 +3091,7 @@
     renderSharedSupportUi(cache);
     renderSupportPage(cache, registry, purchases);
     if (document.getElementById("supportPage")) {
+      void registry.runEnvironmentDiagnostic();
       purchases.onChange(() => {
         renderSupportPage(cache, registry, purchases);
       });

@@ -21,15 +21,11 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
-        preview {
-            initWith release
-            matchingFallbacks = ['release']
-            signingConfig signingConfigs.debug
-        }
         productionTest {
             initWith release
             matchingFallbacks = ['release']
             signingConfig signingConfigs.debug
+            debuggable true
         }
     }
 }
@@ -131,8 +127,7 @@ def registerSupporterBackendAssets = { String buildType, String environment ->
     }
 }
 
-registerSupporterBackendAssets("debug", "preview")
-registerSupporterBackendAssets("preview", "preview")
+registerSupporterBackendAssets("debug", "production")
 registerSupporterBackendAssets("productionTest", "production")
 registerSupporterBackendAssets("release", "production")
 

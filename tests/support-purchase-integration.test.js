@@ -5,6 +5,7 @@ const test = require("node:test");
 
 const {
   SupporterCache,
+  SupporterRegistryService,
   PendingSupportRegistrationStore,
   SupportPurchaseService,
   SupportPurchaseRetryStore,
@@ -261,43 +262,40 @@ test("canonical Apple and Google product identifiers and plan IDs are configured
   assert.doesNotMatch(constantsSource, /Coming Soon/i);
 });
 
-test("supporter APIs use stable Preview and Production hosts", () => {
+test("mobile supporter APIs contain only the canonical Production host", () => {
   assert.match(
     constantsSource,
-    /preview:\s*"https:\/\/reverese-flow-website-dam107073-reverse-flow-llc\.vercel\.app"/
+    /const SUPPORTER_API_ENVIRONMENT = "production"/
   );
   assert.match(
     constantsSource,
     /production:\s*"https:\/\/reverse-flow\.app"/
   );
-  assert.equal(
-    (constantsSource.match(/reverse-flow-llc\.vercel\.app/g) || []).length,
-    1
-  );
+  assert.doesNotMatch(constantsSource, /vercel\.app|localhost|127\.0\.0\.1/);
 });
 
 test("native Version 2.0 Release values are intentional", () => {
   assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 3;/g) || []).length,
-    3
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 1;/g) || []).length,
+    6
   );
   assert.equal(
-    (iosProjectSource.match(/MARKETING_VERSION = 1\.3\.3;/g) || []).length,
-    3
+    (iosProjectSource.match(/MARKETING_VERSION = 2\.0;/g) || []).length,
+    6
   );
   assert.match(constantsSource, /const APP_VERSION = "2\.0"/);
   assert.match(androidBuildSource, /versionCode 142/);
   assert.match(androidBuildSource, /versionName "2\.0"/);
 });
 
-test("iOS Debug packages Preview while Release and Production package Production", () => {
+test("every iOS build configuration packages Production", () => {
   assert.equal(
     (iosProjectSource.match(/SUPPORTER_API_ENVIRONMENT = preview;/g) || []).length,
-    1
+    0
   );
   assert.equal(
     (iosProjectSource.match(/SUPPORTER_API_ENVIRONMENT = production;/g) || []).length,
-    2
+    3
   );
   assert.match(iosProjectSource, /Configure Supporter Backend/);
   assert.equal(
@@ -310,15 +308,13 @@ test("iOS Debug packages Preview while Release and Production package Production
   );
 });
 
-test("Android Debug and Preview package Preview while test and Release package Production", () => {
+test("every Android device build packages Production", () => {
   assert.match(
     androidBuildSource,
-    /registerSupporterBackendAssets\("debug", "preview"\)/
+    /registerSupporterBackendAssets\("debug", "production"\)/
   );
-  assert.match(
-    androidBuildSource,
-    /registerSupporterBackendAssets\("preview", "preview"\)/
-  );
+  assert.doesNotMatch(androidBuildSource, /registerSupporterBackendAssets\([^)]*"preview"\)/);
+  assert.doesNotMatch(androidBuildSource, /preview\s*\{\s*initWith release/);
   assert.match(
     androidBuildSource,
     /registerSupporterBackendAssets\("release", "production"\)/
@@ -332,6 +328,56 @@ test("Android Debug and Preview package Preview while test and Release package P
     androidBuildSource,
     /const SUPPORTER_API_ENVIRONMENT = \\"\$\{environment\}\\";/
   );
+});
+
+test("environment diagnostic reports only privacy-safe Production identity", async () => {
+  const calls = [];
+  global.APP_VERSION = "2.0";
+  global.APP_BUILD_NUMBERS = { ios: "1", android: "142" };
+  const service = new SupporterRegistryService({
+    environment: "production",
+    baseUrls: { production: "https://reverse-flow.app" },
+    routes: {
+      environment: "/api/supporters/environment",
+      claimLegacy: "/api/supporters/claim-legacy",
+      verifyPendingPurchase: "/api/supporters/verify-pending",
+      verifyPurchase: "/api/supporters/verify-purchase",
+      status: "/api/supporters/status"
+    },
+    timeoutsMs: {
+      environment: 10000,
+      claimLegacy: 15000,
+      verifyPendingPurchase: 20000,
+      verifyPurchase: 20000,
+      status: 10000
+    }
+  }, {
+    platform: "android",
+    console: { info: message => calls.push(message), warn: message => calls.push(message) },
+    fetch: async url => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return {
+          environment: "production",
+          deploymentId: "deployment-host.example",
+          deployedCommit: "abc123",
+          database: {
+            project: "vbjhbqpvnfjfilntzdgk",
+            migrationLevel: "202607240006"
+          }
+        };
+      }
+    })
+  });
+
+  const diagnostic = await service.runEnvironmentDiagnostic();
+  assert.equal(diagnostic.resolvedApiOrigin, "https://reverse-flow.app");
+  assert.equal(diagnostic.environmentCategory, "production");
+  assert.equal(diagnostic.databaseEnvironmentIdentifier, "vbjhbqpvnfjfilntzdgk");
+  assert.equal(diagnostic.buildNumber, "142");
+  assert.equal(calls.length, 1);
+  assert.doesNotMatch(calls[0], /token|receipt|signature|email|orderId/i);
 });
 
 test("Apple products load localized pricing and exact product types", async () => {
@@ -622,6 +668,10 @@ test("pending and recovery presentation uses plain-language state-aware actions"
   assert.match(
     supporterServiceSource,
     /support-environment-migration-completed/
+  );
+  assert.match(
+    supporterServiceSource,
+    /previousEnvironment === "preview"[\s\S]{0,220}item\.store\.markEnvironment\(this\.apiEnvironment\)/
   );
   assert.match(
     supporterServiceSource,

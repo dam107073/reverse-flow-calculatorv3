@@ -3,6 +3,10 @@
 // ========================================
 
 const APP_VERSION = "2.0";
+const APP_BUILD_NUMBERS = Object.freeze({
+  ios: "1",
+  android: "142"
+});
     const BUILD_DATE = "2026-07-24";
 
     const REVERSE_FLOW_PRO_PRODUCT_ID =
@@ -33,20 +37,21 @@ const PRO_ENTITLEMENT_STORAGE_KEY =
   "reverse-flow-pro-entitlement-v1";
 const SUPPORTER_CACHE_STORAGE_KEY =
   "reverse-flow-supporter-cache-v1";
-const SUPPORTER_API_ENVIRONMENT = "preview";
+const SUPPORTER_API_ENVIRONMENT = "production";
 const SUPPORTER_API_CONFIG = Object.freeze({
   environment: SUPPORTER_API_ENVIRONMENT,
   baseUrls: Object.freeze({
-    preview: "https://reverese-flow-website-dam107073-reverse-flow-llc.vercel.app",
     production: "https://reverse-flow.app"
   }),
   routes: Object.freeze({
+    environment: "/api/supporters/environment",
     claimLegacy: "/api/supporters/claim-legacy",
     verifyPendingPurchase: "/api/supporters/verify-pending",
     verifyPurchase: "/api/supporters/verify-purchase",
     status: "/api/supporters/status"
   }),
   timeoutsMs: Object.freeze({
+    environment: 10000,
     claimLegacy: 15000,
     verifyPendingPurchase: 20000,
     verifyPurchase: 20000,
