@@ -7,8 +7,8 @@ Verified on 2026-07-24 for Reverse Flow 2.0.
 | Support option | Apple product | Google product / base plan |
 | --- | --- | --- |
 | One time | `reverse_flow_support_one_time_5` | `reverse_flow_support_one_time_5` / `buy` |
-| $2.99 monthly | `support_reverse_flow_monthly_3` | `support_reverse_flow_monthly_3` / `monthly-3` |
-| $9.99 monthly | `support_reverse_flow_monthly_10` | `support_reverse_flow_monthly_10` / `monthly-10` |
+| $2.99 monthly | `support_reverse_flow_monthly_3` | `support_reverse_flow_subscription` / `monthly-3` |
+| $9.99 monthly | `support_reverse_flow_monthly_10` | `support_reverse_flow_subscription` / `monthly-10` |
 
 ## Apple
 
@@ -29,9 +29,10 @@ group `22260570` with the documented levels.
 
 ## Google Play
 
-The monthly tiers are separate subscription products. A Change action first
-refreshes owned subscriptions, requires exactly one active Reverse Flow
-subscription, retrieves that purchase token, and sends it through
+The monthly tiers are base plans under the single
+`support_reverse_flow_subscription` product. A Change action first refreshes
+owned subscriptions, requires exactly one active Reverse Flow purchase token,
+and sends that token through
 `BillingFlowParams.SubscriptionUpdateParams`.
 
 - $2.99 to $9.99: `CHARGE_PRORATED_PRICE`. The change is immediate and Google
@@ -44,25 +45,10 @@ the packaged Android adapter fail closed before `launchBillingFlow`. The
 initial monthly purchase remains a normal purchase only when no Change context
 exists.
 
-## Multiple active subscriptions
-
-The backend keeps every verified source record for auditability and resolves
-the highest active monthly amount for display. The app shows a duplicate-charge
-warning, disables further tier changes, and leaves Manage Billing available.
-It never cancels, consumes, refunds, or silently removes a subscription.
-
-For a license-test account that already has both Google subscriptions:
-
-1. Open Google Play, select the profile used for the test, then open
-   **Payments & subscriptions > Subscriptions**.
-2. Open one Reverse Flow subscription and cancel it. Keep the intended tier.
-3. Wait until Google reports only the intended product active, then reopen
-   Reverse Flow and use **Having trouble with your subscription? Refresh
-   status**.
-4. Confirm the duplicate warning disappears before testing another tier
-   change.
-
-Do not test the Change action while both products remain active.
+Google Play remains the only billing authority. The app derives the active base
+plan from refreshed ownership, acknowledges completed purchases without a
+backend dependency, and never consumes a subscription. The backend does not
+resolve or store the current Google billing tier for Supporter-page decisions.
 
 ## Verification and identity
 

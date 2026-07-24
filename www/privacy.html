@@ -63,9 +63,10 @@
             saved calculations, and the last confirmed Supporter state on the device.
           </p>
           <p>
-            When you choose to support Reverse Flow, the app sends purchase and subscription status only as needed to
-            verify Supporter status. A name and email address are collected only when you voluntarily register or
-            recover as a Supporter. The app may also produce anonymous operational diagnostics needed to investigate
+            Apple or Google provides purchase and subscription status directly to the app for billing controls. That
+            store status is not used by the Reverse Flow backend to decide Supporter identity. A name and email address
+            are collected only when you voluntarily claim or recover Supporter status. The app may also produce
+            anonymous operational diagnostics needed to investigate
             failures and improve reliability; these diagnostics exclude full email addresses, receipts, purchase
             tokens, transaction identifiers, and calculator content.
           </p>
@@ -76,9 +77,9 @@
 
           <h2>In-App Purchases</h2>
           <p>
-            Purchases and subscriptions are handled by Apple App Store or Google Play. Reverse Flow verifies qualifying
-            purchases only to confirm Supporter status. Subscription changes and renewals are reconciled through the
-            respective store services.
+            Purchases and subscriptions are handled by Apple App Store or Google Play. The current store account
+            determines purchase availability, active monthly support, restoration, and subscription changes. Reverse
+            Flow does not use its backend as a second billing authority.
           </p>
           <p>
             Apple processes In-App Purchases. Reverse Flow does not collect or receive credit card numbers, payment card
@@ -93,7 +94,7 @@
             according to the registration choices presented in the app.
           </p>
           <p>
-            Supporter status may be verified through Apple, Google, or Stripe depending on the contribution method.
+            Supporter identity is maintained independently from Apple, Google, or Stripe billing state.
             Public Supporter listings display only the chosen public name and Supporting Since date. Email addresses,
             purchase history, provider account information, and billing details are never displayed publicly.
           </p>
@@ -107,16 +108,15 @@
 
           <h2>How We Use Information</h2>
           <p>
-            Reverse Flow uses submitted information to verify support, maintain Supporter status, deliver the welcome
-            email, recover Supporter status across devices, prevent duplicate records, and provide subscription
-            management state.
+            Reverse Flow uses voluntarily submitted information to maintain Supporter status, deliver the welcome
+            email, recover Supporter status across devices, and prevent duplicate records. Apple and Google provide
+            billing state directly to the app.
           </p>
 
           <h2>Data Sharing</h2>
           <p>
-            Reverse Flow shares purchase information with Apple or Google as needed to process purchases, and uses
-            Supabase and Resend to store Supporter records and deliver welcome emails. Reverse Flow does not sell
-            personal information.
+            Apple or Google processes store purchases. Reverse Flow uses Supabase and Resend to store Supporter records
+            and deliver welcome emails. Reverse Flow does not sell personal information.
           </p>
 
           <h2>Website and Mobile Applications</h2>

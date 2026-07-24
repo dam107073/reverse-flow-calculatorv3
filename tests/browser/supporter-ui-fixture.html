@@ -108,11 +108,16 @@
       window.Capacitor = { getPlatform: () => params.get("platform") || "ios" };
       if (params.get("store") === "ready") {
         const platform = params.get("platform") || "ios";
-        const productDefinitions = {
-          reverse_flow_support_one_time_5: "$4.99",
-          support_reverse_flow_monthly_3: "$2.99",
-          support_reverse_flow_monthly_10: "$9.99"
-        };
+        const productDefinitions = platform === "android"
+          ? {
+              reverse_flow_support_one_time_5: "$4.99",
+              support_reverse_flow_subscription: "$2.99"
+            }
+          : {
+              reverse_flow_support_one_time_5: "$4.99",
+              support_reverse_flow_monthly_3: "$2.99",
+              support_reverse_flow_monthly_10: "$9.99"
+            };
         const products = new Map(
           Object.entries(productDefinitions).map(([productId, price]) => {
             const offer = {
@@ -129,6 +134,29 @@
             }];
           })
         );
+        if (platform === "android") {
+          const subscription = products.get(
+            "support_reverse_flow_subscription"
+          );
+          subscription.offers = [
+            {
+              id: "support_reverse_flow_subscription@monthly-3",
+              pricingPhases: [{ price: "$2.99" }],
+              async order() {
+                return { isError: true, code: 6777006 };
+              }
+            },
+            {
+              id: "support_reverse_flow_subscription@monthly-10",
+              pricingPhases: [{ price: "$9.99" }],
+              async order() {
+                return { isError: true, code: 6777006 };
+              }
+            }
+          ];
+          subscription.getOffer = offerId =>
+            subscription.offers.find(offer => offer.id === offerId);
+        }
         const when = {
           productUpdated() { return this; },
           approved() { return this; },

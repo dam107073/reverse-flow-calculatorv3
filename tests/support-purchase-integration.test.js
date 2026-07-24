@@ -83,12 +83,12 @@ const CONFIG = {
       purchaseOptionId: "buy"
     },
     monthly3: {
-      productId: "support_reverse_flow_monthly_3",
+      productId: "support_reverse_flow_subscription",
       productType: "paid subscription",
       basePlanId: "monthly-3"
     },
     monthly10: {
-      productId: "support_reverse_flow_monthly_10",
+      productId: "support_reverse_flow_subscription",
       productType: "paid subscription",
       basePlanId: "monthly-10"
     }
@@ -123,7 +123,11 @@ function createStore(platform, behavior = "approved") {
         billingPeriod: key === "oneTime5" ? null : "P1M"
       }],
       async order(additionalData) {
-        orders.push({ productId: configured.productId, additionalData });
+        orders.push({
+          productId: configured.productId,
+          offerId,
+          additionalData
+        });
         if (behavior === "cancel") {
           return { isError: true, code: 6777006, productId: configured.productId };
         }
@@ -150,15 +154,21 @@ function createStore(platform, behavior = "approved") {
         return undefined;
       }
     };
-    products.set(configured.productId, {
+    const existing = products.get(configured.productId);
+    if (existing) {
+      existing.offers.push(offer);
+      return;
+    }
+    const product = {
       id: configured.productId,
       owned: false,
       offers: [offer],
       getOffer(id) {
-        if (!id) return offer;
-        return id === offer.id ? offer : undefined;
+        if (!id) return this.offers[0];
+        return this.offers.find(candidate => candidate.id === id);
       }
-    });
+    };
+    products.set(configured.productId, product);
   });
 
   const when = {
@@ -253,6 +263,11 @@ test("canonical Apple and Google product identifiers and plan IDs are configured
   assert.match(constantsSource, /reverse_flow_support_one_time_5/);
   assert.match(constantsSource, /support_reverse_flow_monthly_3/);
   assert.match(constantsSource, /support_reverse_flow_monthly_10/);
+  assert.equal(
+    (constantsSource.match(/productId:\s*"support_reverse_flow_subscription"/g) || [])
+      .length,
+    2
+  );
   assert.match(constantsSource, /purchaseOptionId:\s*"buy"/);
   assert.match(constantsSource, /basePlanId:\s*"monthly-3"/);
   assert.match(constantsSource, /basePlanId:\s*"monthly-10"/);
@@ -283,7 +298,7 @@ test("mobile supporter APIs contain only the canonical Production host", () => {
 
 test("native Version 2.0 Release values are intentional", () => {
   assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 4;/g) || []).length,
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 5;/g) || []).length,
     6
   );
   assert.equal(
@@ -291,7 +306,7 @@ test("native Version 2.0 Release values are intentional", () => {
     6
   );
   assert.match(constantsSource, /const APP_VERSION = "2\.0"/);
-  assert.match(androidBuildSource, /versionCode 143/);
+  assert.match(androidBuildSource, /versionCode 144/);
   assert.match(androidBuildSource, /versionName "2\.0"/);
 });
 
@@ -340,22 +355,18 @@ test("every Android device build packages Production", () => {
 test("environment diagnostic reports only privacy-safe Production identity", async () => {
   const calls = [];
   global.APP_VERSION = "2.0";
-  global.APP_BUILD_NUMBERS = { ios: "1", android: "142" };
+  global.APP_BUILD_NUMBERS = { ios: "5", android: "144" };
   const service = new SupporterRegistryService({
     environment: "production",
     baseUrls: { production: "https://reverse-flow.app" },
     routes: {
       environment: "/api/supporters/environment",
-      claimLegacy: "/api/supporters/claim-legacy",
-      verifyPendingPurchase: "/api/supporters/verify-pending",
-      verifyPurchase: "/api/supporters/verify-purchase",
+      claimSupporter: "/api/supporters/claim-supporter",
       status: "/api/supporters/status"
     },
     timeoutsMs: {
       environment: 10000,
-      claimLegacy: 15000,
-      verifyPendingPurchase: 20000,
-      verifyPurchase: 20000,
+      claimSupporter: 15000,
       status: 10000
     }
   }, {
@@ -382,7 +393,7 @@ test("environment diagnostic reports only privacy-safe Production identity", asy
   assert.equal(diagnostic.resolvedApiOrigin, "https://reverse-flow.app");
   assert.equal(diagnostic.environmentCategory, "production");
   assert.equal(diagnostic.databaseEnvironmentIdentifier, "vbjhbqpvnfjfilntzdgk");
-  assert.equal(diagnostic.buildNumber, "142");
+  assert.equal(diagnostic.buildNumber, "144");
   assert.equal(calls.length, 1);
   assert.doesNotMatch(calls[0], /token|receipt|signature|email|orderId/i);
 });
@@ -422,9 +433,25 @@ test("Google selects the canonical purchase option and base-plan offers", async 
     service.getOptions("google").map(option => option.offer.id),
     [
       "reverse_flow_support_one_time_5@buy",
-      "support_reverse_flow_monthly_3@monthly-3",
-      "support_reverse_flow_monthly_10@monthly-10"
+      "support_reverse_flow_subscription@monthly-3",
+      "support_reverse_flow_subscription@monthly-10"
     ]
+  );
+  assert.deepEqual(
+    fixture.registered.map(item => item.id),
+    [
+      "reverse_flow_support_one_time_5",
+      "support_reverse_flow_subscription"
+    ]
+  );
+  assert.equal(
+    fixture.registered.some(item =>
+      [
+        "support_reverse_flow_monthly_3",
+        "support_reverse_flow_monthly_10"
+      ].includes(item.id)
+    ),
+    false
   );
 });
 
@@ -436,8 +463,8 @@ test("Google one-time support accepts the raw Play purchase-option ID", async ()
     platform: "android-playstore",
     state: "approved",
     products: [{
-      id: "support_reverse_flow_monthly_3",
-      offerId: "support_reverse_flow_monthly_3@monthly-3"
+      id: "support_reverse_flow_subscription",
+      offerId: "support_reverse_flow_subscription@monthly-3"
     }],
     purchaseId: "active-subscription-token",
     nativePurchase: {
@@ -461,8 +488,9 @@ test("verified pending Google subscription acknowledges exactly once", async () 
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
   const evidence = {
     paymentSource: "android",
-    productIdentifier: "support_reverse_flow_monthly_3",
+    productIdentifier: "support_reverse_flow_subscription",
     purchaseType: "monthly",
+    basePlanId: "monthly-3",
     purchaseToken: "google-subscription-token",
     purchaseTimestamp: "2026-07-24T12:00:00Z",
     acknowledged: false,
@@ -476,31 +504,30 @@ test("verified pending Google subscription acknowledges exactly once", async () 
   service.persistPendingEvidence(evidence);
 
   assert.equal(await service.acknowledgeVerifiedPendingSubscription(evidence, {
-    backendVerified: true,
+    storeApproved: true,
     pendingPersisted: true
   }), true);
   assert.equal(fixture.callbacks.finishCount, 1);
   assert.equal(
     service.readPendingSubscriptionRegistration()
       .lastRegistrationAttemptStatus,
-    "verified-awaiting-registration"
+    "store-approved"
   );
   assert.equal(await service.acknowledgeVerifiedPendingSubscription(evidence, {
-    backendVerified: true,
+    storeApproved: true,
     pendingPersisted: true
   }), false);
   assert.equal(fixture.callbacks.finishCount, 1);
 
   await service.finishPurchase(evidence, {
-    backendVerified: true,
-    registrationSucceeded: true,
-    supporterCached: true
+    storeApproved: true,
+    billingStatePersisted: true
   });
   assert.equal(service.readPendingSubscriptionRegistration(), null);
   assert.equal(fixture.callbacks.finishCount, 1);
 });
 
-test("verified Google one-time support is acknowledged once and consumed only after registration", async () => {
+test("verified Google one-time support is acknowledged once and consumed only during store completion", async () => {
   const fixture = createStore("android");
   installPurchaseGlobals("android", fixture.store);
   let acknowledgmentCalls = 0;
@@ -531,7 +558,7 @@ test("verified Google one-time support is acknowledged once and consumed only af
   try {
     service.persistPendingEvidence(evidence);
     assert.equal(await service.acknowledgeVerifiedGooglePurchase(evidence, {
-      backendVerified: true,
+      storeApproved: true,
       pendingPersisted: true
     }), true);
     assert.equal(evidence.acknowledged, true);
@@ -541,16 +568,15 @@ test("verified Google one-time support is acknowledged once and consumed only af
 
     // A registration delay or retry cannot trigger another Play completion.
     assert.equal(await service.acknowledgeVerifiedGooglePurchase(evidence, {
-      backendVerified: true,
+      storeApproved: true,
       pendingPersisted: true
     }), false);
     assert.equal(acknowledgmentCalls, 1);
     assert.equal(fixture.callbacks.finishCount || 0, 0);
 
     await service.finishPurchase(evidence, {
-      backendVerified: true,
-      registrationSucceeded: true,
-      supporterCached: true
+      storeApproved: true,
+      billingStatePersisted: true
     });
     assert.equal(fixture.callbacks.finishCount, 1);
     assert.equal(acknowledgmentCalls, 1);
@@ -603,7 +629,7 @@ test("Google one-time acknowledgment uses the native acknowledge action without 
   service.persistPendingEvidence(evidence);
 
   assert.equal(await service.acknowledgeVerifiedGooglePurchase(evidence, {
-    backendVerified: true,
+    storeApproved: true,
     pendingPersisted: true
   }), true);
   assert.deepEqual(nativeCalls, [{
@@ -615,14 +641,15 @@ test("Google one-time acknowledgment uses the native acknowledge action without 
   delete global.cordova;
 });
 
-test("Google purchase stays unacknowledged only while backend verification is unavailable", async () => {
+test("Google purchase stays unacknowledged only until store approval and durable local state", async () => {
   const fixture = createStore("android");
   installPurchaseGlobals("android", fixture.store);
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
   const evidence = {
     paymentSource: "android",
-    productIdentifier: "support_reverse_flow_monthly_3",
+    productIdentifier: "support_reverse_flow_subscription",
     purchaseType: "monthly",
+    basePlanId: "monthly-3",
     purchaseToken: "google-outage-token",
     purchaseTimestamp: "2026-07-24T12:00:00Z",
     transaction: {
@@ -636,7 +663,7 @@ test("Google purchase stays unacknowledged only while backend verification is un
 
   await assert.rejects(
     service.acknowledgeVerifiedGooglePurchase(evidence, {
-      backendVerified: false,
+      storeApproved: false,
       pendingPersisted: true
     }),
     error =>
@@ -646,7 +673,109 @@ test("Google purchase stays unacknowledged only while backend verification is un
   assert.notEqual(service.readPendingSubscriptionRegistration(), null);
 });
 
-test("approved Apple purchase stays unfinished until backend confirmation", async () => {
+test("temporary Google subscription acknowledgment failure remains retryable", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  let attempts = 0;
+  const evidence = {
+    paymentSource: "android",
+    productIdentifier: "support_reverse_flow_subscription",
+    purchaseType: "monthly",
+    basePlanId: "monthly-10",
+    purchaseToken: "retryable-subscription-token",
+    purchaseTimestamp: "2026-07-24T12:00:00Z",
+    acknowledged: false,
+    transaction: {
+      async finish() {
+        attempts += 1;
+        if (attempts === 1) {
+          throw Object.assign(new Error("temporary"), {
+            code: "temporary_store_failure"
+          });
+        }
+      }
+    }
+  };
+  service.persistPendingEvidence(evidence);
+  await assert.rejects(
+    service.acknowledgeVerifiedGooglePurchase(evidence, {
+      storeApproved: true,
+      pendingPersisted: true
+    }),
+    error => error.code === "temporary_store_failure"
+  );
+  assert.notEqual(service.readPendingSubscriptionRegistration(), null);
+  assert.equal(evidence.acknowledged, false);
+  assert.equal(await service.acknowledgeVerifiedGooglePurchase(evidence, {
+    storeApproved: true,
+    pendingPersisted: true
+  }), true);
+  assert.equal(attempts, 2);
+  await service.finishPurchase(evidence, {
+    storeApproved: true,
+    billingStatePersisted: true
+  });
+  assert.equal(service.readPendingSubscriptionRegistration(), null);
+});
+
+test("relaunch rediscovers and acknowledges an unfinished Google subscription once", async () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  };
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  let finishCalls = 0;
+  const transaction = {
+    platform: "android-playstore",
+    state: "approved",
+    products: [{
+      id: "support_reverse_flow_subscription",
+      offerId: "support_reverse_flow_subscription@monthly-3"
+    }],
+    purchaseId: "restart-subscription-token",
+    purchaseDate: new Date("2026-07-24T12:00:00Z"),
+    nativePurchase: {
+      purchaseToken: "restart-subscription-token",
+      acknowledged: false
+    },
+    async finish() {
+      finishCalls += 1;
+    }
+  };
+  const beforeRestart = new SupportPurchaseService(CONFIG, {
+    store: fixture.store,
+    storage
+  });
+  beforeRestart.persistPendingEvidence(
+    beforeRestart.transactionEvidence(transaction)
+  );
+  fixture.store.localTransactions.push(transaction);
+
+  const afterRestart = new SupportPurchaseService(CONFIG, {
+    store: fixture.store,
+    storage
+  });
+  const recoveredPromise = new Promise(resolve => {
+    afterRestart.onRecovery(resolve);
+  });
+  await afterRestart.initialize();
+  const recovered = await recoveredPromise;
+  await afterRestart.completeApprovedPurchase(recovered);
+
+  assert.equal(recovered.basePlanId, "monthly-3");
+  assert.equal(finishCalls, 1);
+  assert.equal(afterRestart.readPendingSubscriptionRegistration(), null);
+  assert.equal(
+    afterRestart.deriveBillingState("android"),
+    require("../www/js/services/supporter.js").BILLING_STATES.ACTIVE_MONTHLY_3
+  );
+});
+
+test("approved Apple purchase completes after durable local store state", async () => {
   const fixture = createStore("ios");
   installPurchaseGlobals("ios", fixture.store);
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
@@ -662,6 +791,7 @@ test("approved Apple purchase stays unfinished until backend confirmation", asyn
     Object.keys(pendingRecord).sort(),
     [
       "approvedAt",
+      "basePlanId",
       "environmentCategory",
       "lastRegistrationAttemptAt",
       "lastRegistrationAttemptStatus",
@@ -673,7 +803,7 @@ test("approved Apple purchase stays unfinished until backend confirmation", asyn
     ].sort()
   );
   assert.equal(pendingRecord.provider, "apple");
-  assert.equal(pendingRecord.state, "registration-required");
+  assert.equal(pendingRecord.state, "store-completion-required");
   assert.equal(JSON.stringify(pendingRecord).includes("2000000123456789"), false);
   assert.equal(JSON.stringify(pendingRecord).includes("header.payload.signature"), false);
 
@@ -683,9 +813,8 @@ test("approved Apple purchase stays unfinished until backend confirmation", asyn
   );
   assert.notEqual(service.readPendingRegistration(), null);
   await service.finishPurchase(pending, {
-    backendVerified: true,
-    registrationSucceeded: true,
-    supporterCached: true
+    storeApproved: true,
+    billingStatePersisted: true
   });
   assert.equal(fixture.counts().finishCalls, 1);
   assert.equal(service.readPendingRegistration(), null);
@@ -743,21 +872,20 @@ test("failed store finish retains the pending marker for retry", async () => {
   service.retryStore.write(evidence);
   await assert.rejects(
     service.finishPurchase(evidence, {
-      backendVerified: true,
-      registrationSucceeded: true,
-      supporterCached: true
+      storeApproved: true,
+      billingStatePersisted: true
     }),
     /fixture finish failure/
   );
-  assert.equal(service.readPendingRegistration()?.state, "registration-required");
+  assert.equal(
+    service.readPendingRegistration()?.state,
+    "store-completion-required"
+  );
 });
 
-test("pending and recovery presentation uses plain-language state-aware actions", () => {
-  assert.match(supportPageSource, /Finish Becoming a Supporter/);
-  assert.match(
-    supportPageSource,
-    /Your support was received\. Add your name and email to finish setting up your Supporter status\./
-  );
+test("V2 presentation keeps store billing and Supporter claims independent", () => {
+  assert.match(supportPageSource, /Claim Supporter Status/);
+  assert.match(supportPageSource, /profile is separate from store billing/);
   assert.match(supportPageSource, /Already a Supporter\?/);
   assert.match(supportPageSource, /Recover Your Supporter Status/);
   assert.match(supportPageSource, /Recover My Supporter Status/);
@@ -771,7 +899,7 @@ test("pending and recovery presentation uses plain-language state-aware actions"
   assert.doesNotMatch(supportPageSource, />Refresh Subscription Status</);
   assert.match(
     supporterServiceSource,
-    /safeAction === ACTIONS\.CLAIM && !hasPendingRegistration/
+    /function resolveSupporterV2State/
   );
   assert.match(
     supporterServiceSource,
@@ -785,10 +913,7 @@ test("pending and recovery presentation uses plain-language state-aware actions"
     supporterServiceSource,
     /confirmed\.welcomeEmailConfirmed !== true/
   );
-  assert.match(
-    supporterServiceSource,
-    /You’re officially a Reverse Flow Supporter/
-  );
+  assert.match(supporterServiceSource, /registryService\.claimSupporter/);
   assert.match(
     supporterServiceSource,
     /support-environment-migration-completed/
@@ -797,22 +922,26 @@ test("pending and recovery presentation uses plain-language state-aware actions"
     supporterServiceSource,
     /previousEnvironment === "preview"[\s\S]{0,220}item\.store\.markEnvironment\(this\.apiEnvironment\)/
   );
-  assert.match(
-    supporterServiceSource,
-    /Your monthly support was received, but Supporter setup could not be completed right now\. Please try again\./
+  const v2Renderer = supporterServiceSource.slice(
+    supporterServiceSource.indexOf("function renderSupportPageV2"),
+    supporterServiceSource.indexOf("function initialize()")
+  );
+  assert.doesNotMatch(
+    v2Renderer,
+    /verifyPendingPurchase|registerVerifiedPurchase/
   );
   assert.match(analyticsSource, /Capacitor\?\.isNativePlatform/);
   assert.match(analyticsSource, /if \(!isNativeApp\)/);
 });
 
-test("Google acknowledgment is gated only by verified durable purchase state and remains retryable", () => {
+test("Google acknowledgment is gated by store approval and durable local state", () => {
   assert.match(
     supporterServiceSource,
     /async acknowledgeVerifiedGooglePurchase/
   );
   assert.match(
     supporterServiceSource,
-    /completion\.backendVerified !== true[\s\S]{0,220}completion\.pendingPersisted !== true/
+    /completion\.storeApproved !== true[\s\S]{0,220}completion\.pendingPersisted !== true/
   );
   assert.doesNotMatch(
     supporterServiceSource,
@@ -820,16 +949,14 @@ test("Google acknowledgment is gated only by verified durable purchase state and
   );
   for (const event of [
     "purchase-discovered",
-    "purchase-verification-started",
-    "purchase-verification-result",
     "support-pending-state-written",
-    "supporter-registration-completed",
     "google-purchase-acknowledgment-attempted",
     "google-purchase-acknowledgment-succeeded",
     "google-purchase-acknowledgment-deferred",
     "google-consumable-consumption-attempted",
     "google-consumable-consumption-succeeded",
-    "google-consumable-consumption-deferred"
+    "google-consumable-consumption-deferred",
+    "store-purchase-completed"
   ]) {
     assert.match(supporterServiceSource, new RegExp(`"${event}"`));
   }
@@ -907,8 +1034,8 @@ test("Google receipt refresh resumes a durable pending registration", async () =
     platform: "android-playstore",
     state: "approved",
     products: [{
-      id: "support_reverse_flow_monthly_3",
-      offerId: "support_reverse_flow_monthly_3@monthly-3"
+      id: "support_reverse_flow_subscription",
+      offerId: "support_reverse_flow_subscription@monthly-3"
     }],
     purchaseId: "google-recovery-token",
     nativePurchase: {
@@ -932,7 +1059,7 @@ test("Google receipt refresh resumes a durable pending registration", async () =
   assert.equal(recovered.length, 1);
   assert.equal(
     recovered[0].productIdentifier,
-    "support_reverse_flow_monthly_3"
+    "support_reverse_flow_subscription"
   );
   assert.equal(recovered[0].recoverySource, "store-approved-redelivery");
 });
@@ -1039,7 +1166,7 @@ test("Google approved purchase survives restart, retries, acknowledges once, and
   assert.equal(recovered.recoverySource, "store-approved-redelivery");
   assert.equal(recovered.productIdentifier, "reverse_flow_support_one_time_5");
   assert.equal(await afterRestart.acknowledgeVerifiedGooglePurchase(recovered, {
-    backendVerified: true,
+    storeApproved: true,
     pendingPersisted: true
   }), true);
   assert.equal(acknowledgmentCalls, 1);
@@ -1047,9 +1174,8 @@ test("Google approved purchase survives restart, retries, acknowledges once, and
   assert.notEqual(afterRestart.readPendingOneTimeRegistration(), null);
 
   await afterRestart.finishPurchase(recovered, {
-    backendVerified: true,
-    registrationSucceeded: true,
-    supporterCached: true
+    storeApproved: true,
+    billingStatePersisted: true
   });
   assert.equal(fixture.callbacks.finishCount, 1);
   assert.equal(acknowledgmentCalls, 1);
@@ -1106,14 +1232,15 @@ test("subscription and consumable pending records are product-specific", () => {
   const service = new SupportPurchaseService(CONFIG, { store: {}, storage });
   service.persistPendingEvidence({
     paymentSource: "android",
-    productIdentifier: "support_reverse_flow_monthly_10",
+    productIdentifier: "support_reverse_flow_subscription",
     purchaseType: "monthly",
+    basePlanId: "monthly-10",
     purchaseToken: "subscription-token"
   });
   assert.equal(service.oneTimeRetryStore.read(), null);
   assert.equal(
     service.subscriptionRetryStore.read()?.productId,
-    "support_reverse_flow_monthly_10"
+    "support_reverse_flow_subscription"
   );
   service.persistPendingEvidence({
     paymentSource: "android",
@@ -1132,8 +1259,9 @@ test("duplicate transaction reconciliation runs backend work once", async () => 
   const service = new SupportPurchaseService(CONFIG, { store: {} });
   const evidence = {
     paymentSource: "android",
-    productIdentifier: "support_reverse_flow_monthly_10",
+    productIdentifier: "support_reverse_flow_subscription",
     purchaseType: "monthly",
+    basePlanId: "monthly-10",
     purchaseToken: "stable-reconciliation-token"
   };
   let calls = 0;
@@ -1149,7 +1277,7 @@ test("duplicate transaction reconciliation runs backend work once", async () => 
   assert.equal(await reconcile(), null);
 });
 
-test("confirmed stale consumable marker clears when StoreKit has no unfinished transaction", async () => {
+test("Supporter claim state cannot clear an unresolved store completion marker", async () => {
   const fixture = createStore("ios");
   const values = new Map();
   const storage = {
@@ -1191,7 +1319,7 @@ test("confirmed stale consumable marker clears when StoreKit has no unfinished t
   });
   await service.initialize();
   await service.recoverUnfinishedConsumable({ automatic: true });
-  assert.equal(service.oneTimeRetryStore.read(), null);
+  assert.notEqual(service.oneTimeRetryStore.read(), null);
 });
 
 test("subscription refresh returns only recurring support and management opens natively", async () => {
@@ -1210,7 +1338,7 @@ test("subscription refresh returns only recurring support and management opens n
   fixture.store.localTransactions.push(transaction);
 
   const restored = await service.refreshSubscriptionPurchases();
-  assert.equal(restored.productIdentifier, "support_reverse_flow_monthly_3");
+  assert.equal(restored.productIdentifier, "support_reverse_flow_subscription");
   assert.equal(restored.purchaseToken, "restored-google-token");
   await service.openNativeSubscriptionManagement();
   assert.deepEqual(fixture.counts(), {
@@ -1268,7 +1396,11 @@ test("restored ownership and pending profile setup do not globally lock contribu
   for (const platform of ["ios", "android"]) {
     const fixture = createStore(platform);
     installPurchaseGlobals(platform, fixture.store);
-    const monthly3 = fixture.products.get("support_reverse_flow_monthly_3");
+    const monthly3 = fixture.products.get(
+      platform === "ios"
+        ? "support_reverse_flow_monthly_3"
+        : "support_reverse_flow_subscription"
+    );
     monthly3.owned = true;
     const service = new SupportPurchaseService(CONFIG, {
       store: fixture.store
@@ -1278,7 +1410,10 @@ test("restored ownership and pending profile setup do not globally lock contribu
     const options = service.getOptions(platform === "ios" ? "apple" : "google");
 
     assert.equal(options.find(option => option.key === "monthly3").owned, true);
-    assert.equal(options.find(option => option.key === "monthly10").owned, false);
+    assert.equal(
+      options.find(option => option.key === "monthly10").owned,
+      platform === "android"
+    );
     assert.equal(
       options.find(option => option.key === "oneTime5").repurchaseRestricted,
       false
@@ -1352,6 +1487,7 @@ test("Google monthly changes replace the active purchase with deliberate modes",
     });
     await service.purchase(options[toKey], {
       currentRecurringProductId: options[fromKey].productId,
+      currentBasePlanId: options[fromKey].basePlanId,
       currentMonthlyAmount: options[fromKey].amount
     });
     assert.deepEqual(fixture.orders.at(-1).additionalData, {
@@ -1359,14 +1495,16 @@ test("Google monthly changes replace the active purchase with deliberate modes",
         oldPurchaseToken: `current-token-${fromKey}`,
         replacementMode: expectedMode,
         replacementRequired: true,
-        oldProductId: options[fromKey].productId
+        oldProductId: options[fromKey].productId,
+        oldBasePlanId: options[fromKey].basePlanId,
+        targetBasePlanId: options[toKey].basePlanId
       }
     });
     assert.equal(fixture.counts().restoreCalls, 1);
   }
 });
 
-test("Google Change fails closed without exactly one active subscription", async () => {
+test("Google Change requires current ownership and ignores older same-product tokens", async () => {
   const fixture = createStore("android");
   installPurchaseGlobals("android", fixture.store);
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
@@ -1376,6 +1514,7 @@ test("Google Change fails closed without exactly one active subscription", async
   await assert.rejects(
     service.purchase(options[2], {
       currentRecurringProductId: options[1].productId,
+      currentBasePlanId: options[1].basePlanId,
       currentMonthlyAmount: options[1].amount
     }),
     error => error.code === "subscription_replacement_token_unavailable"
@@ -1385,27 +1524,38 @@ test("Google Change fails closed without exactly one active subscription", async
   fixture.store.localTransactions.push(
     {
       platform: "android-playstore",
-      products: [{ id: options[1].productId }],
+      products: [{
+        id: options[1].productId,
+        offerId: options[1].offer.id
+      }],
       purchaseId: "active-three-token",
       purchaseDate: new Date("2026-07-24T10:00:00Z"),
       state: "finished"
     },
     {
       platform: "android-playstore",
-      products: [{ id: options[2].productId }],
+      products: [{
+        id: options[2].productId,
+        offerId: options[2].offer.id
+      }],
       purchaseId: "active-ten-token",
       purchaseDate: new Date("2026-07-24T11:00:00Z"),
       state: "finished"
     }
   );
-  await assert.rejects(
-    service.purchase(options[2], {
-      currentRecurringProductId: options[1].productId,
-      currentMonthlyAmount: options[1].amount
-    }),
-    error => error.code === "multiple_active_subscriptions"
+  await service.purchase(options[1], {
+    currentRecurringProductId: options[2].productId,
+    currentBasePlanId: options[2].basePlanId,
+    currentMonthlyAmount: options[2].amount
+  });
+  assert.equal(
+    fixture.orders.at(-1).additionalData.googlePlay.oldPurchaseToken,
+    "active-ten-token"
   );
-  assert.equal(fixture.orders.length, 0);
+  assert.equal(
+    fixture.orders.at(-1).additionalData.googlePlay.replacementRequired,
+    true
+  );
 });
 
 test("Google initial monthly support remains a normal purchase", async () => {
@@ -1420,15 +1570,7 @@ test("Google initial monthly support remains a normal purchase", async () => {
   assert.equal(fixture.counts().restoreCalls, 0);
 });
 
-test("multiple-active warning and native replacement guard are packaged", () => {
-  assert.match(
-    supportPageSource,
-    /Multiple active Reverse Flow subscriptions were found\. Manage billing to prevent duplicate charges\./
-  );
-  assert.match(
-    supporterServiceSource,
-    /hasMultipleActiveSubscriptions/
-  );
+test("native Google replacement guard is packaged", () => {
   assert.match(
     fs.readFileSync(
       path.join(__dirname, "..", "scripts", "patch-android-purchase-plugin.js"),
@@ -1445,7 +1587,7 @@ test("active Supporter management keeps billing secondary and offers repeat supp
   assert.match(supporterServiceSource, /Add One-Time Support — \$\{oneTime\.localizedPrice\}/);
   assert.match(
     supporterServiceSource,
-    /option\.productId !== current\?\.productId/
+    /option\.key !== current\?\.key/
   );
   assert.doesNotMatch(
     `${supportPageSource}\n${supporterServiceSource}`,
@@ -1511,9 +1653,8 @@ test("iOS consumable recovery uses Transaction.unfinished without restore semant
   assert.equal(new SupporterCache(storage).read().isSupporter, false);
 
   await service.finishPurchase(recovered, {
-    backendVerified: true,
-    registrationSucceeded: true,
-    supporterCached: true
+    storeApproved: true,
+    billingStatePersisted: true
   });
   assert.equal(nativeFinishCalls, 1);
   assert.equal(storageValues.size, 0);

@@ -80,28 +80,28 @@ does not remove permanent Supporter identity, its badge, or `supporter_since`.
 
 ## In-app support changes
 
-The two monthly products keep their canonical identifiers on both stores:
+Apple keeps two monthly product identifiers:
 
-- `support_reverse_flow_monthly_3` (`monthly-3` on Google Play)
-- `support_reverse_flow_monthly_10` (`monthly-10` on Google Play)
+- `support_reverse_flow_monthly_3`
+- `support_reverse_flow_monthly_10`
+
+Google Play uses one subscription product with two base plans:
+
+- `support_reverse_flow_subscription` / `monthly-3`
+- `support_reverse_flow_subscription` / `monthly-10`
 
 An active subscriber sees the other monthly amount in **Manage Your Support**
 and can confirm the change in the native store. Apple uses the alternate
-product in the same subscription group. Google Play sends the current purchase
+product in the same subscription group. Google Play selects the target offer
+token from runtime ProductDetails and sends the current purchase
 token as `oldPurchaseToken`; an increase uses
 `IMMEDIATE_AND_CHARGE_PRORATED_PRICE`, while a decrease uses `DEFERRED` so it
-takes effect at the next renewal. A scheduled replacement disables additional
-monthly changes until the backend status no longer reports it.
+takes effect at the next renewal. Refreshed Google ownership determines the
+active tier shown in the app.
 
-Confirmed Supporters may also purchase
-`reverse_flow_support_one_time_5` again on either platform. The contribution
-still follows backend verification, durable pending-state, cache-confirmation,
-and store-completion rules, but it reuses the existing backend identity,
-preserves the original `supporter_since`, skips the registration form, and
-does not trigger another automatic welcome email.
-
-`POST /api/supporters/register` remains server-to-server only. Native purchase
-registration uses `POST /api/supporters/verify-purchase`.
+Store billing completion is independent from the Supporter Registry. A
+Supporter claim uses only name, normalized email, and public-listing preference;
+claim failure cannot block acknowledgment or alter the billing UI.
 
 ## Pass 4F transaction isolation
 

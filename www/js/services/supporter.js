@@ -9,6 +9,7 @@
   const SUPPORT_ENVIRONMENT_CACHE_KEY =
     "reverse-flow-support-environment-v1";
   const LEGACY_PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-purchase-retry-v1";
+  const BILLING_HISTORY_CACHE_KEY = "reverse-flow-store-support-history-v2";
   const PENDING_REGISTRATION_STATUSES = new Set([
     "not-attempted",
     "verification-started",
@@ -19,9 +20,22 @@
     "registration-started",
     "registration-failed",
     "confirmed-awaiting-finish",
-    "finish-failed"
+    "finish-failed",
+    "store-approved",
+    "store-completion-failed"
   ]);
   const RECURRING_STATUSES = new Set(["active", "canceling", "expired", "inactive"]);
+  const BILLING_STATES = Object.freeze({
+    NEVER_PURCHASED: "never-purchased",
+    ACTIVE_MONTHLY_3: "active-monthly-3",
+    ACTIVE_MONTHLY_10: "active-monthly-10",
+    PREVIOUSLY_SUPPORTED: "previously-supported",
+    BILLING_UNAVAILABLE: "billing-unavailable"
+  });
+  const CLAIM_STATES = Object.freeze({
+    UNCLAIMED: "unclaimed",
+    CLAIMED: "claimed"
+  });
   const ACTIONS = Object.freeze({
     MANAGE: "manage-support",
     CONTINUE: "continue-supporting",
@@ -49,12 +63,44 @@
   });
 
   function resolveSupportAction(state) {
-    if (state?.isSupporter && state?.hasActiveRecurringSupport) {
+    if (
+      state?.billingState === BILLING_STATES.ACTIVE_MONTHLY_3 ||
+      state?.billingState === BILLING_STATES.ACTIVE_MONTHLY_10
+    ) {
       return ACTIONS.MANAGE;
     }
-    if (state?.isSupporter) return ACTIONS.CONTINUE;
-    if (state?.hasLegacyProEntitlement) return ACTIONS.CLAIM;
+    if (state?.billingState === BILLING_STATES.PREVIOUSLY_SUPPORTED) {
+      return ACTIONS.CONTINUE;
+    }
     return ACTIONS.BECOME;
+  }
+
+  function resolveSupporterV2State(billingState, supporterRecord) {
+    const normalizedBilling = Object.values(BILLING_STATES).includes(billingState)
+      ? billingState
+      : BILLING_STATES.NEVER_PURCHASED;
+    const claimState = supporterRecord?.isSupporter === true
+      ? CLAIM_STATES.CLAIMED
+      : CLAIM_STATES.UNCLAIMED;
+    const activeMonthly =
+      normalizedBilling === BILLING_STATES.ACTIVE_MONTHLY_3 ||
+      normalizedBilling === BILLING_STATES.ACTIVE_MONTHLY_10;
+    const previouslySupported =
+      activeMonthly ||
+      normalizedBilling === BILLING_STATES.PREVIOUSLY_SUPPORTED;
+    return {
+      billingState: normalizedBilling,
+      claimState,
+      isSupporter: claimState === CLAIM_STATES.CLAIMED,
+      showBadge: claimState === CLAIM_STATES.CLAIMED,
+      showClaim:
+        claimState === CLAIM_STATES.UNCLAIMED && previouslySupported,
+      showManageSupport: activeMonthly,
+      showSupportOptions: !activeMonthly,
+      primaryAction: resolveSupportAction({
+        billingState: normalizedBilling
+      })
+    };
   }
 
   function isValidTimestamp(value) {
@@ -71,55 +117,22 @@
   }
 
   function normalizeSupporterRecord(record) {
-    const contribution = record?.contribution || {};
     const isSupporter = record?.isSupporter === true;
-    const status = RECURRING_STATUSES.has(record?.recurringStatus)
-      ? record.recurringStatus
-      : String(contribution.status || "inactive");
-    const hasActiveRecurringSupport =
-      isSupporter &&
-      (record?.hasActiveRecurringSupport === true ||
-        status === "active" ||
-        status === "canceling");
-    const type = hasActiveRecurringSupport ||
-      status === "expired" ||
-      contribution.type === "monthly"
-        ? "monthly"
-        : "none";
 
     return {
       version: CACHE_VERSION,
       isSupporter,
+      name: isSupporter ? record?.name || null : null,
       supporterSince: isSupporter ? record.supporterSince || null : null,
-      source: isSupporter ? record.source || null : null,
-      recurringStatus: status,
-      contribution: {
-        type,
-        status,
-        monthlyAmount: Number.isFinite(contribution.monthlyAmount)
-          ? contribution.monthlyAmount
-          : null,
-        productId: contribution.productId || null,
-        pendingReplacementProductId:
-          contribution.pendingReplacementProductId || null,
-        pendingReplacementMonthlyAmount:
-          Number.isFinite(contribution.pendingReplacementMonthlyAmount)
-            ? contribution.pendingReplacementMonthlyAmount
-            : null,
-        multipleActiveSubscriptions:
-          contribution.multipleActiveSubscriptions === true,
-        platform: contribution.platform || null,
-        renewsOrExpiresAt: contribution.renewsOrExpiresAt || null
-      },
-      hasActiveRecurringSupport,
+      isPubliclyListed: isSupporter
+        ? record?.isPubliclyListed !== false
+        : null,
       lastVerifiedAt: record?.lastVerifiedAt || null,
       emailHash: /^[a-f0-9]{64}$/i.test(String(record?.emailHash || ""))
         ? String(record.emailHash).toLowerCase()
         : null,
       supporterEmail: isSupporter ? record?.supporterEmail || null : null,
-      platform: isSupporter
-        ? record?.platform || contribution.platform || null
-        : null,
+      platform: isSupporter ? record?.platform || null : null,
       syncStatus: record?.syncStatus || "cached",
       welcomeEmailConfirmed: record?.welcomeEmailConfirmed === true
     };
@@ -130,8 +143,6 @@
       !payload ||
       typeof payload !== "object" ||
       typeof payload.isSupporter !== "boolean" ||
-      typeof payload.hasActiveRecurringSupport !== "boolean" ||
-      !RECURRING_STATUSES.has(payload.recurringStatus) ||
       !isValidTimestamp(payload.lastVerifiedAt)
     ) {
       throw new SupporterRegistryError(
@@ -142,8 +153,9 @@
     if (
       payload.isSupporter &&
       (!isValidSupporterSince(payload.supporterSince) ||
-        typeof payload.source !== "string" ||
-        !payload.source)
+        typeof payload.name !== "string" ||
+        !payload.name.trim() ||
+        typeof payload.isPubliclyListed !== "boolean")
     ) {
       throw new SupporterRegistryError(
         "Your Supporter status could not be confirmed. Please try again.",
@@ -153,19 +165,9 @@
     if (
       !payload.isSupporter &&
       (payload.supporterSince !== null ||
-        payload.source !== null ||
-        payload.recurringStatus !== "inactive")
+        payload.name !== null ||
+        payload.isPubliclyListed !== null)
     ) {
-      throw new SupporterRegistryError(
-        "Your Supporter status could not be confirmed. Please try again.",
-        { code: "malformed_response" }
-      );
-    }
-    const recurringShouldBeActive =
-      payload.isSupporter &&
-      (payload.recurringStatus === "active" ||
-        payload.recurringStatus === "canceling");
-    if (payload.hasActiveRecurringSupport !== recurringShouldBeActive) {
       throw new SupporterRegistryError(
         "Your Supporter status could not be confirmed. Please try again.",
         { code: "malformed_response" }
@@ -259,11 +261,9 @@
     if (
       !baseUrl ||
       !/^https:\/\//i.test(baseUrl) ||
-      !configured.routes?.claimLegacy ||
-      !configured.routes?.verifyPurchase ||
+      !configured.routes?.claimSupporter ||
       !configured.routes?.status ||
-      !Number.isFinite(configured.timeoutsMs?.claimLegacy) ||
-      !Number.isFinite(configured.timeoutsMs?.verifyPurchase) ||
+      !Number.isFinite(configured.timeoutsMs?.claimSupporter) ||
       !Number.isFinite(configured.timeoutsMs?.status)
     ) {
       throw new Error("Supporter API configuration must use HTTPS.");
@@ -271,17 +271,8 @@
     return {
       environment,
       baseUrl: baseUrl.replace(/\/+$/, ""),
-      routes: {
-        ...configured.routes,
-        verifyPendingPurchase:
-          configured.routes.verifyPendingPurchase || "/api/supporters/verify-pending"
-      },
-      timeoutsMs: {
-        ...configured.timeoutsMs,
-        verifyPendingPurchase:
-          configured.timeoutsMs.verifyPendingPurchase ||
-          configured.timeoutsMs.verifyPurchase
-      }
+      routes: { ...configured.routes },
+      timeoutsMs: { ...configured.timeoutsMs }
     };
   }
 
@@ -424,10 +415,13 @@
       const route = this.config.routes[routeKey];
       const url = `${this.config.baseUrl}${route}`;
       const isRegistration =
+        routeKey === "claimSupporter" ||
         routeKey === "verifyPurchase" ||
         routeKey === "verifyPendingPurchase";
       const registrationEventPrefix =
-        routeKey === "verifyPendingPurchase"
+        routeKey === "claimSupporter"
+          ? "supporter-claim"
+          : routeKey === "verifyPendingPurchase"
           ? "pending-support-verification"
           : options.registrationMode === "existing-supporter"
           ? "supporter-contribution-attachment"
@@ -653,7 +647,19 @@
     }
 
     async submitLegacyClaim(payload) {
-      return this.request("claimLegacy", payload, "claimLegacy");
+      return this.claimSupporter(payload);
+    }
+
+    async claimSupporter(payload) {
+      return this.request(
+        "claimSupporter",
+        {
+          name: String(payload?.name || "").trim(),
+          email: String(payload?.email || "").trim().toLowerCase(),
+          public: payload?.public !== false
+        },
+        "claimSupporter"
+      );
     }
 
     async registerVerifiedPurchase(payload, options = {}) {
@@ -709,6 +715,13 @@
       : null;
   }
 
+  function basePlanIdFromOfferId(value) {
+    const offerId = String(value || "");
+    return ["monthly-3", "monthly-10"].find(basePlanId =>
+      offerId === basePlanId || offerId.endsWith(`@${basePlanId}`)
+    ) || null;
+  }
+
   class PendingSupportRegistrationStore {
     constructor(storage, key = PURCHASE_RETRY_CACHE_KEY) {
       this.storage = storage || null;
@@ -735,11 +748,13 @@
           }
         }
         if (
-          parsed?.version !== 2 ||
+          ![2, 3].includes(parsed?.version) ||
           !["apple", "google"].includes(parsed?.provider) ||
           !parsed?.productId ||
           !parsed?.transactionReference ||
-          parsed?.state !== "registration-required" ||
+          !["registration-required", "store-completion-required"].includes(
+            parsed?.state
+          ) ||
           !isValidTimestamp(parsed?.approvedAt) ||
           !PENDING_REGISTRATION_STATUSES.has(parsed?.lastRegistrationAttemptStatus)
         ) {
@@ -762,15 +777,17 @@
         : evidence?.paymentSource === "android" ? "google" : null;
       const transactionReference = privacySafeTransactionReference(evidence, provider);
       const record = {
-        version: 2,
+        version: 3,
         provider,
         productId: String(evidence?.productIdentifier || ""),
+        basePlanId: basePlanIdFromOfferId(evidence?.basePlanId) ||
+          basePlanIdFromOfferId(evidence?.offerId),
         transactionReference,
         environmentCategory:
           String(global.SUPPORTER_API_CONFIG?.environment || "unknown"),
         approvedAt:
           toIsoTimestamp(evidence?.purchaseTimestamp) || new Date().toISOString(),
-        state: "registration-required",
+        state: "store-completion-required",
         lastRegistrationAttemptAt: null,
         lastRegistrationAttemptStatus: "not-attempted"
       };
@@ -956,6 +973,163 @@
             product?.owned === true
         };
       });
+    }
+
+    readBillingHistory() {
+      try {
+        const record = JSON.parse(
+          this.storage?.getItem?.(BILLING_HISTORY_CACHE_KEY) || "null"
+        );
+        return record?.previouslySupported === true
+          ? {
+              previouslySupported: true,
+              lastBillingState:
+                Object.values(BILLING_STATES).includes(
+                  record.lastBillingState
+                )
+                  ? record.lastBillingState
+                  : BILLING_STATES.PREVIOUSLY_SUPPORTED,
+              lastProductId:
+                this.supportProductIds().has(record.lastProductId)
+                  ? record.lastProductId
+                  : null,
+              lastBasePlanId: basePlanIdFromOfferId(record.lastBasePlanId),
+              lastSupportedAt: isValidTimestamp(record.lastSupportedAt)
+                ? record.lastSupportedAt
+                : null
+            }
+          : { previouslySupported: false };
+      } catch {
+        return { previouslySupported: false };
+      }
+    }
+
+    recordBillingHistory(evidence) {
+      const monthlyState =
+        (
+          Boolean(evidence?.basePlanId) &&
+          evidence.basePlanId === this.config?.google?.monthly10?.basePlanId
+        ) ||
+        (
+          evidence?.paymentSource === "ios" &&
+          evidence?.productIdentifier === this.config?.apple?.monthly10?.productId
+        )
+          ? BILLING_STATES.ACTIVE_MONTHLY_10
+          : evidence?.purchaseType === "monthly"
+            ? BILLING_STATES.ACTIVE_MONTHLY_3
+            : BILLING_STATES.PREVIOUSLY_SUPPORTED;
+      const record = {
+        previouslySupported: true,
+        lastBillingState: monthlyState,
+        lastProductId: this.supportProductIds().has(
+          evidence?.productIdentifier
+        )
+          ? evidence.productIdentifier
+          : null,
+        lastBasePlanId: basePlanIdFromOfferId(evidence?.basePlanId),
+        lastSupportedAt:
+          toIsoTimestamp(evidence?.purchaseTimestamp) ||
+          new Date().toISOString()
+      };
+      this.storage?.setItem?.(
+        BILLING_HISTORY_CACHE_KEY,
+        JSON.stringify(record)
+      );
+      return record;
+    }
+
+    recordBillingState(state) {
+      if (!this.storage?.setItem || state === BILLING_STATES.NEVER_PURCHASED) {
+        return;
+      }
+      const current = this.readBillingHistory();
+      this.storage.setItem(BILLING_HISTORY_CACHE_KEY, JSON.stringify({
+        ...current,
+        previouslySupported: true,
+        lastBillingState: state,
+        lastCheckedAt: new Date().toISOString()
+      }));
+    }
+
+    deriveBillingState(platform = getPlatform()) {
+      const configKey =
+        platform === "ios" || platform === "apple"
+          ? "apple"
+          : platform === "android" || platform === "google"
+            ? "google"
+            : null;
+      if (!configKey) return BILLING_STATES.BILLING_UNAVAILABLE;
+      const options = this.getOptions(configKey);
+      const cachedBilling = this.readBillingHistory();
+      const activeEvidence = configKey === "google"
+        ? this.activeRecurringPurchaseEvidenceList()[0] || null
+        : null;
+      const activeBasePlanId =
+        activeEvidence?.basePlanId ||
+        (
+          activeEvidence?.productIdentifier === cachedBilling.lastProductId
+            ? cachedBilling.lastBasePlanId
+            : null
+        );
+      const activeMonthly = activeEvidence
+        ? options.find(option =>
+            option.type === "monthly" &&
+            option.basePlanId === activeBasePlanId
+          )
+        : options
+            .filter(option => option.type === "monthly" && option.owned)
+            .sort((left, right) => Number(right.amount) - Number(left.amount))[0];
+      if (activeMonthly?.amount === 10) {
+        this.recordBillingState(BILLING_STATES.ACTIVE_MONTHLY_10);
+        return BILLING_STATES.ACTIVE_MONTHLY_10;
+      }
+      if (activeMonthly?.amount === 3) {
+        this.recordBillingState(BILLING_STATES.ACTIVE_MONTHLY_3);
+        return BILLING_STATES.ACTIVE_MONTHLY_3;
+      }
+      if (
+        (
+          !this.initialized ||
+          !options.some(option =>
+            option.type === "monthly" && option.state === "ready"
+          )
+        ) &&
+        [
+          BILLING_STATES.ACTIVE_MONTHLY_3,
+          BILLING_STATES.ACTIVE_MONTHLY_10
+        ].includes(cachedBilling.lastBillingState)
+      ) {
+        return cachedBilling.lastBillingState;
+      }
+      const hasStoreHistory = this.allSupportTransactions().some(transaction =>
+        this.supportProductIds().has(this.transactionProductId(transaction))
+      );
+      if (
+        hasStoreHistory ||
+        cachedBilling.previouslySupported ||
+        Boolean(this.global.hasLegacyProEntitlement?.())
+      ) {
+        this.recordBillingState(BILLING_STATES.PREVIOUSLY_SUPPORTED);
+        return BILLING_STATES.PREVIOUSLY_SUPPORTED;
+      }
+      if (
+        this.initializeError ||
+        (
+          this.initialized &&
+          !options.some(option => option.state === "ready")
+        )
+      ) {
+        return BILLING_STATES.BILLING_UNAVAILABLE;
+      }
+      return BILLING_STATES.NEVER_PURCHASED;
+    }
+
+    async refreshBillingState() {
+      await this.initialize();
+      if (typeof this.store?.update === "function") {
+        await this.store.update();
+      }
+      return this.deriveBillingState();
     }
 
     getStorePlatform(platform = getPlatform()) {
@@ -1192,8 +1366,22 @@
 
     transactionEvidence(transaction, option = null) {
       const productIdentifier = this.transactionProductId(transaction) || option?.productId;
+      const productOfferId =
+        transaction?.products?.find(product => product?.id === productIdentifier)
+          ?.offerId ||
+        option?.offer?.id ||
+        null;
+      const basePlanId =
+        basePlanIdFromOfferId(productOfferId) ||
+        basePlanIdFromOfferId(option?.basePlanId);
       const configuredOption = this.getOptions(getPlatform() === "ios" ? "apple" : "google")
-        .find(candidate => candidate.productId === productIdentifier);
+        .find(candidate =>
+          candidate.productId === productIdentifier &&
+          (
+            !basePlanId ||
+            candidate.basePlanId === basePlanId
+          )
+        ) || option;
       const nativePurchase = transaction?.nativePurchase || {};
       return {
         paymentSource: getPlatform(),
@@ -1202,6 +1390,10 @@
         monthlyAmount: configuredOption?.type === "monthly"
           ? configuredOption.amount
           : null,
+        basePlanId:
+          configuredOption?.type === "monthly"
+            ? basePlanId || configuredOption?.basePlanId || null
+            : null,
         transactionId: transaction?.transactionId || null,
         originalTransactionId:
           transaction?.originalTransactionId ||
@@ -1219,9 +1411,13 @@
         environment: normalizeStoreEnvironment(
           transaction?.environment || nativePurchase?.environment
         ),
-        offerId:
-          transaction?.products?.find(product => product?.id === productIdentifier)?.offerId ||
-          null,
+        offerId: productOfferId,
+        purchaseState:
+          String(
+            nativePurchase?.purchaseState ||
+            transaction?.state ||
+            ""
+          ).toLowerCase() || null,
         acknowledged:
           String(transaction?.state || "").toLowerCase() === "finished" ||
           nativePurchase?.acknowledged === true,
@@ -1293,6 +1489,13 @@
         event,
         provider: evidence?.paymentSource === "ios" ? "apple" : "google",
         productId: evidence?.productIdentifier || null,
+        basePlanId: evidence?.basePlanId || null,
+        purchaseState: evidence?.purchaseState || null,
+        acknowledged:
+          typeof evidence?.acknowledged === "boolean"
+            ? evidence.acknowledged
+            : null,
+        acknowledgmentResult: extra.acknowledgmentResult || null,
         stage: extra.stage || extra.lifecycle || null,
         backendOutcome: extra.backendOutcome || extra.outcome || null,
         failureCategory: extra.failureCategory || null,
@@ -1307,6 +1510,8 @@
             ? extra.acknowledgmentAttempted
             : null,
         oldProductId: extra.oldProductId || null,
+        oldBasePlanId: extra.oldBasePlanId || null,
+        targetBasePlanId: extra.targetBasePlanId || null,
         replacementMode: extra.replacementMode || null,
         oldPurchaseTokenPresent:
           typeof extra.oldPurchaseTokenPresent === "boolean"
@@ -1573,6 +1778,7 @@
         this.bindNativeRecoveryBridge();
         const ProductType = this.global.CdvPurchase.ProductType;
         const storeKey = platform === "ios" ? "apple" : "google";
+        const registrationKeys = new Set();
         const registrations = Object.values(this.config[storeKey] || {})
           .map(value => typeof value === "string" ? { productId: value } : value)
           .filter(value => value?.productId)
@@ -1584,7 +1790,17 @@
                 ? ProductType.CONSUMABLE
               : ProductType.NON_CONSUMABLE,
             platform: this.storePlatform
-          }));
+          }))
+          .filter(registration => {
+            const key = [
+              registration.id,
+              registration.type,
+              registration.platform
+            ].join(":");
+            if (registrationKeys.has(key)) return false;
+            registrationKeys.add(key);
+            return true;
+          });
         if (
           typeof REVERSE_FLOW_PRO_PRODUCT_ID === "string" &&
           REVERSE_FLOW_PRO_PRODUCT_ID
@@ -1711,13 +1927,16 @@
 
     activeRecurringPurchaseEvidenceList() {
       const seen = new Set();
-      return (Array.isArray(this.store?.localTransactions)
+      const purchases = (Array.isArray(this.store?.localTransactions)
         ? this.store.localTransactions
         : [])
         .map(transaction => this.transactionEvidence(transaction))
         .filter(evidence =>
           evidence.purchaseType === "monthly" &&
           evidence.transaction?.isPending !== true &&
+          !["pending", "cancelled", "canceled", "failed"].includes(
+            evidence.purchaseState
+          ) &&
           Boolean(evidence.purchaseToken)
         )
         .filter(evidence => {
@@ -1730,6 +1949,13 @@
           Date.parse(right.purchaseTimestamp || 0) -
           Date.parse(left.purchaseTimestamp || 0)
         );
+      if (getPlatform() !== "android") return purchases;
+      const activeProducts = new Set();
+      return purchases.filter(evidence => {
+        if (activeProducts.has(evidence.productIdentifier)) return false;
+        activeProducts.add(evidence.productIdentifier);
+        return true;
+      });
     }
 
     activeRecurringPurchaseEvidence(productId) {
@@ -1741,41 +1967,29 @@
 
     async prepareSubscriptionReplacement(option, context = {}) {
       const fromProductId = context.currentRecurringProductId;
+      const fromBasePlanId = context.currentBasePlanId;
       if (
         getPlatform() !== "android" ||
         option?.type !== "monthly" ||
         !fromProductId ||
-        fromProductId === option.productId
+        !fromBasePlanId
       ) {
         return undefined;
+      }
+      if (fromBasePlanId === option.basePlanId) {
+        throw new SupportPurchaseError(
+          "This Google Play base plan is already active.",
+          "subscription_plan_already_active"
+        );
       }
       if (typeof this.store?.restorePurchases === "function") {
         await this.store.restorePurchases();
       }
       const active = this.activeRecurringPurchaseEvidenceList();
-      const activeProducts = new Set(
-        active.map(evidence => evidence.productIdentifier)
-      );
-      if (activeProducts.size > 1) {
-        this.logTransaction(
-          "google-subscription-replacement-blocked",
-          {
-            paymentSource: "android",
-            productIdentifier: option.productId
-          },
-          {
-            stage: "subscription-replacement",
-            failureCategory: "multiple_active_subscriptions",
-            retryable: false,
-            activeProductCount: activeProducts.size
-          }
-        );
-        throw new SupportPurchaseError(
-          "Multiple active Reverse Flow subscriptions were found. Manage billing to prevent duplicate charges.",
-          "multiple_active_subscriptions"
-        );
-      }
       const current = active.find(evidence =>
+        evidence.productIdentifier === fromProductId &&
+        evidence.basePlanId === fromBasePlanId
+      ) || active.find(evidence =>
         evidence.productIdentifier === fromProductId
       );
       if (!current?.purchaseToken) {
@@ -1798,6 +2012,8 @@
         {
           stage: "subscription-replacement",
           oldProductId: fromProductId,
+          oldBasePlanId: fromBasePlanId,
+          targetBasePlanId: option.basePlanId,
           replacementMode,
           oldPurchaseTokenPresent: true,
           retryable: false
@@ -1808,7 +2024,9 @@
           oldPurchaseToken: current.purchaseToken,
           replacementMode,
           replacementRequired: true,
-          oldProductId: fromProductId
+          oldProductId: fromProductId,
+          oldBasePlanId: fromBasePlanId,
+          targetBasePlanId: option.basePlanId
         }
       };
     }
@@ -1850,33 +2068,17 @@
         this.notifyRecovery(recovered);
         return recovered;
       }
-      if (
-        pending.productId === this.oneTimeSupportProductId() &&
-        this.supporterCache.read().isSupporter &&
-        ["confirmed-awaiting-finish", "finish-failed"].includes(
-          pending.lastRegistrationAttemptStatus
-        )
-      ) {
-        this.oneTimeRetryStore.clear();
-        this.logTransaction(
-          "stale-consumable-retry-resolved",
-          {
-            paymentSource: pending.provider === "apple" ? "ios" : "android",
-            productIdentifier: pending.productId
-          },
-          {
-            stage: "local-recovery",
-            backendOutcome: "supporter-confirmed-transaction-absent",
-            retryable: false
-          }
-        );
-        return null;
-      }
-      this.notifyRecovery({
-        pendingRegistration: true,
-        productIdentifier: pending.productId,
-        paymentSource: pending.provider === "apple" ? "ios" : "android"
-      });
+      this.logTransaction(
+        "store-completion-awaiting-redelivery",
+        {
+          paymentSource: pending.provider === "apple" ? "ios" : "android",
+          productIdentifier: pending.productId
+        },
+        {
+          stage: "local-recovery",
+          retryable: true
+        }
+      );
       return null;
     }
 
@@ -1988,7 +2190,7 @@
       const pendingStore = this.retryStoreForEvidence(verifiedPurchase);
       const pending = pendingStore.read();
       if (
-        completion.backendVerified !== true ||
+        completion.storeApproved !== true ||
         completion.pendingPersisted !== true ||
         !pending ||
         !this.transactionMatchesPending(verifiedPurchase, pending)
@@ -2000,9 +2202,9 @@
             stage: "store-acknowledgment",
             backendOutcome: "deferred",
             failureCategory:
-              completion.backendVerified === true
+              completion.storeApproved === true
                 ? "durable_pending_state_unavailable"
-                : "backend_verification_not_succeeded",
+                : "store_approval_not_confirmed",
             retryable: true,
             localPendingStateWritten:
               completion.pendingPersisted === true,
@@ -2010,7 +2212,7 @@
           }
         );
         throw new SupportPurchaseError(
-          "Your verified support must be saved before Google Play acknowledgment.",
+          "The approved Google Play purchase must be saved on this device before acknowledgment.",
           "google_acknowledgment_preconditions_not_met"
         );
       }
@@ -2022,7 +2224,7 @@
         this.acknowledgedTransactionKeys.add(transactionKey);
         this.markPendingAttempt(
           verifiedPurchase,
-          "verified-awaiting-registration"
+          "store-approved"
         );
         this.logTransaction(
           "google-purchase-acknowledgment-deduplicated",
@@ -2030,6 +2232,7 @@
           {
             stage: "store-acknowledgment",
             backendOutcome: "already-acknowledged",
+            acknowledgmentResult: "already-acknowledged",
             acknowledgmentAttempted: false,
             retryable: false
           }
@@ -2064,7 +2267,8 @@
           verifiedPurchase,
           {
             stage: "store-acknowledgment",
-            backendOutcome: "deferred",
+          backendOutcome: "deferred",
+          acknowledgmentResult: "failed-retryable",
             failureCategory:
               error?.code || "google_acknowledgment_failed",
             retryable: true,
@@ -2078,7 +2282,7 @@
       this.acknowledgedTransactionKeys.add(transactionKey);
       this.markPendingAttempt(
         verifiedPurchase,
-        "verified-awaiting-registration"
+        "store-approved"
       );
       this.logTransaction(
         "google-purchase-acknowledgment-succeeded",
@@ -2086,6 +2290,7 @@
         {
           stage: "store-acknowledgment",
           backendOutcome: "success",
+          acknowledgmentResult: "succeeded",
           acknowledgmentAttempted: true,
           retryable: false
         }
@@ -2145,6 +2350,36 @@
         });
       this.reconciliationRequests.set(key, reconciliation);
       return reconciliation;
+    }
+
+    async completeApprovedPurchase(evidence) {
+      return this.reconcileTransaction(evidence, async () => {
+        const pendingPersisted = Boolean(
+          this.retryStoreForEvidence(evidence).read()
+        );
+        this.recordBillingHistory(evidence);
+        if (evidence?.paymentSource === "android") {
+          await this.acknowledgeVerifiedGooglePurchase(evidence, {
+            storeApproved: true,
+            pendingPersisted
+          });
+        }
+        await this.finishPurchase(evidence, {
+          storeApproved: true,
+          billingStatePersisted: true
+        });
+        if (typeof this.store?.update === "function") {
+          await this.store.update();
+        }
+        this.deriveBillingState();
+        this.logTransaction("store-purchase-completed", evidence, {
+          stage: "store-completion",
+          outcome: "success",
+          retryable: false
+        });
+        this.notify();
+        return evidence;
+      });
     }
 
     nativeRecoveryEvidence(result) {
@@ -2307,12 +2542,11 @@
 
     async finishPurchase(verifiedPurchase, completion = {}) {
       if (
-        completion.backendVerified !== true ||
-        completion.registrationSucceeded !== true ||
-        completion.supporterCached !== true
+        completion.storeApproved !== true ||
+        completion.billingStatePersisted !== true
       ) {
         throw new SupportPurchaseError(
-          "Your Supporter status must be saved before setup can finish.",
+          "The approved store purchase must be saved before completion.",
           "purchase_finish_preconditions_not_met"
         );
       }
@@ -2378,7 +2612,7 @@
         await this.acknowledgeVerifiedGooglePurchase(
           verifiedPurchase,
           {
-            backendVerified: true,
+            storeApproved: true,
             pendingPersisted: Boolean(
               this.retryStoreForEvidence(verifiedPurchase).read()
             )
@@ -2671,20 +2905,28 @@
         purchaseService.oneTimeSupportProductId()
         ? purchaseService.readPendingSubscriptionRegistration()?.productId
         : pendingRecord?.productId;
-    const ownedMonthlyOptions = options
-      .filter(option => option.type === "monthly" && option.owned)
-      .sort((left, right) => Number(right.amount) - Number(left.amount));
-    const currentMonthlyOption = ownedMonthlyOptions[0] || null;
+    const pendingBasePlanId =
+      purchaseService.readPendingSubscriptionRegistration()?.basePlanId ||
+      null;
+    const currentMonthlyOption = recurringOptionForState(
+      options,
+      state.contribution
+    );
     container.innerHTML = "";
 
     options.forEach(option => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "support-option";
-      const isPendingProduct = option.productId === pendingProductId;
+      const isPendingProduct =
+        option.productId === pendingProductId &&
+        (
+          !pendingBasePlanId ||
+          option.basePlanId === pendingBasePlanId
+        );
       const isCurrentMonthly =
         option.type === "monthly" &&
-        option.productId === currentMonthlyOption?.productId;
+        option.key === currentMonthlyOption?.key;
       button.disabled =
         option.state !== "ready" ||
         isPendingProduct ||
@@ -2732,6 +2974,10 @@
               option.type === "monthly"
                 ? currentMonthlyOption?.productId || null
                 : null,
+            currentBasePlanId:
+              option.type === "monthly"
+                ? currentMonthlyOption?.basePlanId || null
+                : null,
             currentMonthlyAmount:
               option.type === "monthly"
                 ? currentMonthlyOption?.amount || null
@@ -2758,9 +3004,13 @@
     return options.find(option =>
       option.type === "monthly" &&
       (
-        option.productId === contribution?.productId ||
         (
-          !contribution?.productId &&
+          contribution?.basePlanId &&
+          option.productId === contribution?.productId &&
+          option.basePlanId === contribution.basePlanId
+        ) ||
+        (
+          !contribution?.basePlanId &&
           Number(option.amount) === Number(contribution?.monthlyAmount)
         )
       )
@@ -2779,23 +3029,28 @@
       platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
     let current = recurringOptionForState(options, state.contribution);
-    const pendingProductId =
-      purchaseService.readPendingSubscriptionRegistration()?.productId;
+    const pendingSubscription =
+      purchaseService.readPendingSubscriptionRegistration();
     const scheduledProductId = state.contribution?.pendingReplacementProductId;
-    const locallyActiveProducts = new Set(
+    const locallyActivePurchases = new Set(
       platform === "android"
         ? purchaseService.activeRecurringPurchaseEvidenceList()
-            .map(evidence => evidence.productIdentifier)
+            .map(evidence => evidence.purchaseToken)
         : []
     );
     const hasMultipleActiveSubscriptions =
       state.contribution?.multipleActiveSubscriptions === true ||
-      locallyActiveProducts.size > 1;
-    if (locallyActiveProducts.size > 1) {
+      locallyActivePurchases.size > 1;
+    if (locallyActivePurchases.size > 1) {
+      const activeBasePlans = new Set(
+        purchaseService.activeRecurringPurchaseEvidenceList()
+          .map(evidence => evidence.basePlanId)
+          .filter(Boolean)
+      );
       current = options
         .filter(option =>
           option.type === "monthly" &&
-          locallyActiveProducts.has(option.productId)
+          activeBasePlans.has(option.basePlanId)
         )
         .sort((left, right) => Number(right.amount) - Number(left.amount))[0] ||
         current;
@@ -2803,7 +3058,7 @@
     container.innerHTML = "";
 
     const monthlyOptions = options.filter(option =>
-      option.type === "monthly" && option.productId !== current?.productId
+      option.type === "monthly" && option.key !== current?.key
     );
     monthlyOptions.forEach(option => {
       const isDowngrade = Number(option.amount) < Number(current?.amount);
@@ -2817,7 +3072,13 @@
         option.state !== "ready" ||
         hasMultipleActiveSubscriptions ||
         Boolean(scheduledProductId) ||
-        option.productId === pendingProductId;
+        (
+          option.productId === pendingSubscription?.productId &&
+          (
+            !pendingSubscription?.basePlanId ||
+            option.basePlanId === pendingSubscription.basePlanId
+          )
+        );
       button.addEventListener("click", async () => {
         if (button.dataset.purchasing === "true") return;
         const status = document.getElementById("supportPageStatus");
@@ -2833,6 +3094,7 @@
         try {
           const pendingPurchase = await purchaseService.purchase(option, {
             currentRecurringProductId: current?.productId,
+            currentBasePlanId: current?.basePlanId,
             currentMonthlyAmount: current?.amount
           });
           await onPurchase(pendingPurchase);
@@ -2845,7 +3107,13 @@
             option.state !== "ready" ||
             hasMultipleActiveSubscriptions ||
             Boolean(scheduledProductId) ||
-            option.productId === pendingProductId;
+            (
+              option.productId === pendingSubscription?.productId &&
+              (
+                !pendingSubscription?.basePlanId ||
+                option.basePlanId === pendingSubscription.basePlanId
+              )
+            );
         }
       });
       container.appendChild(button);
@@ -3661,6 +3929,332 @@
     }
   }
 
+  function renderSupportPageV2(cache, registryService, purchaseService) {
+    const page = document.getElementById("supportPage");
+    if (!page) return;
+
+    const claimRecord = cache.read();
+    const billingState = purchaseService.deriveBillingState();
+    const model = resolveSupporterV2State(billingState, claimRecord);
+    renderSharedSupportUi(
+      cache,
+      {
+        ...claimRecord,
+        billingState
+      },
+      model.primaryAction
+    );
+
+    const title = document.getElementById("supportPageTitle");
+    const intro = document.getElementById("supportPageIntro");
+    const optionsSection = document.getElementById("supportOptionsSection");
+    const optionsKicker = document.getElementById("supportOptionsKicker");
+    const optionsTitle = document.getElementById("supportOptionsTitle");
+    const manageSection = document.getElementById("manageSupportSection");
+    const claimSection = document.getElementById("supporterClaimSection");
+    const recoverySection = document.getElementById(
+      "recoverSupporterStatusSection"
+    );
+    const pageStatus = document.getElementById("supportPageStatus");
+    const cacheStatus = document.getElementById("supportCacheStatus");
+    const benefitsSection = document.querySelector(".support-benefits-card");
+    const storePlatform =
+      getPlatform() === "ios"
+        ? "apple"
+        : getPlatform() === "android"
+          ? "google"
+          : null;
+    const options = purchaseService.getOptions(storePlatform);
+    const currentOption = options.find(option =>
+      (
+        billingState === BILLING_STATES.ACTIVE_MONTHLY_3 &&
+        option.key === "monthly3"
+      ) ||
+      (
+        billingState === BILLING_STATES.ACTIVE_MONTHLY_10 &&
+        option.key === "monthly10"
+      )
+    ) || null;
+
+    title.textContent = claimRecord.isSupporter
+      ? "Your Reverse Flow Support"
+      : "Support Reverse Flow";
+    if (
+      billingState === BILLING_STATES.NEVER_PURCHASED ||
+      billingState === BILLING_STATES.BILLING_UNAVAILABLE
+    ) {
+      intro.textContent = claimRecord.isSupporter
+        ? "Your Supporter recognition is active. Store support is separate and optional."
+        : billingState === BILLING_STATES.BILLING_UNAVAILABLE
+          ? "Store support options are temporarily unavailable."
+          : "Join the firefighters helping Reverse Flow keep growing.";
+    } else if (model.showManageSupport) {
+      intro.textContent = claimRecord.isSupporter
+        ? "Thank you for standing behind Reverse Flow."
+        : "Your monthly support is active. Claim your Supporter recognition below.";
+    } else {
+      intro.textContent = claimRecord.isSupporter
+        ? "Thank you for previously supporting Reverse Flow."
+        : "Thank you for supporting Reverse Flow. Claim your Supporter recognition below.";
+    }
+
+    optionsSection.hidden = !model.showSupportOptions;
+    manageSection.hidden = !model.showManageSupport;
+    claimSection.hidden = !model.showClaim;
+    if (benefitsSection) benefitsSection.hidden = false;
+    if (recoverySection) recoverySection.hidden = claimRecord.isSupporter;
+    if (optionsKicker) {
+      optionsKicker.textContent = claimRecord.isSupporter
+        ? "Reverse Flow Supporter"
+        : "Community Supported";
+    }
+    if (optionsTitle) {
+      optionsTitle.textContent =
+        billingState === BILLING_STATES.PREVIOUSLY_SUPPORTED
+          ? "Continue Supporting"
+          : "Help Build What Comes Next";
+    }
+    if (cacheStatus) {
+      cacheStatus.textContent =
+        claimRecord.isSupporter && claimRecord.lastVerifiedAt
+          ? `Supporter status last confirmed: ${new Date(
+              claimRecord.lastVerifiedAt
+            ).toLocaleString()}.`
+          : "";
+    }
+
+    const manageDetails = document.getElementById("manageSupportDetails");
+    if (manageDetails) {
+      manageDetails.textContent = currentOption
+        ? `Current monthly support: ${
+            currentOption.localizedPrice || "current store price"
+          }/month`
+        : "";
+    }
+    const multipleWarning = document.getElementById(
+      "multipleSubscriptionWarning"
+    );
+    if (multipleWarning) {
+      multipleWarning.hidden =
+        purchaseService.activeRecurringPurchaseEvidenceList().length <= 1;
+    }
+
+    const billingUiState = {
+      isSupporter: claimRecord.isSupporter,
+      contribution: {
+        type: model.showManageSupport ? "monthly" : "none",
+        productId: currentOption?.productId || null,
+        basePlanId: currentOption?.basePlanId || null,
+        monthlyAmount: currentOption?.amount || null,
+        multipleActiveSubscriptions:
+          purchaseService.activeRecurringPurchaseEvidenceList().length > 1
+      }
+    };
+    const completePurchase = async evidence => {
+      pageStatus.textContent = "Completing your store purchase…";
+      await purchaseService.completeApprovedPurchase(evidence);
+      pageStatus.textContent = claimRecord.isSupporter
+        ? "Thank you for continuing to support Reverse Flow."
+        : "Your support was received. Claim your Supporter status below.";
+      renderSupportPageV2(cache, registryService, purchaseService);
+    };
+
+    renderSupportOptions(
+      document.getElementById("supportOptions"),
+      purchaseService,
+      getPlatform(),
+      completePurchase,
+      billingUiState
+    );
+    if (model.showManageSupport) {
+      renderManageSupportOptions(
+        document.getElementById("manageSupportOptions"),
+        purchaseService,
+        getPlatform(),
+        billingUiState,
+        completePurchase
+      );
+    }
+
+    if (page.dataset.v2RecoveryBound !== "true") {
+      page.dataset.v2RecoveryBound = "true";
+      purchaseService.onRecovery(evidence => {
+        void purchaseService.completeApprovedPurchase(evidence)
+          .then(() => {
+            pageStatus.textContent =
+              "Your store purchase status has been refreshed.";
+            renderSupportPageV2(cache, registryService, purchaseService);
+          })
+          .catch(error => {
+            pageStatus.textContent =
+              error?.message ||
+              "Store completion will retry when the purchase service is available.";
+          });
+      });
+    }
+
+    const productsNote = document.getElementById(
+      "supportProductsUnavailable"
+    );
+    if (productsNote) {
+      const readyCount = options.filter(option => option.state === "ready").length;
+      const loadingCount = options.filter(option => option.state === "loading").length;
+      productsNote.hidden = readyCount === options.length;
+      productsNote.textContent = loadingCount
+        ? "Loading localized prices from the store…"
+        : readyCount
+          ? "Some support options are temporarily unavailable."
+          : "Store support options are temporarily unavailable. Please try again later.";
+    }
+
+    const manageButton = document.getElementById("manageSubscriptionButton");
+    if (manageButton && manageButton.dataset.v2Bound !== "true") {
+      manageButton.dataset.v2Bound = "true";
+      manageButton.addEventListener("click", async () => {
+        try {
+          await purchaseService.openNativeSubscriptionManagement();
+        } catch (error) {
+          pageStatus.textContent = error.message;
+        }
+      });
+    }
+
+    const refreshButton = document.getElementById(
+      "refreshSupportSubscriptionsButton"
+    );
+    if (refreshButton && refreshButton.dataset.v2Bound !== "true") {
+      refreshButton.dataset.v2Bound = "true";
+      refreshButton.addEventListener("click", async () => {
+        if (refreshButton.dataset.refreshing === "true") return;
+        refreshButton.dataset.refreshing = "true";
+        refreshButton.disabled = true;
+        pageStatus.textContent = "Refreshing your store purchase status…";
+        try {
+          await purchaseService.refreshSubscriptionPurchases();
+          renderSupportPageV2(cache, registryService, purchaseService);
+          pageStatus.textContent = "Store purchase status refreshed.";
+        } catch (error) {
+          pageStatus.textContent = error.message;
+        } finally {
+          refreshButton.dataset.refreshing = "false";
+          refreshButton.disabled = false;
+        }
+      });
+    }
+
+    const recoveryForm = document.getElementById(
+      "recoverSupporterStatusForm"
+    );
+    if (recoveryForm && recoveryForm.dataset.v2Bound !== "true") {
+      recoveryForm.dataset.v2Bound = "true";
+      recoveryForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const email = String(recoveryForm.elements.email.value || "")
+          .trim()
+          .toLowerCase();
+        const message = document.getElementById(
+          "recoverSupporterStatusMessage"
+        );
+        const submit = recoveryForm.querySelector("button[type='submit']");
+        if (!isValidEmail(email)) {
+          message.textContent =
+            "Enter the email used to register your Supporter status.";
+          return;
+        }
+        submit.disabled = true;
+        message.textContent = "Checking your Supporter status…";
+        try {
+          const recovery = await recoverSupporterIdentity(
+            cache,
+            registryService,
+            email,
+            getPlatform()
+          );
+          if (!recovery.recovered) {
+            message.textContent =
+              "We couldn’t find Supporter status for that email.";
+            return;
+          }
+          message.textContent =
+            "Your Supporter status has been restored on this device.";
+          renderSupportPageV2(cache, registryService, purchaseService);
+        } catch (error) {
+          message.textContent =
+            error.message ||
+            "We couldn’t recover your Supporter status. Please try again.";
+        } finally {
+          submit.disabled = false;
+        }
+      });
+    }
+
+    const claimForm = document.getElementById("supporterClaimForm");
+    if (claimForm && claimForm.dataset.v2Bound !== "true") {
+      claimForm.dataset.v2Bound = "true";
+      claimForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const status = document.getElementById("supporterClaimStatus");
+        const submit = claimForm.querySelector("button[type='submit']");
+        const name = String(claimForm.elements.fullName.value || "").trim();
+        const email = String(claimForm.elements.email.value || "")
+          .trim()
+          .toLowerCase();
+        if (!name || !isValidEmail(email)) {
+          status.textContent = "Enter a full name and valid email address.";
+          return;
+        }
+        submit.disabled = true;
+        status.textContent = "Claiming your Supporter status…";
+        try {
+          const confirmed = await registryService.claimSupporter({
+            name,
+            email,
+            public: claimForm.elements.publicRecognition?.checked !== false
+          });
+          cache.writeConfirmed(confirmed, {
+            email,
+            platform: getPlatform()
+          });
+          status.textContent =
+            "You’re officially a Reverse Flow Supporter. Thank you.";
+          renderSupportPageV2(cache, registryService, purchaseService);
+        } catch (error) {
+          status.textContent =
+            error.message ||
+            "Supporter status could not be claimed. Please try again.";
+        } finally {
+          submit.disabled = false;
+        }
+      });
+    }
+
+    const legacyButton = document.getElementById(
+      "checkExistingPurchaseButton"
+    );
+    if (legacyButton && legacyButton.dataset.v2Bound !== "true") {
+      legacyButton.dataset.v2Bound = "true";
+      legacyButton.addEventListener("click", async () => {
+        const status = document.getElementById("legacyRecoveryStatus");
+        legacyButton.disabled = true;
+        status.textContent = "Checking your current store account…";
+        try {
+          const result = await global.recoverLegacyProPurchase?.({
+            trigger: "support-page-v2-legacy-check"
+          });
+          status.textContent = result?.found
+            ? "Previous purchase found. You can now claim Supporter status."
+            : "No previous Reverse Flow PRO purchase was found.";
+          renderSupportPageV2(cache, registryService, purchaseService);
+        } catch {
+          status.textContent =
+            "The store could not complete the check. Please try again.";
+        } finally {
+          legacyButton.disabled = false;
+        }
+      });
+    }
+  }
+
   function initialize() {
     if (!global.localStorage) return;
     const cache = new SupporterCache(global.localStorage);
@@ -3670,12 +4264,18 @@
         ? SUPPORT_PRODUCT_CONFIG
         : {};
     const purchases = new SupportPurchaseService(productConfig);
-    renderSharedSupportUi(cache);
-    renderSupportPage(cache, registry, purchases);
+    const renderSharedV2 = () =>
+      renderSharedSupportUi(cache, {
+        ...cache.read(),
+        billingState: purchases.deriveBillingState()
+      });
+    renderSharedV2();
+    renderSupportPageV2(cache, registry, purchases);
     if (document.getElementById("supportPage")) {
       void registry.runEnvironmentDiagnostic();
       purchases.onChange(() => {
-        renderSupportPage(cache, registry, purchases);
+        renderSharedV2();
+        renderSupportPageV2(cache, registry, purchases);
       });
       void purchases.initialize().catch(error => {
         const status = document.getElementById("supportPageStatus");
@@ -3700,11 +4300,16 @@
       const now = Date.now();
       if (now - lastRefreshStartedAt < 60000) return;
       lastRefreshStartedAt = now;
-      void purchases.refreshConfirmedSupporter(() =>
-        refreshSupporterStatus(cache, registry)
-      ).then(() => {
+      void purchases.refreshBillingState().then(() => {
+        renderSharedV2();
         if (document.getElementById("supportPage")) {
-          renderSupportPage(cache, registry, purchases);
+          renderSupportPageV2(cache, registry, purchases);
+        }
+      });
+      void refreshSupporterStatus(cache, registry).then(() => {
+        renderSharedV2();
+        if (document.getElementById("supportPage")) {
+          renderSupportPageV2(cache, registry, purchases);
         }
       });
     };
@@ -3716,9 +4321,9 @@
     global.addEventListener?.("online", requestStatusRefresh);
 
     document.addEventListener("reverseflow:legacy-entitlement-changed", () => {
-      renderSharedSupportUi(cache);
+      renderSharedV2();
       if (document.getElementById("supportPage")) {
-        renderSupportPage(cache, registry, purchases);
+        renderSupportPageV2(cache, registry, purchases);
       }
     });
   }
@@ -3726,8 +4331,11 @@
   const api = {
     ACTIONS,
     ACTION_CONTENT,
+    BILLING_STATES,
+    CLAIM_STATES,
     SUPPORT_UI_STATES,
     resolveSupportAction,
+    resolveSupporterV2State,
     resolveSupporterUiPresentation,
     normalizeSupporterRecord,
     normalizeApiResponse,

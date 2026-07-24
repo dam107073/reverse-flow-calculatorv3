@@ -43,7 +43,7 @@ test("support UI uses one compact action, live store options, and approved copy"
   assert.doesNotMatch(supporter, /Coming Soon/);
   assert.match(supportHtml, /Purchased the original Reverse Flow PRO\?/);
   assert.match(supportHtml, />Check Previous PRO Purchase</);
-  assert.match(supportHtml, /Finish Becoming a Supporter/);
+  assert.match(supportHtml, /Claim Supporter Status/);
   assert.match(supportHtml, />Recover My Supporter Status</);
   assert.match(
     supportHtml,
@@ -55,11 +55,15 @@ test("support UI uses one compact action, live store options, and approved copy"
     supporter,
     /welcome email delivery is not yet confirmed|transaction remains unfinished|StoreKit completion is temporarily unavailable|pending registration could not be saved|recovered purchase could not be prepared/i
   );
-  assert.match(
-    supporter,
-    /cache\.writeConfirmed[\s\S]*supporterCached:\s*true[\s\S]*finishPurchase/
+  assert.match(supporter, /completeApprovedPurchase/);
+  assert.doesNotMatch(
+    supporter.slice(
+      supporter.indexOf("function renderSupportPageV2"),
+      supporter.indexOf("function initialize()")
+    ),
+    /registerVerifiedPurchase|verifyPendingPurchase/
   );
-  assert.match(supportHtml, /You’re officially a Reverse Flow Supporter|Finish Becoming a Supporter/);
+  assert.match(supportHtml, /Claim Supporter Status/);
   assert.match(supportCss, /\.support-option\.is-unavailable:disabled\s*\{[\s\S]*opacity:\s*1/);
   assert.match(supportCss, /\.support-action-bar\s*\{[\s\S]*min-height:\s*46px/);
   const retiredAccessPhrase = new RegExp(

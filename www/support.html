@@ -93,27 +93,28 @@
       </details>
     </section>
 
-    <section class="card" id="legacyClaimSection" hidden>
-      <h2>Claim permanent Supporter status</h2>
+    <section class="card" id="supporterClaimSection" hidden>
+      <h2>Claim Supporter Status</h2>
       <p>
-        Your verified previous purchase includes permanent Supporter status. No additional purchase, screenshot, receipt upload, or manual transaction entry is required.
+        Add your name and email to join the Reverse Flow Supporter community. Your profile is separate from store billing.
       </p>
-      <form id="legacyClaimForm" class="support-identity-form" novalidate>
+      <form id="supporterClaimForm" class="support-identity-form" novalidate>
         <label for="supporterFullName">Full name</label>
         <input id="supporterFullName" name="fullName" type="text" autocomplete="name" required />
         <label for="supporterEmail">Email address</label>
         <input id="supporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
-        <button class="support-primary-action" type="submit">Submit Claim</button>
-        <p id="legacyClaimStatus" class="support-status" role="status" aria-live="polite"></p>
+        <label class="support-public-preference">
+          <input name="publicRecognition" type="checkbox" checked />
+          List my chosen name in the public Supporter Directory
+        </label>
+        <button class="support-primary-action" type="submit">Claim Supporter Status</button>
+        <p id="supporterClaimStatus" class="support-status" role="status" aria-live="polite"></p>
       </form>
     </section>
 
     <section class="card" id="manageSupportSection" hidden>
       <h2>Manage Your Support</h2>
       <p id="manageSupportDetails"></p>
-      <p id="multipleSubscriptionWarning" class="support-status" hidden>
-        Multiple active Reverse Flow subscriptions were found. Manage billing to prevent duplicate charges.
-      </p>
       <div id="manageSupportOptions" class="manage-support-options"></div>
       <button id="manageSubscriptionButton" class="support-troubleshooting-action" type="button">Manage Billing or Cancel</button>
       <button
@@ -123,25 +124,12 @@
       >Having trouble with your subscription? Refresh status</button>
     </section>
 
-    <section class="card" id="supportRegistrationSection" hidden>
-      <p class="support-section-kicker">YOUR SUPPORT WAS RECEIVED</p>
-      <h2>Finish Becoming a Supporter</h2>
-      <p>Your support was received. Add your name and email to finish setting up your Supporter status.</p>
-      <form id="supportRegistrationForm" class="support-identity-form" novalidate>
-        <label for="registrationFullName">Full name</label>
-        <input id="registrationFullName" name="fullName" type="text" autocomplete="name" required />
-        <label for="registrationEmail">Email address</label>
-        <input id="registrationEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
-        <button class="support-primary-action" type="submit">Finish Supporter Setup</button>
-      </form>
-    </section>
-
     <p id="supportPageStatus" class="support-status" role="status" aria-live="polite"></p>
     <p class="version-footer">Reverse Flow · Fire Hydraulics · © 2026</p>
   </main>
 
   <script src="js/constants.js?v=community-4d"></script>
   <script src="js/services/entitlement.js?v=community-4b"></script>
-  <script src="js/services/supporter.js?v=community-4f-hotfix"></script>
+  <script src="js/services/supporter.js?v=supporter-v2"></script>
 </body>
 </html>

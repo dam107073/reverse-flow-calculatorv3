@@ -5,7 +5,7 @@
 const APP_VERSION = "2.0";
 const APP_BUILD_NUMBERS = Object.freeze({
   ios: "5",
-  android: "143"
+  android: "144"
 });
     const BUILD_DATE = "2026-07-24";
 
@@ -45,16 +45,12 @@ const SUPPORTER_API_CONFIG = Object.freeze({
   }),
   routes: Object.freeze({
     environment: "/api/supporters/environment",
-    claimLegacy: "/api/supporters/claim-legacy",
-    verifyPendingPurchase: "/api/supporters/verify-pending",
-    verifyPurchase: "/api/supporters/verify-purchase",
+    claimSupporter: "/api/supporters/claim-supporter",
     status: "/api/supporters/status"
   }),
   timeoutsMs: Object.freeze({
     environment: 10000,
-    claimLegacy: 15000,
-    verifyPendingPurchase: 20000,
-    verifyPurchase: 20000,
+    claimSupporter: 15000,
     status: 10000
   })
 });
@@ -85,12 +81,12 @@ const SUPPORT_PRODUCT_CONFIG = Object.freeze({
       purchaseOptionId: "buy"
     }),
     monthly3: Object.freeze({
-      productId: "support_reverse_flow_monthly_3",
+      productId: "support_reverse_flow_subscription",
       productType: "paid subscription",
       basePlanId: "monthly-3"
     }),
     monthly10: Object.freeze({
-      productId: "support_reverse_flow_monthly_10",
+      productId: "support_reverse_flow_subscription",
       productType: "paid subscription",
       basePlanId: "monthly-10"
     })
