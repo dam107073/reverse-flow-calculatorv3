@@ -18,10 +18,6 @@ if (!fs.existsSync(pluginPath)) {
 }
 
 let source = fs.readFileSync(pluginPath, "utf8");
-if (source.includes('private static final String RF_BILLING_TAG = "ReverseFlowBilling";')) {
-  console.log("Reverse Flow Android purchase diagnostics already applied.");
-  process.exit(0);
-}
 
 const replacements = [
   [
@@ -42,6 +38,65 @@ const replacements = [
     '    Log.d(mTag, "acknowledgePurchase(" + purchaseToken + ")");',
     '    Log.i(RF_BILLING_TAG, "acknowledgePurchase() invoked tokenPresent="\n' +
       '        + (purchaseToken != null && !purchaseToken.isEmpty()));'
+  ],
+  [
+    '      Log.d(mTag, "            data -> " + data.toString());',
+    '      Log.d(RF_BILLING_TAG, "listener payload type=" + type\n' +
+      '          + " payloadPresent=" + (data != null));'
+  ],
+  [
+    '                    Log.d(mTag, "getAvailableProducts() -> productDetails: " + product.toString());',
+    '                    Log.d(RF_BILLING_TAG, "product loaded productId=" + product.getProductId());'
+  ],
+  [
+    '        Log.d(mTag, "Product details id@token: " + productIdAndOfferIndexArray + " === " + productId + "@" + offerToken + " ... " + productDetails.toString());',
+    '        Log.d(RF_BILLING_TAG, "purchase offer selected productId=" + productId\n' +
+      '            + " offerPresent=" + (offerToken != null));'
+  ],
+  [
+    '    Log.d(mTag, "consumePurchase(" + purchaseToken + ")");',
+    '    Log.i(RF_BILLING_TAG, "consumePurchase() invoked tokenPresent="\n' +
+      '        + (purchaseToken != null && !purchaseToken.isEmpty()));'
+  ],
+  [
+    '        mPurchases.clear();\n' +
+      '        mPurchases.addAll(purchases);\n' +
+      '        sendToListener("setPurchases", new JSONObject()',
+    '        mPurchases.clear();\n' +
+      '        mPurchases.addAll(purchases);\n' +
+      '        logPurchaseState("query", purchases);\n' +
+      '        sendToListener("setPurchases", new JSONObject()'
+  ],
+  [
+    '        for (Purchase p : purchases) {\n' +
+      '          mPurchases.add(0, p);\n' +
+      '        }\n' +
+      '        callSuccess();',
+    '        for (Purchase p : purchases) {\n' +
+      '          mPurchases.add(0, p);\n' +
+      '        }\n' +
+      '        logPurchaseState("update", purchases);\n' +
+      '        callSuccess();'
+  ],
+  [
+    '  // Convert list of purchases to JSON\n' +
+      '  private JSONArray toJSON(final List<Purchase> purchaseList) throws JSONException {',
+    '  private void logPurchaseState(final String stage,\n' +
+      '      final List<Purchase> purchases) {\n' +
+      '    Log.i(RF_BILLING_TAG, "purchase state stage=" + stage\n' +
+      '        + " count=" + purchases.size());\n' +
+      '    for (Purchase purchase : purchases) {\n' +
+      '      for (String productId : purchase.getProducts()) {\n' +
+      '        Log.i(RF_BILLING_TAG, "purchase state stage=" + stage\n' +
+      '            + " productId=" + productId\n' +
+      '            + " state=" + purchase.getPurchaseState()\n' +
+      '            + " acknowledged=" + purchase.isAcknowledged()\n' +
+      '            + " autoRenewing=" + purchase.isAutoRenewing());\n' +
+      '      }\n' +
+      '    }\n' +
+      '  }\n\n' +
+      '  // Convert list of purchases to JSON\n' +
+      '  private JSONArray toJSON(final List<Purchase> purchaseList) throws JSONException {'
   ],
   [
     '    if (result.getResponseCode() == BillingResponseCode.OK) {\n' +
@@ -69,6 +124,7 @@ const replacements = [
 ];
 
 for (const [before, after] of replacements) {
+  if (source.includes(after)) continue;
   if (!source.includes(before)) {
     throw new Error(`Expected cordova-plugin-purchase source fragment was not found:\n${before}`);
   }
@@ -76,4 +132,4 @@ for (const [before, after] of replacements) {
 }
 
 fs.writeFileSync(pluginPath, source);
-console.log("Applied Reverse Flow Android purchase diagnostics.");
+console.log("Applied privacy-safe Reverse Flow Android purchase diagnostics.");

@@ -291,7 +291,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\ncase \"${SUPPORTER_API_ENVIRONMENT}\" in\n  preview|production) ;;\n  *) echo \"error: SUPPORTER_API_ENVIRONMENT must be preview or production.\" >&2; exit 1 ;;\nesac\nsupporter_constants=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/public/js/constants.js\"\nif [ ! -f \"${supporter_constants}\" ]; then\n  echo \"error: Packaged supporter constants were not found.\" >&2\n  exit 1\nfi\n/usr/bin/sed -E -i '' \"s#const SUPPORTER_API_ENVIRONMENT = \\\"(preview|production)\\\";#const SUPPORTER_API_ENVIRONMENT = \\\"${SUPPORTER_API_ENVIRONMENT}\\\";#\" \"${supporter_constants}\"\n/usr/bin/grep -q \"const SUPPORTER_API_ENVIRONMENT = \\\"${SUPPORTER_API_ENVIRONMENT}\\\";\" \"${supporter_constants}\"\n";
+			shellScript = "set -eu\ncase \"${SUPPORTER_API_ENVIRONMENT}\" in\n  preview|production) ;;\n  *) echo \"error: SUPPORTER_API_ENVIRONMENT must be preview or production.\" >&2; exit 1 ;;\nesac\nsupporter_constants=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/public/js/constants.js\"\nif [ ! -f \"${supporter_constants}\" ]; then\n  echo \"error: Packaged supporter constants were not found.\" >&2\n  exit 1\nfi\n/usr/bin/sed -E -i '' \"s#const SUPPORTER_API_ENVIRONMENT = \\\"(preview|production)\\\";#const SUPPORTER_API_ENVIRONMENT = \\\"${SUPPORTER_API_ENVIRONMENT}\\\";#\" \"${supporter_constants}\"\nif [ \"${SUPPORTER_API_ENVIRONMENT}\" = \"production\" ]; then\n  /usr/bin/sed -E -i '' '/preview:[[:space:]]*\"https:\\/\\/[^\\\"]+\",/d' \"${supporter_constants}\"\n  for forbidden_origin in vercel.app localhost dam107073 7ys7ufxmb; do\n    if /usr/bin/grep -qi \"${forbidden_origin}\" \"${supporter_constants}\"; then\n      echo \"error: Production Supporter assets contain forbidden origin fragment: ${forbidden_origin}\" >&2\n      exit 1\n    fi\n  done\nfi\n/usr/bin/grep -q \"const SUPPORTER_API_ENVIRONMENT = \\\"${SUPPORTER_API_ENVIRONMENT}\\\";\" \"${supporter_constants}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -502,7 +502,7 @@
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile;
 				PRODUCT_NAME = "Reverse Flow: Fire Hydraulics";
-				SUPPORTER_API_ENVIRONMENT = preview;
+				SUPPORTER_API_ENVIRONMENT = production;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

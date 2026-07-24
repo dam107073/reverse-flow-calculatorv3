@@ -6,11 +6,16 @@
   const PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-pending-registration-v2";
   const SUBSCRIPTION_RETRY_CACHE_KEY =
     "reverse-flow-support-subscription-pending-v1";
+  const SUPPORT_ENVIRONMENT_CACHE_KEY =
+    "reverse-flow-support-environment-v1";
   const LEGACY_PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-purchase-retry-v1";
   const PENDING_REGISTRATION_STATUSES = new Set([
     "not-attempted",
     "verification-started",
+    "verification-succeeded",
     "verification-failed",
+    "verified-awaiting-registration",
+    "acknowledgment-failed",
     "registration-started",
     "registration-failed",
     "confirmed-awaiting-finish",
@@ -310,36 +315,105 @@
     logRegistration(level, details) {
       const logger = this.console?.[level] || this.console?.log;
       if (typeof logger !== "function") return;
-      logger.call(this.console, "[Reverse Flow Supporter Registration]", {
-        ...details
-      });
+      const provider =
+        details?.provider ||
+        (details?.platform === "ios"
+          ? "apple"
+          : details?.platform === "android"
+            ? "google"
+            : null);
+      const diagnostic = {
+        event: details?.event || "supporter-registration-diagnostic",
+        provider,
+        productId: details?.productId || null,
+        stage: details?.stage || null,
+        routeName: details?.routeName || null,
+        path:
+          typeof details?.path === "string" &&
+          /^\/api\/supporters\/[a-z0-9/-]+$/i.test(details.path)
+            ? details.path
+            : null,
+        httpStatus: Number(details?.httpStatus || details?.responseStatus) || null,
+        backendOutcome: details?.backendOutcome || details?.outcome || null,
+        failureCategory: details?.failureCategory || null,
+        retryable:
+          typeof details?.retryable === "boolean" ? details.retryable : null,
+        verifiedPurchaseEvidencePresent:
+          typeof details?.verifiedPurchaseEvidencePresent === "boolean"
+            ? details.verifiedPurchaseEvidencePresent
+            : null,
+        localPendingStateWritten:
+          typeof details?.localPendingStateWritten === "boolean"
+            ? details.localPendingStateWritten
+            : null,
+        acknowledgmentAttempted:
+          typeof details?.acknowledgmentAttempted === "boolean"
+            ? details.acknowledgmentAttempted
+            : null
+      };
+      logger.call(
+        this.console,
+        `[Reverse Flow Supporter Registration] ${JSON.stringify(diagnostic)}`
+      );
     }
 
     async request(routeKey, body, timeoutKey, options = {}) {
       const route = this.config.routes[routeKey];
       const url = `${this.config.baseUrl}${route}`;
-      const backendHost = new URL(url).host;
-      const isRegistration = routeKey === "verifyPurchase";
+      const isRegistration =
+        routeKey === "verifyPurchase" ||
+        routeKey === "verifyPendingPurchase";
       const registrationEventPrefix =
-        options.registrationMode === "existing-supporter"
+        routeKey === "verifyPendingPurchase"
+          ? "pending-support-verification"
+          : options.registrationMode === "existing-supporter"
           ? "supporter-contribution-attachment"
           : "supporter-registration";
+      const provider =
+        body?.platform === "ios"
+          ? "apple"
+          : body?.platform === "android"
+            ? "google"
+            : null;
+      const productId = body?.productIdentifier || null;
+      const verifiedPurchaseEvidencePresent =
+        provider === "apple"
+          ? Boolean(
+              body?.transactionEvidence?.transactionId ||
+              body?.transactionEvidence?.originalTransactionId ||
+              body?.entitlementEvidence?.originalTransactionId
+            )
+          : provider === "google"
+            ? Boolean(
+                body?.transactionEvidence?.purchaseToken ||
+                body?.entitlementEvidence?.purchaseToken
+              )
+            : false;
+      const diagnosticBase = {
+        provider,
+        productId,
+        routeName: routeKey,
+        path: route,
+        verifiedPurchaseEvidencePresent,
+        localPendingStateWritten: options.localPendingStateWritten === true,
+        acknowledgmentAttempted: options.acknowledgmentAttempted === true
+      };
       if (isRegistration) {
         this.logRegistration("info", {
+          ...diagnosticBase,
           event: `${registrationEventPrefix}-request-started`,
-          backendHost,
-          environment: this.config.environment,
-          platform: this.platform
+          stage: "request",
+          retryable: true
         });
       }
       if (this.navigator?.onLine === false) {
         if (isRegistration) {
           this.logRegistration("warn", {
+            ...diagnosticBase,
             event: `${registrationEventPrefix}-failed`,
-            backendHost,
-            environment: this.config.environment,
-            platform: this.platform,
-            failureCategory: "offline"
+            stage: "transport",
+            failureCategory: "offline",
+            retryable: true
           });
         }
         throw new SupporterRegistryError(
@@ -350,11 +424,11 @@
       if (typeof this.fetch !== "function") {
         if (isRegistration) {
           this.logRegistration("warn", {
+            ...diagnosticBase,
             event: `${registrationEventPrefix}-failed`,
-            backendHost,
-            environment: this.config.environment,
-            platform: this.platform,
-            failureCategory: "transport_unavailable"
+            stage: "transport",
+            failureCategory: "transport_unavailable",
+            retryable: true
           });
         }
         throw new SupporterRegistryError(
@@ -390,11 +464,11 @@
         const timedOut = error?.name === "AbortError";
         if (isRegistration) {
           this.logRegistration("warn", {
+            ...diagnosticBase,
             event: `${registrationEventPrefix}-failed`,
-            backendHost,
-            environment: this.config.environment,
-            platform: this.platform,
-            failureCategory: timedOut ? "timeout" : "network_exception"
+            stage: "transport",
+            failureCategory: timedOut ? "timeout" : "network_exception",
+            retryable: true
           });
         }
         throw new SupporterRegistryError(
@@ -409,11 +483,12 @@
 
       if (isRegistration) {
         this.logRegistration("info", {
+          ...diagnosticBase,
           event: `${registrationEventPrefix}-response`,
-          backendHost,
-          environment: this.config.environment,
-          platform: this.platform,
-          responseStatus: response.status
+          stage: "response",
+          httpStatus: response.status,
+          backendOutcome: response.ok ? "accepted" : "rejected",
+          retryable: response.status >= 500 || response.status === 429
         });
       }
 
@@ -424,12 +499,13 @@
       } catch {
         if (isRegistration) {
           this.logRegistration("warn", {
+            ...diagnosticBase,
             event: `${registrationEventPrefix}-failed`,
-            backendHost,
-            environment: this.config.environment,
-            platform: this.platform,
-            responseStatus: response.status,
-            failureCategory: "malformed_response"
+            stage: "response-parse",
+            httpStatus: response.status,
+            backendOutcome: "invalid-response",
+            failureCategory: "malformed_response",
+            retryable: true
           });
         }
         throw new SupporterRegistryError(
@@ -448,17 +524,21 @@
         const retryAfter = Number(response.headers?.get?.("Retry-After"));
         if (isRegistration) {
           this.logRegistration("warn", {
+            ...diagnosticBase,
             event: `${registrationEventPrefix}-failed`,
-            backendHost,
-            environment: this.config.environment,
-            platform: this.platform,
-            responseStatus: response.status,
+            stage:
+              routeKey === "verifyPendingPurchase"
+                ? "purchase-verification"
+                : "supporter-registration",
+            httpStatus: response.status,
+            backendOutcome: "rejected",
             failureCategory:
               response.status === 429
                 ? "rate_limited"
                 : response.status >= 500
                   ? "backend_server_error"
-                  : "backend_rejected"
+                  : "backend_rejected",
+            retryable: response.status >= 500 || response.status === 429
           });
         }
         throw new SupporterRegistryError(
@@ -474,12 +554,15 @@
       const normalized = normalizeApiResponse(payload);
       if (isRegistration) {
         this.logRegistration("info", {
+          ...diagnosticBase,
           event: `${registrationEventPrefix}-request-completed`,
-          backendHost,
-          environment: this.config.environment,
-          platform: this.platform,
-          responseStatus: response.status,
-          outcome: "success"
+          stage:
+            routeKey === "verifyPendingPurchase"
+              ? "pending-record-persisted"
+              : "supporter-registration",
+          httpStatus: response.status,
+          backendOutcome: "success",
+          retryable: false
         });
       }
       return normalized;
@@ -518,17 +601,23 @@
         {
           registrationMode: options.existingSupporter === true
             ? "existing-supporter"
-            : "registration"
+            : "registration",
+          localPendingStateWritten: options.localPendingStateWritten === true,
+          acknowledgmentAttempted: options.acknowledgmentAttempted === true
         }
       );
     }
 
-    async verifyPendingPurchase(payload) {
+    async verifyPendingPurchase(payload, options = {}) {
       return this.request(
         "verifyPendingPurchase",
         payload,
         "verifyPendingPurchase",
-        { normalize: false }
+        {
+          normalize: false,
+          localPendingStateWritten: options.localPendingStateWritten === true,
+          acknowledgmentAttempted: false
+        }
       );
     }
   }
@@ -607,6 +696,8 @@
         provider,
         productId: String(evidence?.productIdentifier || ""),
         transactionReference,
+        environmentCategory:
+          String(global.SUPPORTER_API_CONFIG?.environment || "unknown"),
         approvedAt:
           toIsoTimestamp(evidence?.purchaseTimestamp) || new Date().toISOString(),
         state: "registration-required",
@@ -639,6 +730,17 @@
     clear() {
       this.storage?.removeItem?.(this.key);
       this.storage?.removeItem?.(LEGACY_PURCHASE_RETRY_CACHE_KEY);
+    }
+
+    markEnvironment(environmentCategory) {
+      const record = this.read();
+      if (!record || !this.storage?.setItem) return record;
+      const updated = {
+        ...record,
+        environmentCategory: String(environmentCategory || "unknown")
+      };
+      this.storage.setItem(this.key, JSON.stringify(updated));
+      return updated;
     }
   }
 
@@ -706,6 +808,13 @@
         );
       this.supporterCache = dependencies.supporterCache ||
         new SupporterCache(storage);
+      this.storage = storage || null;
+      this.apiEnvironment =
+        dependencies.apiEnvironment ||
+        this.global.SUPPORTER_API_CONFIG?.environment ||
+        (typeof SUPPORTER_API_CONFIG === "object"
+          ? SUPPORTER_API_CONFIG.environment
+          : "unknown");
       // Compatibility alias for callers that predate product-specific stores.
       this.retryStore = this.oneTimeRetryStore;
       this.initialization = null;
@@ -777,7 +886,21 @@
       if (platform === "google" || platform === "android") {
         const suffix = configured.basePlanId || configured.purchaseOptionId;
         if (suffix) {
-          return product.getOffer?.(`${configured.productId}@${suffix}`) || null;
+          const expectedId = `${configured.productId}@${suffix}`;
+          const offers = Array.isArray(product.offers) ? product.offers : [];
+          const matchingOffer =
+            product.getOffer?.(expectedId) ||
+            product.getOffer?.(suffix) ||
+            offers.find(offer =>
+              offer?.id === expectedId ||
+              offer?.id === suffix ||
+              String(offer?.id || "").endsWith(`@${suffix}`)
+            );
+          if (matchingOffer) return matchingOffer;
+          if (configured.purchaseOptionId && offers.length === 1) {
+            return offers[0];
+          }
+          return null;
         }
       }
       return product.getOffer?.() || product.offers?.[0] || null;
@@ -798,10 +921,12 @@
         try {
           listener(evidence);
         } catch (error) {
-          console.warn("[Reverse Flow Support Purchase]", {
-            event: "consumable-recovery-listener-failed",
-            failureCategory: error?.code || "listener_error"
-          });
+          console.warn(
+            `[Reverse Flow Support Purchase] ${JSON.stringify({
+              event: "consumable-recovery-listener-failed",
+              failureCategory: error?.code || "listener_error"
+            })}`
+          );
         }
       });
     }
@@ -811,10 +936,12 @@
         try {
           listener();
         } catch (error) {
-          console.warn("[Reverse Flow Support Purchase]", {
-            event: "support-purchase-listener-failed",
-            message: error?.message || String(error)
-          });
+          console.warn(
+            `[Reverse Flow Support Purchase] ${JSON.stringify({
+              event: "support-purchase-listener-failed",
+              failureCategory: error?.code || "listener_error"
+            })}`
+          );
         }
       });
     }
@@ -919,6 +1046,9 @@
         offerId:
           transaction?.products?.find(product => product?.id === productIdentifier)?.offerId ||
           null,
+        acknowledged:
+          String(transaction?.state || "").toLowerCase() === "finished" ||
+          nativePurchase?.acknowledged === true,
         transaction
       };
     }
@@ -959,16 +1089,27 @@
     }
 
     logTransaction(event, evidence, extra = {}) {
-      console.info("[Reverse Flow Support Purchase]", {
+      const diagnostic = {
         event,
         provider: evidence?.paymentSource === "ios" ? "apple" : "google",
         productId: evidence?.productIdentifier || null,
-        transactionReference: privacySafeTransactionReference(
-          evidence,
-          evidence?.paymentSource === "ios" ? "apple" : "google"
-        ),
-        ...extra
-      });
+        stage: extra.stage || extra.lifecycle || null,
+        backendOutcome: extra.backendOutcome || extra.outcome || null,
+        failureCategory: extra.failureCategory || null,
+        retryable:
+          typeof extra.retryable === "boolean" ? extra.retryable : null,
+        localPendingStateWritten:
+          typeof extra.localPendingStateWritten === "boolean"
+            ? extra.localPendingStateWritten
+            : null,
+        acknowledgmentAttempted:
+          typeof extra.acknowledgmentAttempted === "boolean"
+            ? extra.acknowledgmentAttempted
+            : null
+      };
+      console.info(
+        `[Reverse Flow Support Purchase] ${JSON.stringify(diagnostic)}`
+      );
     }
 
     settleTransaction(transaction, kind) {
@@ -997,6 +1138,11 @@
         this.receivedTransactionKeys.add(key);
         try {
           this.persistPendingEvidence(evidence);
+          this.logTransaction("support-pending-state-written", evidence, {
+            stage: "local-persistence",
+            localPendingStateWritten: true,
+            retryable: true
+          });
         } catch (error) {
           waiter.reject(error);
           return true;
@@ -1037,10 +1183,9 @@
         recoverySource: source,
         transaction: evidence.transaction || null
       };
-      console.info("[Reverse Flow Support Purchase]", {
-        event: "unfinished-transaction-found",
-        productId: recoverable.productIdentifier,
-        source
+      this.logTransaction("unfinished-transaction-found", recoverable, {
+        stage: source,
+        retryable: true
       });
       this.notifyRecovery(recoverable);
       return recoverable;
@@ -1062,7 +1207,7 @@
     bindStoreCallbacks() {
       if (this.bound || !this.store?.when) return;
       this.bound = true;
-      this.store.when()
+      const storeCallbacks = this.store.when()
         .productUpdated(product => {
           if (this.supportProductIds().has(product?.id)) this.notify();
         }, "reverseFlowSupportProducts")
@@ -1108,11 +1253,23 @@
         .pending(transaction => {
           this.settleTransaction(transaction, "pending");
         }, "reverseFlowSupportPending");
+      storeCallbacks.receiptUpdated?.(() => {
+        this.notify();
+        if (this.readPendingRegistration()) {
+          void this.recoverPendingRegistration();
+        }
+      }, "reverseFlowSupportReceiptUpdated");
       this.store.error?.(error => {
         const productId = error?.productId;
-        const waiter = productId ? this.waiters.get(productId) : null;
+        const fallbackEntry = !productId && this.waiters.size === 1
+          ? this.waiters.entries().next().value
+          : null;
+        const waiterProductId = productId || fallbackEntry?.[0];
+        const waiter = waiterProductId
+          ? this.waiters.get(waiterProductId)
+          : null;
         if (!waiter) return;
-        this.waiters.delete(productId);
+        this.waiters.delete(waiterProductId);
         clearTimeout(waiter.timeout);
         const cancelled =
           error?.code === this.global.CdvPurchase?.ErrorCode?.PAYMENT_CANCELLED;
@@ -1201,6 +1358,7 @@
         }
         this.initialized = true;
         this.notify();
+        this.migrateSupportEnvironment();
         if (platform === "ios") {
           void this.recoverUnfinishedConsumable({ automatic: true });
         }
@@ -1351,6 +1509,10 @@
       return this.subscriptionRetryStore.read();
     }
 
+    readPendingOneTimeRegistration() {
+      return this.oneTimeRetryStore.read();
+    }
+
     transactionMatchesPending(evidence, pending) {
       return Boolean(
         evidence?.productIdentifier === pending?.productId &&
@@ -1375,12 +1537,167 @@
         this.notifyRecovery(recovered);
         return recovered;
       }
+      if (
+        pending.productId === this.oneTimeSupportProductId() &&
+        this.supporterCache.read().isSupporter &&
+        ["confirmed-awaiting-finish", "finish-failed"].includes(
+          pending.lastRegistrationAttemptStatus
+        )
+      ) {
+        this.oneTimeRetryStore.clear();
+        this.logTransaction(
+          "stale-consumable-retry-resolved",
+          {
+            paymentSource: pending.provider === "apple" ? "ios" : "android",
+            productIdentifier: pending.productId
+          },
+          {
+            stage: "local-recovery",
+            backendOutcome: "supporter-confirmed-transaction-absent",
+            retryable: false
+          }
+        );
+        return null;
+      }
       this.notifyRecovery({
         pendingRegistration: true,
         productIdentifier: pending.productId,
         paymentSource: pending.provider === "apple" ? "ios" : "android"
       });
       return null;
+    }
+
+    migrateSupportEnvironment() {
+      if (!this.storage?.getItem || !this.storage?.setItem) return;
+      const pendingStores = [
+        this.oneTimeRetryStore,
+        this.subscriptionRetryStore
+      ];
+      const pending = pendingStores
+        .map(store => ({ store, record: store.read() }))
+        .filter(item => item.record);
+      const recordedEnvironment =
+        String(this.storage.getItem(SUPPORT_ENVIRONMENT_CACHE_KEY) || "");
+      const previousEnvironment =
+        recordedEnvironment ||
+        (
+          this.apiEnvironment === "production" && pending.length
+            ? "preview"
+            : "unknown"
+        );
+      if (previousEnvironment === this.apiEnvironment) return;
+
+      const transactions = this.allSupportTransactions()
+        .map(transaction => this.transactionEvidence(transaction));
+      let recoveredPurchaseCount = 0;
+      let pendingRecordsMigrated = 0;
+      for (const item of pending) {
+        const matched = transactions.some(evidence =>
+          this.transactionMatchesPending(evidence, item.record)
+        );
+        if (matched) {
+          recoveredPurchaseCount += 1;
+          pendingRecordsMigrated += 1;
+          item.store.markEnvironment(this.apiEnvironment);
+        } else if (
+          previousEnvironment === "preview" &&
+          this.apiEnvironment === "production"
+        ) {
+          item.store.clear();
+        }
+      }
+      this.storage.setItem(
+        SUPPORT_ENVIRONMENT_CACHE_KEY,
+        this.apiEnvironment
+      );
+      console.info(
+        `[Reverse Flow Support Purchase] ${JSON.stringify({
+          event: "support-environment-migration-completed",
+          previousEnvironmentCategory: previousEnvironment,
+          newEnvironmentCategory: this.apiEnvironment,
+          recoveredPurchaseCount,
+          pendingRecordsMigrated,
+          outcome: "success"
+        })}`
+      );
+    }
+
+    async acknowledgeVerifiedPendingSubscription(
+      verifiedPurchase,
+      completion = {}
+    ) {
+      if (
+        verifiedPurchase?.paymentSource !== "android" ||
+        verifiedPurchase?.purchaseType !== "monthly"
+      ) {
+        return false;
+      }
+      const pending = this.subscriptionRetryStore.read();
+      if (
+        completion.backendVerified !== true ||
+        completion.pendingPersisted !== true ||
+        !pending ||
+        !this.transactionMatchesPending(verifiedPurchase, pending)
+      ) {
+        throw new SupportPurchaseError(
+          "Your verified monthly support must be saved before Google Play acknowledgment.",
+          "subscription_acknowledgment_preconditions_not_met"
+        );
+      }
+      const transactionKey = this.transactionKey(verifiedPurchase);
+      if (
+        this.finishedTransactionKeys.has(transactionKey) ||
+        verifiedPurchase.acknowledged === true
+      ) {
+        this.finishedTransactionKeys.add(transactionKey);
+        this.markPendingAttempt(
+          verifiedPurchase,
+          "verified-awaiting-registration"
+        );
+        this.logTransaction(
+          "google-subscription-acknowledgment-deduplicated",
+          verifiedPurchase,
+          {
+            stage: "store-acknowledgment",
+            backendOutcome: "already-acknowledged",
+            acknowledgmentAttempted: false,
+            retryable: false
+          }
+        );
+        return false;
+      }
+      if (typeof verifiedPurchase?.transaction?.finish !== "function") {
+        throw new SupportPurchaseError(
+          "Your monthly support is saved and acknowledgment will retry automatically.",
+          "subscription_acknowledgment_unavailable"
+        );
+      }
+      this.logTransaction(
+        "google-subscription-acknowledgment-started",
+        verifiedPurchase,
+        {
+          stage: "store-acknowledgment",
+          acknowledgmentAttempted: true,
+          retryable: true
+        }
+      );
+      await verifiedPurchase.transaction.finish();
+      this.finishedTransactionKeys.add(transactionKey);
+      this.markPendingAttempt(
+        verifiedPurchase,
+        "verified-awaiting-registration"
+      );
+      this.logTransaction(
+        "google-subscription-acknowledgment-completed",
+        verifiedPurchase,
+        {
+          stage: "store-acknowledgment",
+          backendOutcome: "success",
+          acknowledgmentAttempted: true,
+          retryable: false
+        }
+      );
+      return true;
     }
 
     async reconcileTransaction(evidence, callback) {
@@ -1470,10 +1787,12 @@
           "consumable_recovery_unavailable"
         );
       }
-      console.info("[Reverse Flow Support Purchase]", {
-        event: "consumable-recovery-attempted",
-        productId: this.oneTimeSupportProductId(),
-        automatic
+      this.logTransaction("consumable-recovery-attempted", {
+        paymentSource: "ios",
+        productIdentifier: this.oneTimeSupportProductId()
+      }, {
+        stage: automatic ? "automatic" : "manual",
+        retryable: true
       });
 
       const plugin = this.global.Capacitor?.Plugins?.SupportPurchaseRecovery;
@@ -1487,9 +1806,13 @@
             );
           }
         } catch (error) {
-          console.warn("[Reverse Flow Support Purchase]", {
-            event: "consumable-recovery-bridge-failed",
-            failureCategory: error?.code || "native_bridge_error"
+          this.logTransaction("consumable-recovery-bridge-failed", {
+            paymentSource: "ios",
+            productIdentifier: this.oneTimeSupportProductId()
+          }, {
+            stage: "native-bridge",
+            failureCategory: error?.code || "native_bridge_error",
+            retryable: true
           });
         }
       }
@@ -1513,16 +1836,22 @@
           )
         ) {
           this.oneTimeRetryStore.clear();
-          console.info("[Reverse Flow Support Purchase]", {
-            event: "stale-consumable-retry-resolved",
-            productId: persisted.productId,
-            reason: "supporter-confirmed-store-transaction-absent"
+          this.logTransaction("stale-consumable-retry-resolved", {
+            paymentSource: "ios",
+            productIdentifier: persisted.productId
+          }, {
+            stage: "local-recovery",
+            backendOutcome: "supporter-confirmed-transaction-absent",
+            retryable: false
           });
           return null;
         }
-        console.info("[Reverse Flow Support Purchase]", {
-          event: "persisted-consumable-retry-found",
-          productId: persisted.productId
+        this.logTransaction("persisted-consumable-retry-found", {
+          paymentSource: "ios",
+          productIdentifier: persisted.productId
+        }, {
+          stage: "local-recovery",
+          retryable: true
         });
         this.notifyRecovery({
           pendingRegistration: true,
@@ -1532,9 +1861,12 @@
         return null;
       }
 
-      console.info("[Reverse Flow Support Purchase]", {
-        event: "no-recoverable-transaction-found",
-        productId: this.oneTimeSupportProductId()
+      this.logTransaction("no-recoverable-transaction-found", {
+        paymentSource: "ios",
+        productIdentifier: this.oneTimeSupportProductId()
+      }, {
+        stage: "store-query",
+        retryable: false
       });
       if (automatic) return null;
       throw new SupportPurchaseError(
@@ -1591,6 +1923,26 @@
           "store-transaction-duplicate-ignored",
           verifiedPurchase,
           { lifecycle: "finish" }
+        );
+        this.clearPendingRegistration(verifiedPurchase);
+        return;
+      }
+      if (
+        verifiedPurchase?.paymentSource === "android" &&
+        verifiedPurchase?.purchaseType === "monthly" &&
+        verifiedPurchase?.acknowledged === true
+      ) {
+        this.finishedTransactionKeys.add(transactionKey);
+        this.clearPendingRegistration(verifiedPurchase);
+        this.logTransaction(
+          "google-subscription-acknowledgment-deduplicated",
+          verifiedPurchase,
+          {
+            stage: "store-acknowledgment",
+            backendOutcome: "already-acknowledged",
+            acknowledgmentAttempted: false,
+            retryable: false
+          }
         );
         return;
       }
@@ -2112,22 +2464,76 @@
         : "Current recurring contribution details are unavailable.";
     const handlePendingPurchase = async pendingPurchase =>
       purchaseService.reconcileTransaction(pendingPurchase, async () => {
+      let pendingBackendVerified = false;
+      let acknowledgmentAttempted = false;
       if (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken) {
         global.reverseFlowPendingVerifiedSupportPurchase = pendingPurchase;
         purchaseService.markPendingAttempt(pendingPurchase, "verification-started");
+        const localPendingStateWritten = Boolean(
+          purchaseService.retryStoreForEvidence(pendingPurchase).read()
+        );
         try {
           await registryService.verifyPendingPurchase(
-            createPendingVerificationPayload(pendingPurchase)
+            createPendingVerificationPayload(pendingPurchase),
+            { localPendingStateWritten }
+          );
+          pendingBackendVerified = true;
+          purchaseService.markPendingAttempt(
+            pendingPurchase,
+            "verification-succeeded"
           );
         } catch (error) {
           purchaseService.markPendingAttempt(pendingPurchase, "verification-failed");
           registryService.logRegistration("warn", {
             event: "pending-support-verification-deferred",
-            backendHost: new URL(registryService.config.baseUrl).host,
-            environment: registryService.config.environment,
-            platform: pendingPurchase.paymentSource,
-            failureCategory: error?.code || "supporter_registry_error"
+            provider:
+              pendingPurchase.paymentSource === "ios" ? "apple" : "google",
+            productId: pendingPurchase.productIdentifier,
+            stage: "purchase-verification",
+            routeName: "verifyPendingPurchase",
+            path: registryService.config.routes.verifyPendingPurchase,
+            httpStatus: Number(error?.status) || null,
+            backendOutcome: "deferred",
+            failureCategory: error?.code || "supporter_registry_error",
+            retryable: true,
+            verifiedPurchaseEvidencePresent: true,
+            localPendingStateWritten,
+            acknowledgmentAttempted: false
           });
+        }
+        if (
+          pendingBackendVerified &&
+          pendingPurchase.paymentSource === "android" &&
+          pendingPurchase.purchaseType === "monthly"
+        ) {
+          try {
+            acknowledgmentAttempted =
+              await purchaseService.acknowledgeVerifiedPendingSubscription(
+                pendingPurchase,
+                {
+                  backendVerified: true,
+                  pendingPersisted: localPendingStateWritten
+                }
+              );
+          } catch (error) {
+            purchaseService.markPendingAttempt(
+              pendingPurchase,
+              "acknowledgment-failed"
+            );
+            registryService.logRegistration("warn", {
+              event: "google-subscription-acknowledgment-deferred",
+              provider: "google",
+              productId: pendingPurchase.productIdentifier,
+              stage: "store-acknowledgment",
+              backendOutcome: "deferred",
+              failureCategory:
+                error?.code || "subscription_acknowledgment_failed",
+              retryable: true,
+              verifiedPurchaseEvidencePresent: true,
+              localPendingStateWritten,
+              acknowledgmentAttempted: true
+            });
+          }
         }
       }
       const cached = cache.read();
@@ -2143,16 +2549,22 @@
           email: cached.supporterEmail
         }, pendingPurchase);
         const confirmed = await registryService.registerVerifiedPurchase(payload, {
-          existingSupporter: true
+          existingSupporter: true,
+          localPendingStateWritten: true,
+          acknowledgmentAttempted
         });
         if (pendingPurchase?.recoverySource) {
           registryService.logRegistration("info", {
             event: "consumable-recovery-backend-verification-result",
-            backendHost: new URL(registryService.config.baseUrl).host,
-            environment: registryService.config.environment,
-            platform: payload.platform,
-            responseStatus: 200,
-            outcome: "success"
+            provider: payload.platform === "ios" ? "apple" : "google",
+            productId: payload.productIdentifier,
+            stage: "supporter-registration",
+            httpStatus: 200,
+            backendOutcome: "success",
+            retryable: false,
+            verifiedPurchaseEvidencePresent: true,
+            localPendingStateWritten: true,
+            acknowledgmentAttempted
           });
         }
         const cachedConfirmation = cache.writeConfirmed(confirmed, {
@@ -2182,10 +2594,13 @@
           purchaseService.markPendingAttempt(pendingPurchase, "finish-failed");
           pageStatus.textContent =
             "Thank you for continuing to support Reverse Flow.";
-          console.warn("[Reverse Flow Support Purchase]", {
-            event: "consumable-finish-deferred",
-            failureCategory: finishError?.code || "storekit_finish_failed"
-          });
+          console.warn(
+            `[Reverse Flow Support Purchase] ${JSON.stringify({
+              event: "consumable-finish-deferred",
+              failureCategory:
+                finishError?.code || "storekit_finish_failed"
+            })}`
+          );
         }
         renderSupportPage(cache, registryService, purchaseService);
         return;
@@ -2486,15 +2901,38 @@
         purchaseService.markPendingAttempt(verifiedPurchase, "registration-started");
         status.textContent = "Finishing your Supporter setup…";
         try {
-          const confirmed = await registryService.registerVerifiedPurchase(payload);
+          const pendingStateWritten = Boolean(
+            purchaseService.retryStoreForEvidence(verifiedPurchase).read()
+          );
+          const confirmed = await registryService.registerVerifiedPurchase(
+            payload,
+            {
+              localPendingStateWritten: pendingStateWritten,
+              acknowledgmentAttempted:
+                verifiedPurchase?.paymentSource === "android" &&
+                verifiedPurchase?.purchaseType === "monthly" &&
+                (
+                  verifiedPurchase?.acknowledged === true ||
+                  purchaseService.finishedTransactionKeys.has(
+                    purchaseService.transactionKey(verifiedPurchase)
+                  )
+                )
+            }
+          );
           if (verifiedPurchase?.recoverySource) {
             registryService.logRegistration("info", {
               event: "consumable-recovery-backend-verification-result",
-              backendHost: new URL(registryService.config.baseUrl).host,
-              environment: registryService.config.environment,
-              platform: payload.platform,
-              responseStatus: 200,
-              outcome: "success"
+              provider: payload.platform === "ios" ? "apple" : "google",
+              productId: payload.productIdentifier,
+              stage: "supporter-registration",
+              httpStatus: 200,
+              backendOutcome: "success",
+              retryable: false,
+              verifiedPurchaseEvidencePresent: true,
+              localPendingStateWritten: pendingStateWritten,
+              acknowledgmentAttempted:
+                verifiedPurchase?.paymentSource === "android" &&
+                verifiedPurchase?.purchaseType === "monthly"
             });
           }
           const cachedConfirmation = cache.writeConfirmed(confirmed, {
@@ -2524,10 +2962,13 @@
             purchaseService.markPendingAttempt(verifiedPurchase, "finish-failed");
             status.textContent =
               "You’re officially a Reverse Flow Supporter. Thank you for helping build what comes next.";
-            console.warn("[Reverse Flow Support Purchase]", {
-              event: "consumable-finish-deferred",
-              failureCategory: finishError?.code || "storekit_finish_failed"
-            });
+            console.warn(
+              `[Reverse Flow Support Purchase] ${JSON.stringify({
+                event: "consumable-finish-deferred",
+                failureCategory:
+                  finishError?.code || "storekit_finish_failed"
+              })}`
+            );
           }
           registrationForm.reset();
           renderSupportPage(cache, registryService, purchaseService);
@@ -2536,22 +2977,39 @@
           if (verifiedPurchase?.recoverySource) {
             registryService.logRegistration("info", {
               event: "consumable-recovery-backend-verification-result",
-              backendHost: new URL(registryService.config.baseUrl).host,
-              environment: registryService.config.environment,
-              platform: payload.platform,
-              responseStatus: Number(error?.status) || null,
-              outcome: "failed",
-              failureCategory: error?.code || "supporter_registry_error"
+              provider: payload.platform === "ios" ? "apple" : "google",
+              productId: payload.productIdentifier,
+              stage: "supporter-registration",
+              httpStatus: Number(error?.status) || null,
+              backendOutcome: "failed",
+              failureCategory: error?.code || "supporter_registry_error",
+              retryable: true,
+              verifiedPurchaseEvidencePresent: true,
+              localPendingStateWritten: true,
+              acknowledgmentAttempted:
+                verifiedPurchase?.paymentSource === "android" &&
+                verifiedPurchase?.purchaseType === "monthly"
             });
           }
           registryService.logRegistration("info", {
             event: "supporter-registration-retry-available",
-            backendHost: new URL(registryService.config.baseUrl).host,
-            environment: registryService.config.environment,
-            platform: payload.platform,
-            failureCategory: error?.code || "supporter_registry_error"
+            provider: payload.platform === "ios" ? "apple" : "google",
+            productId: payload.productIdentifier,
+            stage: "supporter-registration",
+            httpStatus: Number(error?.status) || null,
+            backendOutcome: "retry-available",
+            failureCategory: error?.code || "supporter_registry_error",
+            retryable: true,
+            verifiedPurchaseEvidencePresent: true,
+            localPendingStateWritten: true,
+            acknowledgmentAttempted:
+              verifiedPurchase?.paymentSource === "android" &&
+              verifiedPurchase?.purchaseType === "monthly"
           });
-          status.textContent = `${error.message} Your support was not registered.`;
+          status.textContent =
+            verifiedPurchase?.purchaseType === "monthly"
+              ? "Your monthly support was received, but Supporter setup could not be completed right now. Please try again."
+              : "Your support was received, but Supporter setup could not be completed right now. Please try again.";
         } finally {
           submit.disabled = false;
         }

@@ -325,4 +325,13 @@ test("native plugin diagnostics are reproducibly patched", () => {
   assert.match(pluginSource, /acknowledgement success/);
   assert.match(pluginSource, /acknowledgement failure responseCode=/);
   assert.doesNotMatch(pluginSource, /acknowledgePurchase\(" \+ purchaseToken/);
+  assert.match(pluginSource, /listener payload type=/);
+  assert.match(pluginSource, /product loaded productId=/);
+  assert.match(pluginSource, /purchase offer selected productId=/);
+  assert.match(pluginSource, /purchase state stage=/);
+  assert.match(pluginSource, /acknowledged=" \+ purchase\.isAcknowledged/);
+  assert.doesNotMatch(pluginSource, /data -> " \+ data\.toString/);
+  assert.doesNotMatch(pluginSource, /productDetails: " \+ product\.toString/);
+  assert.doesNotMatch(pluginSource, /Product details id@token:/);
+  assert.doesNotMatch(pluginSource, /consumePurchase\(" \+ purchaseToken/);
 });

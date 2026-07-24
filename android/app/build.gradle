@@ -26,6 +26,11 @@ android {
             matchingFallbacks = ['release']
             signingConfig signingConfigs.debug
         }
+        productionTest {
+            initWith release
+            matchingFallbacks = ['release']
+            signingConfig signingConfigs.debug
+        }
     }
 }
 
@@ -83,8 +88,30 @@ def registerSupporterBackendAssets = { String buildType, String environment ->
                 /const SUPPORTER_API_ENVIRONMENT = "(preview|production)";/,
                 "const SUPPORTER_API_ENVIRONMENT = \"${environment}\";"
             )
+            if (environment == "production") {
+                configured = configured.replaceFirst(
+                    /\s*preview:\s*"https:\/\/[^"]+",/,
+                    ""
+                )
+            }
             if (!configured.contains("const SUPPORTER_API_ENVIRONMENT = \"${environment}\";")) {
                 throw new GradleException("Supporter backend environment was not configured.")
+            }
+            if (environment == "production") {
+                def forbiddenReleaseOrigins = [
+                    "vercel.app",
+                    "localhost",
+                    "dam107073",
+                    "7ys7ufxmb"
+                ]
+                def forbidden = forbiddenReleaseOrigins.find {
+                    configured.toLowerCase().contains(it)
+                }
+                if (forbidden) {
+                    throw new GradleException(
+                        "Release Supporter backend assets contain forbidden origin fragment: ${forbidden}"
+                    )
+                }
             }
             def target = outputConstants.get().asFile
             target.parentFile.mkdirs()
@@ -106,6 +133,7 @@ def registerSupporterBackendAssets = { String buildType, String environment ->
 
 registerSupporterBackendAssets("debug", "preview")
 registerSupporterBackendAssets("preview", "preview")
+registerSupporterBackendAssets("productionTest", "production")
 registerSupporterBackendAssets("release", "production")
 
 apply from: 'capacitor.build.gradle'

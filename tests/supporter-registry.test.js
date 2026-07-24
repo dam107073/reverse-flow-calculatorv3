@@ -191,8 +191,8 @@ test("native purchase registration uses the public verification route without se
     platform: "ios",
     navigator: { onLine: true },
     console: {
-      info: (label, details) => logs.push({ level: "info", label, details }),
-      warn: (label, details) => logs.push({ level: "warn", label, details })
+      info: message => logs.push({ level: "info", message }),
+      warn: message => logs.push({ level: "warn", message })
     },
     fetch: async (url, options) => {
       calls.push({ url, options });
@@ -222,29 +222,23 @@ test("native purchase registration uses the public verification route without se
   assert.deepEqual(JSON.parse(calls[0].options.body), payload);
   assert.equal("x-supporter-registration-token" in calls[0].options.headers, false);
   assert.doesNotMatch(calls[0].url, /2000000123456789/);
-  assert.deepEqual(logs.map(entry => entry.details), [
-    {
-      event: "supporter-registration-request-started",
-      backendHost: "preview.example.test",
-      environment: "preview",
-      platform: "ios"
-    },
-    {
-      event: "supporter-registration-response",
-      backendHost: "preview.example.test",
-      environment: "preview",
-      platform: "ios",
-      responseStatus: 200
-    },
-    {
-      event: "supporter-registration-request-completed",
-      backendHost: "preview.example.test",
-      environment: "preview",
-      platform: "ios",
-      responseStatus: 200,
-      outcome: "success"
-    }
+  const diagnostics = logs.map(entry =>
+    JSON.parse(entry.message.replace(
+      "[Reverse Flow Supporter Registration] ",
+      ""
+    ))
+  );
+  assert.deepEqual(diagnostics.map(entry => entry.event), [
+    "supporter-registration-request-started",
+    "supporter-registration-response",
+    "supporter-registration-request-completed"
   ]);
+  assert.equal(diagnostics[0].provider, "apple");
+  assert.equal(diagnostics[0].path, "/api/supporters/verify-purchase");
+  assert.equal(diagnostics[0].verifiedPurchaseEvidencePresent, true);
+  assert.equal(diagnostics[1].httpStatus, 200);
+  assert.equal(diagnostics[2].backendOutcome, "success");
+  assert.ok(logs.every(entry => !entry.message.includes("[object Object]")));
   assert.doesNotMatch(
     JSON.stringify(logs),
     /firefighter@example\.com|2000000123456789/i
@@ -257,8 +251,8 @@ test("registration network failures log only host and normalized category", asyn
     platform: "ios",
     navigator: { onLine: true },
     console: {
-      info: (label, details) => logs.push({ level: "info", label, details }),
-      warn: (label, details) => logs.push({ level: "warn", label, details })
+      info: message => logs.push({ level: "info", message }),
+      warn: message => logs.push({ level: "warn", message })
     },
     fetch: async () => {
       throw new TypeError("Load failed for a sensitive request");
@@ -272,21 +266,18 @@ test("registration network failures log only host and normalized category", asyn
     }),
     error => error.code === "network_error"
   );
-  assert.deepEqual(logs.map(entry => entry.details), [
-    {
-      event: "supporter-registration-request-started",
-      backendHost: "preview.example.test",
-      environment: "preview",
-      platform: "ios"
-    },
-    {
-      event: "supporter-registration-failed",
-      backendHost: "preview.example.test",
-      environment: "preview",
-      platform: "ios",
-      failureCategory: "network_exception"
-    }
+  const diagnostics = logs.map(entry =>
+    JSON.parse(entry.message.replace(
+      "[Reverse Flow Supporter Registration] ",
+      ""
+    ))
+  );
+  assert.deepEqual(diagnostics.map(entry => entry.event), [
+    "supporter-registration-request-started",
+    "supporter-registration-failed"
   ]);
+  assert.equal(diagnostics[1].failureCategory, "network_exception");
+  assert.equal(diagnostics[1].retryable, true);
   assert.doesNotMatch(
     JSON.stringify(logs),
     /private@example\.com|sensitive-transaction|Load failed/i
