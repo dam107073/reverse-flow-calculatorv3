@@ -3,7 +3,17 @@
 
   const CACHE_VERSION = 1;
   const DEFAULT_CACHE_KEY = "reverse-flow-supporter-cache-v1";
-  const PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-purchase-retry-v1";
+  const PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-pending-registration-v2";
+  const LEGACY_PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-purchase-retry-v1";
+  const PENDING_REGISTRATION_STATUSES = new Set([
+    "not-attempted",
+    "verification-started",
+    "verification-failed",
+    "registration-started",
+    "registration-failed",
+    "confirmed-awaiting-finish",
+    "finish-failed"
+  ]);
   const RECURRING_STATUSES = new Set(["active", "canceling", "expired", "inactive"]);
   const ACTIONS = Object.freeze({
     MANAGE: "manage-support",
@@ -245,8 +255,17 @@
     return {
       environment,
       baseUrl: baseUrl.replace(/\/+$/, ""),
-      routes: { ...configured.routes },
-      timeoutsMs: { ...configured.timeoutsMs }
+      routes: {
+        ...configured.routes,
+        verifyPendingPurchase:
+          configured.routes.verifyPendingPurchase || "/api/supporters/verify-pending"
+      },
+      timeoutsMs: {
+        ...configured.timeoutsMs,
+        verifyPendingPurchase:
+          configured.timeoutsMs.verifyPendingPurchase ||
+          configured.timeoutsMs.verifyPurchase
+      }
     };
   }
 
@@ -438,6 +457,7 @@
           }
         );
       }
+      if (options.normalize === false) return payload;
       const normalized = normalizeApiResponse(payload);
       if (isRegistration) {
         this.logRegistration("info", {
@@ -480,6 +500,15 @@
     async registerVerifiedPurchase(payload) {
       return this.request("verifyPurchase", payload, "verifyPurchase");
     }
+
+    async verifyPendingPurchase(payload) {
+      return this.request(
+        "verifyPendingPurchase",
+        payload,
+        "verifyPendingPurchase",
+        { normalize: false }
+      );
+    }
   }
 
   class SupportPurchaseError extends Error {
@@ -490,7 +519,16 @@
     }
   }
 
-  class SupportPurchaseRetryStore {
+  function privacySafeTransactionReference(evidence, provider) {
+    const raw = provider === "apple"
+      ? evidence?.transactionId || evidence?.originalTransactionId
+      : evidence?.purchaseToken;
+    const value = String(raw || "");
+    if (!value) return null;
+    return `${provider}:…${value.slice(-6)}`;
+  }
+
+  class PendingSupportRegistrationStore {
     constructor(storage, key = PURCHASE_RETRY_CACHE_KEY) {
       this.storage = storage || null;
       this.key = key;
@@ -499,11 +537,30 @@
     read() {
       if (!this.storage?.getItem) return null;
       try {
-        const parsed = JSON.parse(this.storage.getItem(this.key) || "null");
+        let parsed = JSON.parse(this.storage.getItem(this.key) || "null");
+        if (!parsed && this.key === PURCHASE_RETRY_CACHE_KEY) {
+          const legacy = JSON.parse(
+            this.storage.getItem(LEGACY_PURCHASE_RETRY_CACHE_KEY) || "null"
+          );
+          if (legacy?.version === 1 && legacy?.transactionId) {
+            parsed = this.write({
+              paymentSource: "ios",
+              productIdentifier: legacy.productIdentifier,
+              transactionId: legacy.transactionId,
+              originalTransactionId: legacy.originalTransactionId,
+              purchaseTimestamp: legacy.purchaseTimestamp
+            });
+            this.storage.removeItem(LEGACY_PURCHASE_RETRY_CACHE_KEY);
+          }
+        }
         if (
-          parsed?.version !== 1 ||
-          parsed?.productIdentifier !== "reverse_flow_support_one_time_5" ||
-          !parsed?.transactionId
+          parsed?.version !== 2 ||
+          !["apple", "google"].includes(parsed?.provider) ||
+          !parsed?.productId ||
+          !parsed?.transactionReference ||
+          parsed?.state !== "registration-required" ||
+          !isValidTimestamp(parsed?.approvedAt) ||
+          !PENDING_REGISTRATION_STATUSES.has(parsed?.lastRegistrationAttemptStatus)
         ) {
           return null;
         }
@@ -516,27 +573,25 @@
     write(evidence) {
       if (!this.storage?.setItem) {
         throw new SupportPurchaseError(
-          "The purchase retry could not be saved on this device.",
+          "The pending registration could not be saved on this device.",
           "purchase_retry_persistence_unavailable"
         );
       }
+      const provider = evidence?.paymentSource === "ios" ? "apple"
+        : evidence?.paymentSource === "android" ? "google" : null;
+      const transactionReference = privacySafeTransactionReference(evidence, provider);
       const record = {
-        version: 1,
-        paymentSource: "ios",
-        productIdentifier: "reverse_flow_support_one_time_5",
-        purchaseType: "one-time",
-        monthlyAmount: null,
-        transactionId: String(evidence?.transactionId || ""),
-        originalTransactionId: evidence?.originalTransactionId
-          ? String(evidence.originalTransactionId)
-          : null,
-        purchaseTimestamp: toIsoTimestamp(evidence?.purchaseTimestamp),
-        environment: evidence?.environment || null,
-        nativeRecovery: evidence?.nativeRecovery === true,
-        recoverySource: evidence?.recoverySource || "locally-persisted-purchase-retry",
-        savedAt: new Date().toISOString()
+        version: 2,
+        provider,
+        productId: String(evidence?.productIdentifier || ""),
+        transactionReference,
+        approvedAt:
+          toIsoTimestamp(evidence?.purchaseTimestamp) || new Date().toISOString(),
+        state: "registration-required",
+        lastRegistrationAttemptAt: null,
+        lastRegistrationAttemptStatus: "not-attempted"
       };
-      if (!record.transactionId) {
+      if (!record.provider || !record.productId || !record.transactionReference) {
         throw new SupportPurchaseError(
           "The store did not provide the transaction reference required for recovery.",
           "purchase_retry_evidence_invalid"
@@ -546,17 +601,34 @@
       return record;
     }
 
+    markAttempt(status) {
+      if (!PENDING_REGISTRATION_STATUSES.has(status)) return this.read();
+      const record = this.read();
+      if (!record) return null;
+      const updated = {
+        ...record,
+        lastRegistrationAttemptAt: new Date().toISOString(),
+        lastRegistrationAttemptStatus: status
+      };
+      this.storage.setItem(this.key, JSON.stringify(updated));
+      return updated;
+    }
+
     clear() {
       this.storage?.removeItem?.(this.key);
+      this.storage?.removeItem?.(LEGACY_PURCHASE_RETRY_CACHE_KEY);
     }
   }
+
+  const SupportPurchaseRetryStore = PendingSupportRegistrationStore;
 
   class SupportPurchaseService {
     constructor(config, dependencies = {}) {
       this.config = config || {};
       this.global = dependencies.global || global;
       this.store = dependencies.store || this.global.CdvPurchase?.store || null;
-      this.retryStore = dependencies.retryStore || new SupportPurchaseRetryStore(
+      this.retryStore = dependencies.pendingStore || dependencies.retryStore ||
+        new PendingSupportRegistrationStore(
         dependencies.storage || this.global.localStorage
       );
       this.initialization = null;
@@ -721,22 +793,13 @@
       clearTimeout(waiter.timeout);
       if (kind === "approved") {
         const evidence = this.transactionEvidence(transaction, waiter.option);
-        if (
-          getPlatform() === "ios" &&
-          evidence.productIdentifier === this.oneTimeSupportProductId()
-        ) {
-          const persisted = this.retryStore.write({
-            ...evidence,
-            recoverySource: "store-approved-consumable"
-          });
-          waiter.resolve({
-            ...evidence,
-            ...persisted,
-            transaction
-          });
-        } else {
-          waiter.resolve(evidence);
+        try {
+          this.retryStore.write(evidence);
+        } catch (error) {
+          waiter.reject(error);
+          return true;
         }
+        waiter.resolve(evidence);
       } else if (kind === "pending") {
         waiter.reject(new SupportPurchaseError(
           "This purchase is pending store approval. Supporter status will update after payment completes.",
@@ -766,14 +829,10 @@
       ) {
         return null;
       }
-      const persisted = this.retryStore.write({
-        ...evidence,
-        nativeRecovery: evidence.nativeRecovery === true,
-        recoverySource: source
-      });
+      this.retryStore.write(evidence);
       const recoverable = {
         ...evidence,
-        ...persisted,
+        recoverySource: source,
         transaction: evidence.transaction || null
       };
       console.info("[Reverse Flow Support Purchase]", {
@@ -809,10 +868,30 @@
           const settled = this.settleTransaction(transaction, "approved");
           if (!settled) {
             const evidence = this.transactionEvidence(transaction);
-            this.captureRecoverableConsumable(
-              evidence,
-              "cordova-approved-redelivery"
-            );
+            try {
+              this.retryStore.write(evidence);
+            } catch (error) {
+              console.error("[Reverse Flow Support Purchase]", {
+                event: "pending-registration-persistence-failed",
+                productId: evidence.productIdentifier,
+                failureCategory: error?.code || "storage_error"
+              });
+              return;
+            }
+            if (
+              getPlatform() === "ios" &&
+              evidence.productIdentifier === this.oneTimeSupportProductId()
+            ) {
+              this.captureRecoverableConsumable(
+                evidence,
+                "cordova-approved-redelivery"
+              );
+            } else {
+              this.notifyRecovery({
+                ...evidence,
+                recoverySource: "store-approved-redelivery"
+              });
+            }
           }
         }, "reverseFlowSupportApproved")
         .pending(transaction => {
@@ -914,6 +993,7 @@
         if (platform === "ios") {
           void this.recoverUnfinishedConsumable({ automatic: true });
         }
+        void this.recoverPendingRegistration();
       })().catch(error => {
         this.initialized = true;
         this.initializeError = error;
@@ -1000,6 +1080,42 @@
       return transactions;
     }
 
+    readPendingRegistration() {
+      return this.retryStore.read();
+    }
+
+    transactionMatchesPending(evidence, pending) {
+      return Boolean(
+        evidence?.productIdentifier === pending?.productId &&
+        privacySafeTransactionReference(
+          evidence,
+          evidence?.paymentSource === "ios" ? "apple" : "google"
+        ) === pending?.transactionReference
+      );
+    }
+
+    async recoverPendingRegistration() {
+      const pending = this.retryStore.read();
+      if (!pending) return null;
+      const evidence = this.allSupportTransactions()
+        .map(transaction => this.transactionEvidence(transaction))
+        .find(candidate => this.transactionMatchesPending(candidate, pending));
+      if (evidence) {
+        const recovered = {
+          ...evidence,
+          recoverySource: "store-approved-redelivery"
+        };
+        this.notifyRecovery(recovered);
+        return recovered;
+      }
+      this.notifyRecovery({
+        pendingRegistration: true,
+        productIdentifier: pending.productId,
+        paymentSource: pending.provider === "apple" ? "ios" : "android"
+      });
+      return null;
+    }
+
     nativeRecoveryEvidence(result) {
       return {
         paymentSource: "ios",
@@ -1079,10 +1195,14 @@
       if (persisted) {
         console.info("[Reverse Flow Support Purchase]", {
           event: "persisted-consumable-retry-found",
-          productId: persisted.productIdentifier
+          productId: persisted.productId
         });
-        this.notifyRecovery(persisted);
-        return persisted;
+        this.notifyRecovery({
+          pendingRegistration: true,
+          productIdentifier: persisted.productId,
+          paymentSource: "ios"
+        });
+        return null;
       }
 
       console.info("[Reverse Flow Support Purchase]", {
@@ -1123,7 +1243,17 @@
       return this.transactionEvidence(transaction);
     }
 
-    async finishPurchase(verifiedPurchase) {
+    async finishPurchase(verifiedPurchase, completion = {}) {
+      if (
+        completion.backendVerified !== true ||
+        completion.registrationSucceeded !== true ||
+        completion.supporterCached !== true
+      ) {
+        throw new SupportPurchaseError(
+          "Supporter confirmation must be saved before the store transaction can finish.",
+          "purchase_finish_preconditions_not_met"
+        );
+      }
       const isAppleConsumable =
         verifiedPurchase?.paymentSource === "ios" &&
         verifiedPurchase?.productIdentifier === this.oneTimeSupportProductId() &&
@@ -1148,11 +1278,14 @@
         );
       }
       const transaction = verifiedPurchase?.transaction;
-      if (typeof transaction?.finish !== "function") return;
-      await transaction.finish();
-      if (verifiedPurchase?.productIdentifier === this.oneTimeSupportProductId()) {
-        this.retryStore.clear();
+      if (typeof transaction?.finish !== "function") {
+        throw new SupportPurchaseError(
+          "Store completion is temporarily unavailable. Registration remains saved for retry.",
+          "purchase_finish_unavailable"
+        );
       }
+      await transaction.finish();
+      this.retryStore.clear();
     }
 
     async openNativeSubscriptionManagement() {
@@ -1255,6 +1388,13 @@
       payload.transactionEvidence.purchaseToken =
         verifiedPurchase?.purchaseToken || null;
     }
+    return payload;
+  }
+
+  function createPendingVerificationPayload(verifiedPurchase) {
+    const payload = createPurchaseRegistrationPayload({}, verifiedPurchase);
+    delete payload.name;
+    delete payload.email;
     return payload;
   }
 
@@ -1412,14 +1552,30 @@
         : "";
     }
     const supporterRecoverySection = document.getElementById("recoverSupporterStatusSection");
-    if (supporterRecoverySection) supporterRecoverySection.hidden = state.isSupporter;
+    const pendingRecord = purchaseService.readPendingRegistration();
+    const hasPendingRegistration = Boolean(pendingRecord);
+    if (supporterRecoverySection) {
+      supporterRecoverySection.hidden = state.isSupporter || hasPendingRegistration;
+    }
+    const legacyRecoverySection = document.getElementById("legacyRecoverySection");
+    if (legacyRecoverySection) {
+      legacyRecoverySection.hidden =
+        hasPendingRegistration || safeAction === ACTIONS.CLAIM;
+    }
+    const benefitsSection = document.querySelector(".support-benefits-card");
+    if (benefitsSection) benefitsSection.hidden = hasPendingRegistration;
+    const registrationSection = document.getElementById("supportRegistrationSection");
+    if (registrationSection) registrationSection.hidden = !hasPendingRegistration;
 
     title.textContent = "Support Reverse Flow";
-    claimSection.hidden = safeAction !== ACTIONS.CLAIM;
-    manageSection.hidden = safeAction !== ACTIONS.MANAGE;
-    optionsSection.hidden = safeAction === ACTIONS.CLAIM || safeAction === ACTIONS.MANAGE;
+    claimSection.hidden = hasPendingRegistration || safeAction !== ACTIONS.CLAIM;
+    manageSection.hidden = hasPendingRegistration || safeAction !== ACTIONS.MANAGE;
+    optionsSection.hidden = hasPendingRegistration ||
+      safeAction === ACTIONS.CLAIM || safeAction === ACTIONS.MANAGE;
 
-    if (safeAction === ACTIONS.BECOME) {
+    if (hasPendingRegistration) {
+      intro.textContent = "Your support was received. Finish setting up your Supporter status below.";
+    } else if (safeAction === ACTIONS.BECOME) {
       intro.textContent = "Join the firefighters helping Reverse Flow keep growing.";
     } else if (safeAction === ACTIONS.CONTINUE) {
       intro.textContent = "Thank you for helping build what comes next.";
@@ -1436,16 +1592,32 @@
         : "Current recurring contribution details are unavailable.";
 
     const handlePendingPurchase = async pendingPurchase => {
-      const pendingSection = document.getElementById("pendingSupportRegistrationSection");
-      if (
-        pendingSection &&
-        pendingPurchase?.productIdentifier === purchaseService.oneTimeSupportProductId()
-      ) {
-        pendingSection.hidden = false;
+      if (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken) {
+        global.reverseFlowPendingVerifiedSupportPurchase = pendingPurchase;
+        purchaseService.retryStore.markAttempt("verification-started");
+        try {
+          await registryService.verifyPendingPurchase(
+            createPendingVerificationPayload(pendingPurchase)
+          );
+        } catch (error) {
+          purchaseService.retryStore.markAttempt("verification-failed");
+          registryService.logRegistration("warn", {
+            event: "pending-support-verification-deferred",
+            backendHost: new URL(registryService.config.baseUrl).host,
+            environment: registryService.config.environment,
+            platform: pendingPurchase.paymentSource,
+            failureCategory: error?.code || "supporter_registry_error"
+          });
+        }
       }
       const cached = cache.read();
-      if (cached.isSupporter && cached.supporterEmail) {
+      if (
+        cached.isSupporter &&
+        cached.supporterEmail &&
+        (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken)
+      ) {
         pageStatus.textContent = "Verifying the purchase with the store…";
+        purchaseService.retryStore.markAttempt("registration-started");
         const payload = createPurchaseRegistrationPayload({
           name: "",
           email: cached.supporterEmail
@@ -1473,10 +1645,16 @@
           return;
         }
         try {
-          await purchaseService.finishPurchase(pendingPurchase);
+          purchaseService.retryStore.markAttempt("confirmed-awaiting-finish");
+          await purchaseService.finishPurchase(pendingPurchase, {
+            backendVerified: true,
+            registrationSucceeded: true,
+            supporterCached: true
+          });
           global.reverseFlowPendingVerifiedSupportPurchase = null;
           pageStatus.textContent = "Supporter status updated. Thank you.";
         } catch (finishError) {
+          purchaseService.retryStore.markAttempt("finish-failed");
           pageStatus.textContent =
             "Supporter status is confirmed. StoreKit completion remains pending and will be retried.";
           console.warn("[Reverse Flow Support Purchase]", {
@@ -1488,14 +1666,17 @@
         return;
       }
 
-      global.reverseFlowPendingVerifiedSupportPurchase = pendingPurchase;
-      const registration = document.getElementById("supportRegistrationSection");
+      if (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken) {
+        global.reverseFlowPendingVerifiedSupportPurchase = pendingPurchase;
+      }
+      const registration = registrationSection;
       if (registration) {
         registration.hidden = false;
         pageStatus.textContent =
-          "The store accepted the purchase. Enter your name and email so the backend can verify and register your Supporter status.";
+          "Your support was received. Add your name and email to finish setting up your Supporter status.";
         registration.scrollIntoView({ behavior: "smooth", block: "start" });
       }
+      renderSupportPage(cache, registryService, purchaseService);
     };
 
     renderSupportOptions(
@@ -1504,13 +1685,6 @@
       getPlatform(),
       handlePendingPurchase
     );
-    renderSupportOptions(
-      document.getElementById("manageSupportOptions"),
-      purchaseService,
-      getPlatform(),
-      handlePendingPurchase
-    );
-
     if (page.dataset.purchaseRecoveryBound !== "true") {
       page.dataset.purchaseRecoveryBound = "true";
       purchaseService.onRecovery(pendingPurchase => {
@@ -1542,23 +1716,11 @@
       manageButton.addEventListener("click", async () => {
         try {
           await purchaseService.openNativeSubscriptionManagement();
+          await refreshSupporterStatus(cache, registryService);
+          renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
           pageStatus.textContent = error.message;
         }
-      });
-    }
-
-    const completePendingButton = document.getElementById(
-      "completePendingSupportRegistrationButton"
-    );
-    if (completePendingButton && completePendingButton.dataset.bound !== "true") {
-      completePendingButton.dataset.bound = "true";
-      completePendingButton.addEventListener("click", () => {
-        const pendingPurchase = global.reverseFlowPendingVerifiedSupportPurchase;
-        const registration = document.getElementById("supportRegistrationSection");
-        if (!pendingPurchase || !registration) return;
-        registration.hidden = false;
-        registration.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
 
@@ -1574,8 +1736,9 @@
             ? "Refreshing Apple subscription status…"
             : "Refreshing Google Play subscription status…";
         try {
-          const pendingPurchase = await purchaseService.refreshSubscriptionPurchases();
-          await handlePendingPurchase(pendingPurchase);
+          await refreshSupporterStatus(cache, registryService);
+          renderSupportPage(cache, registryService, purchaseService);
+          pageStatus.textContent = "Support status refreshed.";
         } catch (error) {
           pageStatus.textContent = error.message;
         } finally {
@@ -1622,7 +1785,7 @@
         } finally {
           recoveryButton.dataset.checking = "false";
           recoveryButton.disabled = false;
-          recoveryButton.textContent = "Check Existing Purchase";
+          recoveryButton.textContent = "Check Previous PRO Purchase";
         }
       });
     }
@@ -1658,6 +1821,7 @@
             return;
           }
           message.textContent = "Supporter status recovered from the Supporter Directory.";
+          await refreshSupporterStatus(cache, registryService);
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
           message.textContent = error.message ||
@@ -1772,12 +1936,14 @@
           return;
         }
         if (!navigator.onLine) {
+          purchaseService.retryStore.markAttempt("registration-failed");
           status.textContent = "An internet connection is required to update your supporter status.";
           return;
         }
 
         submit.disabled = true;
-        status.textContent = "Registering verified support…";
+        purchaseService.retryStore.markAttempt("registration-started");
+        status.textContent = "Finishing your Supporter setup…";
         try {
           const confirmed = await registryService.registerVerifiedPurchase(payload);
           if (verifiedPurchase?.recoverySource) {
@@ -1801,10 +1967,16 @@
             return;
           }
           try {
-            await purchaseService.finishPurchase(verifiedPurchase);
+            purchaseService.retryStore.markAttempt("confirmed-awaiting-finish");
+            await purchaseService.finishPurchase(verifiedPurchase, {
+              backendVerified: true,
+              registrationSucceeded: true,
+              supporterCached: true
+            });
             global.reverseFlowPendingVerifiedSupportPurchase = null;
             status.textContent = "Supporter status confirmed. Welcome to the Reverse Flow community.";
           } catch (finishError) {
+            purchaseService.retryStore.markAttempt("finish-failed");
             status.textContent =
               "Supporter status is confirmed. StoreKit completion remains pending and will be retried.";
             console.warn("[Reverse Flow Support Purchase]", {
@@ -1815,6 +1987,7 @@
           registrationForm.reset();
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
+          purchaseService.retryStore.markAttempt("registration-failed");
           if (verifiedPurchase?.recoverySource) {
             registryService.logRegistration("info", {
               event: "consumable-recovery-backend-verification-result",
@@ -1869,7 +2042,11 @@
       const now = Date.now();
       if (now - lastRefreshStartedAt < 60000) return;
       lastRefreshStartedAt = now;
-      void refreshSupporterStatus(cache, registry);
+      void refreshSupporterStatus(cache, registry).then(() => {
+        if (document.getElementById("supportPage")) {
+          renderSupportPage(cache, registry, purchases);
+        }
+      });
     };
     setTimeout(requestStatusRefresh, 0);
     document.addEventListener("resume", requestStatusRefresh);
@@ -1895,10 +2072,12 @@
     SupporterRegistryError,
     SupporterRegistryService,
     SupportPurchaseRetryStore,
+    PendingSupportRegistrationStore,
     SupportPurchaseService,
     SupportPurchaseError,
     createLegacyClaimPayload,
     createPurchaseRegistrationPayload,
+    createPendingVerificationPayload,
     refreshSupporterStatus,
     recoverSupporterIdentity,
     getConfiguredApi,

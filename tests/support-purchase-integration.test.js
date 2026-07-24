@@ -5,10 +5,19 @@ const test = require("node:test");
 
 const {
   SupporterCache,
+  PendingSupportRegistrationStore,
   SupportPurchaseService,
   SupportPurchaseRetryStore,
   createPurchaseRegistrationPayload
 } = require("../www/js/services/supporter.js");
+const supportPageSource = fs.readFileSync(
+  path.join(__dirname, "..", "www", "support.html"),
+  "utf8"
+);
+const supporterServiceSource = fs.readFileSync(
+  path.join(__dirname, "..", "www", "js", "services", "supporter.js"),
+  "utf8"
+);
 
 const constantsSource = fs.readFileSync(
   path.join(__dirname, "..", "www", "js", "constants.js"),
@@ -354,9 +363,122 @@ test("approved Apple purchase stays unfinished until backend confirmation", asyn
   assert.equal(pending.transactionId, "2000000123456789");
   assert.equal(pending.originalTransactionId, "1000000123456789");
   assert.equal(fixture.counts().finishCalls, 0);
+  const pendingRecord = service.readPendingRegistration();
+  assert.deepEqual(
+    Object.keys(pendingRecord).sort(),
+    [
+      "approvedAt",
+      "lastRegistrationAttemptAt",
+      "lastRegistrationAttemptStatus",
+      "productId",
+      "provider",
+      "state",
+      "transactionReference",
+      "version"
+    ].sort()
+  );
+  assert.equal(pendingRecord.provider, "apple");
+  assert.equal(pendingRecord.state, "registration-required");
+  assert.equal(JSON.stringify(pendingRecord).includes("2000000123456789"), false);
+  assert.equal(JSON.stringify(pendingRecord).includes("header.payload.signature"), false);
 
-  await service.finishPurchase(pending);
+  await assert.rejects(
+    service.finishPurchase(pending),
+    error => error.code === "purchase_finish_preconditions_not_met"
+  );
+  assert.notEqual(service.readPendingRegistration(), null);
+  await service.finishPurchase(pending, {
+    backendVerified: true,
+    registrationSucceeded: true,
+    supporterCached: true
+  });
   assert.equal(fixture.counts().finishCalls, 1);
+  assert.equal(service.readPendingRegistration(), null);
+});
+
+test("pending registration survives restart and never grants Supporter identity", async () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  };
+  const first = new PendingSupportRegistrationStore(storage);
+  first.write({
+    paymentSource: "android",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseToken: "sensitive-google-token",
+    purchaseTimestamp: "2026-07-24T12:00:00Z"
+  });
+  first.markAttempt("registration-failed");
+
+  const afterRestart = new PendingSupportRegistrationStore(storage).read();
+  assert.equal(afterRestart.provider, "google");
+  assert.equal(afterRestart.productId, "reverse_flow_support_one_time_5");
+  assert.equal(afterRestart.lastRegistrationAttemptStatus, "registration-failed");
+  assert.equal(JSON.stringify(afterRestart).includes("sensitive-google-token"), false);
+  assert.equal(new SupporterCache(storage).read().isSupporter, false);
+});
+
+test("failed store finish retains the pending marker for retry", async () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  };
+  installPurchaseGlobals("android", {});
+  const service = new SupportPurchaseService(CONFIG, {
+    store: {},
+    pendingStore: new PendingSupportRegistrationStore(storage)
+  });
+  const evidence = {
+    paymentSource: "android",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseToken: "google-token-for-finish-test",
+    purchaseTimestamp: "2026-07-24T12:00:00Z",
+    transaction: {
+      async finish() {
+        throw new Error("fixture finish failure");
+      }
+    }
+  };
+  service.retryStore.write(evidence);
+  await assert.rejects(
+    service.finishPurchase(evidence, {
+      backendVerified: true,
+      registrationSucceeded: true,
+      supporterCached: true
+    }),
+    /fixture finish failure/
+  );
+  assert.equal(service.readPendingRegistration()?.state, "registration-required");
+});
+
+test("pending and recovery presentation uses plain-language state-aware actions", () => {
+  assert.match(supportPageSource, /Finish Becoming a Supporter/);
+  assert.match(
+    supportPageSource,
+    /Your support was received\. Add your name and email to finish setting up your Supporter status\./
+  );
+  assert.match(supportPageSource, /Already supported Reverse Flow\?/);
+  assert.match(supportPageSource, /Recover My Supporter Status/);
+  assert.match(supportPageSource, /Purchased the original Reverse Flow PRO\?/);
+  assert.match(supportPageSource, /Check Previous PRO Purchase/);
+  assert.match(
+    supportPageSource,
+    /Having trouble with your subscription\? Refresh status/
+  );
+  assert.doesNotMatch(supportPageSource, /Restore Support Purchases/);
+  assert.doesNotMatch(supportPageSource, />Refresh Subscription Status</);
+  assert.match(
+    supporterServiceSource,
+    /optionsSection\.hidden = hasPendingRegistration/
+  );
+  assert.match(
+    supporterServiceSource,
+    /document\.addEventListener\("resume", requestStatusRefresh\)/
+  );
 });
 
 test("cancel and pending outcomes never produce registration evidence", async () => {
@@ -461,7 +583,11 @@ test("iOS consumable recovery uses Transaction.unfinished without restore semant
   assert.equal(storageValues.size, 1);
   assert.equal(new SupporterCache(storage).read().isSupporter, false);
 
-  await service.finishPurchase(recovered);
+  await service.finishPurchase(recovered, {
+    backendVerified: true,
+    registrationSucceeded: true,
+    supporterCached: true
+  });
   assert.equal(nativeFinishCalls, 1);
   assert.equal(storageValues.size, 0);
 });

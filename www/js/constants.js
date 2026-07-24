@@ -44,11 +44,13 @@ const SUPPORTER_API_CONFIG = Object.freeze({
   }),
   routes: Object.freeze({
     claimLegacy: "/api/supporters/claim-legacy",
+    verifyPendingPurchase: "/api/supporters/verify-pending",
     verifyPurchase: "/api/supporters/verify-purchase",
     status: "/api/supporters/status"
   }),
   timeoutsMs: Object.freeze({
     claimLegacy: 15000,
+    verifyPendingPurchase: 20000,
     verifyPurchase: 20000,
     status: 10000
   })

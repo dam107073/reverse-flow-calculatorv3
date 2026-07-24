@@ -1693,6 +1693,46 @@
       margin: 0 0 0.8rem;
     }
 
+    .support-help {
+      display: grid;
+      gap: 0.55rem;
+      margin: 28px 0 22px;
+      color: var(--muted);
+    }
+
+    .support-help details {
+      border-top: 1px solid rgba(107, 114, 128, 0.22);
+      padding-top: 0.65rem;
+    }
+
+    .support-help summary {
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .support-help-panel {
+      padding: 0.8rem 0 0.3rem;
+    }
+
+    .support-help-panel h2 {
+      margin-bottom: 0.35rem;
+      font-size: 1.05rem !important;
+    }
+
+    .support-troubleshooting-action {
+      justify-self: start;
+      min-height: auto;
+      padding: 0.35rem 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 750;
+      text-decoration: underline;
+      box-shadow: none;
+    }
+
     .support-identity-form {
       display: grid;
       gap: 0.65rem;

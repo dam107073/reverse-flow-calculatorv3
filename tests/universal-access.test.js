@@ -41,11 +41,14 @@ test("support UI uses one compact action, live store options, and approved copy"
 
   assert.match(supporter, /option\.state === "ready"[\s\S]*"Purchase"/);
   assert.doesNotMatch(supporter, /Coming Soon/);
-  assert.match(supportHtml, /Already purchased Reverse Flow PRO\?/);
-  assert.match(supportHtml, />Check Existing Purchase</);
-  assert.match(supportHtml, />Complete Pending Support Registration</);
-  assert.match(supportHtml, />Recover Supporter Status</);
-  assert.match(supportHtml, />Refresh Subscription Status</);
+  assert.match(supportHtml, /Purchased the original Reverse Flow PRO\?/);
+  assert.match(supportHtml, />Check Previous PRO Purchase</);
+  assert.match(supportHtml, /Finish Becoming a Supporter/);
+  assert.match(supportHtml, />Recover My Supporter Status</);
+  assert.match(
+    supportHtml,
+    /Having trouble with your subscription\? Refresh status/
+  );
   assert.doesNotMatch(supportHtml, /Restore Support Purchases/);
   assert.match(
     supporter,

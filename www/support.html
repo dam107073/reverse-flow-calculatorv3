@@ -9,7 +9,7 @@
   <script src="js/appearance.js?v=build-1"></script>
   <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
   <link rel="stylesheet" href="css/components.css?v=community-1" />
-  <link rel="stylesheet" href="css/support.css?v=community-polish-2" />
+  <link rel="stylesheet" href="css/support.css?v=community-polish-3" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
 </head>
 <body>
@@ -52,36 +52,6 @@
       <p class="helper support-products-note" id="supportProductsUnavailable">
         Loading localized prices from the store…
       </p>
-      <button
-        id="refreshSupportSubscriptionsButton"
-        class="support-secondary-action"
-        type="button"
-      >Refresh Subscription Status</button>
-    </section>
-
-    <section class="card" id="pendingSupportRegistrationSection" hidden>
-      <h2>Complete Pending Support Registration</h2>
-      <p>
-        StoreKit found verified one-time support that has not been finished. Complete backend registration before this transaction is finished.
-      </p>
-      <button
-        id="completePendingSupportRegistrationButton"
-        class="support-primary-action"
-        type="button"
-      >Complete Pending Support Registration</button>
-    </section>
-
-    <section class="card" id="recoverSupporterStatusSection">
-      <h2>Recover Supporter Status</h2>
-      <p>
-        Already registered? Enter the same email to recover your permanent Supporter identity from the Supporter Directory. No purchase or welcome email is required.
-      </p>
-      <form id="recoverSupporterStatusForm" class="support-identity-form" novalidate>
-        <label for="recoverSupporterEmail">Email address</label>
-        <input id="recoverSupporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
-        <button class="support-secondary-action" type="submit">Recover Supporter Status</button>
-        <p id="recoverSupporterStatusMessage" class="support-status" role="status" aria-live="polite"></p>
-      </form>
     </section>
 
     <section class="support-editorial-section support-benefits-card">
@@ -94,20 +64,33 @@
       </ul>
     </section>
 
-    <section class="support-editorial-section legacy-recovery-card" id="legacyRecoverySection">
-      <h2>Already purchased Reverse Flow PRO?</h2>
-      <p class="helper">For firefighters who purchased the original lifetime version.</p>
-      <button
-        id="checkExistingPurchaseButton"
-        class="support-secondary-action"
-        type="button"
-      >Check Existing Purchase</button>
-      <p
-        id="legacyRecoveryStatus"
-        class="support-status"
-        role="status"
-        aria-live="polite"
-      ></p>
+    <section class="support-help" id="recoverSupporterStatusSection">
+      <details id="supporterRecoveryDisclosure">
+        <summary>Already supported Reverse Flow?</summary>
+        <div class="support-help-panel">
+          <h2>Already a Supporter?</h2>
+          <p>
+            Enter the same email you used when registering to recover your Supporter status on this device.
+          </p>
+          <form id="recoverSupporterStatusForm" class="support-identity-form" novalidate>
+            <label for="recoverSupporterEmail">Email address</label>
+            <input id="recoverSupporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
+            <button class="support-secondary-action" type="submit">Recover My Supporter Status</button>
+            <p id="recoverSupporterStatusMessage" class="support-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </details>
+      <details id="legacyRecoverySection">
+        <summary>Purchased the original Reverse Flow PRO?</summary>
+        <div class="support-help-panel">
+          <button
+            id="checkExistingPurchaseButton"
+            class="support-secondary-action"
+            type="button"
+          >Check Previous PRO Purchase</button>
+          <p id="legacyRecoveryStatus" class="support-status" role="status" aria-live="polite"></p>
+        </div>
+      </details>
     </section>
 
     <section class="card" id="legacyClaimSection" hidden>
@@ -131,19 +114,24 @@
       <p>
         Apple or Google remains the billing authority. Ending recurring support never removes permanent Supporter status.
       </p>
-      <div class="support-options" id="manageSupportOptions"></div>
       <button id="manageSubscriptionButton" type="button">Open Subscription Management</button>
+      <button
+        id="refreshSupportSubscriptionsButton"
+        class="support-troubleshooting-action"
+        type="button"
+      >Having trouble with your subscription? Refresh status</button>
     </section>
 
     <section class="card" id="supportRegistrationSection" hidden>
-      <h2>Register verified support</h2>
-      <p>After the store verifies a contribution, provide your name and email so the Supporter Registry can confirm your status.</p>
+      <p class="support-section-kicker">Your support was received</p>
+      <h2>Finish Becoming a Supporter</h2>
+      <p>Your support was received. Add your name and email to finish setting up your Supporter status.</p>
       <form id="supportRegistrationForm" class="support-identity-form" novalidate>
         <label for="registrationFullName">Full name</label>
         <input id="registrationFullName" name="fullName" type="text" autocomplete="name" required />
         <label for="registrationEmail">Email address</label>
         <input id="registrationEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
-        <button class="support-primary-action" type="submit">Register Support</button>
+        <button class="support-primary-action" type="submit">Finish Supporter Setup</button>
       </form>
     </section>
 
@@ -151,8 +139,8 @@
     <p class="version-footer">Reverse Flow · Fire Hydraulics · © 2026</p>
   </main>
 
-  <script src="js/constants.js?v=community-4b"></script>
+  <script src="js/constants.js?v=community-4d"></script>
   <script src="js/services/entitlement.js?v=community-4b"></script>
-  <script src="js/services/supporter.js?v=community-4d"></script>
+  <script src="js/services/supporter.js?v=community-4d-ux1"></script>
 </body>
 </html>
