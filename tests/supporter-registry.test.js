@@ -165,6 +165,25 @@ test("status client normalizes email and uses privacy-safe GET header", async ()
   assert.doesNotMatch(calls[0].url, /firefighter/i);
 });
 
+test("status lookup temporarily falls back to POST for an older Preview backend", async () => {
+  const calls = [];
+  const service = new SupporterRegistryService(API_CONFIG, {
+    navigator: { onLine: true },
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      return calls.length === 1
+        ? response(405, { code: "method_not_allowed", error: "Method not allowed." })
+        : response(200, confirmedResponse);
+    }
+  });
+  const result = await service.getStatus("firefighter@example.com");
+  assert.equal(result.isSupporter, true);
+  assert.deepEqual(calls.map(call => call.options.method), ["GET", "POST"]);
+  assert.deepEqual(JSON.parse(calls[1].options.body), {
+    email: "firefighter@example.com"
+  });
+});
+
 test("native purchase registration uses the public verification route without secrets", async () => {
   const calls = [];
   const logs = [];

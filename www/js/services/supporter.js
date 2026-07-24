@@ -460,12 +460,17 @@
           { code: "email_invalid" }
         );
       }
-      return this.request(
-        "status",
-        { email: normalizedEmail },
-        "status",
-        { method: "GET" }
-      );
+      try {
+        return await this.request(
+          "status",
+          { email: normalizedEmail },
+          "status",
+          { method: "GET" }
+        );
+      } catch (error) {
+        if (error?.code !== "method_not_allowed") throw error;
+        return this.request("status", { email: normalizedEmail }, "status");
+      }
     }
 
     async submitLegacyClaim(payload) {
