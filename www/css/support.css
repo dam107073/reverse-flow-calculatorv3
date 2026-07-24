@@ -1447,6 +1447,7 @@
 
     #supportPage {
       padding-top: 14px;
+      overflow-x: clip;
     }
 
     #supportPage .page-nav {
@@ -1460,11 +1461,13 @@
       min-height: 42px;
     }
 
-    #supportPage > .card {
+    #supportPage > .card,
+    #supportPage > .support-editorial-section {
       padding: 16px;
     }
 
-    #supportPage > .card h2 {
+    #supportPage > .card h2,
+    #supportPage > .support-editorial-section h2 {
       margin: 0 0 0.55rem;
       font-size: clamp(1.1rem, 5vw, 1.35rem);
       line-height: 1.2;
@@ -1476,42 +1479,118 @@
     }
 
     .support-kicker {
-      margin: 0 0 0.25rem;
-      color: var(--support-accent-deep);
+      margin: 0 0 0.65rem;
+      color: #ff9a42;
       font-size: 0.72rem;
       font-weight: 900;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
     }
 
     .support-page-hero {
-      border-color: rgba(255, 101, 0, 0.34);
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      margin-bottom: 26px;
+      padding: 26px 22px 24px;
+      border: 1px solid rgba(255, 138, 31, 0.25);
+      border-radius: 18px;
+      background-color: #0d141d;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 28px 28px;
       box-shadow:
-        inset 4px 0 0 var(--support-accent),
-        0 10px 26px rgba(17, 24, 39, 0.08);
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 14px 34px rgba(8, 13, 20, 0.18);
+      color: #f7f9fb;
+    }
+
+    .support-page-hero::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      width: 220px;
+      height: 220px;
+      right: -120px;
+      bottom: -135px;
+      border-radius: 50%;
+      background: rgba(255, 101, 0, 0.22);
+      filter: blur(28px);
     }
 
     .support-page-hero h2 {
-      margin-top: 0;
+      max-width: 9ch;
+      margin: 0 0 1rem;
+      color: #fff;
+      font-size: clamp(2.15rem, 11vw, 3.5rem);
+      font-style: italic;
+      font-weight: 950;
+      letter-spacing: -0.055em;
+      line-height: 0.93;
+      text-transform: uppercase;
     }
 
-    .support-page-hero > p {
-      margin-top: 0.35rem;
+    .support-hero-lead {
+      max-width: 32rem;
+      margin: 0;
+      color: #f4f6f8;
+      font-size: 1rem;
+      font-weight: 760;
+      line-height: 1.45;
     }
 
     .support-philosophy {
       display: grid;
-      gap: 0.3rem;
-      margin-top: 0.85rem;
-      padding-top: 0.8rem;
-      border-top: 1px solid rgba(255, 101, 0, 0.24);
+      gap: 0.22rem;
+      margin-top: 1rem;
+      padding-top: 0.95rem;
+      border-top: 1px solid rgba(255, 138, 31, 0.35);
     }
 
     .support-philosophy p {
       margin: 0;
-      font-size: 0.9rem;
-      font-weight: 720;
+      color: #cbd2da;
+      font-size: 0.88rem;
+      font-weight: 700;
       line-height: 1.35;
+    }
+
+    .support-state-note {
+      display: inline-block;
+      margin: 1.15rem 0 0;
+      padding: 0.38rem 0.65rem;
+      border: 1px solid rgba(255, 154, 66, 0.35);
+      border-radius: 999px;
+      background: rgba(255, 101, 0, 0.1);
+      color: #ffd3ad;
+      font-size: 0.78rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .support-editorial-section {
+      margin: 0 0 22px;
+      border: 0;
+      border-top: 1px solid rgba(255, 101, 0, 0.24);
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .support-section-kicker {
+      margin: 0 0 0.35rem;
+      color: var(--support-accent-deep);
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .support-invitation h2 {
+      max-width: 18ch;
+      font-size: clamp(1.55rem, 7vw, 2rem) !important;
+      letter-spacing: -0.025em;
     }
 
     .support-primary-action,
@@ -1594,7 +1673,19 @@
     }
 
     .legacy-recovery-card {
-      border-color: rgba(255, 101, 0, 0.28);
+      margin-top: 30px;
+      padding-top: 18px !important;
+      border-top-color: rgba(107, 114, 128, 0.28);
+      color: var(--muted);
+    }
+
+    .legacy-recovery-card h2 {
+      color: var(--ink);
+      font-size: 1rem !important;
+    }
+
+    .legacy-recovery-card .helper {
+      margin: 0 0 0.8rem;
     }
 
     .support-identity-form {
@@ -1621,8 +1712,13 @@
         padding-top: 12px;
       }
 
-      #supportPage > .card {
+      #supportPage > .card,
+      #supportPage > .support-editorial-section {
         padding: 14px;
+      }
+
+      .support-page-hero {
+        padding: 24px 20px 22px;
       }
 
       .support-primary-action,
@@ -1637,6 +1733,7 @@
     }
 
     html[data-resolved-theme="dark"] .support-kicker,
+    html[data-resolved-theme="dark"] .support-section-kicker,
     html[data-resolved-theme="dark"] .support-option-availability,
     html[data-resolved-theme="dark"] .support-secondary-action {
       color: #ffb36f;

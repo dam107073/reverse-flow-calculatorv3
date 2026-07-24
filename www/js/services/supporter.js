@@ -586,19 +586,19 @@
     const manageSection = document.getElementById("manageSupportSection");
     const optionsSection = document.getElementById("supportOptionsSection");
 
-    title.textContent = ACTION_CONTENT[safeAction].label;
+    title.textContent = "Support Reverse Flow";
     claimSection.hidden = safeAction !== ACTIONS.CLAIM;
     manageSection.hidden = safeAction !== ACTIONS.MANAGE;
     optionsSection.hidden = safeAction === ACTIONS.CLAIM || safeAction === ACTIONS.MANAGE;
 
     if (safeAction === ACTIONS.BECOME) {
-      intro.textContent = "Support is voluntary and helps fund continued development.";
+      intro.textContent = "Join the firefighters helping Reverse Flow keep growing.";
     } else if (safeAction === ACTIONS.CONTINUE) {
       intro.textContent = "Thank you for helping build what comes next.";
     } else if (safeAction === ACTIONS.CLAIM) {
-      intro.textContent = "Your previous purchase qualifies you for permanent Supporter status. No additional purchase is required.";
+      intro.textContent = "Previous purchase found. Claim your permanent Supporter status below.";
     } else {
-      intro.textContent = "View your verified recurring contribution and use your platform’s billing tools to make changes.";
+      intro.textContent = "Thank you for standing behind Reverse Flow.";
     }
 
     const contribution = state.contribution;

@@ -10,6 +10,30 @@ const ACCESS_LEVELS = {
 const ACCESS_LEVEL_STORAGE_KEY =
   "reverse-flow-access-level";
 
+const LEGACY_ENTITLEMENT_SOURCES = Object.freeze({
+  STOREKIT2_CURRENT_ENTITLEMENTS: "storekit2-current-entitlements",
+  CORDOVA_VERIFIED_RECEIPT: "cordova-verified-receipt",
+  CORDOVA_OWNED_PRODUCT: "cordova-owned-product",
+  GOOGLE_OWNED_PURCHASE: "google-owned-purchase",
+  PERSISTED_VERIFIED_LEGACY_CACHE: "persisted-verified-legacy-cache",
+  OLD_PRO_STORAGE_MIGRATION: "old-pro-storage-migration",
+  MANUAL_STORE_SYNC: "manual-store-sync",
+  TEST_FIXTURE: "test-fixture"
+});
+const LEGACY_ENTITLEMENT_SOURCE_VALUES =
+  new Set(Object.values(LEGACY_ENTITLEMENT_SOURCES));
+
+let userAccessLevel = ACCESS_LEVELS.BASIC;
+
+function logLegacyEntitlementStateChanged(eligible, source) {
+  console.info("[Reverse Flow Legacy Entitlement]", {
+    event: "legacy-entitlement-state-changed",
+    eligible: eligible === true,
+    source,
+    productId: REVERSE_FLOW_PRO_PRODUCT_ID
+  });
+}
+
 function logProAccessEvent(event, details = {}) {
   console.info("[Reverse Flow Pro Access]", {
     event,
@@ -23,7 +47,9 @@ function isValidStoredProEntitlement(entitlement) {
     entitlement &&
     entitlement.access === ACCESS_LEVELS.PRO &&
     entitlement.source === "purchase" &&
-    entitlement.productId === REVERSE_FLOW_PRO_PRODUCT_ID
+    entitlement.productId === REVERSE_FLOW_PRO_PRODUCT_ID &&
+    typeof entitlement.verifiedAt === "string" &&
+    Number.isFinite(Date.parse(entitlement.verifiedAt))
   );
 }
 
@@ -34,9 +60,13 @@ function loadStoredAccessLevel() {
     );
 
     if (isValidStoredProEntitlement(entitlement)) {
+      logLegacyEntitlementStateChanged(
+        true,
+        LEGACY_ENTITLEMENT_SOURCES.PERSISTED_VERIFIED_LEGACY_CACHE
+      );
       console.info("[Reverse Flow Pro Access]", {
         event: "stored-entitlement-granted",
-        source: "stored entitlement",
+        source: LEGACY_ENTITLEMENT_SOURCES.PERSISTED_VERIFIED_LEGACY_CACHE,
         productId: entitlement.productId,
         verifiedAt: entitlement.verifiedAt
       });
@@ -64,7 +94,7 @@ function loadStoredAccessLevel() {
   return ACCESS_LEVELS.BASIC;
 }
 
-let userAccessLevel = loadStoredAccessLevel();
+userAccessLevel = loadStoredAccessLevel();
 
 function isProUser() {
   return userAccessLevel === ACCESS_LEVELS.PRO;
@@ -193,6 +223,94 @@ function storeOwnsLegacyProProduct(store, storePlatform) {
   );
 }
 
+function getIosLegacyEntitlementPlugin() {
+  if (window.Capacitor?.getPlatform?.() !== "ios") return null;
+  if (
+    typeof window.Capacitor?.isPluginAvailable === "function" &&
+    !window.Capacitor.isPluginAvailable("LegacyEntitlement")
+  ) {
+    return null;
+  }
+  const plugin = window.Capacitor?.Plugins?.LegacyEntitlement;
+  return typeof plugin?.checkEntitlement === "function" ? plugin : null;
+}
+
+async function recoverIosLegacyProEntitlement(options = {}) {
+  const trigger = options.trigger || "legacy-purchase-recovery";
+  const synchronize = options.synchronize === true;
+  console.info("[Reverse Flow IAP]", {
+    event: "storekit2-bridge-invocation-started",
+    productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+    synchronized: synchronize,
+    trigger
+  });
+
+  const plugin = getIosLegacyEntitlementPlugin();
+  if (!plugin) {
+    const error = new Error(
+      "LegacyEntitlement native bridge is unavailable"
+    );
+    console.warn("[Reverse Flow IAP]", {
+      event: "storekit2-bridge-invocation-failed",
+      synchronized: synchronize,
+      trigger,
+      message: error.message
+    });
+    throw error;
+  }
+
+  let result;
+  try {
+    result = await plugin.checkEntitlement({ synchronize });
+  } catch (error) {
+    console.warn("[Reverse Flow IAP]", {
+      event: "storekit2-bridge-invocation-failed",
+      synchronized: synchronize,
+      trigger,
+      message: error?.message || String(error)
+    });
+    throw error;
+  }
+  const found =
+    result?.owned === true &&
+    result?.productId === REVERSE_FLOW_PRO_PRODUCT_ID;
+
+  if (found) {
+    setAccessLevel(ACCESS_LEVELS.PRO, {
+      source: "purchase",
+      provenanceSource: synchronize
+        ? LEGACY_ENTITLEMENT_SOURCES.MANUAL_STORE_SYNC
+        : LEGACY_ENTITLEMENT_SOURCES.STOREKIT2_CURRENT_ENTITLEMENTS,
+      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+      trigger,
+      platform: "ios",
+      purchaseState: "verified-current-entitlement",
+      transactionId: result.transactionId || null,
+      originalTransactionId: result.originalTransactionId || null,
+      purchaseTimestamp: result.purchaseDate || null,
+      originalPurchaseTimestamp:
+        result.originalPurchaseDate ||
+        result.purchaseDate ||
+        null,
+      environment: result.environment || null
+    });
+  }
+
+  console.info("[Reverse Flow IAP]", {
+    event: "storekit-current-entitlement-check",
+    productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+    found,
+    synchronized: synchronize,
+    trigger
+  });
+
+  return {
+    found: hasLegacyProEntitlement(),
+    evidence: collectLegacyProEntitlementEvidence(),
+    authoritativeSource: "storekit-current-entitlements"
+  };
+}
+
 async function initializeLegacyPurchaseStoreIfNeeded(store, storePlatform) {
   if (store.isReady) return;
 
@@ -217,6 +335,28 @@ async function recoverLegacyProPurchase(options = {}) {
 
   legacyPurchaseRecoveryInFlight = (async () => {
     const trigger = options.trigger || "manual-check-existing-purchase";
+    if (window.Capacitor?.getPlatform?.() === "ios") {
+      try {
+        return await recoverIosLegacyProEntitlement({
+          trigger,
+          synchronize:
+            options.synchronize !== false &&
+            options.startup !== true
+        });
+      } catch (error) {
+        console.warn("[Reverse Flow Supporter]", {
+          event: "ios-legacy-entitlement-recovery-failed",
+          trigger,
+          message: error?.message || String(error)
+        });
+        return {
+          found: hasLegacyProEntitlement(),
+          error,
+          evidence: collectLegacyProEntitlementEvidence()
+        };
+      }
+    }
+
     if (navigator.onLine === false) {
       return {
         found: hasLegacyProEntitlement(),
@@ -253,6 +393,10 @@ async function recoverLegacyProPurchase(options = {}) {
           ...evidence,
           trigger,
           source: "purchase",
+          provenanceSource:
+            storePlatform === window.CdvPurchase?.Platform?.GOOGLE_PLAY
+              ? LEGACY_ENTITLEMENT_SOURCES.GOOGLE_OWNED_PURCHASE
+              : LEGACY_ENTITLEMENT_SOURCES.CORDOVA_OWNED_PRODUCT,
           productId: REVERSE_FLOW_PRO_PRODUCT_ID
         });
       }
@@ -284,13 +428,15 @@ async function recoverLegacyProPurchase(options = {}) {
 
 async function refreshLegacyProEntitlementEvidence() {
   const result = await recoverLegacyProPurchase({
-    trigger: "legacy-evidence-refresh"
+    trigger: "legacy-evidence-refresh",
+    synchronize: false
   });
   return result.evidence;
 }
 
 window.recoverLegacyProPurchase = recoverLegacyProPurchase;
 window.refreshLegacyProEntitlementEvidence = refreshLegacyProEntitlementEvidence;
+window.recoverIosLegacyProEntitlement = recoverIosLegacyProEntitlement;
 
 function getToolsSafeRedirectUrl() {
   try {
@@ -362,19 +508,28 @@ function guardToolsAccess(options = {}) {
 }
 
 function setAccessLevel(level, grantDetails = {}) {
+  const provenanceSource = grantDetails.provenanceSource;
   if (
     level === ACCESS_LEVELS.PRO &&
-    grantDetails.productId !== REVERSE_FLOW_PRO_PRODUCT_ID
+    (
+      grantDetails.productId !== REVERSE_FLOW_PRO_PRODUCT_ID ||
+      !LEGACY_ENTITLEMENT_SOURCE_VALUES.has(provenanceSource)
+    )
   ) {
     logProAccessEvent("pro-grant-denied", {
       trigger: grantDetails.trigger,
       source: grantDetails.source,
+      provenanceSource: provenanceSource || null,
       productId: grantDetails.productId || null,
-      reason: "product ID did not match approved lifetime product"
+      reason:
+        grantDetails.productId !== REVERSE_FLOW_PRO_PRODUCT_ID
+          ? "product ID did not match approved lifetime product"
+          : "legacy entitlement provenance source was not approved"
     });
     return false;
   }
 
+  const wasLegacyEligible = hasLegacyProEntitlement();
   userAccessLevel = level;
 
   localStorage.setItem(
@@ -397,6 +552,7 @@ function setAccessLevel(level, grantDetails = {}) {
       JSON.stringify({
         access: ACCESS_LEVELS.PRO,
         source: grantDetails.source,
+        provenanceSource,
         productId: grantDetails.productId,
         trigger: grantDetails.trigger,
         originalTransactionId:
@@ -473,9 +629,13 @@ function setAccessLevel(level, grantDetails = {}) {
   if (typeof updateAccessBadge === "function") {
     updateAccessBadge();
   }
+  if (!wasLegacyEligible && hasLegacyProEntitlement()) {
+    logLegacyEntitlementStateChanged(true, provenanceSource);
+  }
   logProAccessEvent("access-level-updated", {
     trigger: grantDetails.trigger,
     source: grantDetails.source,
+    provenanceSource: provenanceSource || null,
     productId: grantDetails.productId || null
   });
   return true;

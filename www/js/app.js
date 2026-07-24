@@ -497,6 +497,10 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	   document.addEventListener("deviceready", () => {
 	  console.log("Device ready fired.");
 
+	  if (window.Capacitor?.getPlatform?.() === "ios") {
+	    startLegacyPurchaseRecovery();
+	  }
+
 	  if (!window.CdvPurchase) {
 	    console.warn("CdvPurchase is NOT available.");
 	    updateBuyProButtonState("unavailable", {
@@ -806,6 +810,10 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  const proWasGranted = setAccessLevel(ACCESS_LEVELS.PRO, {
 	    trigger,
 	    source: "purchase",
+	    provenanceSource:
+	      getReverseFlowPurchasePlatform() === window.CdvPurchase?.Platform?.GOOGLE_PLAY
+	        ? LEGACY_ENTITLEMENT_SOURCES.GOOGLE_OWNED_PURCHASE
+	        : LEGACY_ENTITLEMENT_SOURCES.CORDOVA_OWNED_PRODUCT,
 	    productId: ownership.productId
 	  });
 
@@ -1002,11 +1010,11 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      : nativePurchase?.purchaseTime
 	        ? new Date(Number(nativePurchase.purchaseTime)).toISOString()
 	        : null;
-	    const entitlement = {
-	      access: ACCESS_LEVELS.PRO,
-	      source: "purchase",
-	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+	    const proWasGranted = setAccessLevel(ACCESS_LEVELS.PRO, {
 	      trigger,
+	      source: "purchase",
+	      provenanceSource: LEGACY_ENTITLEMENT_SOURCES.GOOGLE_OWNED_PURCHASE,
+	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
 	      originalTransactionId: null,
 	      transactionId: transaction?.transactionId || null,
 	      purchaseToken:
@@ -1023,14 +1031,11 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      orderId: nativePurchase?.orderId || transaction?.transactionId || null,
 	      packageName: nativePurchase?.packageName || null,
 	      obfuscatedAccountId: nativePurchase?.accountId || null,
-	      obfuscatedProfileId: nativePurchase?.profileId || null,
-	      verifiedAt: new Date().toISOString()
-	    };
-	    localStorage.setItem(
-	      PRO_ENTITLEMENT_STORAGE_KEY,
-	      JSON.stringify(entitlement)
-	    );
-	    localStorage.setItem(ACCESS_LEVEL_STORAGE_KEY, ACCESS_LEVELS.PRO);
+	      obfuscatedProfileId: nativePurchase?.profileId || null
+	    });
+	    if (!proWasGranted) {
+	      throw new Error("exact Google Play entitlement grant was rejected");
+	    }
 
 	    const storedEntitlement = JSON.parse(
 	      localStorage.getItem(PRO_ENTITLEMENT_STORAGE_KEY) || "null"
@@ -1039,7 +1044,6 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	      throw new Error("stored entitlement could not be confirmed");
 	    }
 
-	    userAccessLevel = ACCESS_LEVELS.PRO;
 	  } catch (error) {
 	    try {
 	      localStorage.removeItem(PRO_ENTITLEMENT_STORAGE_KEY);
@@ -1068,9 +1072,6 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    transactionRef: redactAndroidTransactionId(transaction),
 	    trigger
 	  });
-	  document.dispatchEvent(new CustomEvent("reverseflow:legacy-entitlement-changed", {
-	    detail: { hasLegacyProEntitlement: true }
-	  }));
 	  return true;
 	}
 
@@ -1458,6 +1459,28 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    const purchasePlatform = getReverseFlowPurchasePlatform();
 	    const trigger = options.trigger || "legacy-purchase-recovery";
 	    const startup = options.startup === true;
+	    if (
+	      window.Capacitor?.getPlatform?.() === "ios" &&
+	      typeof window.recoverIosLegacyProEntitlement === "function"
+	    ) {
+	      try {
+	        return await window.recoverIosLegacyProEntitlement({
+	          trigger,
+	          synchronize: options.synchronize !== false && !startup
+	        });
+	      } catch (error) {
+	        console.warn("[Reverse Flow IAP]", {
+	          event: "ios-legacy-entitlement-recovery-failed",
+	          trigger,
+	          message: error?.message || String(error)
+	        });
+	        return {
+	          found: isProUser(),
+	          error,
+	          evidence: collectLegacyProEntitlementEvidence()
+	        };
+	      }
+	    }
 	    if (!store || !purchasePlatform) {
 	      return {
 	        found: isProUser(),
@@ -1810,14 +1833,19 @@ logStoreEvent("initialize-start", {
 		  store.when()
 		    .approved(transaction => {
 		      const androidAssessment = getAndroidProTransactionAssessment(transaction);
+		      const approvedProductIds = Array.isArray(transaction?.products)
+		        ? transaction.products.map(product => product?.id).filter(Boolean)
+		        : [];
 		      logStoreEvent("transaction-approved", {
+		        productId: approvedProductIds.includes(REVERSE_FLOW_PRO_PRODUCT_ID)
+		          ? REVERSE_FLOW_PRO_PRODUCT_ID
+		          : null,
+		        configuredProductId: REVERSE_FLOW_PRO_PRODUCT_ID,
 		        transactionRef: androidAssessment.isGooglePlay
 		          ? redactAndroidTransactionId(transaction)
 		          : redactStoreReference(transaction?.transactionId),
 		        state: transaction?.state || null,
-		        productIds: Array.isArray(transaction?.products)
-	          ? transaction.products.map(product => product?.id).filter(Boolean)
-	          : [],
+		        productIds: approvedProductIds,
 	        ...getIapDiagnosticPayload({
 	          transactionSummary: summarizeVerifiedPurchase(transaction)
 		        })
@@ -1917,6 +1945,7 @@ logStoreEvent("initialize-start", {
 	      const proWasGranted = setAccessLevel(ACCESS_LEVELS.PRO, {
 	        trigger: "store.when().verified",
 	        source: "purchase",
+	        provenanceSource: LEGACY_ENTITLEMENT_SOURCES.CORDOVA_VERIFIED_RECEIPT,
 	        productId: grantSource.productId,
 	        originalTransactionId:
 	          appleTransaction?.originalTransactionId ||

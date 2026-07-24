@@ -28,6 +28,8 @@
 		AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000032E20000100A20003 /* TankTimeIntents.swift */; };
 		AA1000102E20000100A10010 /* AppIcon-1024.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2000082E20000100A20008 /* AppIcon-1024.png */; };
 		D401FA2E2E10000100FB2518 /* MetaAppEventsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */; };
+		D401FA302E20000100FB2520 /* LegacyEntitlementPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */; };
+		D401FA322E20000100FB2522 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA312E20000100FB2522 /* MainViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,6 +78,8 @@
 		AA2000072E20000100A20007 /* TankTimeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TankTimeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA2000082E20000100A20008 /* AppIcon-1024.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "AppIcon-1024.png"; path = "../App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"; sourceTree = "<group>"; };
 		D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetaAppEventsPlugin.swift; sourceTree = "<group>"; };
+		D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyEntitlementPlugin.swift; sourceTree = "<group>"; };
+		D401FA312E20000100FB2522 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,6 +138,8 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */,
+				D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */,
+				D401FA312E20000100FB2522 /* MainViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -280,6 +286,8 @@
 				AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				D401FA2E2E10000100FB2518 /* MetaAppEventsPlugin.swift in Sources */,
+				D401FA302E20000100FB2520 /* LegacyEntitlementPlugin.swift in Sources */,
+				D401FA322E20000100FB2522 /* MainViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
