@@ -102,3 +102,38 @@ does not trigger another automatic welcome email.
 
 `POST /api/supporters/register` remains server-to-server only. Native purchase
 registration uses `POST /api/supporters/verify-purchase`.
+
+## Pass 4F transaction isolation
+
+One-time and subscription transactions use separate durable pending-record
+keys. A historical store callback cannot create new pending state: redelivery
+is actionable only when its provider, canonical product, and privacy-safe
+transaction reference match a record that was persisted when the purchase was
+approved. Repeated callbacks for the same provider transaction share one
+backend reconciliation and one store-completion attempt.
+
+The current monthly product is resolved in this order:
+
+1. current verified App Store or Google Play state;
+2. current backend recurring state;
+3. the newest backend-confirmed local cache;
+4. historical callbacks as supporting evidence only.
+
+Apple verification queries the subscription group and records the current
+canonical product returned by App Store Server API, even when the triggering
+callback references the previous plan. Google plan replacement continues to
+use the current purchase token and authoritative Subscriptions V2 response.
+
+If the backend-confirmed cache shows permanent Supporter identity, a completed
+one-time registration marker is retained only while StoreKit still exposes the
+unfinished transaction. When StoreKit reports no unfinished transaction and
+the marker is already in a confirmed finish-retry state, the app clears that
+stale operational marker without changing Supporter identity.
+
+## Native analytics
+
+The mobile applications contain no Meta/Facebook SDK, App Events bridge,
+native initialization, URL scheme, client token, Swift Package dependency, or
+Android dependency. Reverse Flow does not request App Tracking Transparency
+permission. Website analytics are maintained separately in the website
+repository and are outside the native application package.

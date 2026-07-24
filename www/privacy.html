@@ -19,7 +19,7 @@
 
   <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
   <link rel="stylesheet" href="css/components.css?v=community-1" />
-  <link rel="stylesheet" href="css/support.css?v=community-polish-1" />
+  <link rel="stylesheet" href="css/support.css?v=community-polish-4f" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
 </head>
 
@@ -47,31 +47,38 @@
       <div class="form-grid">
         <div class="field full">
           <label>Privacy Policy</label>
-          <p class="helper">Effective Date: June 30, 2026</p>
+          <p class="helper">Effective Date: July 24, 2026</p>
         </div>
 
         <div class="settings-tool-card privacy-policy-card">
           <h2>Introduction</h2>
           <p>
             Reverse Flow is a fire service hydraulic calculator and utility application. This policy explains what
-            information may be collected when you use Reverse Flow, including the iOS app with Meta SDK / Meta App
-            Events enabled.
+            information may be collected when you use Reverse Flow.
           </p>
 
           <h2>Information We Collect</h2>
           <p>
-            Reverse Flow does not require user accounts or login credentials. The app may collect limited app and device
-            information for analytics, advertising attribution, marketing measurement, and improving the app.
+            Reverse Flow does not require user accounts or login credentials. The app stores calculator settings,
+            saved calculations, and the last confirmed Supporter state on the device.
           </p>
           <p>
-            This may include Device ID / device identifiers, product interaction / app usage events, and purchase
-            history related to a legacy purchase event. This information may be linked to a user or device.
+            When you choose to support Reverse Flow, the app sends purchase and subscription status only as needed to
+            verify Supporter status. A name and email address are collected only when you voluntarily register or
+            recover as a Supporter. The app may also produce anonymous operational diagnostics needed to investigate
+            failures and improve reliability; these diagnostics exclude full email addresses, receipts, purchase
+            tokens, transaction identifiers, and calculator content.
+          </p>
+          <p>
+            Calculator inputs and fireground calculations remain on your device. Reverse Flow does not transmit or
+            upload them.
           </p>
 
           <h2>In-App Purchases</h2>
           <p>
-            Legacy purchase eligibility is handled by Apple In-App Purchase, cordova-plugin-purchase, and local
-            entitlement logic. Meta is not used to determine legacy purchase eligibility.
+            Purchases and subscriptions are handled by Apple App Store or Google Play. Reverse Flow verifies qualifying
+            purchases only to confirm Supporter status. Subscription changes and renewals are reconciled through the
+            respective store services.
           </p>
           <p>
             Apple processes In-App Purchases. Reverse Flow does not collect or receive credit card numbers, payment card
@@ -80,52 +87,56 @@
 
           <h2>Supporter Registration</h2>
           <p>
-            Reverse Flow may ask for a name and email address when a user claims or registers Supporter status. The
-            Supporter Registry is not connected in this app pass, so the app does not report a registration as confirmed
-            unless a future authoritative registry response is received.
+            Reverse Flow asks for a name and email address when a user registers or recovers Supporter status. The
+            Reverse Flow backend uses the normalized email address to maintain permanent, provider-neutral Supporter
+            identity and prevent duplicate registrations. A name may appear in the public Supporter Directory only
+            according to the registration choices presented in the app.
+          </p>
+          <p>
+            Supporter status may be verified through Apple, Google, or Stripe depending on the contribution method.
+            Public Supporter listings display only the chosen public name and Supporting Since date. Email addresses,
+            purchase history, provider account information, and billing details are never displayed publicly.
           </p>
 
-          <h2>Meta SDK and App Events</h2>
+          <h2>Third-Party Services</h2>
           <p>
-            Reverse Flow uses Meta SDK / Meta App Events for app and event analytics, advertising attribution and
-            measurement, developer advertising or marketing, and legacy purchase event measurement.
-          </p>
-          <p>
-            Meta App Events may receive device identifiers, product interaction or app usage events, purchase history
-            related to a legacy purchase event, and basic app/device information needed for those purposes.
+            The mobile applications use Apple App Store and Google Play Billing for purchases, Supabase for protected
+            backend infrastructure and Supporter records, and Resend for Supporter welcome emails. These services
+            receive only the information needed for their stated role.
           </p>
 
           <h2>How We Use Information</h2>
           <p>
-            Reverse Flow may use collected information to understand app usage, measure legacy purchase events, measure
-            advertising performance, support developer advertising or marketing, improve app reliability, and make the
-            app more useful for firefighters and fire service training.
+            Reverse Flow uses submitted information to verify support, maintain Supporter status, deliver the welcome
+            email, recover Supporter status across devices, prevent duplicate records, and provide subscription
+            management state.
           </p>
 
           <h2>Data Sharing</h2>
           <p>
-            Reverse Flow may share limited app event, device identifier, product interaction, and legacy purchase event
-            information with Meta for analytics, advertising attribution, advertising measurement, and developer
-            advertising or marketing. Reverse Flow does not sell personal information.
+            Reverse Flow shares purchase information with Apple or Google as needed to process purchases, and uses
+            Supabase and Resend to store Supporter records and deliver welcome emails. Reverse Flow does not sell
+            personal information.
           </p>
 
-          <h2>Tracking and Advertising Measurement</h2>
+          <h2>Website and Mobile Applications</h2>
           <p>
-            Some information collected through Meta SDK / Meta App Events may be used for tracking as defined by Apple
-            when it is used for advertising, advertising attribution, or advertising measurement. Users can manage
-            tracking permissions in iOS Settings.
+            The Reverse Flow website may use analytics technologies such as the Meta Pixel to understand website
+            traffic and improve the website experience. The native Reverse Flow mobile applications do not include the
+            Meta SDK and do not transmit mobile usage events to Meta.
           </p>
 
           <h2>Information We Do Not Collect</h2>
           <p>
-            Reverse Flow does not collect precise location, contacts, health or fitness data, photos or videos, emails
-            or text messages, browsing history, search history, payment card details, or sensitive information.
+            Reverse Flow does not collect precise location, contacts, health or fitness data, photos or videos, text
+            messages, browsing history, search history, payment card details, advertising identifiers, or sensitive
+            information.
           </p>
 
           <h2>User Choices</h2>
           <p>
-            You can manage tracking permissions for Reverse Flow in iOS Settings. You can also manage ad and privacy
-            preferences through Apple settings and Meta settings.
+            Supporter recognition is optional. You can continue using every calculator without purchasing or
+            registering as a Supporter.
           </p>
           <p>
             For privacy questions, contact Reverse Flow support at support@reverse-flow.app.
@@ -139,13 +150,13 @@
           <h2>Data Security</h2>
           <p>
             Reverse Flow uses reasonable steps to protect information handled by the app and by service providers used
-            for analytics and measurement.
+            for purchase verification, Supporter registration, and email delivery.
           </p>
 
           <h2>Changes to This Policy</h2>
           <p>
-            Reverse Flow may update this policy when app features, analytics, measurement tools, or privacy practices
-            change. The effective date above shows when this policy was last updated.
+            Reverse Flow may update this policy when app features or privacy practices change. The effective date above
+            shows when this policy was last updated.
           </p>
 
           <h2>Contact Us</h2>

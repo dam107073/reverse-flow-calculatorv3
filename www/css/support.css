@@ -1410,6 +1410,7 @@
       line-height: 1.2;
       pointer-events: none;
       white-space: nowrap;
+      margin-right: clamp(0.35rem, 3vw, 1rem);
     }
 
     .supporter-badge[hidden],
@@ -1574,6 +1575,10 @@
       font-size: 0.78rem;
       font-weight: 800;
       line-height: 1.35;
+    }
+
+    #supportCacheStatus {
+      margin: 0.85rem 0 0;
     }
 
     .support-editorial-section {
@@ -1792,6 +1797,15 @@
 
       .support-page-hero {
         padding: 24px 20px 22px;
+      }
+
+      .app-title-row {
+        gap: 0.55rem;
+      }
+
+      .supporter-badge {
+        margin-right: 0.25rem;
+        font-size: 0.76rem;
       }
 
       .support-primary-action,

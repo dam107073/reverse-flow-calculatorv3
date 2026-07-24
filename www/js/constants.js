@@ -7,8 +7,6 @@ const APP_VERSION = "1.3.3";
 
     const REVERSE_FLOW_PRO_PRODUCT_ID =
 	  "reverse_flow_pro_lifetime";
-const REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT = 4.99;
-const REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY = "USD";
 const IAP_DEBUG_DIAGNOSTICS = false;
 	
 	  let reverseFlowProProductReady = false;

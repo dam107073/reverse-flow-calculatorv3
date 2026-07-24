@@ -707,40 +707,6 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  return IAP_DEBUG_DIAGNOSTICS ? details : {};
 	}
 
-	async function logMetaProPurchaseEvent(grantSource) {
-	  const capacitor = window.Capacitor;
-	  const metaAppEvents = capacitor?.Plugins?.MetaAppEvents;
-	  const platform = capacitor?.getPlatform?.() || "web";
-
-	  if (
-	    platform !== "ios" ||
-	    typeof metaAppEvents?.logProPurchase !== "function"
-	  ) {
-	    return;
-	  }
-
-	  try {
-	    await metaAppEvents.logProPurchase({
-	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
-	      amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
-	      currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
-	    });
-
-	    console.info("[Reverse Flow IAP]", {
-	      event: "meta-pro-purchase-logged",
-	      productId: grantSource.productId,
-	      amount: REVERSE_FLOW_PRO_META_PURCHASE_AMOUNT,
-	      currency: REVERSE_FLOW_PRO_META_PURCHASE_CURRENCY
-	    });
-	  } catch (error) {
-	    console.info("[Reverse Flow IAP]", {
-	      event: "meta-pro-purchase-log-failed",
-	      productId: grantSource.productId,
-	      message: error?.message || String(error)
-	    });
-	  }
-	}
-
 	function ownsProViaSdkStore(store) {
 	  if (REVERSE_FLOW_PRO_PRODUCT_ID !== "reverse_flow_pro_lifetime") {
 	    return {
@@ -835,12 +801,6 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
 	  if (els.proModal) {
 	    els.proModal.hidden = true;
-	  }
-
-	  if (!wasAlreadyPro && grantWasPurchase && !grantWasRestore) {
-	    logMetaProPurchaseEvent({
-	      productId: ownership.productId
-	    });
 	  }
 
 	  if (grantWasPurchase || grantWasRestore) {
@@ -1983,9 +1943,6 @@ logStoreEvent("initialize-start", {
 	        !reverseFlowStartupRecoveryInProgress &&
 	        (reverseFlowPurchaseInProgress || grantWasRestore)
 	      ) {
-	        if (reverseFlowPurchaseInProgress && !grantWasRestore) {
-	          logMetaProPurchaseEvent(grantSource);
-	        }
 	        alert("Previous purchase detected. You can claim Supporter status.");
       }
 

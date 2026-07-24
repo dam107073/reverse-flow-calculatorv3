@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
-		3F0E75572FF0588800AE0600 /* FacebookCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3F0E75562FF0588800AE0600 /* FacebookCore */; };
 		3F5F9B342FD0547D007A4BF1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F5F9B332FD0547D007A4BF1 /* StoreKit.framework */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -27,7 +26,6 @@
 		AA1000082E20000100A10008 /* TankTimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000022E20000100A20002 /* TankTimeState.swift */; };
 		AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000032E20000100A20003 /* TankTimeIntents.swift */; };
 		AA1000102E20000100A10010 /* AppIcon-1024.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2000082E20000100A20008 /* AppIcon-1024.png */; };
-		D401FA2E2E10000100FB2518 /* MetaAppEventsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */; };
 		D401FA302E20000100FB2520 /* LegacyEntitlementPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */; };
 		D401FA322E20000100FB2522 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA312E20000100FB2522 /* MainViewController.swift */; };
 		D401FA352E40000100FB2525 /* SupportPurchaseRecoveryPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA342E40000100FB2524 /* SupportPurchaseRecoveryPlugin.swift */; };
@@ -78,7 +76,6 @@
 		AA2000062E20000100A20006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA2000072E20000100A20007 /* TankTimeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TankTimeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA2000082E20000100A20008 /* AppIcon-1024.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "AppIcon-1024.png"; path = "../App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"; sourceTree = "<group>"; };
-		D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetaAppEventsPlugin.swift; sourceTree = "<group>"; };
 		D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyEntitlementPlugin.swift; sourceTree = "<group>"; };
 		D401FA312E20000100FB2522 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		D401FA342E40000100FB2524 /* SupportPurchaseRecoveryPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportPurchaseRecoveryPlugin.swift; sourceTree = "<group>"; };
@@ -90,7 +87,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
-				3F0E75572FF0588800AE0600 /* FacebookCore in Frameworks */,
 				3F5F9B342FD0547D007A4BF1 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -139,7 +135,6 @@
 			children = (
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
-				D401FA2D2E10000100FB2518 /* MetaAppEventsPlugin.swift */,
 				D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */,
 				D401FA342E40000100FB2524 /* SupportPurchaseRecoveryPlugin.swift */,
 				D401FA312E20000100FB2522 /* MainViewController.swift */,
@@ -188,7 +183,6 @@
 			name = App;
 			packageProductDependencies = (
 				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
-				3F0E75562FF0588800AE0600 /* FacebookCore */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* Reverse Flow: Fire Hydraulics.app */;
@@ -244,7 +238,6 @@
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
-				3F0E75552FF0588800AE0600 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -311,7 +304,6 @@
 				AA1000082E20000100A10008 /* TankTimeState.swift in Sources */,
 				AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
-				D401FA2E2E10000100FB2518 /* MetaAppEventsPlugin.swift in Sources */,
 				D401FA302E20000100FB2520 /* LegacyEntitlementPlugin.swift in Sources */,
 				D401FA352E40000100FB2525 /* SupportPurchaseRecoveryPlugin.swift in Sources */,
 				D401FA322E20000100FB2522 /* MainViewController.swift in Sources */,
@@ -706,23 +698,7 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		3F0E75552FF0588800AE0600 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/facebook/facebook-ios-sdk";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 18.1.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
-		3F0E75562FF0588800AE0600 /* FacebookCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3F0E75552FF0588800AE0600 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */;
-			productName = FacebookCore;
-		};
 		4D22ABE82AF431CB00220026 /* CapApp-SPM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;

@@ -4,6 +4,8 @@
   const CACHE_VERSION = 1;
   const DEFAULT_CACHE_KEY = "reverse-flow-supporter-cache-v1";
   const PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-pending-registration-v2";
+  const SUBSCRIPTION_RETRY_CACHE_KEY =
+    "reverse-flow-support-subscription-pending-v1";
   const LEGACY_PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-purchase-retry-v1";
   const PENDING_REGISTRATION_STATUSES = new Set([
     "not-attempted",
@@ -318,9 +320,13 @@
       const url = `${this.config.baseUrl}${route}`;
       const backendHost = new URL(url).host;
       const isRegistration = routeKey === "verifyPurchase";
+      const registrationEventPrefix =
+        options.registrationMode === "existing-supporter"
+          ? "supporter-contribution-attachment"
+          : "supporter-registration";
       if (isRegistration) {
         this.logRegistration("info", {
-          event: "supporter-registration-request-started",
+          event: `${registrationEventPrefix}-request-started`,
           backendHost,
           environment: this.config.environment,
           platform: this.platform
@@ -329,7 +335,7 @@
       if (this.navigator?.onLine === false) {
         if (isRegistration) {
           this.logRegistration("warn", {
-            event: "supporter-registration-failed",
+            event: `${registrationEventPrefix}-failed`,
             backendHost,
             environment: this.config.environment,
             platform: this.platform,
@@ -344,7 +350,7 @@
       if (typeof this.fetch !== "function") {
         if (isRegistration) {
           this.logRegistration("warn", {
-            event: "supporter-registration-failed",
+            event: `${registrationEventPrefix}-failed`,
             backendHost,
             environment: this.config.environment,
             platform: this.platform,
@@ -384,7 +390,7 @@
         const timedOut = error?.name === "AbortError";
         if (isRegistration) {
           this.logRegistration("warn", {
-            event: "supporter-registration-failed",
+            event: `${registrationEventPrefix}-failed`,
             backendHost,
             environment: this.config.environment,
             platform: this.platform,
@@ -403,7 +409,7 @@
 
       if (isRegistration) {
         this.logRegistration("info", {
-          event: "supporter-registration-response",
+          event: `${registrationEventPrefix}-response`,
           backendHost,
           environment: this.config.environment,
           platform: this.platform,
@@ -418,7 +424,7 @@
       } catch {
         if (isRegistration) {
           this.logRegistration("warn", {
-            event: "supporter-registration-failed",
+            event: `${registrationEventPrefix}-failed`,
             backendHost,
             environment: this.config.environment,
             platform: this.platform,
@@ -442,7 +448,7 @@
         const retryAfter = Number(response.headers?.get?.("Retry-After"));
         if (isRegistration) {
           this.logRegistration("warn", {
-            event: "supporter-registration-failed",
+            event: `${registrationEventPrefix}-failed`,
             backendHost,
             environment: this.config.environment,
             platform: this.platform,
@@ -468,7 +474,7 @@
       const normalized = normalizeApiResponse(payload);
       if (isRegistration) {
         this.logRegistration("info", {
-          event: "supporter-registration-request-completed",
+          event: `${registrationEventPrefix}-request-completed`,
           backendHost,
           environment: this.config.environment,
           platform: this.platform,
@@ -504,8 +510,17 @@
       return this.request("claimLegacy", payload, "claimLegacy");
     }
 
-    async registerVerifiedPurchase(payload) {
-      return this.request("verifyPurchase", payload, "verifyPurchase");
+    async registerVerifiedPurchase(payload, options = {}) {
+      return this.request(
+        "verifyPurchase",
+        payload,
+        "verifyPurchase",
+        {
+          registrationMode: options.existingSupporter === true
+            ? "existing-supporter"
+            : "registration"
+        }
+      );
     }
 
     async verifyPendingPurchase(payload) {
@@ -634,10 +649,20 @@
       this.config = config || {};
       this.global = dependencies.global || global;
       this.store = dependencies.store || this.global.CdvPurchase?.store || null;
-      this.retryStore = dependencies.pendingStore || dependencies.retryStore ||
+      const storage = dependencies.storage || this.global.localStorage;
+      this.oneTimeRetryStore = dependencies.pendingStore || dependencies.retryStore ||
         new PendingSupportRegistrationStore(
-        dependencies.storage || this.global.localStorage
-      );
+          storage
+        );
+      this.subscriptionRetryStore = dependencies.subscriptionPendingStore ||
+        new PendingSupportRegistrationStore(
+          storage,
+          SUBSCRIPTION_RETRY_CACHE_KEY
+        );
+      this.supporterCache = dependencies.supporterCache ||
+        new SupporterCache(storage);
+      // Compatibility alias for callers that predate product-specific stores.
+      this.retryStore = this.oneTimeRetryStore;
       this.initialization = null;
       this.initialized = false;
       this.initializeError = null;
@@ -647,6 +672,10 @@
       this.recoveryListeners = new Set();
       this.bound = false;
       this.nativeRecoveryBound = false;
+      this.receivedTransactionKeys = new Set();
+      this.completedTransactionKeys = new Set();
+      this.reconciliationRequests = new Map();
+      this.finishedTransactionKeys = new Set();
     }
 
     getOptions(platform) {
@@ -791,6 +820,54 @@
       };
     }
 
+    isOneTimeEvidence(evidence) {
+      return evidence?.purchaseType === "one-time" ||
+        evidence?.productIdentifier === this.oneTimeSupportProductId();
+    }
+
+    retryStoreForEvidence(evidence) {
+      return this.isOneTimeEvidence(evidence)
+        ? this.oneTimeRetryStore
+        : this.subscriptionRetryStore;
+    }
+
+    persistPendingEvidence(evidence) {
+      return this.retryStoreForEvidence(evidence).write(evidence);
+    }
+
+    markPendingAttempt(evidence, status) {
+      return this.retryStoreForEvidence(evidence).markAttempt(status);
+    }
+
+    clearPendingRegistration(evidence) {
+      this.retryStoreForEvidence(evidence).clear();
+    }
+
+    transactionKey(evidence) {
+      const provider = evidence?.paymentSource || "unknown";
+      const reference = provider === "ios"
+        ? evidence?.transactionId || evidence?.originalTransactionId
+        : evidence?.purchaseToken;
+      return [
+        provider,
+        evidence?.productIdentifier || "unknown-product",
+        String(reference || "missing-reference")
+      ].join(":");
+    }
+
+    logTransaction(event, evidence, extra = {}) {
+      console.info("[Reverse Flow Support Purchase]", {
+        event,
+        provider: evidence?.paymentSource === "ios" ? "apple" : "google",
+        productId: evidence?.productIdentifier || null,
+        transactionReference: privacySafeTransactionReference(
+          evidence,
+          evidence?.paymentSource === "ios" ? "apple" : "google"
+        ),
+        ...extra
+      });
+    }
+
     settleTransaction(transaction, kind) {
       const productId = this.transactionProductId(transaction);
       if (!productId) return false;
@@ -800,8 +877,23 @@
       clearTimeout(waiter.timeout);
       if (kind === "approved") {
         const evidence = this.transactionEvidence(transaction, waiter.option);
+        const key = this.transactionKey(evidence);
+        this.logTransaction("store-transaction-received", evidence, {
+          lifecycle: "approved"
+        });
+        if (this.receivedTransactionKeys.has(key)) {
+          this.logTransaction("store-transaction-duplicate-ignored", evidence, {
+            lifecycle: "approved"
+          });
+          waiter.reject(new SupportPurchaseError(
+            "This store transaction is already being confirmed.",
+            "purchase_duplicate_callback"
+          ));
+          return true;
+        }
+        this.receivedTransactionKeys.add(key);
         try {
-          this.retryStore.write(evidence);
+          this.persistPendingEvidence(evidence);
         } catch (error) {
           waiter.reject(error);
           return true;
@@ -836,7 +928,7 @@
       ) {
         return null;
       }
-      this.retryStore.write(evidence);
+      this.persistPendingEvidence(evidence);
       const recoverable = {
         ...evidence,
         recoverySource: source,
@@ -875,13 +967,22 @@
           const settled = this.settleTransaction(transaction, "approved");
           if (!settled) {
             const evidence = this.transactionEvidence(transaction);
-            try {
-              this.retryStore.write(evidence);
-            } catch (error) {
-              console.error("[Reverse Flow Support Purchase]", {
-                event: "pending-registration-persistence-failed",
-                productId: evidence.productIdentifier,
-                failureCategory: error?.code || "storage_error"
+            const key = this.transactionKey(evidence);
+            this.logTransaction("store-transaction-received", evidence, {
+              lifecycle: "approved-redelivery"
+            });
+            if (this.receivedTransactionKeys.has(key)) {
+              this.logTransaction("store-transaction-duplicate-ignored", evidence, {
+                lifecycle: "approved-redelivery"
+              });
+              return;
+            }
+            this.receivedTransactionKeys.add(key);
+            const pending = this.retryStoreForEvidence(evidence).read();
+            if (!pending || !this.transactionMatchesPending(evidence, pending)) {
+              this.logTransaction("store-transaction-duplicate-ignored", evidence, {
+                lifecycle: "historical-callback",
+                reason: "no-current-pending-record"
               });
               return;
             }
@@ -1134,7 +1235,12 @@
     }
 
     readPendingRegistration() {
-      return this.retryStore.read();
+      return this.oneTimeRetryStore.read() ||
+        this.subscriptionRetryStore.read();
+    }
+
+    readPendingSubscriptionRegistration() {
+      return this.subscriptionRetryStore.read();
     }
 
     transactionMatchesPending(evidence, pending) {
@@ -1148,7 +1254,7 @@
     }
 
     async recoverPendingRegistration() {
-      const pending = this.retryStore.read();
+      const pending = this.readPendingRegistration();
       if (!pending) return null;
       const evidence = this.allSupportTransactions()
         .map(transaction => this.transactionEvidence(transaction))
@@ -1167,6 +1273,48 @@
         paymentSource: pending.provider === "apple" ? "ios" : "android"
       });
       return null;
+    }
+
+    async reconcileTransaction(evidence, callback) {
+      const key = this.transactionKey(evidence);
+      if (this.completedTransactionKeys.has(key)) {
+        this.logTransaction("store-transaction-duplicate-ignored", evidence, {
+          lifecycle: "reconciliation-completed"
+        });
+        return null;
+      }
+      const existing = this.reconciliationRequests.get(key);
+      if (existing) {
+        this.logTransaction("store-transaction-duplicate-ignored", evidence, {
+          lifecycle: "reconciliation-in-flight"
+        });
+        return existing;
+      }
+      this.logTransaction("store-transaction-reconciliation-started", evidence);
+      const reconciliation = Promise.resolve()
+        .then(callback)
+        .then(result => {
+          this.completedTransactionKeys.add(key);
+          this.logTransaction("store-transaction-reconciliation-completed", evidence, {
+            outcome: "success"
+          });
+          if (evidence?.purchaseType === "monthly") {
+            this.logTransaction("subscription-current-product-updated", evidence);
+          }
+          return result;
+        })
+        .catch(error => {
+          this.logTransaction("store-transaction-reconciliation-completed", evidence, {
+            outcome: "failed",
+            failureCategory: error?.code || "reconciliation_failed"
+          });
+          throw error;
+        })
+        .finally(() => {
+          this.reconciliationRequests.delete(key);
+        });
+      this.reconciliationRequests.set(key, reconciliation);
+      return reconciliation;
     }
 
     nativeRecoveryEvidence(result) {
@@ -1244,8 +1392,24 @@
         );
       }
 
-      const persisted = this.retryStore.read();
+      const persisted = this.oneTimeRetryStore.read();
       if (persisted) {
+        const cachedSupporter = this.supporterCache.read();
+        if (
+          cachedSupporter.isSupporter &&
+          cachedSupporter.source &&
+          ["confirmed-awaiting-finish", "finish-failed"].includes(
+            persisted.lastRegistrationAttemptStatus
+          )
+        ) {
+          this.oneTimeRetryStore.clear();
+          console.info("[Reverse Flow Support Purchase]", {
+            event: "stale-consumable-retry-resolved",
+            productId: persisted.productId,
+            reason: "supporter-confirmed-store-transaction-absent"
+          });
+          return null;
+        }
         console.info("[Reverse Flow Support Purchase]", {
           event: "persisted-consumable-retry-found",
           productId: persisted.productId
@@ -1311,18 +1475,29 @@
         verifiedPurchase?.paymentSource === "ios" &&
         verifiedPurchase?.productIdentifier === this.oneTimeSupportProductId() &&
         Boolean(verifiedPurchase?.transactionId);
+      const transactionKey = this.transactionKey(verifiedPurchase);
+      if (this.finishedTransactionKeys.has(transactionKey)) {
+        this.logTransaction(
+          "store-transaction-duplicate-ignored",
+          verifiedPurchase,
+          { lifecycle: "finish" }
+        );
+        return;
+      }
       if (isAppleConsumable) {
         const plugin = this.global.Capacitor?.Plugins?.SupportPurchaseRecovery;
         if (plugin?.finishRecoveredConsumable) {
           await plugin.finishRecoveredConsumable({
             transactionId: verifiedPurchase.transactionId
           });
-          this.retryStore.clear();
+          this.finishedTransactionKeys.add(transactionKey);
+          this.clearPendingRegistration(verifiedPurchase);
           return;
         }
         if (typeof verifiedPurchase?.transaction?.finish === "function") {
           await verifiedPurchase.transaction.finish();
-          this.retryStore.clear();
+          this.finishedTransactionKeys.add(transactionKey);
+          this.clearPendingRegistration(verifiedPurchase);
           return;
         }
         throw new SupportPurchaseError(
@@ -1338,7 +1513,8 @@
         );
       }
       await transaction.finish();
-      this.retryStore.clear();
+      this.finishedTransactionKeys.add(transactionKey);
+      this.clearPendingRegistration(verifiedPurchase);
     }
 
     async openNativeSubscriptionManagement() {
@@ -1539,6 +1715,14 @@
     };
   }
 
+  function beginStoreProgress(status, initialMessage) {
+    status.textContent = initialMessage;
+    return setTimeout(() => {
+      status.textContent =
+        "This is taking a little longer than usual. Keep Reverse Flow open while the store confirms your support.";
+    }, 8000);
+  }
+
   function renderSupportOptions(
     container,
     purchaseService,
@@ -1549,7 +1733,12 @@
     if (!container) return;
     const storePlatform = platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
-    const pendingProductId = purchaseService.readPendingRegistration()?.productId;
+    const pendingRecord = purchaseService.readPendingRegistration();
+    const pendingProductId =
+      state.isSupporter && pendingRecord?.productId ===
+        purchaseService.oneTimeSupportProductId()
+        ? purchaseService.readPendingSubscriptionRegistration()?.productId
+        : pendingRecord?.productId;
     container.innerHTML = "";
 
     options.forEach(option => {
@@ -1581,15 +1770,22 @@
       button.addEventListener("click", async () => {
         const status = document.getElementById("supportPageStatus");
         if (button.dataset.purchasing === "true") return;
+        let slowMessageTimer = null;
         try {
           button.dataset.purchasing = "true";
           button.disabled = true;
-          status.textContent = "Connecting to the store…";
+          slowMessageTimer = beginStoreProgress(
+            status,
+            getPlatform() === "ios"
+              ? "Contacting the App Store…"
+              : "Contacting Google Play…"
+          );
           const pendingPurchase = await purchaseService.purchase(option);
           await onPurchase(pendingPurchase);
         } catch (error) {
           status.textContent = error.message;
         } finally {
+          clearTimeout(slowMessageTimer);
           button.dataset.purchasing = "false";
           button.disabled = option.state !== "ready" || isPendingProduct;
         }
@@ -1623,7 +1819,8 @@
       platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
     const current = recurringOptionForState(options, state.contribution);
-    const pendingProductId = purchaseService.readPendingRegistration()?.productId;
+    const pendingProductId =
+      purchaseService.readPendingSubscriptionRegistration()?.productId;
     const scheduledProductId = state.contribution?.pendingReplacementProductId;
     container.innerHTML = "";
 
@@ -1652,11 +1849,15 @@
       button.addEventListener("click", async () => {
         if (button.dataset.purchasing === "true") return;
         const status = document.getElementById("supportPageStatus");
+        let slowMessageTimer = null;
         button.dataset.purchasing = "true";
         button.disabled = true;
-        status.textContent = isDowngrade
-          ? `Your monthly support will change to ${option.localizedPrice || "the lower amount"} at the next renewal. Continue in the store to confirm.`
-          : "Continue in the store to confirm your monthly support change.";
+        slowMessageTimer = beginStoreProgress(
+          status,
+          isDowngrade
+            ? `Your monthly support will change to ${option.localizedPrice || "the lower amount"} at the next renewal. Continue in the store to confirm.`
+            : "Confirming your monthly support…"
+        );
         try {
           const pendingPurchase = await purchaseService.purchase(option, {
             currentRecurringProductId: current?.productId,
@@ -1666,6 +1867,7 @@
         } catch (error) {
           status.textContent = error.message;
         } finally {
+          clearTimeout(slowMessageTimer);
           button.dataset.purchasing = "false";
           button.disabled =
             option.state !== "ready" ||
@@ -1693,15 +1895,22 @@
       button.addEventListener("click", async () => {
         if (button.dataset.purchasing === "true") return;
         const status = document.getElementById("supportPageStatus");
+        let slowMessageTimer = null;
         button.dataset.purchasing = "true";
         button.disabled = true;
-        status.textContent = "Connecting to the store…";
+        slowMessageTimer = beginStoreProgress(
+          status,
+          getPlatform() === "ios"
+            ? "Contacting the App Store…"
+            : "Contacting Google Play…"
+        );
         try {
           const pendingPurchase = await purchaseService.purchase(oneTime);
           await onPurchase(pendingPurchase);
         } catch (error) {
           status.textContent = error.message;
         } finally {
+          clearTimeout(slowMessageTimer);
           button.dataset.purchasing = "false";
           button.disabled =
             oneTime.state !== "ready" ||
@@ -1793,16 +2002,17 @@
         : "";
     }
 
-    const handlePendingPurchase = async pendingPurchase => {
+    const handlePendingPurchase = async pendingPurchase =>
+      purchaseService.reconcileTransaction(pendingPurchase, async () => {
       if (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken) {
         global.reverseFlowPendingVerifiedSupportPurchase = pendingPurchase;
-        purchaseService.retryStore.markAttempt("verification-started");
+        purchaseService.markPendingAttempt(pendingPurchase, "verification-started");
         try {
           await registryService.verifyPendingPurchase(
             createPendingVerificationPayload(pendingPurchase)
           );
         } catch (error) {
-          purchaseService.retryStore.markAttempt("verification-failed");
+          purchaseService.markPendingAttempt(pendingPurchase, "verification-failed");
           registryService.logRegistration("warn", {
             event: "pending-support-verification-deferred",
             backendHost: new URL(registryService.config.baseUrl).host,
@@ -1819,12 +2029,14 @@
         (pendingPurchase?.transactionId || pendingPurchase?.purchaseToken)
       ) {
         pageStatus.textContent = "Confirming your support…";
-        purchaseService.retryStore.markAttempt("registration-started");
+        purchaseService.markPendingAttempt(pendingPurchase, "registration-started");
         const payload = createPurchaseRegistrationPayload({
           name: "",
           email: cached.supporterEmail
         }, pendingPurchase);
-        const confirmed = await registryService.registerVerifiedPurchase(payload);
+        const confirmed = await registryService.registerVerifiedPurchase(payload, {
+          existingSupporter: true
+        });
         if (pendingPurchase?.recoverySource) {
           registryService.logRegistration("info", {
             event: "consumable-recovery-backend-verification-result",
@@ -1846,7 +2058,10 @@
           );
         }
         try {
-          purchaseService.retryStore.markAttempt("confirmed-awaiting-finish");
+          purchaseService.markPendingAttempt(
+            pendingPurchase,
+            "confirmed-awaiting-finish"
+          );
           await purchaseService.finishPurchase(pendingPurchase, {
             backendVerified: true,
             registrationSucceeded: true,
@@ -1856,7 +2071,7 @@
           pageStatus.textContent =
             "Thank you for continuing to support Reverse Flow.";
         } catch (finishError) {
-          purchaseService.retryStore.markAttempt("finish-failed");
+          purchaseService.markPendingAttempt(pendingPurchase, "finish-failed");
           pageStatus.textContent =
             "Thank you for continuing to support Reverse Flow.";
           console.warn("[Reverse Flow Support Purchase]", {
@@ -1879,7 +2094,7 @@
         registration.scrollIntoView({ behavior: "smooth", block: "start" });
       }
       renderSupportPage(cache, registryService, purchaseService);
-    };
+      });
 
     renderSupportOptions(
       document.getElementById("supportOptions"),
@@ -2148,13 +2363,13 @@
           return;
         }
         if (!navigator.onLine) {
-          purchaseService.retryStore.markAttempt("registration-failed");
+          purchaseService.markPendingAttempt(verifiedPurchase, "registration-failed");
           status.textContent = "An internet connection is required to update your supporter status.";
           return;
         }
 
         submit.disabled = true;
-        purchaseService.retryStore.markAttempt("registration-started");
+        purchaseService.markPendingAttempt(verifiedPurchase, "registration-started");
         status.textContent = "Finishing your Supporter setup…";
         try {
           const confirmed = await registryService.registerVerifiedPurchase(payload);
@@ -2179,7 +2394,10 @@
             );
           }
           try {
-            purchaseService.retryStore.markAttempt("confirmed-awaiting-finish");
+            purchaseService.markPendingAttempt(
+              verifiedPurchase,
+              "confirmed-awaiting-finish"
+            );
             await purchaseService.finishPurchase(verifiedPurchase, {
               backendVerified: true,
               registrationSucceeded: true,
@@ -2189,7 +2407,7 @@
             status.textContent =
               "You’re officially a Reverse Flow Supporter. Thank you for helping build what comes next.";
           } catch (finishError) {
-            purchaseService.retryStore.markAttempt("finish-failed");
+            purchaseService.markPendingAttempt(verifiedPurchase, "finish-failed");
             status.textContent =
               "You’re officially a Reverse Flow Supporter. Thank you for helping build what comes next.";
             console.warn("[Reverse Flow Support Purchase]", {
@@ -2200,7 +2418,7 @@
           registrationForm.reset();
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
-          purchaseService.retryStore.markAttempt("registration-failed");
+          purchaseService.markPendingAttempt(verifiedPurchase, "registration-failed");
           if (verifiedPurchase?.recoverySource) {
             registryService.logRegistration("info", {
               event: "consumable-recovery-backend-verification-result",

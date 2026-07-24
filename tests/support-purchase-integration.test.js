@@ -196,6 +196,7 @@ function createStore(platform, behavior = "approved") {
 
   return {
     store,
+    callbacks,
     products,
     registered,
     orders,
@@ -514,7 +515,7 @@ test("welcome delivery never gates store completion after confirmed cache persis
   );
   assert.match(
     supporterServiceSource,
-    /purchaseService\.retryStore\.markAttempt\("confirmed-awaiting-finish"\)/
+    /purchaseService\.markPendingAttempt\([\s\S]{0,100}"confirmed-awaiting-finish"/
   );
   assert.match(
     supporterServiceSource,
@@ -551,6 +552,124 @@ test("duplicate taps cannot start a second native purchase", async () => {
     error => error.code === "purchase_in_progress"
   );
   await firstPurchase;
+});
+
+test("historical subscription callbacks cannot create consumable pending state", async () => {
+  const fixture = createStore("ios");
+  installPurchaseGlobals("ios", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+  fixture.callbacks.approved({
+    platform: "ios-appstore",
+    products: [{ id: "support_reverse_flow_monthly_3" }],
+    transactionId: "historical-subscription-transaction",
+    originalTransactionId: "historical-subscription-original",
+    purchaseDate: new Date("2026-07-01T12:00:00Z"),
+    state: "approved"
+  });
+
+  assert.equal(service.oneTimeRetryStore.read(), null);
+  assert.equal(service.subscriptionRetryStore.read(), null);
+  assert.equal(service.readPendingRegistration(), null);
+});
+
+test("subscription and consumable pending records are product-specific", () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  };
+  installPurchaseGlobals("android", {});
+  const service = new SupportPurchaseService(CONFIG, { store: {}, storage });
+  service.persistPendingEvidence({
+    paymentSource: "android",
+    productIdentifier: "support_reverse_flow_monthly_10",
+    purchaseType: "monthly",
+    purchaseToken: "subscription-token"
+  });
+  assert.equal(service.oneTimeRetryStore.read(), null);
+  assert.equal(
+    service.subscriptionRetryStore.read()?.productId,
+    "support_reverse_flow_monthly_10"
+  );
+  service.persistPendingEvidence({
+    paymentSource: "android",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseType: "one-time",
+    purchaseToken: "one-time-token"
+  });
+  assert.equal(
+    service.oneTimeRetryStore.read()?.productId,
+    "reverse_flow_support_one_time_5"
+  );
+});
+
+test("duplicate transaction reconciliation runs backend work once", async () => {
+  installPurchaseGlobals("android", {});
+  const service = new SupportPurchaseService(CONFIG, { store: {} });
+  const evidence = {
+    paymentSource: "android",
+    productIdentifier: "support_reverse_flow_monthly_10",
+    purchaseType: "monthly",
+    purchaseToken: "stable-reconciliation-token"
+  };
+  let calls = 0;
+  const reconcile = () => service.reconcileTransaction(evidence, async () => {
+    calls += 1;
+    await Promise.resolve();
+    return "confirmed";
+  });
+  const [first, second] = await Promise.all([reconcile(), reconcile()]);
+  assert.equal(first, "confirmed");
+  assert.equal(second, "confirmed");
+  assert.equal(calls, 1);
+  assert.equal(await reconcile(), null);
+});
+
+test("confirmed stale consumable marker clears when StoreKit has no unfinished transaction", async () => {
+  const fixture = createStore("ios");
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  };
+  installPurchaseGlobals("ios", fixture.store);
+  const cache = new SupporterCache(storage);
+  cache.writeConfirmed({
+    isSupporter: true,
+    supporterSince: "2026-07-24",
+    source: "apple",
+    recurringStatus: "inactive",
+    hasActiveRecurringSupport: false,
+    lastVerifiedAt: "2026-07-24T12:00:00Z"
+  }, { email: "supporter@example.com", platform: "ios" });
+  const pendingStore = new PendingSupportRegistrationStore(storage);
+  pendingStore.write({
+    paymentSource: "ios",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseType: "one-time",
+    transactionId: "stale-finished-transaction"
+  });
+  pendingStore.markAttempt("confirmed-awaiting-finish");
+  global.Capacitor.Plugins = {
+    SupportPurchaseRecovery: {
+      async addListener() {},
+      async recoverUnfinishedConsumable() {
+        return { found: false };
+      }
+    }
+  };
+  const service = new SupportPurchaseService(CONFIG, {
+    store: fixture.store,
+    storage,
+    pendingStore,
+    supporterCache: cache
+  });
+  await service.initialize();
+  await service.recoverUnfinishedConsumable({ automatic: true });
+  assert.equal(service.oneTimeRetryStore.read(), null);
 });
 
 test("subscription refresh returns only recurring support and management opens natively", async () => {

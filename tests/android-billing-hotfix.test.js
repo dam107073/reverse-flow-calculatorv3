@@ -301,7 +301,7 @@ test("startup, receipt refresh, restore, and resume all trigger Android recovery
 test("iOS keeps the existing verify and receipt finish path", () => {
   assert.match(source, /transaction\.verify\(\)/);
   assert.match(source, /Promise\.resolve\(receipt\.finish\(\)\)/);
-  assert.match(source, /platform !== "ios"/);
+  assert.match(source, /provenanceSource: LEGACY_ENTITLEMENT_SOURCES\.CORDOVA_VERIFIED_RECEIPT[\s\S]*platform: "ios"/);
 });
 
 test("native plugin diagnostics are reproducibly patched", () => {
