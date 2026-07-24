@@ -44,27 +44,47 @@ const SUPPORTER_API_CONFIG = Object.freeze({
   }),
   routes: Object.freeze({
     claimLegacy: "/api/supporters/claim-legacy",
+    verifyPurchase: "/api/supporters/verify-purchase",
     status: "/api/supporters/status"
   }),
   timeoutsMs: Object.freeze({
     claimLegacy: 15000,
+    verifyPurchase: 20000,
     status: 10000
   })
 });
 
-// Store products are intentionally unavailable until they are configured in
-// App Store Connect and Google Play Console. Add real identifiers here in the
-// next store-configuration pass; never duplicate identifiers in UI code.
 const SUPPORT_PRODUCT_CONFIG = Object.freeze({
   apple: Object.freeze({
-    oneTime5: null,
-    monthly3: null,
-    monthly10: null
+    oneTime5: Object.freeze({
+      productId: "reverse_flow_support_one_time_5",
+      productType: "non consumable"
+    }),
+    monthly3: Object.freeze({
+      productId: "support_reverse_flow_monthly_3",
+      productType: "paid subscription"
+    }),
+    monthly10: Object.freeze({
+      productId: "support_reverse_flow_monthly_10",
+      productType: "paid subscription"
+    })
   }),
   google: Object.freeze({
-    oneTime5: null,
-    monthly3: null,
-    monthly10: null
+    oneTime5: Object.freeze({
+      productId: "reverse_flow_support_one_time_5",
+      productType: "non consumable",
+      purchaseOptionId: "buy"
+    }),
+    monthly3: Object.freeze({
+      productId: "support_reverse_flow_monthly_3",
+      productType: "paid subscription",
+      basePlanId: "monthly-3"
+    }),
+    monthly10: Object.freeze({
+      productId: "support_reverse_flow_monthly_10",
+      productType: "paid subscription",
+      basePlanId: "monthly-10"
+    })
   })
 });
 

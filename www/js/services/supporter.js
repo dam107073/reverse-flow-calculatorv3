@@ -229,8 +229,10 @@
       !baseUrl ||
       !/^https:\/\//i.test(baseUrl) ||
       !configured.routes?.claimLegacy ||
+      !configured.routes?.verifyPurchase ||
       !configured.routes?.status ||
       !Number.isFinite(configured.timeoutsMs?.claimLegacy) ||
+      !Number.isFinite(configured.timeoutsMs?.verifyPurchase) ||
       !Number.isFinite(configured.timeoutsMs?.status)
     ) {
       throw new Error("Supporter API configuration must use HTTPS.");
@@ -360,37 +362,407 @@
       return this.request("claimLegacy", payload, "claimLegacy");
     }
 
-    async registerVerifiedPurchase() {
-      throw new SupporterRegistryError(
-        "New support products are not configured yet.",
-        { code: "support_products_unavailable" }
-      );
+    async registerVerifiedPurchase(payload) {
+      return this.request("verifyPurchase", payload, "verifyPurchase");
+    }
+  }
+
+  class SupportPurchaseError extends Error {
+    constructor(message, code) {
+      super(message);
+      this.name = "SupportPurchaseError";
+      this.code = code || "support_purchase_error";
     }
   }
 
   class SupportPurchaseService {
-    constructor(config) {
+    constructor(config, dependencies = {}) {
       this.config = config || {};
+      this.global = dependencies.global || global;
+      this.store = dependencies.store || this.global.CdvPurchase?.store || null;
+      this.initialization = null;
+      this.initialized = false;
+      this.initializeError = null;
+      this.purchaseInFlight = null;
+      this.waiters = new Map();
+      this.listeners = new Set();
+      this.bound = false;
     }
 
     getOptions(platform) {
       const ids = this.config[platform] || {};
-      return [
-        { key: "oneTime5", label: "One-Time Support — $5", type: "one-time", amount: 5, productId: ids.oneTime5 || null },
-        { key: "monthly3", label: "Monthly Support — $3", type: "monthly", amount: 3, productId: ids.monthly3 || null },
-        { key: "monthly10", label: "Monthly Support — $10", type: "monthly", amount: 10, productId: ids.monthly10 || null }
+      const definitions = [
+        { key: "oneTime5", title: "One-Time Support", type: "one-time", amount: 5 },
+        { key: "monthly3", title: "Monthly Support", type: "monthly", amount: 3 },
+        { key: "monthly10", title: "Monthly Support", type: "monthly", amount: 10 }
       ];
+      return definitions.map(definition => {
+        const configured = typeof ids[definition.key] === "string"
+          ? { productId: ids[definition.key] }
+          : ids[definition.key] || {};
+        const product = configured.productId && this.storePlatform
+          ? this.store?.get?.(configured.productId, this.storePlatform)
+          : null;
+        const offer = this.getOffer(product, configured, platform);
+        const pricing = offer?.pricingPhases?.slice(-1)[0] || product?.pricing || null;
+        const localizedPrice = pricing?.price || null;
+        const suffix = definition.type === "monthly" ? "/month" : "";
+        const state = !configured.productId || platform === "web"
+          ? "unavailable"
+          : !this.initialized
+            ? "loading"
+            : product && offer && localizedPrice
+              ? "ready"
+              : "unavailable";
+        return {
+          ...definition,
+          ...configured,
+          productId: configured.productId || null,
+          localizedPrice,
+          label: localizedPrice
+            ? `${definition.title} — ${localizedPrice}${suffix}`
+            : definition.title,
+          state,
+          offer
+        };
+      });
+    }
+
+    getStorePlatform(platform = getPlatform()) {
+      const purchases = this.global.CdvPurchase;
+      if (platform === "ios") return purchases?.Platform?.APPLE_APPSTORE || null;
+      if (platform === "android") return purchases?.Platform?.GOOGLE_PLAY || null;
+      return null;
+    }
+
+    getOffer(product, configured, platform = getPlatform()) {
+      if (!product) return null;
+      if (platform === "google" || platform === "android") {
+        const suffix = configured.basePlanId || configured.purchaseOptionId;
+        if (suffix) {
+          return product.getOffer?.(`${configured.productId}@${suffix}`) || null;
+        }
+      }
+      return product.getOffer?.() || product.offers?.[0] || null;
+    }
+
+    onChange(listener) {
+      if (typeof listener === "function") this.listeners.add(listener);
+      return () => this.listeners.delete(listener);
+    }
+
+    notify() {
+      this.listeners.forEach(listener => {
+        try {
+          listener();
+        } catch (error) {
+          console.warn("[Reverse Flow Support Purchase]", {
+            event: "support-purchase-listener-failed",
+            message: error?.message || String(error)
+          });
+        }
+      });
+    }
+
+    supportProductIds(platform = getPlatform()) {
+      const storeKey = platform === "ios" ? "apple" : platform === "android" ? "google" : platform;
+      return new Set(
+        Object.values(this.config[storeKey] || {})
+          .map(value => typeof value === "string" ? value : value?.productId)
+          .filter(Boolean)
+      );
+    }
+
+    transactionProductId(transaction) {
+      const allowed = this.supportProductIds();
+      return transaction?.products
+        ?.map(product => product?.id)
+        .find(productId => allowed.has(productId)) || null;
+    }
+
+    transactionEvidence(transaction, option = null) {
+      const productIdentifier = this.transactionProductId(transaction) || option?.productId;
+      const configuredOption = this.getOptions(getPlatform() === "ios" ? "apple" : "google")
+        .find(candidate => candidate.productId === productIdentifier);
+      const nativePurchase = transaction?.nativePurchase || {};
+      return {
+        paymentSource: getPlatform(),
+        productIdentifier,
+        purchaseType: configuredOption?.type || option?.type || null,
+        monthlyAmount: configuredOption?.type === "monthly"
+          ? configuredOption.amount
+          : null,
+        transactionId: transaction?.transactionId || null,
+        originalTransactionId:
+          transaction?.originalTransactionId ||
+          nativePurchase?.originalTransactionId ||
+          null,
+        purchaseToken:
+          transaction?.purchaseId ||
+          nativePurchase?.purchaseToken ||
+          null,
+        purchaseTimestamp: toIsoTimestamp(
+          transaction?.purchaseDate || nativePurchase?.purchaseTime
+        ),
+        expirationTimestamp: toIsoTimestamp(transaction?.expirationDate),
+        signedTransaction: transaction?.jwsRepresentation || null,
+        offerId:
+          transaction?.products?.find(product => product?.id === productIdentifier)?.offerId ||
+          null,
+        transaction
+      };
+    }
+
+    settleTransaction(transaction, kind) {
+      const productId = this.transactionProductId(transaction);
+      if (!productId) return;
+      const waiter = this.waiters.get(productId);
+      if (!waiter) return;
+      this.waiters.delete(productId);
+      clearTimeout(waiter.timeout);
+      if (kind === "approved") {
+        waiter.resolve(this.transactionEvidence(transaction, waiter.option));
+      } else if (kind === "pending") {
+        waiter.reject(new SupportPurchaseError(
+          "This purchase is pending store approval. Supporter status will update after payment completes.",
+          "purchase_pending"
+        ));
+      } else {
+        waiter.reject(new SupportPurchaseError(
+          "The store could not complete this purchase. Please try again.",
+          "purchase_failed"
+        ));
+      }
+    }
+
+    bindStoreCallbacks() {
+      if (this.bound || !this.store?.when) return;
+      this.bound = true;
+      this.store.when()
+        .productUpdated(product => {
+          if (this.supportProductIds().has(product?.id)) this.notify();
+        }, "reverseFlowSupportProducts")
+        .approved(transaction => {
+          this.settleTransaction(transaction, "approved");
+        }, "reverseFlowSupportApproved")
+        .pending(transaction => {
+          this.settleTransaction(transaction, "pending");
+        }, "reverseFlowSupportPending");
+      this.store.error?.(error => {
+        const productId = error?.productId;
+        const waiter = productId ? this.waiters.get(productId) : null;
+        if (!waiter) return;
+        this.waiters.delete(productId);
+        clearTimeout(waiter.timeout);
+        const cancelled =
+          error?.code === this.global.CdvPurchase?.ErrorCode?.PAYMENT_CANCELLED;
+        waiter.reject(new SupportPurchaseError(
+          cancelled
+            ? "Purchase canceled. No charge was made."
+            : "The store could not complete this purchase. Please try again.",
+          cancelled ? "purchase_cancelled" : "purchase_failed"
+        ));
+      });
+    }
+
+    async waitForNativePurchasePlugin() {
+      if (this.global.CdvPurchase?.store) return;
+      if (!["ios", "android"].includes(getPlatform())) return;
+      await new Promise(resolve => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          this.global.document?.removeEventListener?.("deviceready", finish);
+          resolve();
+        };
+        const timeout = setTimeout(finish, 10000);
+        this.global.document?.addEventListener?.("deviceready", finish, {
+          once: true
+        });
+      });
+    }
+
+    async initialize() {
+      if (this.initialization) return this.initialization;
+      this.initialization = (async () => {
+        const platform = getPlatform();
+        await this.waitForNativePurchasePlugin();
+        this.store = this.store || this.global.CdvPurchase?.store || null;
+        this.storePlatform = this.getStorePlatform(platform);
+        if (!this.store || !this.storePlatform) {
+          this.initializeError = new SupportPurchaseError(
+            "Support purchases are available in the installed iOS or Android app.",
+            "store_unavailable"
+          );
+          this.initialized = true;
+          this.notify();
+          return;
+        }
+
+        this.bindStoreCallbacks();
+        const ProductType = this.global.CdvPurchase.ProductType;
+        const storeKey = platform === "ios" ? "apple" : "google";
+        const registrations = Object.values(this.config[storeKey] || {})
+          .map(value => typeof value === "string" ? { productId: value } : value)
+          .filter(value => value?.productId)
+          .map(value => ({
+            id: value.productId,
+            type: value.productType === "paid subscription"
+              ? ProductType.PAID_SUBSCRIPTION
+              : ProductType.NON_CONSUMABLE,
+            platform: this.storePlatform
+          }));
+        if (
+          typeof REVERSE_FLOW_PRO_PRODUCT_ID === "string" &&
+          REVERSE_FLOW_PRO_PRODUCT_ID
+        ) {
+          registrations.push({
+            id: REVERSE_FLOW_PRO_PRODUCT_ID,
+            type: ProductType.NON_CONSUMABLE,
+            platform: this.storePlatform
+          });
+        }
+        this.store.register(registrations);
+        const initialization = this.storePlatform === this.global.CdvPurchase.Platform?.APPLE_APPSTORE
+          ? [{ platform: this.storePlatform, options: { needAppReceipt: true } }]
+          : [this.storePlatform];
+        const errors = await this.store.initialize(initialization);
+        const firstError = Array.isArray(errors) ? errors.find(Boolean) : errors;
+        if (firstError?.isError) {
+          throw new SupportPurchaseError(
+            "Store support options are temporarily unavailable.",
+            "product_load_failed"
+          );
+        }
+        this.initialized = true;
+        this.notify();
+      })().catch(error => {
+        this.initialized = true;
+        this.initializeError = error;
+        this.notify();
+        throw error;
+      });
+      return this.initialization;
     }
 
     async purchase(option) {
-      if (!option?.productId) {
-        throw new Error("This support option is not configured in the store yet.");
+      if (this.purchaseInFlight) {
+        throw new SupportPurchaseError(
+          "A store purchase is already in progress.",
+          "purchase_in_progress"
+        );
       }
-      throw new Error("Verified support purchasing will be connected in a later pass.");
+      this.purchaseInFlight = (async () => {
+        await this.initialize();
+        const platform = getPlatform() === "ios" ? "apple" : "google";
+        const current = this.getOptions(platform).find(item => item.key === option?.key);
+        if (!current || current.state !== "ready" || !current.offer) {
+          throw new SupportPurchaseError(
+            "This support option is temporarily unavailable from the store.",
+            "product_unavailable"
+          );
+        }
+
+        const transactionPromise = new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            this.waiters.delete(current.productId);
+            reject(new SupportPurchaseError(
+              "The store did not finish responding. Check your purchase history before trying again.",
+              "purchase_timeout"
+            ));
+          }, 120000);
+          this.waiters.set(current.productId, {
+            option: current,
+            resolve,
+            reject,
+            timeout
+          });
+        });
+        const orderError = await current.offer.order();
+        if (orderError) {
+          const waiter = this.waiters.get(current.productId);
+          if (waiter) {
+            this.waiters.delete(current.productId);
+            clearTimeout(waiter.timeout);
+          }
+          const cancelled =
+            orderError.code === this.global.CdvPurchase?.ErrorCode?.PAYMENT_CANCELLED;
+          throw new SupportPurchaseError(
+            cancelled
+              ? "Purchase canceled. No charge was made."
+              : "The store could not complete this purchase. Please try again.",
+            cancelled ? "purchase_cancelled" : "purchase_failed"
+          );
+        }
+        return transactionPromise;
+      })();
+      try {
+        return await this.purchaseInFlight;
+      } finally {
+        this.purchaseInFlight = null;
+      }
+    }
+
+    allSupportTransactions() {
+      const transactions = [];
+      const append = values => {
+        if (!Array.isArray(values)) return;
+        values.forEach(transaction => {
+          if (
+            transaction &&
+            this.transactionProductId(transaction) &&
+            !transactions.includes(transaction)
+          ) {
+            transactions.push(transaction);
+          }
+        });
+      };
+      append(this.store?.localTransactions);
+      (this.store?.localReceipts || []).forEach(receipt => append(receipt?.transactions));
+      return transactions;
+    }
+
+    async restoreSupportPurchases() {
+      await this.initialize();
+      if (!this.store?.restorePurchases) {
+        throw new SupportPurchaseError(
+          "Store purchase history is unavailable on this device.",
+          "restore_unavailable"
+        );
+      }
+      await this.store.restorePurchases();
+      const transaction = this.allSupportTransactions()
+        .filter(candidate => candidate?.isPending !== true)
+        .sort((left, right) =>
+          (new Date(right?.purchaseDate || 0).getTime() || 0) -
+          (new Date(left?.purchaseDate || 0).getTime() || 0)
+        )[0];
+      if (!transaction) {
+        throw new SupportPurchaseError(
+          "No Reverse Flow support purchase was found for the current store account.",
+          "no_support_purchase_found"
+        );
+      }
+      return this.transactionEvidence(transaction);
+    }
+
+    async finishPurchase(verifiedPurchase) {
+      const transaction = verifiedPurchase?.transaction;
+      if (typeof transaction?.finish !== "function") return;
+      await transaction.finish();
     }
 
     async openNativeSubscriptionManagement() {
-      throw new Error("Subscription management is unavailable until recurring products are configured.");
+      await this.initialize();
+      const error = await this.store?.manageSubscriptions?.(this.storePlatform);
+      if (error?.isError) {
+        throw new SupportPurchaseError(
+          "Subscription management could not be opened. Try again from your store account.",
+          "subscription_management_failed"
+        );
+      }
     }
   }
 
@@ -454,7 +826,7 @@
   }
 
   function createPurchaseRegistrationPayload(fields, verifiedPurchase) {
-    return {
+    const payload = {
       name: String(fields?.name || "").trim(),
       email: String(fields?.email || "").trim().toLowerCase(),
       platform: getPlatform(),
@@ -463,11 +835,26 @@
       purchaseType: verifiedPurchase?.purchaseType || null,
       recurring: verifiedPurchase?.purchaseType === "monthly",
       monthlyAmount: verifiedPurchase?.monthlyAmount || null,
-      transactionId: verifiedPurchase?.transactionId || null,
-      purchaseToken: verifiedPurchase?.purchaseToken || null,
       purchaseTimestamp: verifiedPurchase?.purchaseTimestamp || null,
+      expirationTimestamp: verifiedPurchase?.expirationTimestamp || null,
+      offerId: verifiedPurchase?.offerId || null,
+      transactionEvidence: {},
       appVersion: getAppVersion()
     };
+    if (payload.platform === "ios") {
+      payload.transactionEvidence.transactionId =
+        verifiedPurchase?.transactionId || null;
+      payload.transactionEvidence.originalTransactionId =
+        verifiedPurchase?.originalTransactionId || null;
+      if (verifiedPurchase?.signedTransaction) {
+        payload.transactionEvidence.signedTransaction =
+          verifiedPurchase.signedTransaction;
+      }
+    } else if (payload.platform === "android") {
+      payload.transactionEvidence.purchaseToken =
+        verifiedPurchase?.purchaseToken || null;
+    }
+    return payload;
   }
 
   function getRuntimeState(cache) {
@@ -529,7 +916,7 @@
     }
   }
 
-  function renderSupportOptions(container, purchaseService, platform) {
+  function renderSupportOptions(container, purchaseService, platform, onPurchase) {
     if (!container) return;
     const storePlatform = platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
@@ -539,34 +926,36 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "support-option";
-      button.disabled = !option.productId;
+      button.disabled = option.state !== "ready";
       const label = document.createElement("span");
       label.className = "support-option-label";
       label.textContent = option.label;
       button.appendChild(label);
-      if (!option.productId) {
-        button.classList.add("is-coming-soon");
-        const availability = document.createElement("span");
-        availability.className = "support-option-availability";
-        availability.textContent = "Coming Soon";
-        button.appendChild(availability);
-        button.setAttribute("aria-describedby", "supportProductsUnavailable");
-      }
+      const availability = document.createElement("span");
+      availability.className = "support-option-availability";
+      availability.textContent =
+        option.state === "loading"
+          ? "Loading price…"
+          : option.state === "ready"
+            ? "Purchase"
+            : "Unavailable";
+      button.appendChild(availability);
+      button.classList.toggle("is-loading", option.state === "loading");
+      button.classList.toggle("is-unavailable", option.state === "unavailable");
       button.addEventListener("click", async () => {
         const status = document.getElementById("supportPageStatus");
+        if (button.dataset.purchasing === "true") return;
         try {
+          button.dataset.purchasing = "true";
           button.disabled = true;
           status.textContent = "Connecting to the store…";
-          const verifiedPurchase = await purchaseService.purchase(option);
-          global.reverseFlowPendingVerifiedSupportPurchase = verifiedPurchase;
-          const registration = document.getElementById("supportRegistrationSection");
-          if (registration) {
-            registration.hidden = false;
-            registration.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
+          const pendingPurchase = await purchaseService.purchase(option);
+          await onPurchase(pendingPurchase);
         } catch (error) {
           status.textContent = error.message;
-          button.disabled = !option.productId;
+        } finally {
+          button.dataset.purchasing = "false";
+          button.disabled = option.state !== "ready";
         }
       });
       container.appendChild(button);
@@ -585,6 +974,7 @@
     const claimSection = document.getElementById("legacyClaimSection");
     const manageSection = document.getElementById("manageSupportSection");
     const optionsSection = document.getElementById("supportOptionsSection");
+    const pageStatus = document.getElementById("supportPageStatus");
 
     title.textContent = "Support Reverse Flow";
     claimSection.hidden = safeAction !== ACTIONS.CLAIM;
@@ -607,25 +997,98 @@
         ? `$${contribution.monthlyAmount || "—"} monthly · ${contribution.platform || "platform unavailable"} · ${contribution.status}`
         : "Current recurring contribution details are unavailable.";
 
+    const handlePendingPurchase = async pendingPurchase => {
+      const cached = cache.read();
+      if (cached.isSupporter && cached.supporterEmail) {
+        pageStatus.textContent = "Verifying the purchase with the store…";
+        const payload = createPurchaseRegistrationPayload({
+          name: "",
+          email: cached.supporterEmail
+        }, pendingPurchase);
+        const confirmed = await registryService.registerVerifiedPurchase(payload);
+        cache.writeConfirmed(confirmed, {
+          email: cached.supporterEmail,
+          platform: payload.platform
+        });
+        await purchaseService.finishPurchase(pendingPurchase);
+        global.reverseFlowPendingVerifiedSupportPurchase = null;
+        pageStatus.textContent = "Supporter status updated. Thank you.";
+        renderSupportPage(cache, registryService, purchaseService);
+        return;
+      }
+
+      global.reverseFlowPendingVerifiedSupportPurchase = pendingPurchase;
+      const registration = document.getElementById("supportRegistrationSection");
+      if (registration) {
+        registration.hidden = false;
+        pageStatus.textContent =
+          "The store accepted the purchase. Enter your name and email so the backend can verify and register your Supporter status.";
+        registration.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+
     renderSupportOptions(
       document.getElementById("supportOptions"),
       purchaseService,
-      getPlatform()
+      getPlatform(),
+      handlePendingPurchase
     );
     renderSupportOptions(
       document.getElementById("manageSupportOptions"),
       purchaseService,
-      getPlatform()
+      getPlatform(),
+      handlePendingPurchase
     );
 
-    document.getElementById("manageSubscriptionButton")?.addEventListener("click", async () => {
-      const status = document.getElementById("supportPageStatus");
-      try {
-        await purchaseService.openNativeSubscriptionManagement();
-      } catch (error) {
-        status.textContent = error.message;
-      }
-    });
+    const optionStates = purchaseService.getOptions(
+      getPlatform() === "ios" ? "apple" : getPlatform() === "android" ? "google" : null
+    );
+    const productsNote = document.getElementById("supportProductsUnavailable");
+    if (productsNote) {
+      const readyCount = optionStates.filter(option => option.state === "ready").length;
+      const loadingCount = optionStates.filter(option => option.state === "loading").length;
+      productsNote.hidden = readyCount === optionStates.length;
+      productsNote.textContent = loadingCount
+        ? "Loading localized prices from the store…"
+        : readyCount
+          ? "Some support options are temporarily unavailable."
+          : "Store support options are temporarily unavailable. Please try again later.";
+    }
+
+    const manageButton = document.getElementById("manageSubscriptionButton");
+    if (manageButton && manageButton.dataset.bound !== "true") {
+      manageButton.dataset.bound = "true";
+      manageButton.addEventListener("click", async () => {
+        try {
+          await purchaseService.openNativeSubscriptionManagement();
+        } catch (error) {
+          pageStatus.textContent = error.message;
+        }
+      });
+    }
+
+    const restoreSupportButton = document.getElementById("restoreSupportPurchasesButton");
+    if (restoreSupportButton && restoreSupportButton.dataset.bound !== "true") {
+      restoreSupportButton.dataset.bound = "true";
+      restoreSupportButton.addEventListener("click", async () => {
+        if (restoreSupportButton.dataset.restoring === "true") return;
+        restoreSupportButton.dataset.restoring = "true";
+        restoreSupportButton.disabled = true;
+        pageStatus.textContent =
+          getPlatform() === "ios"
+            ? "Restoring Apple support purchases…"
+            : "Refreshing Google Play support purchases…";
+        try {
+          const pendingPurchase = await purchaseService.restoreSupportPurchases();
+          await handlePendingPurchase(pendingPurchase);
+        } catch (error) {
+          pageStatus.textContent = error.message;
+        } finally {
+          restoreSupportButton.dataset.restoring = "false";
+          restoreSupportButton.disabled = false;
+        }
+      });
+    }
 
     const recoveryButton = document.getElementById("checkExistingPurchaseButton");
     if (recoveryButton && recoveryButton.dataset.bound !== "true") {
@@ -760,7 +1223,14 @@
           status.textContent = "Enter a full name and valid email address.";
           return;
         }
-        if (!payload.productIdentifier || (!payload.transactionId && !payload.purchaseToken)) {
+        const hasStoreEvidence =
+          payload.platform === "ios"
+            ? Boolean(
+                payload.transactionEvidence.transactionId ||
+                payload.transactionEvidence.originalTransactionId
+              )
+            : Boolean(payload.transactionEvidence.purchaseToken);
+        if (!payload.productIdentifier || !hasStoreEvidence) {
           status.textContent = "A verified store transaction is required before registration.";
           return;
         }
@@ -773,9 +1243,14 @@
         status.textContent = "Registering verified support…";
         try {
           const confirmed = await registryService.registerVerifiedPurchase(payload);
-          cache.writeConfirmed(confirmed);
+          cache.writeConfirmed(confirmed, {
+            email: payload.email,
+            platform: payload.platform
+          });
+          await purchaseService.finishPurchase(verifiedPurchase);
           global.reverseFlowPendingVerifiedSupportPurchase = null;
-          status.textContent = "Supporter status confirmed.";
+          status.textContent = "Supporter status confirmed. Welcome to the Reverse Flow community.";
+          registrationForm.reset();
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
           status.textContent = `${error.message} Your support was not registered.`;
@@ -797,6 +1272,18 @@
     const purchases = new SupportPurchaseService(productConfig);
     renderSharedSupportUi(cache);
     renderSupportPage(cache, registry, purchases);
+    if (document.getElementById("supportPage")) {
+      purchases.onChange(() => {
+        renderSupportPage(cache, registry, purchases);
+      });
+      void purchases.initialize().catch(error => {
+        const status = document.getElementById("supportPageStatus");
+        if (status && !status.textContent) {
+          status.textContent =
+            error?.message || "Store support options are temporarily unavailable.";
+        }
+      });
+    }
     let lastRefreshStartedAt = 0;
     const requestStatusRefresh = () => {
       const now = Date.now();
@@ -828,6 +1315,7 @@
     SupporterRegistryError,
     SupporterRegistryService,
     SupportPurchaseService,
+    SupportPurchaseError,
     createLegacyClaimPayload,
     createPurchaseRegistrationPayload,
     refreshSupporterStatus,

@@ -38,6 +38,7 @@
     <section class="card" id="supportOptionsSection">
       <div id="supportOptions"></div>
       <p id="supportProductsUnavailable">Unavailable in this test fixture.</p>
+      <button id="restoreSupportPurchasesButton" type="button">Restore Support Purchases</button>
     </section>
 
     <section class="card">
@@ -93,6 +94,55 @@
         document.documentElement.dataset.resolvedTheme = appearance;
       }
       window.Capacitor = { getPlatform: () => params.get("platform") || "ios" };
+      if (params.get("store") === "ready") {
+        const platform = params.get("platform") || "ios";
+        const productDefinitions = {
+          reverse_flow_support_one_time_5: "$4.99",
+          support_reverse_flow_monthly_3: "$2.99",
+          support_reverse_flow_monthly_10: "$9.99"
+        };
+        const products = new Map(
+          Object.entries(productDefinitions).map(([productId, price]) => {
+            const offer = {
+              id: productId,
+              pricingPhases: [{ price }],
+              async order() {
+                return { isError: true, code: 6777006, productId };
+              }
+            };
+            return [productId, {
+              id: productId,
+              offers: [offer],
+              getOffer: () => offer
+            }];
+          })
+        );
+        const when = {
+          productUpdated() { return this; },
+          approved() { return this; },
+          pending() { return this; }
+        };
+        window.CdvPurchase = {
+          Platform: {
+            APPLE_APPSTORE: "ios-appstore",
+            GOOGLE_PLAY: "android-playstore"
+          },
+          ProductType: {
+            NON_CONSUMABLE: "non consumable",
+            PAID_SUBSCRIPTION: "paid subscription"
+          },
+          ErrorCode: { PAYMENT_CANCELLED: 6777006 },
+          store: {
+            when: () => when,
+            error() {},
+            register() {},
+            async initialize() { return []; },
+            get: productId => products.get(productId),
+            async restorePurchases() {},
+            async manageSubscriptions() {}
+          }
+        };
+      }
       localStorage.removeItem(PRO_ENTITLEMENT_STORAGE_KEY);
       localStorage.removeItem(SUPPORTER_CACHE_STORAGE_KEY);
 
@@ -120,6 +170,15 @@
           source: "legacy_apple",
           hasActiveRecurringSupport: state === "recurring",
           recurringStatus: state === "recurring" ? "active" : "inactive",
+          contribution: state === "recurring"
+            ? {
+                type: "monthly",
+                status: "active",
+                monthlyAmount: 3,
+                platform: params.get("platform") === "android" ? "google" : "apple",
+                renewsOrExpiresAt: "2026-08-24T12:00:00.000Z"
+              }
+            : { type: "none", status: "inactive" },
           supporterEmail: "fixture@example.invalid",
           platform: "ios",
           lastVerifiedAt: "2026-07-23T18:00:00.000Z"

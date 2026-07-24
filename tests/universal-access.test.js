@@ -28,7 +28,7 @@ test("main app exposes one centralized support action and no access ribbons", ()
   assert.doesNotMatch(html, /mode-card-pro|Upgrade to Pro|Restore Purchase|Buy Pro|Go Pro/i);
 });
 
-test("support UI uses one compact action, readable Coming Soon options, and approved copy", () => {
+test("support UI uses one compact action, live store options, and approved copy", () => {
   const supporter = read("www/js/services/supporter.js");
   const supportHtml = read("www/support.html");
   const supportCss = read("www/css/support.css");
@@ -39,10 +39,11 @@ test("support UI uses one compact action, readable Coming Soon options, and appr
     read("www/index.html")
   ].join("\n");
 
-  assert.match(supporter, /availability\.textContent = "Coming Soon"/);
+  assert.match(supporter, /option\.state === "ready"[\s\S]*"Purchase"/);
+  assert.doesNotMatch(supporter, /Coming Soon/);
   assert.match(supportHtml, /Already purchased Reverse Flow PRO\?/);
   assert.match(supportHtml, />Check Existing Purchase</);
-  assert.match(supportCss, /\.support-option\.is-coming-soon:disabled\s*\{[\s\S]*opacity:\s*1/);
+  assert.match(supportCss, /\.support-option\.is-unavailable:disabled\s*\{[\s\S]*opacity:\s*1/);
   assert.match(supportCss, /\.support-action-bar\s*\{[\s\S]*min-height:\s*46px/);
   const retiredAccessPhrase = new RegExp(
     ["production", "tools?"].join("\\s+"),

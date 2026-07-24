@@ -21,10 +21,12 @@ const API_CONFIG = {
   },
   routes: {
     claimLegacy: "/api/supporters/claim-legacy",
+    verifyPurchase: "/api/supporters/verify-purchase",
     status: "/api/supporters/status"
   },
   timeoutsMs: {
     claimLegacy: 25,
+    verifyPurchase: 25,
     status: 25
   }
 };
@@ -159,6 +161,40 @@ test("status client normalizes email and uses POST body", async () => {
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     email: "firefighter@example.com"
   });
+});
+
+test("native purchase registration uses the public verification route without secrets", async () => {
+  const calls = [];
+  const service = new SupporterRegistryService(API_CONFIG, {
+    navigator: { onLine: true },
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      return response(200, {
+        ...confirmedResponse,
+        source: "apple"
+      });
+    }
+  });
+  const payload = {
+    name: "Firefighter Name",
+    email: "firefighter@example.com",
+    platform: "ios",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseType: "one-time",
+    transactionEvidence: {
+      transactionId: "2000000123456789"
+    }
+  };
+
+  const result = await service.registerVerifiedPurchase(payload);
+  assert.equal(result.isSupporter, true);
+  assert.equal(
+    calls[0].url,
+    "https://preview.example.test/api/supporters/verify-purchase"
+  );
+  assert.deepEqual(JSON.parse(calls[0].options.body), payload);
+  assert.equal("x-supporter-registration-token" in calls[0].options.headers, false);
+  assert.doesNotMatch(calls[0].url, /2000000123456789/);
 });
 
 test("Apple and Google claims use only the contract evidence fields", () => {

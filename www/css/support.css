@@ -1640,12 +1640,17 @@
       text-align: left;
     }
 
-    .support-option.is-coming-soon:disabled {
+    .support-option.is-loading:disabled,
+    .support-option.is-unavailable:disabled {
       opacity: 1;
       border-color: rgba(255, 101, 0, 0.3);
       background: rgba(255, 101, 0, 0.055);
       color: var(--ink);
       cursor: default;
+    }
+
+    .support-option.is-loading:disabled {
+      opacity: 0.78;
     }
 
     .support-option-label {
@@ -1740,6 +1745,7 @@
     }
 
     html[data-resolved-theme="dark"] .support-secondary-action,
-    html[data-resolved-theme="dark"] .support-option.is-coming-soon:disabled {
+    html[data-resolved-theme="dark"] .support-option.is-loading:disabled,
+    html[data-resolved-theme="dark"] .support-option.is-unavailable:disabled {
       background: rgba(255, 101, 0, 0.1);
     }
