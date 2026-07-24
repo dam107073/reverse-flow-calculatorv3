@@ -584,6 +584,21 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  });
 	}
 
+	function redactStoreReference(value) {
+	  const normalized = String(value || "");
+	  if (!normalized) return null;
+	  return normalized.length <= 6
+	    ? "[redacted]"
+	    : `...${normalized.slice(-6)}`;
+	}
+
+	function summarizeStoreError(error) {
+	  return {
+	    code: error?.code || null,
+	    message: error?.message || String(error || "Unknown store error")
+	  };
+	}
+
 	function summarizeVerifiedPurchase(purchase, fallbackPath = null) {
 	  if (!purchase || typeof purchase !== "object") return null;
 
@@ -591,8 +606,8 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    path: fallbackPath,
 	    id: purchase.id || null,
 	    platform: purchase.platform || null,
-	    purchaseId: purchase.purchaseId || null,
-	    transactionId: purchase.transactionId || null,
+	    purchaseId: redactStoreReference(purchase.purchaseId),
+	    transactionId: redactStoreReference(purchase.transactionId),
 	    purchaseDate: purchase.purchaseDate || null,
 	    expiryDate: purchase.expiryDate || null,
 	    isExpired: Boolean(purchase.isExpired),
@@ -613,7 +628,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	    className: receipt.className || null,
 	    platform: receipt.platform || null,
 	    id: receipt.id || null,
-	    latestReceipt: receipt.latestReceipt,
+	    latestReceiptPresent: Boolean(receipt.latestReceipt),
 	    validationDate: receipt.validationDate || null,
 	    collectionCount: collection.length,
 	    collection: collection.map((purchase, purchaseIndex) =>
@@ -896,7 +911,7 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	function redactAndroidTransactionId(transaction) {
 	  const value = getAndroidProTransactionKey(transaction);
 	  if (!value || value.endsWith(":unknown")) return "unknown";
-	  return `...${value.slice(-6)}`;
+	  return redactStoreReference(value);
 	}
 
 	function getAndroidProTransactions(store, receipt = null) {
@@ -978,13 +993,34 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 
 	function persistAndroidProEntitlement(transaction, trigger) {
 	  try {
+	    const nativePurchase = transaction?.nativePurchase || {};
+	    const purchaseTimestamp = transaction?.purchaseDate
+	      ? new Date(transaction.purchaseDate).toISOString()
+	      : nativePurchase?.purchaseTime
+	        ? new Date(Number(nativePurchase.purchaseTime)).toISOString()
+	        : null;
 	    const entitlement = {
 	      access: ACCESS_LEVELS.PRO,
 	      source: "purchase",
 	      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
 	      trigger,
-	      originalTransactionId: transaction?.transactionId || transaction?.purchaseId || null,
-	      purchaseToken: transaction?.purchaseToken || transaction?.token || null,
+	      originalTransactionId: null,
+	      transactionId: transaction?.transactionId || null,
+	      purchaseToken:
+	        transaction?.purchaseId ||
+	        nativePurchase?.purchaseToken ||
+	        transaction?.purchaseToken ||
+	        transaction?.token ||
+	        null,
+	      originalPurchaseTimestamp: purchaseTimestamp,
+	      purchaseTimestamp,
+	      platform: "android",
+	      isAcknowledged: transaction?.isAcknowledged === true,
+	      purchaseState: transaction?.state || nativePurchase?.getPurchaseState || null,
+	      orderId: nativePurchase?.orderId || transaction?.transactionId || null,
+	      packageName: nativePurchase?.packageName || null,
+	      obfuscatedAccountId: nativePurchase?.accountId || null,
+	      obfuscatedProfileId: nativePurchase?.profileId || null,
 	      verifiedAt: new Date().toISOString()
 	    };
 	    localStorage.setItem(
@@ -1696,13 +1732,13 @@ logStoreEvent("initialize-start", {
 		      logStoreEvent("transaction-approved", {
 		        transactionRef: androidAssessment.isGooglePlay
 		          ? redactAndroidTransactionId(transaction)
-		          : transaction?.transactionId || null,
+		          : redactStoreReference(transaction?.transactionId),
 		        state: transaction?.state || null,
 		        productIds: Array.isArray(transaction?.products)
 	          ? transaction.products.map(product => product?.id).filter(Boolean)
 	          : [],
 	        ...getIapDiagnosticPayload({
-	          rawTransaction: transaction
+	          transactionSummary: summarizeVerifiedPurchase(transaction)
 		        })
 		      });
 
@@ -1731,14 +1767,9 @@ logStoreEvent("initialize-start", {
 
 		      const receiptInspection = inspectVerifiedEntitlement(receipt);
 	      const verifiedReceiptValuePaths = findVerifiedReceiptValuePaths(receipt);
-	      const receiptCollection = Array.isArray(receipt?.collection)
-	        ? receipt.collection
-	        : null;
-
 	      if (IAP_DEBUG_DIAGNOSTICS) {
 	        logStoreEvent("receipt-verified", {
 	          receiptSummary: summarizeVerifiedReceipt(receipt),
-	          receiptCollection,
 	          receiptInspection,
 	          verifiedReceiptValuePaths,
 	          storeSnapshot: getReverseFlowProStoreSnapshot(store)
@@ -1774,6 +1805,20 @@ logStoreEvent("initialize-start", {
 	      const wasAlreadyPro = isProUser();
 	      const grantWasRestore = receiptWasRestore;
 	      const grantSource = receiptInspection;
+	      const appleTransaction = (receipt?.sourceReceipt?.transactions || [])
+	        .filter(transaction =>
+	          Array.isArray(transaction?.products) &&
+	          transaction.products.some(product =>
+	            product?.id === REVERSE_FLOW_PRO_PRODUCT_ID
+	          )
+	        )
+	        .sort((left, right) =>
+	          (new Date(left?.purchaseDate || 0).getTime() || 0) -
+	          (new Date(right?.purchaseDate || 0).getTime() || 0)
+	        )[0] || null;
+	      const applePurchaseTimestamp = appleTransaction?.purchaseDate
+	        ? new Date(appleTransaction.purchaseDate).toISOString()
+	        : null;
 
 	      logProAccessEvent("verified-receipt-detected-pro", {
 	        trigger: "store.when().verified",
@@ -1793,9 +1838,15 @@ logStoreEvent("initialize-start", {
 	        source: "purchase",
 	        productId: grantSource.productId,
 	        originalTransactionId:
+	          appleTransaction?.originalTransactionId ||
 	          grantSource.matchingCandidate?.transactionId ||
 	          grantSource.matchingCandidate?.purchaseId ||
-	          null
+	          null,
+	        transactionId: appleTransaction?.transactionId || null,
+	        originalPurchaseTimestamp: applePurchaseTimestamp,
+	        purchaseTimestamp: applePurchaseTimestamp,
+	        platform: "ios",
+	        appAccountToken: appleTransaction?.appAccountToken || null
 	      });
 
 	      if (!proWasGranted) return;
@@ -1848,7 +1899,8 @@ logStoreEvent("initialize-start", {
 	              event: "receipt-finish-failed",
 	              productId: REVERSE_FLOW_PRO_PRODUCT_ID,
 	              matchingPath: grantSource.canonicalPath,
-	              error
+	              code: error?.code || null,
+	              message: error?.message || String(error)
 	            });
 	          });
 	      }
@@ -1857,7 +1909,7 @@ logStoreEvent("initialize-start", {
 	      console.warn("[Reverse Flow IAP]", {
 	        event: "receipt-unverified",
 	        ...getIapDiagnosticPayload({
-	          rawReceipt: unverifiedReceipt,
+	          receiptSummary: summarizeVerifiedReceipt(unverifiedReceipt),
 	          entitlementInspection: inspectVerifiedEntitlement(unverifiedReceipt)
 	        })
 	      });
@@ -1866,7 +1918,8 @@ logStoreEvent("initialize-start", {
 	  store.error(error => {
 	    console.warn("[Reverse Flow IAP]", {
 	      event: "store-error",
-	      error
+	      code: error?.code || null,
+	      message: error?.message || String(error)
 	    });
 	    if (!reverseFlowProProductReady) {
 	      setBuyProButtonState("unavailable", {
@@ -7394,7 +7447,7 @@ function openProModal() {
           reverseFlowPurchaseInProgress = false;
           console.warn("[Reverse Flow IAP]", {
             event: "support-page-purchase-order-error",
-            error
+            ...summarizeStoreError(error)
           });
           alert(error.message || "The purchase could not be completed.");
         } else {
@@ -7406,7 +7459,7 @@ function openProModal() {
         reverseFlowPurchaseInProgress = false;
         console.error("[Reverse Flow IAP]", {
           event: "support-page-purchase-order-failed",
-          error
+          ...summarizeStoreError(error)
         });
         alert("The purchase could not be completed.");
       } finally {
@@ -7504,7 +7557,7 @@ function openProModal() {
           els.restorePurchaseButton.textContent = "Check Previous Purchase";
         }
         logReverseFlowRestoreDiagnostic("support-page-restore-failed", store, {
-          error
+          ...summarizeStoreError(error)
         });
         alert("Purchases could not be restored.");
       }
@@ -7823,7 +7876,7 @@ const product =
 	      reverseFlowPurchaseInProgress = false;
 	      console.warn("[Reverse Flow IAP]", {
 	        event: "purchase-order-error",
-	        error
+	        ...summarizeStoreError(error)
 	      });
 	      alert(error.message || "The purchase could not be completed.");
 	    } else {
@@ -7835,7 +7888,7 @@ const product =
 	    reverseFlowPurchaseInProgress = false;
 	    console.error("[Reverse Flow IAP]", {
 	      event: "purchase-order-failed",
-	      error
+	      ...summarizeStoreError(error)
 	    });
 	    alert("The purchase could not be completed.");
 	  } finally {
@@ -7933,7 +7986,7 @@ const product =
 	      els.restorePurchaseButton.textContent = "Check Previous Purchase";
 	    }
 	    logReverseFlowRestoreDiagnostic("restore-failed", store, {
-	      error
+	      ...summarizeStoreError(error)
 	    });
 	    alert("Purchases could not be restored.");
 	  }

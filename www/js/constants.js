@@ -35,6 +35,22 @@ const PRO_ENTITLEMENT_STORAGE_KEY =
   "reverse-flow-pro-entitlement-v1";
 const SUPPORTER_CACHE_STORAGE_KEY =
   "reverse-flow-supporter-cache-v1";
+const SUPPORTER_API_ENVIRONMENT = "preview";
+const SUPPORTER_API_CONFIG = Object.freeze({
+  environment: SUPPORTER_API_ENVIRONMENT,
+  baseUrls: Object.freeze({
+    preview: "https://reverese-flow-website-pkkuuucew-reverse-flow-llc.vercel.app",
+    production: "https://reverse-flow.app"
+  }),
+  routes: Object.freeze({
+    claimLegacy: "/api/supporters/claim-legacy",
+    status: "/api/supporters/status"
+  }),
+  timeoutsMs: Object.freeze({
+    claimLegacy: 15000,
+    status: 10000
+  })
+});
 
 // Store products are intentionally unavailable until they are configured in
 // App Store Connect and Google Play Console. Add real identifiers here in the

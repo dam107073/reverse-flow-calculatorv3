@@ -65,16 +65,45 @@ test("cache accepts only confirmed records and survives sync failure", () => {
 
   cache.writeConfirmed({
     isSupporter: true,
-    supporterSince: "2026-07-23T00:00:00.000Z",
+    supporterSince: "2026-07-23",
     source: "legacy-claim",
     contribution: { type: "none", status: "inactive" },
     lastVerifiedAt: "2026-07-23T00:00:01.000Z"
   });
 
-  global.navigator = { onLine: false };
-  const retained = cache.retainAfterSyncFailure();
+  const retained = cache.retainAfterSyncFailure(false);
   assert.equal(retained.isSupporter, true);
   assert.equal(retained.syncStatus, "offline");
+});
+
+test("cache keeps the newest confirmed response and supporter identity survives restart", () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value)
+  };
+  const cache = new SupporterCache(storage, "test-supporter-cache");
+  cache.writeConfirmed({
+    isSupporter: true,
+    supporterSince: "2021-04-08",
+    source: "legacy_apple",
+    hasActiveRecurringSupport: false,
+    recurringStatus: "inactive",
+    lastVerifiedAt: "2026-07-23T18:00:02.000Z"
+  }, { email: " Firefighter@Example.org ", platform: "ios" });
+  cache.writeConfirmed({
+    isSupporter: true,
+    supporterSince: "2026-07-23",
+    source: "legacy_apple",
+    hasActiveRecurringSupport: false,
+    recurringStatus: "inactive",
+    lastVerifiedAt: "2026-07-23T18:00:01.000Z"
+  });
+
+  const restarted = new SupporterCache(storage, "test-supporter-cache").read();
+  assert.equal(restarted.supporterSince, "2021-04-08");
+  assert.equal(restarted.supporterEmail, "firefighter@example.org");
+  assert.equal(restarted.platform, "ios");
 });
 
 test("claim email validation rejects malformed addresses", () => {

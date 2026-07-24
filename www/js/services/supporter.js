@@ -3,6 +3,7 @@
 
   const CACHE_VERSION = 1;
   const DEFAULT_CACHE_KEY = "reverse-flow-supporter-cache-v1";
+  const RECURRING_STATUSES = new Set(["active", "canceling", "expired", "inactive"]);
   const ACTIONS = Object.freeze({
     MANAGE: "manage-support",
     CONTINUE: "continue-supporting",
@@ -38,21 +39,42 @@
     return ACTIONS.BECOME;
   }
 
+  function isValidTimestamp(value) {
+    return typeof value === "string" && Number.isFinite(Date.parse(value));
+  }
+
+  function isValidSupporterSince(value) {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return false;
+    }
+    const date = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(date.getTime()) &&
+      date.toISOString().slice(0, 10) === value;
+  }
+
   function normalizeSupporterRecord(record) {
     const contribution = record?.contribution || {};
     const isSupporter = record?.isSupporter === true;
-    const status = String(contribution.status || "inactive");
-    const type = String(contribution.type || "none");
+    const status = RECURRING_STATUSES.has(record?.recurringStatus)
+      ? record.recurringStatus
+      : String(contribution.status || "inactive");
     const hasActiveRecurringSupport =
       isSupporter &&
-      type === "monthly" &&
-      (status === "active" || status === "canceling");
+      (record?.hasActiveRecurringSupport === true ||
+        status === "active" ||
+        status === "canceling");
+    const type = hasActiveRecurringSupport ||
+      status === "expired" ||
+      contribution.type === "monthly"
+        ? "monthly"
+        : "none";
 
     return {
       version: CACHE_VERSION,
       isSupporter,
       supporterSince: isSupporter ? record.supporterSince || null : null,
       source: isSupporter ? record.source || null : null,
+      recurringStatus: status,
       contribution: {
         type,
         status,
@@ -64,8 +86,61 @@
       },
       hasActiveRecurringSupport,
       lastVerifiedAt: record?.lastVerifiedAt || null,
+      supporterEmail: isSupporter ? record?.supporterEmail || null : null,
+      platform: isSupporter
+        ? record?.platform || contribution.platform || null
+        : null,
       syncStatus: record?.syncStatus || "cached"
     };
+  }
+
+  function normalizeApiResponse(payload) {
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      typeof payload.isSupporter !== "boolean" ||
+      typeof payload.hasActiveRecurringSupport !== "boolean" ||
+      !RECURRING_STATUSES.has(payload.recurringStatus) ||
+      !isValidTimestamp(payload.lastVerifiedAt)
+    ) {
+      throw new SupporterRegistryError(
+        "The Supporter Directory returned an invalid response. Please try again.",
+        { code: "malformed_response" }
+      );
+    }
+    if (
+      payload.isSupporter &&
+      (!isValidSupporterSince(payload.supporterSince) ||
+        typeof payload.source !== "string" ||
+        !payload.source)
+    ) {
+      throw new SupporterRegistryError(
+        "The Supporter Directory returned an incomplete confirmation. Please try again.",
+        { code: "malformed_response" }
+      );
+    }
+    if (
+      !payload.isSupporter &&
+      (payload.supporterSince !== null ||
+        payload.source !== null ||
+        payload.recurringStatus !== "inactive")
+    ) {
+      throw new SupporterRegistryError(
+        "The Supporter Directory returned an inconsistent response. Please try again.",
+        { code: "malformed_response" }
+      );
+    }
+    const recurringShouldBeActive =
+      payload.isSupporter &&
+      (payload.recurringStatus === "active" ||
+        payload.recurringStatus === "canceling");
+    if (payload.hasActiveRecurringSupport !== recurringShouldBeActive) {
+      throw new SupporterRegistryError(
+        "The Supporter Directory returned an inconsistent recurring status. Please try again.",
+        { code: "malformed_response" }
+      );
+    }
+    return normalizeSupporterRecord(payload);
   }
 
   class SupporterCache {
@@ -77,7 +152,11 @@
     read() {
       try {
         const raw = JSON.parse(this.storage.getItem(this.key) || "null");
-        if (!raw || raw.isSupporter !== true) {
+        if (
+          !raw ||
+          raw.isSupporter !== true ||
+          !isValidTimestamp(raw.lastVerifiedAt)
+        ) {
           return normalizeSupporterRecord(null);
         }
         return normalizeSupporterRecord(raw);
@@ -86,32 +165,206 @@
       }
     }
 
-    writeConfirmed(record) {
-      if (record?.isSupporter !== true || !record?.lastVerifiedAt) {
+    writeConfirmed(record, identity = {}) {
+      if (
+        record?.isSupporter !== true ||
+        !isValidTimestamp(record?.lastVerifiedAt) ||
+        !isValidSupporterSince(record?.supporterSince)
+      ) {
         throw new Error("Only registry-confirmed Supporter records may be cached.");
       }
-      const normalized = normalizeSupporterRecord(record);
+      const current = this.read();
+      const incomingVerifiedAt = Date.parse(record.lastVerifiedAt);
+      const currentVerifiedAt = Date.parse(current.lastVerifiedAt || "");
+      if (
+        current.isSupporter &&
+        Number.isFinite(currentVerifiedAt) &&
+        currentVerifiedAt > incomingVerifiedAt
+      ) {
+        return current;
+      }
+      const normalized = normalizeSupporterRecord({
+        ...record,
+        supporterEmail:
+          String(identity.email || record.supporterEmail || current.supporterEmail || "")
+            .trim()
+            .toLowerCase() || null,
+        platform: identity.platform || record.platform || current.platform || null
+      });
       this.storage.setItem(this.key, JSON.stringify(normalized));
       return normalized;
     }
 
-    retainAfterSyncFailure() {
+    retainAfterSyncFailure(online = global.navigator?.onLine) {
       const cached = this.read();
-      return { ...cached, syncStatus: navigator.onLine ? "stale" : "offline" };
+      return {
+        ...cached,
+        syncStatus: online === false ? "offline" : "stale"
+      };
     }
   }
 
+  class SupporterRegistryError extends Error {
+    constructor(message, details = {}) {
+      super(message);
+      this.name = "SupporterRegistryError";
+      this.code = details.code || "supporter_registry_error";
+      this.status = details.status || null;
+      this.retryAfterSeconds = details.retryAfterSeconds || null;
+    }
+  }
+
+  function getConfiguredApi(config) {
+    const configured =
+      config ||
+      (typeof SUPPORTER_API_CONFIG === "object"
+        ? SUPPORTER_API_CONFIG
+        : null);
+    if (!configured) {
+      throw new Error("Supporter API configuration is unavailable.");
+    }
+    const environment = configured.environment || "preview";
+    const baseUrl = configured.baseUrl || configured.baseUrls?.[environment];
+    if (
+      !baseUrl ||
+      !/^https:\/\//i.test(baseUrl) ||
+      !configured.routes?.claimLegacy ||
+      !configured.routes?.status ||
+      !Number.isFinite(configured.timeoutsMs?.claimLegacy) ||
+      !Number.isFinite(configured.timeoutsMs?.status)
+    ) {
+      throw new Error("Supporter API configuration must use HTTPS.");
+    }
+    return {
+      environment,
+      baseUrl: baseUrl.replace(/\/+$/, ""),
+      routes: { ...configured.routes },
+      timeoutsMs: { ...configured.timeoutsMs }
+    };
+  }
+
+  function getRegistryErrorMessage(status, code, fallback) {
+    if (code === "legacy_verification_unavailable") {
+      return "Supporter claims are not available yet while purchase verification is being completed. Your existing purchase remains recognized, and every tool is already available.";
+    }
+    if (status === 429 || code === "supporter_rate_limited") {
+      return "Too many Supporter Directory requests were made. Please wait and try again.";
+    }
+    if (status === 422) {
+      return fallback || "The store could not verify this previous purchase. Please refresh your purchase history and try again.";
+    }
+    if (status === 400) {
+      return fallback || "The claim information or purchase evidence was incomplete.";
+    }
+    if (status >= 500) {
+      return "The Supporter Directory is temporarily unavailable. Please try again later.";
+    }
+    return fallback || "The Supporter Directory request could not be completed.";
+  }
+
   class SupporterRegistryService {
-    async getStatus() {
-      throw new Error("Supporter Registry integration is not configured.");
+    constructor(config, dependencies = {}) {
+      this.config = getConfiguredApi(config);
+      this.fetch = dependencies.fetch || global.fetch?.bind(global);
+      this.AbortController = dependencies.AbortController || global.AbortController;
+      this.navigator = dependencies.navigator || global.navigator;
     }
 
-    async submitLegacyClaim() {
-      throw new Error("Supporter Registry integration is not configured.");
+    async request(routeKey, body, timeoutKey) {
+      if (this.navigator?.onLine === false) {
+        throw new SupporterRegistryError(
+          "An internet connection is required to update your supporter status.",
+          { code: "offline" }
+        );
+      }
+      if (typeof this.fetch !== "function") {
+        throw new SupporterRegistryError(
+          "The Supporter Directory is unavailable on this device.",
+          { code: "transport_unavailable" }
+        );
+      }
+      const route = this.config.routes[routeKey];
+      const url = `${this.config.baseUrl}${route}`;
+      const timeoutMs = this.config.timeoutsMs[timeoutKey];
+      const controller = this.AbortController ? new this.AbortController() : null;
+      const timeout = controller
+        ? setTimeout(() => controller.abort(), timeoutMs)
+        : null;
+
+      let response;
+      try {
+        response = await this.fetch(url, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body),
+          signal: controller?.signal
+        });
+      } catch (error) {
+        const timedOut = error?.name === "AbortError";
+        throw new SupporterRegistryError(
+          timedOut
+            ? "The Supporter Directory request timed out. Please try again."
+            : "The Supporter Directory could not be reached. Check your connection and try again.",
+          { code: timedOut ? "timeout" : "network_error" }
+        );
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
+
+      let payload;
+      try {
+        const text = await response.text();
+        payload = text ? JSON.parse(text) : null;
+      } catch {
+        throw new SupporterRegistryError(
+          "The Supporter Directory returned an invalid response. Please try again.",
+          { code: "malformed_response", status: response.status }
+        );
+      }
+
+      if (!response.ok) {
+        const code =
+          typeof payload?.code === "string"
+            ? payload.code
+            : `http_${response.status}`;
+        const fallback =
+          typeof payload?.error === "string" ? payload.error : null;
+        const retryAfter = Number(response.headers?.get?.("Retry-After"));
+        throw new SupporterRegistryError(
+          getRegistryErrorMessage(response.status, code, fallback),
+          {
+            code,
+            status: response.status,
+            retryAfterSeconds: Number.isFinite(retryAfter) ? retryAfter : null
+          }
+        );
+      }
+      return normalizeApiResponse(payload);
+    }
+
+    async getStatus(email) {
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      if (!isValidEmail(normalizedEmail)) {
+        throw new SupporterRegistryError(
+          "A valid Supporter email is required for status lookup.",
+          { code: "email_invalid" }
+        );
+      }
+      return this.request("status", { email: normalizedEmail }, "status");
+    }
+
+    async submitLegacyClaim(payload) {
+      return this.request("claimLegacy", payload, "claimLegacy");
     }
 
     async registerVerifiedPurchase() {
-      throw new Error("Supporter Registry integration is not configured.");
+      throw new SupporterRegistryError(
+        "New support products are not configured yet.",
+        { code: "support_products_unavailable" }
+      );
     }
   }
 
@@ -154,21 +407,50 @@
     return typeof APP_VERSION === "string" ? APP_VERSION : null;
   }
 
-  function createLegacyClaimPayload(fields) {
-    const evidence = global.getLegacyProEntitlementEvidence?.();
-    return {
+  function toIsoTimestamp(value) {
+    if (!value) return null;
+    const numeric = Number(value);
+    const date = Number.isFinite(numeric)
+      ? new Date(numeric < 100000000000 ? numeric * 1000 : numeric)
+      : new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+  }
+
+  function createLegacyClaimPayload(fields, evidence) {
+    const platform = getPlatform();
+    const productIdentifier =
+      typeof REVERSE_FLOW_PRO_PRODUCT_ID === "string"
+        ? REVERSE_FLOW_PRO_PRODUCT_ID
+        : evidence?.productId || null;
+    const payload = {
       name: String(fields?.name || "").trim(),
       email: String(fields?.email || "").trim().toLowerCase(),
-      platform: getPlatform(),
-      legacyProductIdentifier:
-        typeof REVERSE_FLOW_PRO_PRODUCT_ID === "string"
-          ? REVERSE_FLOW_PRO_PRODUCT_ID
-          : null,
-      verifiedEntitlementState: Boolean(global.hasLegacyProEntitlement?.()),
-      originalTransactionId: evidence?.originalTransactionId || evidence?.transactionId || evidence?.purchaseToken || null,
+      platform,
+      legacyProductIdentifier: productIdentifier,
+      entitlementEvidence: {},
       appVersion: getAppVersion(),
       claimTimestamp: new Date().toISOString()
     };
+    const purchaseTimestamp = toIsoTimestamp(
+      evidence?.originalPurchaseTimestamp || evidence?.purchaseTimestamp
+    );
+    if (purchaseTimestamp) payload.originalPurchaseTimestamp = purchaseTimestamp;
+
+    if (platform === "ios") {
+      const transactionReference =
+        evidence?.originalTransactionId || evidence?.transactionId || null;
+      if (transactionReference) {
+        payload.entitlementEvidence.originalTransactionId = transactionReference;
+        payload.originalTransactionId = transactionReference;
+      }
+    } else if (platform === "android") {
+      const purchaseToken = evidence?.purchaseToken || null;
+      if (purchaseToken) {
+        payload.entitlementEvidence.purchaseToken = purchaseToken;
+        payload.purchaseToken = purchaseToken;
+      }
+    }
+    return payload;
   }
 
   function createPurchaseRegistrationPayload(fields, verifiedPurchase) {
@@ -223,6 +505,25 @@
     });
 
     return { state, action };
+  }
+
+  async function refreshSupporterStatus(cache, registryService) {
+    const cached = cache.read();
+    if (!cached.isSupporter || !cached.supporterEmail) return cached;
+    try {
+      const confirmed = await registryService.getStatus(cached.supporterEmail);
+      if (!confirmed.isSupporter) {
+        return cache.retainAfterSyncFailure();
+      }
+      const updated = cache.writeConfirmed(confirmed, {
+        email: cached.supporterEmail,
+        platform: cached.platform
+      });
+      renderSharedSupportUi(cache);
+      return updated;
+    } catch {
+      return cache.retainAfterSyncFailure();
+    }
   }
 
   function renderSupportOptions(container, purchaseService, platform) {
@@ -319,45 +620,73 @@
     if (form && form.dataset.bound !== "true") {
       form.dataset.bound = "true";
       form.addEventListener("submit", async event => {
-      event.preventDefault();
-      const submit = form.querySelector("button[type='submit']");
-      const status = document.getElementById("legacyClaimStatus");
-      const payload = createLegacyClaimPayload({
-        name: form.elements.fullName.value,
-        email: form.elements.email.value
-      });
+        event.preventDefault();
+        if (form.dataset.submitting === "true") return;
+        const submit = form.querySelector("button[type='submit']");
+        const status = document.getElementById("legacyClaimStatus");
+        const name = String(form.elements.fullName.value || "").trim();
+        const email = String(form.elements.email.value || "").trim().toLowerCase();
 
-      if (!payload.name) {
-        status.textContent = "Enter your full name.";
-        form.elements.fullName.focus();
-        return;
-      }
-      if (!isValidEmail(payload.email)) {
-        status.textContent = "Enter a valid email address.";
-        form.elements.email.focus();
-        return;
-      }
-      if (!payload.verifiedEntitlementState) {
-        status.textContent = "A verified previous purchase is required to submit this claim.";
-        return;
-      }
-      if (!navigator.onLine) {
-        status.textContent = "An internet connection is required to update your supporter status.";
-        return;
-      }
+        if (!name) {
+          status.textContent = "Enter your full name.";
+          form.elements.fullName.focus();
+          return;
+        }
+        if (!isValidEmail(email)) {
+          status.textContent = "Enter a valid email address.";
+          form.elements.email.focus();
+          return;
+        }
+        if (navigator.onLine === false) {
+          status.textContent = "An internet connection is required to update your supporter status.";
+          return;
+        }
 
-      submit.disabled = true;
-      status.textContent = "Preparing your claim…";
-      try {
-        const confirmed = await registryService.submitLegacyClaim(payload);
-        cache.writeConfirmed(confirmed);
-        status.textContent = "Supporter status confirmed.";
-        renderSupportPage(cache, registryService, purchaseService);
-      } catch (error) {
-        status.textContent = `${error.message} Your claim was not registered.`;
-      } finally {
-        submit.disabled = false;
-      }
+        form.dataset.submitting = "true";
+        submit.disabled = true;
+        status.textContent = "Refreshing your previous purchase…";
+        try {
+          const evidence =
+            await global.refreshLegacyProEntitlementEvidence?.() ||
+            global.getLegacyProEntitlementEvidence?.();
+          const hasLegacyEntitlement = Boolean(global.hasLegacyProEntitlement?.());
+          const payload = createLegacyClaimPayload({ name, email }, evidence);
+          const hasRequiredEvidence =
+            payload.platform === "ios"
+              ? Boolean(payload.originalTransactionId)
+              : payload.platform === "android"
+                ? Boolean(payload.purchaseToken)
+                : false;
+
+          if (
+            !hasLegacyEntitlement ||
+            evidence?.productId !== payload.legacyProductIdentifier
+          ) {
+            status.textContent = "A verified previous purchase is required to submit this claim.";
+            return;
+          }
+          if (!hasRequiredEvidence) {
+            status.textContent = "The store did not provide the purchase reference required for a claim. Reopen Reverse Flow, check your previous purchase, and try again.";
+            return;
+          }
+
+          status.textContent = "Submitting your claim…";
+          const confirmed = await registryService.submitLegacyClaim(payload);
+          cache.writeConfirmed(confirmed, {
+            email,
+            platform: payload.platform
+          });
+          const pageStatus = document.getElementById("supportPageStatus");
+          if (pageStatus) {
+            pageStatus.textContent = "Welcome, Supporter. Thank you for helping build what comes next.";
+          }
+          renderSupportPage(cache, registryService, purchaseService);
+        } catch (error) {
+          status.textContent = error.message || "Your claim was not registered. Please try again.";
+        } finally {
+          form.dataset.submitting = "false";
+          submit.disabled = false;
+        }
       });
     }
 
@@ -415,6 +744,18 @@
     const purchases = new SupportPurchaseService(productConfig);
     renderSharedSupportUi(cache);
     renderSupportPage(cache, registry, purchases);
+    let lastRefreshStartedAt = 0;
+    const requestStatusRefresh = () => {
+      const now = Date.now();
+      if (now - lastRefreshStartedAt < 60000) return;
+      lastRefreshStartedAt = now;
+      void refreshSupporterStatus(cache, registry);
+    };
+    setTimeout(requestStatusRefresh, 0);
+    document.addEventListener("resume", requestStatusRefresh);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") requestStatusRefresh();
+    });
 
     document.addEventListener("reverseflow:legacy-entitlement-changed", () => {
       renderSharedSupportUi(cache);
@@ -429,11 +770,15 @@
     ACTION_CONTENT,
     resolveSupportAction,
     normalizeSupporterRecord,
+    normalizeApiResponse,
     SupporterCache,
+    SupporterRegistryError,
     SupporterRegistryService,
     SupportPurchaseService,
     createLegacyClaimPayload,
     createPurchaseRegistrationPayload,
+    refreshSupporterStatus,
+    getConfiguredApi,
     isValidEmail
   };
   global.ReverseFlowSupporter = api;

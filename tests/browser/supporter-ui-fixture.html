@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Supporter UI Test Fixture</title>
+  <link rel="stylesheet" href="/www/css/base.css" />
+  <link rel="stylesheet" href="/www/css/components.css" />
+  <link rel="stylesheet" href="/www/css/support.css" />
+  <link rel="stylesheet" href="/www/css/responsive.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <div class="app-title-row">
+          <h1 class="app-header-title">Reverse Flow</h1>
+          <a class="supporter-badge" data-supporter-badge href="#" hidden>Supporter</a>
+        </div>
+        <p class="app-header-subtitle">Fire Hydraulics</p>
+      </div>
+    </div>
+  </header>
+
+  <main id="supportPage">
+    <section class="card support-card" data-support-card hidden>
+      <p class="support-eyebrow">Community Supported</p>
+      <p data-support-message></p>
+      <a class="support-primary-action" data-support-action href="#"></a>
+    </section>
+
+    <section class="card support-page-hero">
+      <h2 id="supportPageTitle">Support Reverse Flow</h2>
+      <p id="supportPageIntro"></p>
+    </section>
+
+    <section class="card" id="supportOptionsSection">
+      <div id="supportOptions"></div>
+      <p id="supportProductsUnavailable">Unavailable in this test fixture.</p>
+    </section>
+
+    <section class="card" id="legacyClaimSection" hidden>
+      <h2>Claim permanent Supporter status</h2>
+      <form id="legacyClaimForm" class="support-identity-form" novalidate>
+        <label for="supporterFullName">Full name</label>
+        <input id="supporterFullName" name="fullName" type="text" required />
+        <label for="supporterEmail">Email address</label>
+        <input id="supporterEmail" name="email" type="email" required />
+        <button class="support-primary-action" type="submit">Submit Claim</button>
+        <p id="legacyClaimStatus" class="support-status" role="status"></p>
+      </form>
+    </section>
+
+    <section class="card" id="manageSupportSection" hidden>
+      <p id="manageSupportDetails"></p>
+      <div id="manageSupportOptions"></div>
+      <button id="manageSubscriptionButton" type="button">Open Subscription Management</button>
+    </section>
+
+    <section id="supportRegistrationSection" hidden>
+      <form id="supportRegistrationForm">
+        <input name="fullName" />
+        <input name="email" />
+        <button type="submit">Register Support</button>
+      </form>
+    </section>
+    <p id="supportPageStatus" class="support-status" role="status"></p>
+  </main>
+
+  <script src="/www/js/constants.js"></script>
+  <script>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const state = params.get("state");
+      window.Capacitor = { getPlatform: () => params.get("platform") || "ios" };
+      localStorage.removeItem(PRO_ENTITLEMENT_STORAGE_KEY);
+      localStorage.removeItem(SUPPORTER_CACHE_STORAGE_KEY);
+
+      if (params.get("offline") === "1") {
+        Object.defineProperty(Navigator.prototype, "onLine", {
+          configurable: true,
+          get: () => false
+        });
+      }
+      if (state === "legacy") {
+        localStorage.setItem(PRO_ENTITLEMENT_STORAGE_KEY, JSON.stringify({
+          access: "pro",
+          source: "purchase",
+          productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+          originalTransactionId: "TEST_ONLY_TRANSACTION",
+          platform: "ios",
+          verifiedAt: "2026-07-23T18:00:00.000Z"
+        }));
+      }
+      if (state === "confirmed" || state === "recurring") {
+        localStorage.setItem(SUPPORTER_CACHE_STORAGE_KEY, JSON.stringify({
+          version: 1,
+          isSupporter: true,
+          supporterSince: "2021-04-08",
+          source: "legacy_apple",
+          hasActiveRecurringSupport: state === "recurring",
+          recurringStatus: state === "recurring" ? "active" : "inactive",
+          supporterEmail: "fixture@example.invalid",
+          platform: "ios",
+          lastVerifiedAt: "2026-07-23T18:00:00.000Z"
+        }));
+      }
+      if (params.get("mockClaim") === "success") {
+        window.fetch = async () => ({
+          ok: true,
+          status: 200,
+          headers: { get: () => null },
+          text: async () => JSON.stringify({
+            isSupporter: true,
+            supporterSince: "2021-04-08",
+            hasActiveRecurringSupport: false,
+            recurringStatus: "inactive",
+            source: "legacy_apple",
+            lastVerifiedAt: "2026-07-23T18:05:00.000Z"
+          })
+        });
+      }
+    })();
+  </script>
+  <script src="/www/js/services/entitlement.js"></script>
+  <script src="/www/js/services/supporter.js"></script>
+</body>
+</html>

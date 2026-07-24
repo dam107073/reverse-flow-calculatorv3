@@ -87,6 +87,112 @@ function getLegacyProEntitlementEvidence() {
   }
 }
 
+function getLegacyProStoreTransactions() {
+  const store = window.CdvPurchase?.store;
+  const transactions = [];
+  const append = values => {
+    if (!Array.isArray(values)) return;
+    values.forEach(value => {
+      if (value && !transactions.includes(value)) transactions.push(value);
+    });
+  };
+
+  append(store?.localTransactions);
+  (store?.localReceipts || []).forEach(receipt => append(receipt?.transactions));
+  (store?.verifiedReceipts || []).forEach(receipt => {
+    append(receipt?.transactions);
+    append(receipt?.sourceReceipt?.transactions);
+  });
+  return transactions;
+}
+
+function transactionContainsLegacyProduct(transaction) {
+  return Array.isArray(transaction?.products) &&
+    transaction.products.some(product => product?.id === REVERSE_FLOW_PRO_PRODUCT_ID);
+}
+
+function toIsoTimestamp(value) {
+  if (!value) return null;
+  const timestamp = value instanceof Date ? value.getTime() : Number(value);
+  const date = Number.isFinite(timestamp)
+    ? new Date(timestamp < 100000000000 ? timestamp * 1000 : timestamp)
+    : new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+function collectLegacyProEntitlementEvidence() {
+  const stored = getLegacyProEntitlementEvidence() || {};
+  const platform = window.Capacitor?.getPlatform?.() || stored.platform || "web";
+  const candidates = getLegacyProStoreTransactions()
+    .filter(transactionContainsLegacyProduct)
+    .sort((left, right) => {
+      const leftTime = new Date(left?.purchaseDate || 0).getTime() || 0;
+      const rightTime = new Date(right?.purchaseDate || 0).getTime() || 0;
+      return leftTime - rightTime;
+    });
+  const transaction = candidates[0] || {};
+  const nativePurchase = transaction?.nativePurchase || {};
+  const purchaseTimestamp =
+    toIsoTimestamp(transaction?.purchaseDate) ||
+    toIsoTimestamp(nativePurchase?.purchaseTime) ||
+    stored.originalPurchaseTimestamp ||
+    stored.purchaseTimestamp ||
+    null;
+
+  return {
+    productId: stored.productId || REVERSE_FLOW_PRO_PRODUCT_ID,
+    platform,
+    owned: hasLegacyProEntitlement(),
+    originalTransactionId:
+      transaction?.originalTransactionId ||
+      stored.originalTransactionId ||
+      transaction?.transactionId ||
+      null,
+    transactionId: transaction?.transactionId || stored.transactionId || null,
+    purchaseToken:
+      transaction?.purchaseId ||
+      nativePurchase?.purchaseToken ||
+      stored.purchaseToken ||
+      null,
+    originalPurchaseTimestamp: purchaseTimestamp,
+    purchaseTimestamp,
+    environment: stored.environment || null,
+    sandbox: stored.sandbox === true ? true : null,
+    isAcknowledged:
+      typeof transaction?.isAcknowledged === "boolean"
+        ? transaction.isAcknowledged
+        : stored.isAcknowledged,
+    purchaseState: transaction?.state || nativePurchase?.getPurchaseState || stored.purchaseState || null,
+    orderId: nativePurchase?.orderId || transaction?.transactionId || stored.orderId || null,
+    packageName: nativePurchase?.packageName || stored.packageName || null,
+    obfuscatedAccountId: nativePurchase?.accountId || stored.obfuscatedAccountId || null,
+    obfuscatedProfileId: nativePurchase?.profileId || stored.obfuscatedProfileId || null,
+    appAccountToken: transaction?.appAccountToken || stored.appAccountToken || null,
+    signedTransaction: transaction?.jwsRepresentation || null
+  };
+}
+
+async function refreshLegacyProEntitlementEvidence() {
+  const store = window.CdvPurchase?.store;
+  if (store && navigator.onLine !== false) {
+    try {
+      if (typeof store.restorePurchases === "function") {
+        await store.restorePurchases();
+      } else if (typeof store.update === "function") {
+        await store.update();
+      }
+    } catch (error) {
+      console.warn("[Reverse Flow Supporter]", {
+        event: "legacy-evidence-refresh-failed",
+        message: error?.message || String(error)
+      });
+    }
+  }
+  return collectLegacyProEntitlementEvidence();
+}
+
+window.refreshLegacyProEntitlementEvidence = refreshLegacyProEntitlementEvidence;
+
 function getToolsSafeRedirectUrl() {
   try {
     const referrer = document.referrer ? new URL(document.referrer, window.location.href) : null;
@@ -178,6 +284,15 @@ function setAccessLevel(level, grantDetails = {}) {
   );
 
   if (level === ACCESS_LEVELS.PRO) {
+    let previousEntitlement = {};
+    try {
+      const parsed = JSON.parse(
+        localStorage.getItem(PRO_ENTITLEMENT_STORAGE_KEY) || "null"
+      );
+      if (isValidStoredProEntitlement(parsed)) previousEntitlement = parsed;
+    } catch {
+      previousEntitlement = {};
+    }
     localStorage.setItem(
       PRO_ENTITLEMENT_STORAGE_KEY,
       JSON.stringify({
@@ -185,8 +300,59 @@ function setAccessLevel(level, grantDetails = {}) {
         source: grantDetails.source,
         productId: grantDetails.productId,
         trigger: grantDetails.trigger,
-        originalTransactionId: grantDetails.originalTransactionId || null,
-        purchaseToken: grantDetails.purchaseToken || null,
+        originalTransactionId:
+          grantDetails.originalTransactionId ||
+          previousEntitlement.originalTransactionId ||
+          null,
+        transactionId:
+          grantDetails.transactionId ||
+          previousEntitlement.transactionId ||
+          null,
+        purchaseToken:
+          grantDetails.purchaseToken ||
+          previousEntitlement.purchaseToken ||
+          null,
+        originalPurchaseTimestamp:
+          grantDetails.originalPurchaseTimestamp ||
+          previousEntitlement.originalPurchaseTimestamp ||
+          null,
+        purchaseTimestamp:
+          grantDetails.purchaseTimestamp ||
+          previousEntitlement.purchaseTimestamp ||
+          null,
+        platform:
+          grantDetails.platform ||
+          previousEntitlement.platform ||
+          window.Capacitor?.getPlatform?.() ||
+          null,
+        environment:
+          grantDetails.environment || previousEntitlement.environment || null,
+        sandbox:
+          grantDetails.sandbox === true ||
+          previousEntitlement.sandbox === true
+            ? true
+            : null,
+        isAcknowledged:
+          typeof grantDetails.isAcknowledged === "boolean"
+            ? grantDetails.isAcknowledged
+            : previousEntitlement.isAcknowledged ?? null,
+        purchaseState:
+          grantDetails.purchaseState || previousEntitlement.purchaseState || null,
+        orderId: grantDetails.orderId || previousEntitlement.orderId || null,
+        packageName:
+          grantDetails.packageName || previousEntitlement.packageName || null,
+        obfuscatedAccountId:
+          grantDetails.obfuscatedAccountId ||
+          previousEntitlement.obfuscatedAccountId ||
+          null,
+        obfuscatedProfileId:
+          grantDetails.obfuscatedProfileId ||
+          previousEntitlement.obfuscatedProfileId ||
+          null,
+        appAccountToken:
+          grantDetails.appAccountToken ||
+          previousEntitlement.appAccountToken ||
+          null,
         verifiedAt: new Date().toISOString()
       })
     );

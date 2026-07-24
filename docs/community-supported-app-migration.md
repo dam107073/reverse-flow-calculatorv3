@@ -12,27 +12,32 @@
 - Founding Supporter, rankings, tiers, public profiles, and social functionality are intentionally excluded from v1.
 - Operational functionality remains offline-first. A failed Supporter refresh retains the last registry-confirmed cached state.
 
-## Deferred registry boundary
+## Pass 3B live registry boundary
 
-The Reverse Flow Website Supabase project will become authoritative in a later pass. Pass 1 provides `SupporterRegistryService`, `SupportPurchaseService`, and `SupporterCache`; its production registry methods intentionally return unavailable errors and never fabricate confirmation.
+The Reverse Flow Website Supporter Directory is authoritative. The app calls only its public HTTPS API; it never calls Supabase directly and contains no privileged backend credential.
 
-Expected future endpoints:
+Current TestFlight/Internal Testing configuration:
 
-### `POST /supporters/claims/legacy`
+- environment: `preview`;
+- base URL: `https://reverese-flow-website-pkkuuucew-reverse-flow-llc.vercel.app`;
+- legacy claim: `POST /api/supporters/claim-legacy`, 15-second timeout;
+- status lookup: `POST /api/supporters/status`, 10-second timeout.
 
-Request: `name`, `email`, `platform`, `legacyProductIdentifier`, `verifiedEntitlementState`, optional `originalTransactionId` or purchase token, `appVersion`, and `claimTimestamp`.
+Future production convention:
 
-Response: a registry-confirmed Supporter record containing `isSupporter: true`, `supporterSince`, `source`, contribution state, and `lastVerifiedAt`.
+- environment: `production`;
+- base URL: `https://reverse-flow.app`;
+- unchanged route paths and response contract.
 
-### `POST /supporters/purchases`
+Claim requests send trimmed name, lowercased/trimmed email, native platform, the exact `reverse_flow_pro_lifetime` product ID, the platform-specific evidence object, optional original purchase timestamp, app version, and claim timestamp. Apple evidence uses `originalTransactionId`; Google evidence uses `purchaseToken`. The app refreshes store evidence immediately before submission and never converts local ownership into Supporter status.
 
-Request: `name`, `email`, `platform`, `paymentSource`, `productIdentifier`, `purchaseType`, recurring flag, optional monthly amount, verified transaction ID or purchase token, `purchaseTimestamp`, and `appVersion`.
+Successful claim and status responses must contain the stable Supporter Directory response shape, including syntactically valid `lastVerifiedAt`. A Supporter confirmation must also contain a valid server-owned `supporterSince` date and source. Malformed, non-2xx, timeout, offline, `429`, `502`, and `503` responses cannot create or downgrade cached Supporter identity.
 
-Response: the same registry-confirmed Supporter record shape.
+The cache keeps only the newest confirmed Supporter response plus the normalized email required for later status lookup and the relevant app platform. Status refresh is non-blocking at launch, resumes no more than once per minute, and never delays calculators or tools.
 
-### `GET /supporters/status`
+The backend intentionally returns `503 legacy_verification_unavailable` until real Apple and Google server verification is configured. This is a normal fail-closed result: the claim form stays available, every tool remains available, and no Supporter record is fabricated.
 
-Returns confirmed identity and contribution state. Network or registry failure must retain the last confirmed cache and mark it stale/offline.
+`POST /api/supporters/register` is server-to-server only. The app does not call it or contain its registration token. The existing future purchase-registration abstraction remains unavailable until new store products and a verified server registration flow are implemented.
 
 ## Store configuration still required
 
