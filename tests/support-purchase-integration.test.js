@@ -20,6 +20,19 @@ const androidBuildSource = fs.readFileSync(
   path.join(__dirname, "..", "android", "app", "build.gradle"),
   "utf8"
 );
+const iosAppSchemeSource = fs.readFileSync(
+  path.join(
+    __dirname,
+    "..",
+    "ios",
+    "App",
+    "App.xcodeproj",
+    "xcshareddata",
+    "xcschemes",
+    "App.xcscheme"
+  ),
+  "utf8"
+);
 
 const CONFIG = {
   apple: {
@@ -240,6 +253,10 @@ test("iOS Debug and Release package Preview while Production packages Production
   assert.equal(
     (iosProjectSource.match(/name = Production;/g) || []).length,
     3
+  );
+  assert.match(
+    iosAppSchemeSource,
+    /<ArchiveAction\s+buildConfiguration = "Production"/
   );
 });
 
