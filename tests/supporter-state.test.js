@@ -142,6 +142,71 @@ test("slow reconciliation keeps a cached subscriber on Manage until it settles",
   assert.equal(settled.action, ACTIONS.MANAGE);
 });
 
+test("Apple obsolete subscription failures cannot own the current verification banner", () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  };
+  const cache = new SupporterCache(storage);
+  cache.writeConfirmed(confirmedSubscriber, {
+    email: "firefighter@example.com",
+    platform: "ios"
+  });
+  global.Capacitor = { getPlatform: () => "ios" };
+  const service = new SupportPurchaseService({}, {
+    storage,
+    supporterCache: cache
+  });
+  const obsolete = {
+    paymentSource: "ios",
+    purchaseType: "monthly",
+    productIdentifier: "support_reverse_flow_monthly_3",
+    purchaseTimestamp: "2026-07-23T12:00:00.000Z"
+  };
+  assert.equal(service.isSupersededSubscriptionEvidence(obsolete), true);
+  service.failSubscriptionVerification(
+    obsolete,
+    new Error("Apple could not verify this purchase.")
+  );
+  service.completeSubscriptionVerification(obsolete, "replaced");
+  const element = { textContent: "", dataset: {} };
+  service.renderSubscriptionVerificationStatus(element);
+  assert.equal(element.textContent, "");
+});
+
+test("current verification failure and cached refresh remain distinct", () => {
+  global.Capacitor = { getPlatform: () => "ios" };
+  const service = new SupportPurchaseService({}, {});
+  const current = {
+    paymentSource: "ios",
+    purchaseType: "monthly",
+    productIdentifier: "support_reverse_flow_monthly_10"
+  };
+  const element = { textContent: "", dataset: {} };
+  service.failSubscriptionVerification(
+    current,
+    new Error("Apple could not verify this purchase.")
+  );
+  service.renderSubscriptionVerificationStatus(element);
+  assert.equal(element.textContent, "Apple could not verify this purchase.");
+
+  service.subscriptionVerificationState = {
+    status: "cached",
+    provider: "apple",
+    productId: current.productIdentifier,
+    message: null
+  };
+  service.renderSubscriptionVerificationStatus(element);
+  assert.match(element.textContent, /last confirmed Supporter status/);
+  assert.match(element.textContent, /Apple refresh/);
+
+  service.completeSubscriptionVerification(current);
+  service.renderSubscriptionVerificationStatus(element);
+  assert.equal(element.textContent, "");
+});
+
 test("ended recurring support retains Supporter status and continues supporting", () => {
   const state = normalizeSupporterRecord({
     isSupporter: true,

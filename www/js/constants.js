@@ -67,11 +67,15 @@ const SUPPORT_PRODUCT_CONFIG = Object.freeze({
     }),
     monthly3: Object.freeze({
       productId: "support_reverse_flow_monthly_3",
-      productType: "paid subscription"
+      productType: "paid subscription",
+      subscriptionGroupId: "22260570",
+      subscriptionLevel: 2
     }),
     monthly10: Object.freeze({
       productId: "support_reverse_flow_monthly_10",
-      productType: "paid subscription"
+      productType: "paid subscription",
+      subscriptionGroupId: "22260570",
+      subscriptionLevel: 1
     })
   }),
   google: Object.freeze({

@@ -256,6 +256,12 @@ test("canonical Apple and Google product identifiers and plan IDs are configured
   assert.match(constantsSource, /basePlanId:\s*"monthly-3"/);
   assert.match(constantsSource, /basePlanId:\s*"monthly-10"/);
   assert.equal(
+    (constantsSource.match(/subscriptionGroupId:\s*"22260570"/g) || []).length,
+    2
+  );
+  assert.match(constantsSource, /subscriptionLevel:\s*1/);
+  assert.match(constantsSource, /subscriptionLevel:\s*2/);
+  assert.equal(
     (constantsSource.match(/productType:\s*"consumable"/g) || []).length,
     2
   );
@@ -276,7 +282,7 @@ test("mobile supporter APIs contain only the canonical Production host", () => {
 
 test("native Version 2.0 Release values are intentional", () => {
   assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 1;/g) || []).length,
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 4;/g) || []).length,
     6
   );
   assert.equal(
@@ -284,7 +290,7 @@ test("native Version 2.0 Release values are intentional", () => {
     6
   );
   assert.match(constantsSource, /const APP_VERSION = "2\.0"/);
-  assert.match(androidBuildSource, /versionCode 142/);
+  assert.match(androidBuildSource, /versionCode 143/);
   assert.match(androidBuildSource, /versionName "2\.0"/);
 });
 
@@ -1250,10 +1256,85 @@ test("Google monthly changes replace the active purchase with deliberate modes",
     assert.deepEqual(fixture.orders.at(-1).additionalData, {
       googlePlay: {
         oldPurchaseToken: `current-token-${fromKey}`,
-        replacementMode: expectedMode
+        replacementMode: expectedMode,
+        replacementRequired: true,
+        oldProductId: options[fromKey].productId
       }
     });
+    assert.equal(fixture.counts().restoreCalls, 1);
   }
+});
+
+test("Google Change fails closed without exactly one active subscription", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+  const options = service.getOptions("google");
+
+  await assert.rejects(
+    service.purchase(options[2], {
+      currentRecurringProductId: options[1].productId,
+      currentMonthlyAmount: options[1].amount
+    }),
+    error => error.code === "subscription_replacement_token_unavailable"
+  );
+  assert.equal(fixture.orders.length, 0);
+
+  fixture.store.localTransactions.push(
+    {
+      platform: "android-playstore",
+      products: [{ id: options[1].productId }],
+      purchaseId: "active-three-token",
+      purchaseDate: new Date("2026-07-24T10:00:00Z"),
+      state: "finished"
+    },
+    {
+      platform: "android-playstore",
+      products: [{ id: options[2].productId }],
+      purchaseId: "active-ten-token",
+      purchaseDate: new Date("2026-07-24T11:00:00Z"),
+      state: "finished"
+    }
+  );
+  await assert.rejects(
+    service.purchase(options[2], {
+      currentRecurringProductId: options[1].productId,
+      currentMonthlyAmount: options[1].amount
+    }),
+    error => error.code === "multiple_active_subscriptions"
+  );
+  assert.equal(fixture.orders.length, 0);
+});
+
+test("Google initial monthly support remains a normal purchase", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+  const option = service.getOptions("google")
+    .find(item => item.key === "monthly3");
+  await service.purchase(option);
+  assert.equal(fixture.orders.at(-1).additionalData, undefined);
+  assert.equal(fixture.counts().restoreCalls, 0);
+});
+
+test("multiple-active warning and native replacement guard are packaged", () => {
+  assert.match(
+    supportPageSource,
+    /Multiple active Reverse Flow subscriptions were found\. Manage billing to prevent duplicate charges\./
+  );
+  assert.match(
+    supporterServiceSource,
+    /hasMultipleActiveSubscriptions/
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(__dirname, "..", "scripts", "patch-android-purchase-plugin.js"),
+      "utf8"
+    ),
+    /subscription replacement configured/
+  );
 });
 
 test("active Supporter management keeps billing secondary and offers repeat support", () => {

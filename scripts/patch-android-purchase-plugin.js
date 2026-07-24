@@ -54,6 +54,43 @@ const replacements = [
       '            + " offerPresent=" + (offerToken != null));'
   ],
   [
+    '    String oldPurchaseToken = null;\n' +
+      '    if (additionalData.has("oldPurchaseToken")) {\n' +
+      '      oldPurchaseToken = additionalData.getString("oldPurchaseToken");\n' +
+      '    }',
+    '    String oldPurchaseToken = null;\n' +
+      '    if (additionalData.has("oldPurchaseToken")) {\n' +
+      '      oldPurchaseToken = additionalData.getString("oldPurchaseToken");\n' +
+      '    }\n' +
+      '    final boolean replacementRequired = additionalData.optBoolean(\n' +
+      '        "replacementRequired", false);\n' +
+      '    final String oldProductId = additionalData.optString(\n' +
+      '        "oldProductId", "unknown");'
+  ],
+  [
+    '    if (hasSubscriptionUpdateParams) {\n' +
+      '      params.setSubscriptionUpdateParams(subscriptionUpdateParams.build());\n' +
+      '    }',
+    '    if (replacementRequired && (oldPurchaseToken == null\n' +
+      '        || oldPurchaseToken.isEmpty() || replacementMode == null)) {\n' +
+      '      Log.e(RF_BILLING_TAG, "subscription replacement blocked oldProductId="\n' +
+      '          + oldProductId + " targetProductId=" + productId\n' +
+      '          + " tokenPresent=" + (oldPurchaseToken != null\n' +
+      '          && !oldPurchaseToken.isEmpty()) + " modePresent="\n' +
+      '          + (replacementMode != null));\n' +
+      '      callError(Constants.ERR_PURCHASE,\n' +
+      '          "Subscription replacement parameters are incomplete.");\n' +
+      '      return null;\n' +
+      '    }\n' +
+      '    if (hasSubscriptionUpdateParams) {\n' +
+      '      params.setSubscriptionUpdateParams(subscriptionUpdateParams.build());\n' +
+      '      Log.i(RF_BILLING_TAG, "subscription replacement configured oldProductId="\n' +
+      '          + oldProductId + " targetProductId=" + productId\n' +
+      '          + " replacementMode=" + replacementMode\n' +
+      '          + " tokenPresent=true");\n' +
+      '    }'
+  ],
+  [
     '    Log.d(mTag, "consumePurchase(" + purchaseToken + ")");',
     '    Log.i(RF_BILLING_TAG, "consumePurchase() invoked tokenPresent="\n' +
       '        + (purchaseToken != null && !purchaseToken.isEmpty()));'

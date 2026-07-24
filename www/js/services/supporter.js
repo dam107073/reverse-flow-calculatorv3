@@ -106,6 +106,8 @@
           Number.isFinite(contribution.pendingReplacementMonthlyAmount)
             ? contribution.pendingReplacementMonthlyAmount
             : null,
+        multipleActiveSubscriptions:
+          contribution.multipleActiveSubscriptions === true,
         platform: contribution.platform || null,
         renewsOrExpiresAt: contribution.renewsOrExpiresAt || null
       },
@@ -897,6 +899,12 @@
       this.supportUiState = SUPPORT_UI_STATES.NOT_SUPPORTER;
       this.lastConfirmedSupporterState = null;
       this.lastConfirmedSupportAction = null;
+      this.subscriptionVerificationState = {
+        status: "none",
+        provider: null,
+        productId: null,
+        message: null
+      };
     }
 
     getOptions(platform) {
@@ -1056,10 +1064,99 @@
       this.notify();
     }
 
+    beginSubscriptionVerification(evidence) {
+      if (evidence?.purchaseType !== "monthly") return;
+      this.subscriptionVerificationState = {
+        status: "verifying",
+        provider: evidence.paymentSource === "ios" ? "apple" : "google",
+        productId: evidence.productIdentifier,
+        message: null
+      };
+    }
+
+    completeSubscriptionVerification(evidence, status = "verified") {
+      if (evidence?.purchaseType !== "monthly") return;
+      this.subscriptionVerificationState = {
+        status,
+        provider: evidence.paymentSource === "ios" ? "apple" : "google",
+        productId: evidence.productIdentifier,
+        message: null
+      };
+    }
+
+    failSubscriptionVerification(evidence, error) {
+      if (evidence?.purchaseType !== "monthly") return;
+      this.subscriptionVerificationState = {
+        status: "failed",
+        provider: evidence.paymentSource === "ios" ? "apple" : "google",
+        productId: evidence.productIdentifier,
+        message: error?.message || "The store could not verify this subscription."
+      };
+    }
+
+    markSubscriptionRefreshResult(result) {
+      const cached = this.supporterCache.read();
+      if (!cached.isSupporter || cached.contribution?.type !== "monthly") return;
+      const platform = getPlatform();
+      const provider = platform === "ios" ? "apple" : "google";
+      if (["offline", "stale"].includes(result?.syncStatus)) {
+        this.subscriptionVerificationState = {
+          status: "cached",
+          provider,
+          productId: cached.contribution?.productId || null,
+          message: null
+        };
+      } else if (result?.hasActiveRecurringSupport) {
+        this.subscriptionVerificationState = {
+          status: "verified",
+          provider,
+          productId: result.contribution?.productId || null,
+          message: null
+        };
+      } else {
+        this.subscriptionVerificationState = {
+          status: "inactive",
+          provider,
+          productId: null,
+          message: null
+        };
+      }
+    }
+
+    renderSubscriptionVerificationStatus(element) {
+      if (!element) return;
+      const state = this.subscriptionVerificationState;
+      const providerName = state.provider === "apple" ? "Apple" : "Google Play";
+      let message = "";
+      if (state.status === "verifying") {
+        message = `Refreshing ${providerName} subscription status…`;
+      } else if (state.status === "cached") {
+        message =
+          `Using your last confirmed Supporter status while ${providerName} refresh is temporarily unavailable.`;
+      } else if (state.status === "failed") {
+        message = state.message;
+      } else if (state.status === "inactive") {
+        message = "No active monthly subscription was found.";
+      }
+      if (message) {
+        element.textContent = message;
+        element.dataset.verificationOwned = "true";
+        element.dataset.verificationMessage = message;
+      } else if (element.dataset.verificationOwned === "true") {
+        if (element.textContent === element.dataset.verificationMessage) {
+          element.textContent = "";
+        }
+        delete element.dataset.verificationOwned;
+        delete element.dataset.verificationMessage;
+      }
+    }
+
     async refreshConfirmedSupporter(callback) {
       this.beginSupportUiOperation(SUPPORT_UI_STATES.SUPPORTER_REFRESHING);
       try {
-        return await callback();
+        const result = await callback();
+        this.markSubscriptionRefreshResult(result);
+        return result;
       } finally {
         this.endSupportUiOperation();
       }
@@ -1140,6 +1237,30 @@
       this.retryStoreForEvidence(evidence).clear();
     }
 
+    isSupersededSubscriptionEvidence(evidence) {
+      if (
+        evidence?.paymentSource !== "ios" ||
+        evidence?.purchaseType !== "monthly"
+      ) {
+        return false;
+      }
+      const cached = this.supporterCache.read();
+      const cachedProductId = cached.contribution?.productId;
+      if (
+        !cached.isSupporter ||
+        !cached.hasActiveRecurringSupport ||
+        !cachedProductId ||
+        cachedProductId === evidence.productIdentifier
+      ) {
+        return false;
+      }
+      const confirmedAt = Date.parse(cached.lastVerifiedAt || "");
+      const purchasedAt = Date.parse(evidence.purchaseTimestamp || "");
+      return Number.isFinite(confirmedAt) &&
+        Number.isFinite(purchasedAt) &&
+        confirmedAt >= purchasedAt;
+    }
+
     transactionKey(evidence) {
       const provider = evidence?.paymentSource || "unknown";
       const reference = provider === "ios"
@@ -1169,6 +1290,16 @@
         acknowledgmentAttempted:
           typeof extra.acknowledgmentAttempted === "boolean"
             ? extra.acknowledgmentAttempted
+            : null,
+        oldProductId: extra.oldProductId || null,
+        replacementMode: extra.replacementMode || null,
+        oldPurchaseTokenPresent:
+          typeof extra.oldPurchaseTokenPresent === "boolean"
+            ? extra.oldPurchaseTokenPresent
+            : null,
+        activeProductCount:
+          Number.isFinite(extra.activeProductCount)
+            ? extra.activeProductCount
             : null
       };
       console.info(
@@ -1493,6 +1624,10 @@
           );
         }
 
+        const replacementData = await this.prepareSubscriptionReplacement(
+          current,
+          context
+        );
         const transactionPromise = new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
             this.waiters.delete(current.productId);
@@ -1508,9 +1643,7 @@
             timeout
           });
         });
-        const orderError = await current.offer.order(
-          this.subscriptionReplacementData(current, context)
-        );
+        const orderError = await current.offer.order(replacementData);
         if (orderError) {
           const waiter = this.waiters.get(current.productId);
           if (waiter) {
@@ -1557,21 +1690,37 @@
       return transactions;
     }
 
-    activeRecurringPurchaseEvidence(productId) {
-      return this.allSupportTransactions()
+    activeRecurringPurchaseEvidenceList() {
+      const seen = new Set();
+      return (Array.isArray(this.store?.localTransactions)
+        ? this.store.localTransactions
+        : [])
         .map(transaction => this.transactionEvidence(transaction))
         .filter(evidence =>
           evidence.purchaseType === "monthly" &&
-          (!productId || evidence.productIdentifier === productId) &&
+          evidence.transaction?.isPending !== true &&
           Boolean(evidence.purchaseToken)
         )
+        .filter(evidence => {
+          const key = `${evidence.productIdentifier}:${evidence.purchaseToken}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
         .sort((left, right) =>
           Date.parse(right.purchaseTimestamp || 0) -
           Date.parse(left.purchaseTimestamp || 0)
-        )[0] || null;
+        );
     }
 
-    subscriptionReplacementData(option, context = {}) {
+    activeRecurringPurchaseEvidence(productId) {
+      return this.activeRecurringPurchaseEvidenceList()
+        .find(evidence =>
+          !productId || evidence.productIdentifier === productId
+        ) || null;
+    }
+
+    async prepareSubscriptionReplacement(option, context = {}) {
       const fromProductId = context.currentRecurringProductId;
       if (
         getPlatform() !== "android" ||
@@ -1581,7 +1730,35 @@
       ) {
         return undefined;
       }
-      const current = this.activeRecurringPurchaseEvidence(fromProductId);
+      if (typeof this.store?.restorePurchases === "function") {
+        await this.store.restorePurchases();
+      }
+      const active = this.activeRecurringPurchaseEvidenceList();
+      const activeProducts = new Set(
+        active.map(evidence => evidence.productIdentifier)
+      );
+      if (activeProducts.size > 1) {
+        this.logTransaction(
+          "google-subscription-replacement-blocked",
+          {
+            paymentSource: "android",
+            productIdentifier: option.productId
+          },
+          {
+            stage: "subscription-replacement",
+            failureCategory: "multiple_active_subscriptions",
+            retryable: false,
+            activeProductCount: activeProducts.size
+          }
+        );
+        throw new SupportPurchaseError(
+          "Multiple active Reverse Flow subscriptions were found. Manage billing to prevent duplicate charges.",
+          "multiple_active_subscriptions"
+        );
+      }
+      const current = active.find(evidence =>
+        evidence.productIdentifier === fromProductId
+      );
       if (!current?.purchaseToken) {
         throw new SupportPurchaseError(
           "Your current Google Play subscription could not be prepared for a plan change. Refresh your status and try again.",
@@ -1593,10 +1770,26 @@
         Number(option.amount) > Number(context.currentMonthlyAmount)
           ? modes.CHARGE_PRORATED_PRICE || "IMMEDIATE_AND_CHARGE_PRORATED_PRICE"
           : modes.DEFERRED || "DEFERRED";
+      this.logTransaction(
+        "google-subscription-replacement-prepared",
+        {
+          paymentSource: "android",
+          productIdentifier: option.productId
+        },
+        {
+          stage: "subscription-replacement",
+          oldProductId: fromProductId,
+          replacementMode,
+          oldPurchaseTokenPresent: true,
+          retryable: false
+        }
+      );
       return {
         googlePlay: {
           oldPurchaseToken: current.purchaseToken,
-          replacementMode
+          replacementMode,
+          replacementRequired: true,
+          oldProductId: fromProductId
         }
       };
     }
@@ -2533,10 +2726,28 @@
     const storePlatform =
       platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
-    const current = recurringOptionForState(options, state.contribution);
+    let current = recurringOptionForState(options, state.contribution);
     const pendingProductId =
       purchaseService.readPendingSubscriptionRegistration()?.productId;
     const scheduledProductId = state.contribution?.pendingReplacementProductId;
+    const locallyActiveProducts = new Set(
+      platform === "android"
+        ? purchaseService.activeRecurringPurchaseEvidenceList()
+            .map(evidence => evidence.productIdentifier)
+        : []
+    );
+    const hasMultipleActiveSubscriptions =
+      state.contribution?.multipleActiveSubscriptions === true ||
+      locallyActiveProducts.size > 1;
+    if (locallyActiveProducts.size > 1) {
+      current = options
+        .filter(option =>
+          option.type === "monthly" &&
+          locallyActiveProducts.has(option.productId)
+        )
+        .sort((left, right) => Number(right.amount) - Number(left.amount))[0] ||
+        current;
+    }
     container.innerHTML = "";
 
     const monthlyOptions = options.filter(option =>
@@ -2552,6 +2763,7 @@
         : "Change Monthly Support";
       button.disabled =
         option.state !== "ready" ||
+        hasMultipleActiveSubscriptions ||
         Boolean(scheduledProductId) ||
         option.productId === pendingProductId;
       button.addEventListener("click", async () => {
@@ -2579,6 +2791,7 @@
           button.dataset.purchasing = "false";
           button.disabled =
             option.state !== "ready" ||
+            hasMultipleActiveSubscriptions ||
             Boolean(scheduledProductId) ||
             option.productId === pendingProductId;
         }
@@ -2650,7 +2863,10 @@
     const optionsKicker = document.getElementById("supportOptionsKicker");
     const optionsTitle = document.getElementById("supportOptionsTitle");
     const pageStatus = document.getElementById("supportPageStatus");
+    const multipleSubscriptionWarning =
+      document.getElementById("multipleSubscriptionWarning");
     const cacheStatus = document.getElementById("supportCacheStatus");
+    purchaseService.renderSubscriptionVerificationStatus(pageStatus);
     if (cacheStatus) {
       cacheStatus.textContent = state.isSupporter && state.lastVerifiedAt
         ? `Last confirmed: ${new Date(state.lastVerifiedAt).toLocaleString()}.`
@@ -2704,10 +2920,31 @@
     const storePlatform =
       getPlatform() === "ios" ? "apple" : getPlatform() === "android" ? "google" : null;
     const supportOptions = purchaseService.getOptions(storePlatform);
-    const currentRecurringOption = recurringOptionForState(
+    const locallyActiveProducts = new Set(
+      getPlatform() === "android"
+        ? purchaseService.activeRecurringPurchaseEvidenceList()
+            .map(evidence => evidence.productIdentifier)
+        : []
+    );
+    const hasMultipleActiveSubscriptions =
+      contribution?.multipleActiveSubscriptions === true ||
+      locallyActiveProducts.size > 1;
+    if (multipleSubscriptionWarning) {
+      multipleSubscriptionWarning.hidden = !hasMultipleActiveSubscriptions;
+    }
+    let currentRecurringOption = recurringOptionForState(
       supportOptions,
       contribution
     );
+    if (locallyActiveProducts.size > 1) {
+      currentRecurringOption = supportOptions
+        .filter(option =>
+          option.type === "monthly" &&
+          locallyActiveProducts.has(option.productId)
+        )
+        .sort((left, right) => Number(right.amount) - Number(left.amount))[0] ||
+        currentRecurringOption;
+    }
     document.getElementById("manageSupportDetails").textContent =
       state.hasActiveRecurringSupport
         ? `Current monthly support: ${
@@ -2734,6 +2971,7 @@
             localPendingStateWritten
           }
         );
+        purchaseService.beginSubscriptionVerification(pendingPurchase);
         try {
           await registryService.verifyPendingPurchase(
             createPendingVerificationPayload(pendingPurchase),
@@ -2754,6 +2992,7 @@
               localPendingStateWritten
             }
           );
+          purchaseService.completeSubscriptionVerification(pendingPurchase);
         } catch (error) {
           purchaseService.markPendingAttempt(pendingPurchase, "verification-failed");
           purchaseService.logTransaction(
@@ -2799,6 +3038,31 @@
               }
             );
           }
+          if (
+            purchaseService.isSupersededSubscriptionEvidence(pendingPurchase)
+          ) {
+            purchaseService.clearPendingRegistration(pendingPurchase);
+            purchaseService.logTransaction(
+              "apple-subscription-verification-superseded",
+              pendingPurchase,
+              {
+                stage: "purchase-verification",
+                backendOutcome: "ignored-after-newer-confirmation",
+                failureCategory:
+                  error?.code || "supporter_registry_error",
+                retryable: false
+              }
+            );
+            purchaseService.completeSubscriptionVerification(
+              pendingPurchase,
+              "replaced"
+            );
+            return;
+          }
+          purchaseService.failSubscriptionVerification(
+            pendingPurchase,
+            error
+          );
           throw error;
         }
         if (
@@ -2950,8 +3214,12 @@
       page.dataset.purchaseRecoveryBound = "true";
       purchaseService.onRecovery(pendingPurchase => {
         void handlePendingPurchase(pendingPurchase).catch(error => {
-          pageStatus.textContent = error?.message ||
-            "We couldn’t resume your Supporter setup automatically. Please try again.";
+          if (pendingPurchase?.purchaseType === "monthly") {
+            purchaseService.renderSubscriptionVerificationStatus(pageStatus);
+          } else {
+            pageStatus.textContent = error?.message ||
+              "We couldn’t resume your Supporter setup automatically. Please try again.";
+          }
         });
       });
     }
