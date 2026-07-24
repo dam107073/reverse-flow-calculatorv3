@@ -152,6 +152,7 @@ function createStore(platform, behavior = "approved") {
     };
     products.set(configured.productId, {
       id: configured.productId,
+      owned: false,
       offers: [offer],
       getOffer(id) {
         if (!id) return offer;
@@ -770,7 +771,7 @@ test("pending and recovery presentation uses plain-language state-aware actions"
   assert.doesNotMatch(supportPageSource, />Refresh Subscription Status</);
   assert.match(
     supporterServiceSource,
-    /optionsSection\.hidden = hasPendingRegistration/
+    /safeAction === ACTIONS\.CLAIM && !hasPendingRegistration/
   );
   assert.match(
     supporterServiceSource,
@@ -1069,7 +1070,7 @@ test("duplicate taps cannot start a second native purchase", async () => {
   await firstPurchase;
 });
 
-test("historical subscription callbacks cannot create consumable pending state", async () => {
+test("restored subscription callbacks create only subscription pending state", async () => {
   const fixture = createStore("ios");
   installPurchaseGlobals("ios", fixture.store);
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
@@ -1084,8 +1085,14 @@ test("historical subscription callbacks cannot create consumable pending state",
   });
 
   assert.equal(service.oneTimeRetryStore.read(), null);
-  assert.equal(service.subscriptionRetryStore.read(), null);
-  assert.equal(service.readPendingRegistration(), null);
+  assert.equal(
+    service.subscriptionRetryStore.read()?.productId,
+    "support_reverse_flow_monthly_3"
+  );
+  assert.equal(
+    service.readPendingRegistration()?.productId,
+    "support_reverse_flow_monthly_3"
+  );
 });
 
 test("subscription and consumable pending records are product-specific", () => {
@@ -1211,6 +1218,100 @@ test("subscription refresh returns only recurring support and management opens n
     manageCalls: 1,
     finishCalls: 0
   });
+});
+
+test("fresh-install restored subscriptions recreate registration state on iOS and Android", async () => {
+  for (const platform of ["ios", "android"]) {
+    const fixture = createStore(platform);
+    installPurchaseGlobals(platform, fixture.store);
+    const service = new SupportPurchaseService(CONFIG, {
+      store: fixture.store
+    });
+    const recovered = [];
+    service.onRecovery(evidence => recovered.push(evidence));
+    await service.initialize();
+    await new Promise(resolve => setImmediate(resolve));
+    const option = service.getOptions(platform === "ios" ? "apple" : "google")[1];
+    const transaction = {
+      platform: platform === "ios" ? "ios-appstore" : "android-playstore",
+      products: [{ id: option.productId, offerId: option.offer.id }],
+      transactionId: platform === "ios" ? "2000000123456789" : "GPA.123",
+      originalTransactionId:
+        platform === "ios" ? "1000000123456789" : null,
+      purchaseId: platform === "android" ? "restored-google-token" : null,
+      purchaseDate: new Date("2026-07-24T11:00:00Z"),
+      expirationDate: new Date("2099-08-24T11:00:00Z"),
+      environment: platform === "ios" ? "Sandbox" : null,
+      state: "finished",
+      nativePurchase:
+        platform === "android"
+          ? {
+              purchaseToken: "restored-google-token",
+              acknowledged: true
+            }
+          : {},
+      async finish() {}
+    };
+
+    fixture.callbacks.approved(transaction);
+
+    assert.equal(recovered.length, 1);
+    assert.equal(recovered[0].recoverySource, "store-restored-subscription");
+    assert.equal(
+      service.readPendingSubscriptionRegistration().productId,
+      option.productId
+    );
+  }
+});
+
+test("restored ownership and pending profile setup do not globally lock contribution options", async () => {
+  for (const platform of ["ios", "android"]) {
+    const fixture = createStore(platform);
+    installPurchaseGlobals(platform, fixture.store);
+    const monthly3 = fixture.products.get("support_reverse_flow_monthly_3");
+    monthly3.owned = true;
+    const service = new SupportPurchaseService(CONFIG, {
+      store: fixture.store
+    });
+    await service.initialize();
+    await new Promise(resolve => setImmediate(resolve));
+    const options = service.getOptions(platform === "ios" ? "apple" : "google");
+
+    assert.equal(options.find(option => option.key === "monthly3").owned, true);
+    assert.equal(options.find(option => option.key === "monthly10").owned, false);
+    assert.equal(
+      options.find(option => option.key === "oneTime5").repurchaseRestricted,
+      false
+    );
+  }
+  assert.doesNotMatch(
+    supporterServiceSource,
+    /optionsSection\.hidden = hasPendingRegistration/
+  );
+  assert.match(
+    supporterServiceSource,
+    /safeAction === ACTIONS\.CLAIM && !hasPendingRegistration/
+  );
+  assert.match(supporterServiceSource, /Current monthly support/);
+  assert.match(
+    supporterServiceSource,
+    /currentRecurringProductId:[\s\S]*currentMonthlyOption\?\.productId/
+  );
+});
+
+test("only an owned non-consumable is represented as store-restricted", () => {
+  const fixture = createStore("ios");
+  installPurchaseGlobals("ios", fixture.store);
+  const config = structuredClone(CONFIG);
+  config.apple.oneTime5.productType = "non-consumable";
+  fixture.products.get("reverse_flow_support_one_time_5").owned = true;
+  const service = new SupportPurchaseService(config, { store: fixture.store });
+  service.storePlatform = global.CdvPurchase.Platform.APPLE_APPSTORE;
+  service.initialized = true;
+
+  const option = service.getOptions("apple").find(entry => entry.key === "oneTime5");
+  assert.equal(option.owned, true);
+  assert.equal(option.repurchaseRestricted, true);
 });
 
 test("Apple monthly changes use the alternate subscription product in-app", async () => {
@@ -1353,7 +1454,7 @@ test("active Supporter management keeps billing secondary and offers repeat supp
   assert.match(supportPageSource, /id="supportOptionsTitle">Help Build What Comes Next/);
   assert.match(
     supporterServiceSource,
-    /optionsTitle\.textContent = state\.isSupporter[\s\S]*"Continue Supporting"/
+    /optionsTitle\.textContent = hasPendingRegistration[\s\S]*"Continue Supporting"/
   );
   assert.match(
     supporterServiceSource,
@@ -1382,6 +1483,7 @@ test("iOS consumable recovery uses Transaction.unfinished without restore semant
           productId: "reverse_flow_support_one_time_5",
           transactionId: "2000000123456789",
           originalTransactionId: "2000000123456789",
+          signedTransaction: "header.payload.signature",
           purchaseDate: "2026-07-24T12:00:00Z",
           environment: "Sandbox"
         };
@@ -1401,6 +1503,8 @@ test("iOS consumable recovery uses Transaction.unfinished without restore semant
 
   assert.equal(recovered.nativeRecovery, true);
   assert.equal(recovered.productIdentifier, "reverse_flow_support_one_time_5");
+  assert.equal(recovered.signedTransaction, "header.payload.signature");
+  assert.equal(recovered.environment, "sandbox");
   assert.equal(recoverCalls >= 1, true);
   assert.equal(fixture.counts().restoreCalls, 0);
   assert.equal(storageValues.size, 1);
@@ -1420,6 +1524,7 @@ test("native recovery bridge scans updates and unfinished transactions and never
   assert.match(iosRecoveryPluginSource, /Transaction\.unfinished/);
   assert.match(iosRecoveryPluginSource, /unfinished-transaction-found/);
   assert.match(iosRecoveryPluginSource, /no-recoverable-transaction-found/);
+  assert.match(iosRecoveryPluginSource, /result\.jwsRepresentation/);
   assert.doesNotMatch(iosRecoveryPluginSource, /AppStore\.sync/);
   assert.doesNotMatch(iosRecoveryPluginSource, /restoreCompletedTransactions/);
   assert.match(
@@ -1441,6 +1546,7 @@ test("registration payload sends store evidence in the POST body only", () => {
     transactionId: "2000000123456789",
     originalTransactionId: "1000000123456789",
     signedTransaction: "header.payload.signature",
+    environment: "Sandbox",
     purchaseTimestamp: "2026-07-24T12:00:00Z"
   });
 
@@ -1449,7 +1555,8 @@ test("registration payload sends store evidence in the POST body only", () => {
   assert.deepEqual(payload.transactionEvidence, {
     transactionId: "2000000123456789",
     originalTransactionId: "1000000123456789",
-    signedTransaction: "header.payload.signature"
+    signedTransaction: "header.payload.signature",
+    environment: "sandbox"
   });
   assert.equal("transaction" in payload, false);
 });

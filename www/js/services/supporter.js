@@ -702,6 +702,13 @@
     return `${provider}:…${value.slice(-6)}`;
   }
 
+  function normalizeStoreEnvironment(value) {
+    const environment = String(value || "").trim().toLowerCase();
+    return ["sandbox", "production"].includes(environment)
+      ? environment
+      : null;
+  }
+
   class PendingSupportRegistrationStore {
     constructor(storage, key = PURCHASE_RETRY_CACHE_KEY) {
       this.storage = storage || null;
@@ -941,7 +948,12 @@
             ? `${definition.title} — ${localizedPrice}${suffix}`
             : definition.title,
           state,
-          offer
+          offer,
+          owned: product?.owned === true,
+          repurchaseRestricted:
+            definition.type === "one-time" &&
+            configured.productType !== "consumable" &&
+            product?.owned === true
         };
       });
     }
@@ -1204,6 +1216,9 @@
         ),
         expirationTimestamp: toIsoTimestamp(transaction?.expirationDate),
         signedTransaction: transaction?.jwsRepresentation || null,
+        environment: normalizeStoreEnvironment(
+          transaction?.environment || nativePurchase?.environment
+        ),
         offerId:
           transaction?.products?.find(product => product?.id === productIdentifier)?.offerId ||
           null,
@@ -1423,10 +1438,12 @@
             }
             const pending = this.retryStoreForEvidence(evidence).read();
             if (!pending || !this.transactionMatchesPending(evidence, pending)) {
-              if (
+              const isRestorableSubscription =
+                evidence.purchaseType === "monthly";
+              const isRecoverableGoogleOneTime =
                 getPlatform() === "android" &&
-                evidence.acknowledged !== true
-              ) {
+                evidence.acknowledged !== true;
+              if (isRestorableSubscription || isRecoverableGoogleOneTime) {
                 try {
                   this.persistPendingEvidence(evidence);
                   this.receivedTransactionKeys.add(key);
@@ -1441,7 +1458,9 @@
                   );
                   this.notifyRecovery({
                     ...evidence,
-                    recoverySource: "store-approved-redelivery"
+                    recoverySource: isRestorableSubscription
+                      ? "store-restored-subscription"
+                      : "store-approved-redelivery"
                   });
                 } catch (error) {
                   this.logTransaction(
@@ -2139,9 +2158,9 @@
         purchaseToken: null,
         purchaseTimestamp: toIsoTimestamp(result?.purchaseDate),
         expirationTimestamp: null,
-        signedTransaction: null,
+        signedTransaction: result?.signedTransaction || null,
         offerId: null,
-        environment: result?.environment || null,
+        environment: normalizeStoreEnvironment(result?.environment),
         nativeRecovery: true,
         transaction: null
       };
@@ -2517,6 +2536,11 @@
         verifiedPurchase?.transactionId || null;
       payload.transactionEvidence.originalTransactionId =
         verifiedPurchase?.originalTransactionId || null;
+      const environment =
+        normalizeStoreEnvironment(verifiedPurchase?.environment);
+      if (environment) {
+        payload.transactionEvidence.environment = environment;
+      }
       if (verifiedPurchase?.signedTransaction) {
         payload.transactionEvidence.signedTransaction =
           verifiedPurchase.signedTransaction;
@@ -2647,6 +2671,10 @@
         purchaseService.oneTimeSupportProductId()
         ? purchaseService.readPendingSubscriptionRegistration()?.productId
         : pendingRecord?.productId;
+    const ownedMonthlyOptions = options
+      .filter(option => option.type === "monthly" && option.owned)
+      .sort((left, right) => Number(right.amount) - Number(left.amount));
+    const currentMonthlyOption = ownedMonthlyOptions[0] || null;
     container.innerHTML = "";
 
     options.forEach(option => {
@@ -2654,7 +2682,14 @@
       button.type = "button";
       button.className = "support-option";
       const isPendingProduct = option.productId === pendingProductId;
-      button.disabled = option.state !== "ready" || isPendingProduct;
+      const isCurrentMonthly =
+        option.type === "monthly" &&
+        option.productId === currentMonthlyOption?.productId;
+      button.disabled =
+        option.state !== "ready" ||
+        isPendingProduct ||
+        isCurrentMonthly ||
+        option.repurchaseRestricted;
       const label = document.createElement("span");
       label.className = "support-option-label";
       label.textContent =
@@ -2667,11 +2702,15 @@
       availability.textContent =
         isPendingProduct
           ? "Finishing your support…"
-          : option.state === "loading"
-          ? "Loading price…"
-          : option.state === "ready"
-            ? "Purchase"
-            : "Unavailable";
+          : isCurrentMonthly
+            ? "Current monthly support"
+            : option.repurchaseRestricted
+              ? "Already owned"
+              : option.state === "loading"
+                ? "Loading price…"
+                : option.state === "ready"
+                  ? "Purchase"
+                  : "Unavailable";
       button.appendChild(availability);
       button.classList.toggle("is-loading", option.state === "loading");
       button.classList.toggle("is-unavailable", option.state === "unavailable");
@@ -2688,14 +2727,27 @@
               ? "Contacting the App Store…"
               : "Contacting Google Play…"
           );
-          const pendingPurchase = await purchaseService.purchase(option);
+          const pendingPurchase = await purchaseService.purchase(option, {
+            currentRecurringProductId:
+              option.type === "monthly"
+                ? currentMonthlyOption?.productId || null
+                : null,
+            currentMonthlyAmount:
+              option.type === "monthly"
+                ? currentMonthlyOption?.amount || null
+                : null
+          });
           await onPurchase(pendingPurchase);
         } catch (error) {
           status.textContent = error.message;
         } finally {
           clearTimeout(slowMessageTimer);
           button.dataset.purchasing = "false";
-          button.disabled = option.state !== "ready" || isPendingProduct;
+          button.disabled =
+            option.state !== "ready" ||
+            isPendingProduct ||
+            isCurrentMonthly ||
+            option.repurchaseRestricted;
         }
       });
       container.appendChild(button);
@@ -2891,15 +2943,20 @@
     title.textContent = "Support Reverse Flow";
     claimSection.hidden = hasPendingRegistration || safeAction !== ACTIONS.CLAIM;
     manageSection.hidden = hasPendingRegistration || safeAction !== ACTIONS.MANAGE;
-    optionsSection.hidden = hasPendingRegistration ||
-      safeAction === ACTIONS.CLAIM || safeAction === ACTIONS.MANAGE;
+    optionsSection.hidden =
+      safeAction === ACTIONS.MANAGE ||
+      (safeAction === ACTIONS.CLAIM && !hasPendingRegistration);
     if (optionsKicker) {
-      optionsKicker.textContent = state.isSupporter
+      optionsKicker.textContent = hasPendingRegistration
+        ? "Support Options"
+        : state.isSupporter
         ? "Reverse Flow Supporter"
         : "Community Supported";
     }
     if (optionsTitle) {
-      optionsTitle.textContent = state.isSupporter
+      optionsTitle.textContent = hasPendingRegistration
+        ? "Keep Supporting Reverse Flow"
+        : state.isSupporter
         ? "Continue Supporting"
         : "Help Build What Comes Next";
     }

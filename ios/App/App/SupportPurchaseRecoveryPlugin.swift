@@ -56,7 +56,10 @@ public class SupportPurchaseRecoveryPlugin: CAPPlugin, CAPBridgedPlugin {
                     transaction,
                     source: "transaction-updates"
                 )
-                let data = self.transactionPayload(transaction)
+                let data = self.transactionPayload(
+                    transaction,
+                    signedTransaction: result.jwsRepresentation
+                )
                 await MainActor.run {
                     self.notifyListeners(
                         "unfinishedConsumableAvailable",
@@ -89,7 +92,10 @@ public class SupportPurchaseRecoveryPlugin: CAPPlugin, CAPBridgedPlugin {
                         transaction,
                         source: "transaction-unfinished"
                     )
-                    call.resolve(transactionPayload(transaction))
+                    call.resolve(transactionPayload(
+                        transaction,
+                        signedTransaction: result.jwsRepresentation
+                    ))
                     return
                 case .unverified(let transaction, _):
                     guard transaction.productID == oneTimeSupportProductID else {
@@ -152,12 +158,16 @@ public class SupportPurchaseRecoveryPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func transactionPayload(_ transaction: Transaction) -> [String: Any] {
+    private func transactionPayload(
+        _ transaction: Transaction,
+        signedTransaction: String
+    ) -> [String: Any] {
         [
             "found": true,
             "productId": transaction.productID,
             "transactionId": String(transaction.id),
             "originalTransactionId": String(transaction.originalID),
+            "signedTransaction": signedTransaction,
             "purchaseDate": iso8601(transaction.purchaseDate),
             "originalPurchaseDate": iso8601(transaction.originalPurchaseDate),
             "environment": environmentName(transaction)
