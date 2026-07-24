@@ -79,6 +79,21 @@
       pointer-events: none;
     }
 
+    /*
+     * Capacitor can extend the WebView beneath a translucent iOS status bar.
+     * Keep the unsafe strip opaque after the header scrolls out of view so
+     * page copy never becomes visible behind the notch or status indicators.
+     */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0 0 auto;
+      height: env(safe-area-inset-top);
+      z-index: 1000;
+      background: #080e1a;
+      pointer-events: none;
+    }
+
 
       html[data-resolved-theme="dark"] body::before {
         background-image:

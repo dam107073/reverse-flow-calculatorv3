@@ -854,6 +854,9 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	const androidProAckRetryTimers = new Map();
 	const androidProAckSessionAttempts = new Map();
 	const androidProAckWaiters = new Map();
+	let reverseFlowLegacyRecoveryPromise = null;
+	let reverseFlowStartupRecoveryAttempted = false;
+	let reverseFlowStartupRecoveryInProgress = false;
 
 	function getAndroidProTransactionAssessment(transaction) {
 	  const Platform = window.CdvPurchase?.Platform;
@@ -1447,6 +1450,83 @@ relayResidualPressure: document.getElementById("relayResidualPressure"),
 	  return results.some(Boolean);
 	}
 
+	async function recoverLegacyPurchaseFromStore(options = {}) {
+	  if (reverseFlowLegacyRecoveryPromise) return reverseFlowLegacyRecoveryPromise;
+
+	  reverseFlowLegacyRecoveryPromise = (async () => {
+	    const store = window.CdvPurchase?.store;
+	    const purchasePlatform = getReverseFlowPurchasePlatform();
+	    const trigger = options.trigger || "legacy-purchase-recovery";
+	    const startup = options.startup === true;
+	    if (!store || !purchasePlatform) {
+	      return {
+	        found: isProUser(),
+	        unavailable: true,
+	        evidence: collectLegacyProEntitlementEvidence()
+	      };
+	    }
+	    if (navigator.onLine === false) {
+	      return {
+	        found: isProUser(),
+	        offline: true,
+	        evidence: collectLegacyProEntitlementEvidence()
+	      };
+	    }
+
+	    reverseFlowStartupRecoveryInProgress = startup;
+	    try {
+	      await store.restorePurchases();
+	      if (purchasePlatform === window.CdvPurchase.Platform?.GOOGLE_PLAY) {
+	        await recoverAndroidProTransactions(store, {
+	          trigger,
+	          restore: false
+	        });
+	      } else {
+	        grantProFromSdkOwnership(store, {
+	          trigger,
+	          restore: false,
+	          purchase: false
+	        });
+	      }
+	      return {
+	        found: isProUser(),
+	        evidence: collectLegacyProEntitlementEvidence()
+	      };
+	    } catch (error) {
+	      console.warn("[Reverse Flow IAP]", {
+	        event: "legacy-purchase-recovery-failed",
+	        trigger,
+	        message: error?.message || String(error)
+	      });
+	      return {
+	        found: isProUser(),
+	        error,
+	        evidence: collectLegacyProEntitlementEvidence()
+	      };
+	    } finally {
+	      reverseFlowStartupRecoveryInProgress = false;
+	    }
+	  })();
+
+	  try {
+	    return await reverseFlowLegacyRecoveryPromise;
+	  } finally {
+	    reverseFlowLegacyRecoveryPromise = null;
+	  }
+	}
+
+	function startLegacyPurchaseRecovery() {
+	  if (reverseFlowStartupRecoveryAttempted) return;
+	  reverseFlowStartupRecoveryAttempted = true;
+	  void recoverLegacyPurchaseFromStore({
+	    trigger: "startup-existing-purchase-check",
+	    startup: true
+	  });
+	}
+
+	window.reverseFlowRecoverLegacyPurchaseFromStore =
+	  recoverLegacyPurchaseFromStore;
+
 	function initializeReverseFlowStore() {
 	  const store = window.CdvPurchase.store;
 	  const ProductType = window.CdvPurchase.ProductType;
@@ -1724,6 +1804,7 @@ logStoreEvent("initialize-start", {
 		          ? "startup-retry-state"
 		          : "startup-receipts-ready"
 		      });
+		      startLegacyPurchaseRecovery();
 		    });
 
 		  store.when()
@@ -1868,7 +1949,11 @@ logStoreEvent("initialize-start", {
 	        matchingCandidate: grantSource.matchingCandidate
 	      });
 
-	      if (!wasAlreadyPro) {
+	      if (
+	        !wasAlreadyPro &&
+	        !reverseFlowStartupRecoveryInProgress &&
+	        (reverseFlowPurchaseInProgress || grantWasRestore)
+	      ) {
 	        if (reverseFlowPurchaseInProgress && !grantWasRestore) {
 	          logMetaProPurchaseEvent(grantSource);
 	        }
@@ -1970,6 +2055,7 @@ logStoreEvent("initialize-start", {
 		            trigger: "initialize-complete"
 		          });
 		        }
+		        startLegacyPurchaseRecovery();
 	      })
 	      .catch(error => {
 	        console.warn("[Reverse Flow IAP]", {
@@ -1999,6 +2085,7 @@ logStoreEvent("initialize-start", {
 		        trigger: "initialize-complete"
 		      });
 		    }
+		    startLegacyPurchaseRecovery();
 	  }
 	}
 

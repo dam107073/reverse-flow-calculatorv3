@@ -497,10 +497,13 @@
 
     document.querySelectorAll("[data-support-card]").forEach(card => {
       card.dataset.supportActionState = action;
-      card.querySelector("[data-support-message]").textContent = content.message;
-      const link = card.querySelector("[data-support-action]");
+      const link = card.matches("[data-support-action]")
+        ? card
+        : card.querySelector("[data-support-action]");
+      if (!link) return;
       link.textContent = content.label;
       link.href = getActionUrl(action);
+      link.setAttribute("aria-label", `${content.label}. Open Support Reverse Flow.`);
       card.hidden = false;
     });
 
@@ -536,9 +539,17 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "support-option";
-      button.textContent = option.label;
       button.disabled = !option.productId;
+      const label = document.createElement("span");
+      label.className = "support-option-label";
+      label.textContent = option.label;
+      button.appendChild(label);
       if (!option.productId) {
+        button.classList.add("is-coming-soon");
+        const availability = document.createElement("span");
+        availability.className = "support-option-availability";
+        availability.textContent = "Coming Soon";
+        button.appendChild(availability);
         button.setAttribute("aria-describedby", "supportProductsUnavailable");
       }
       button.addEventListener("click", async () => {
@@ -581,9 +592,9 @@
     optionsSection.hidden = safeAction === ACTIONS.CLAIM || safeAction === ACTIONS.MANAGE;
 
     if (safeAction === ACTIONS.BECOME) {
-      intro.textContent = "Reverse Flow is a community-supported platform built by firefighters, with firefighters, for the fire service. Every production tool is available to everyone. Financial support helps fund continued development and helps shape what comes next.";
+      intro.textContent = "Support is voluntary and helps fund continued development.";
     } else if (safeAction === ACTIONS.CONTINUE) {
-      intro.textContent = "Thank you for supporting Reverse Flow. Your support helps keep production tools available to the fire service while funding continued development.";
+      intro.textContent = "Thank you for helping build what comes next.";
     } else if (safeAction === ACTIONS.CLAIM) {
       intro.textContent = "Your previous purchase qualifies you for permanent Supporter status. No additional purchase is required.";
     } else {
@@ -615,6 +626,48 @@
         status.textContent = error.message;
       }
     });
+
+    const recoveryButton = document.getElementById("checkExistingPurchaseButton");
+    if (recoveryButton && recoveryButton.dataset.bound !== "true") {
+      recoveryButton.dataset.bound = "true";
+      recoveryButton.addEventListener("click", async () => {
+        if (recoveryButton.dataset.checking === "true") return;
+        const status = document.getElementById("legacyRecoveryStatus");
+
+        if (navigator.onLine === false) {
+          status.textContent = "Connect to the internet to check your Apple or Google purchase history. Your current app access is unchanged.";
+          return;
+        }
+
+        recoveryButton.dataset.checking = "true";
+        recoveryButton.disabled = true;
+        recoveryButton.textContent = "Checking Existing Purchase…";
+        status.textContent = "Checking the purchase history for your current store account…";
+        try {
+          const result = await global.recoverLegacyProPurchase?.({
+            trigger: "support-page-check-existing-purchase"
+          });
+          if (result?.found) {
+            status.textContent = "Previous purchase found. You can now claim Supporter status.";
+            renderSupportPage(cache, registryService, purchaseService);
+          } else if (result?.unavailable) {
+            status.textContent = "Purchase history can be checked in the installed iOS or Android app.";
+          } else if (result?.offline) {
+            status.textContent = "Connect to the internet to check your Apple or Google purchase history. Your current app access is unchanged.";
+          } else if (result?.error) {
+            status.textContent = "The store could not complete the check. Confirm your connection and try again.";
+          } else {
+            status.textContent = "No previous Reverse Flow PRO purchase was found for the currently signed-in Apple or Google account.";
+          }
+        } catch {
+          status.textContent = "The store could not complete the check. Confirm your connection and try again.";
+        } finally {
+          recoveryButton.dataset.checking = "false";
+          recoveryButton.disabled = false;
+          recoveryButton.textContent = "Check Existing Purchase";
+        }
+      });
+    }
 
     const form = document.getElementById("legacyClaimForm");
     if (form && form.dataset.bound !== "true") {

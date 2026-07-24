@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Support Reverse Flow</title>
   <script src="js/appearance.js?v=build-1"></script>
-  <link rel="stylesheet" href="css/base.css?v=appearance-1" />
+  <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
   <link rel="stylesheet" href="css/components.css?v=community-1" />
-  <link rel="stylesheet" href="css/support.css?v=community-1" />
+  <link rel="stylesheet" href="css/support.css?v=community-polish-1" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
 </head>
 <body>
@@ -34,30 +34,47 @@
     </nav>
 
     <section class="card support-page-hero">
-      <p class="support-eyebrow">Community Supported</p>
+      <p class="support-kicker">Community Supported</p>
       <h2 id="supportPageTitle">Support Reverse Flow</h2>
       <p id="supportPageIntro"></p>
-      <p class="support-equality-note">
-        Support is voluntary. Production tools are available to everyone, regardless of payment.
-      </p>
+      <div class="support-philosophy" aria-label="Reverse Flow support philosophy">
+        <p>Built by firefighters, with firefighters, for the fire service.</p>
+        <p>Every firefighter has access to every tool.</p>
+        <p>Supporters help build what comes next.</p>
+      </div>
     </section>
 
     <section class="card" id="supportOptionsSection">
-      <h2>Choose how you would like to help</h2>
-      <p>
-        Every option provides the same Supporter status. Choose the amount that works for you.
-      </p>
+      <h2>Support options</h2>
       <div class="support-options" id="supportOptions"></div>
-      <p class="helper" id="supportProductsUnavailable">
-        Support products are being prepared for App Store Connect and Google Play. Contributions are unavailable in this build until store configuration and verified registration are connected.
+      <p class="helper support-products-note" id="supportProductsUnavailable">
+        Store support options are being prepared.
       </p>
-      <h3>Supporters may receive</h3>
+    </section>
+
+    <section class="card support-benefits-card">
+      <h2>Supporter benefits</h2>
       <ul class="support-benefits">
         <li>Supporter recognition</li>
-        <li>Beta and early access to new features</li>
-        <li>Invitation to the private Supporter community</li>
-        <li>Opportunities to provide feedback and influence development</li>
+        <li>Beta and early access</li>
+        <li>Private Supporter community</li>
+        <li>Opportunities to influence development</li>
       </ul>
+    </section>
+
+    <section class="card legacy-recovery-card" id="legacyRecoverySection">
+      <h2>Already purchased Reverse Flow PRO?</h2>
+      <button
+        id="checkExistingPurchaseButton"
+        class="support-secondary-action"
+        type="button"
+      >Check Existing Purchase</button>
+      <p
+        id="legacyRecoveryStatus"
+        class="support-status"
+        role="status"
+        aria-live="polite"
+      ></p>
     </section>
 
     <section class="card" id="legacyClaimSection" hidden>
@@ -98,11 +115,11 @@
     </section>
 
     <p id="supportPageStatus" class="support-status" role="status" aria-live="polite"></p>
-    <p class="version-footer">Reverse Flow: Fire Hydraulics © 2026</p>
+    <p class="version-footer">Reverse Flow · Fire Hydraulics · © 2026</p>
   </main>
 
   <script src="js/constants.js?v=community-3b"></script>
-  <script src="js/services/entitlement.js?v=community-3b"></script>
-  <script src="js/services/supporter.js?v=community-3b"></script>
+  <script src="js/services/entitlement.js?v=community-polish-1"></script>
+  <script src="js/services/supporter.js?v=community-polish-1"></script>
 </body>
 </html>

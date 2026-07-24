@@ -172,25 +172,124 @@ function collectLegacyProEntitlementEvidence() {
   };
 }
 
-async function refreshLegacyProEntitlementEvidence() {
-  const store = window.CdvPurchase?.store;
-  if (store && navigator.onLine !== false) {
+let legacyPurchaseRecoveryInFlight = null;
+
+function getLegacyPurchaseStorePlatform() {
+  const purchases = window.CdvPurchase;
+  const platform = window.Capacitor?.getPlatform?.();
+  if (platform === "ios") return purchases?.Platform?.APPLE_APPSTORE || null;
+  if (platform === "android") return purchases?.Platform?.GOOGLE_PLAY || null;
+  return null;
+}
+
+function storeOwnsLegacyProProduct(store, storePlatform) {
+  const product = typeof store?.get === "function" && storePlatform
+    ? store.get(REVERSE_FLOW_PRO_PRODUCT_ID, storePlatform)
+    : null;
+  return (
+    (typeof store?.owned === "function" &&
+      store.owned(REVERSE_FLOW_PRO_PRODUCT_ID) === true) ||
+    (product?.id === REVERSE_FLOW_PRO_PRODUCT_ID && product.owned === true)
+  );
+}
+
+async function initializeLegacyPurchaseStoreIfNeeded(store, storePlatform) {
+  if (store.isReady) return;
+
+  const purchases = window.CdvPurchase;
+  store.register({
+    id: REVERSE_FLOW_PRO_PRODUCT_ID,
+    type: purchases.ProductType.NON_CONSUMABLE,
+    platform: storePlatform
+  });
+
+  const initialization = storePlatform === purchases.Platform.APPLE_APPSTORE
+    ? [{
+        platform: storePlatform,
+        options: { needAppReceipt: true }
+      }]
+    : [storePlatform];
+  await store.initialize(initialization);
+}
+
+async function recoverLegacyProPurchase(options = {}) {
+  if (legacyPurchaseRecoveryInFlight) return legacyPurchaseRecoveryInFlight;
+
+  legacyPurchaseRecoveryInFlight = (async () => {
+    const trigger = options.trigger || "manual-check-existing-purchase";
+    if (navigator.onLine === false) {
+      return {
+        found: hasLegacyProEntitlement(),
+        offline: true,
+        evidence: collectLegacyProEntitlementEvidence()
+      };
+    }
+
+    if (typeof window.reverseFlowRecoverLegacyPurchaseFromStore === "function") {
+      return window.reverseFlowRecoverLegacyPurchaseFromStore({ trigger });
+    }
+
+    const store = window.CdvPurchase?.store;
+    const storePlatform = getLegacyPurchaseStorePlatform();
+    if (!store || !storePlatform) {
+      return {
+        found: hasLegacyProEntitlement(),
+        unavailable: true,
+        evidence: collectLegacyProEntitlementEvidence()
+      };
+    }
+
     try {
+      await initializeLegacyPurchaseStoreIfNeeded(store, storePlatform);
       if (typeof store.restorePurchases === "function") {
         await store.restorePurchases();
       } else if (typeof store.update === "function") {
         await store.update();
       }
+
+      if (storeOwnsLegacyProProduct(store, storePlatform)) {
+        const evidence = collectLegacyProEntitlementEvidence();
+        setAccessLevel(ACCESS_LEVELS.PRO, {
+          ...evidence,
+          trigger,
+          source: "purchase",
+          productId: REVERSE_FLOW_PRO_PRODUCT_ID
+        });
+      }
+
+      return {
+        found: hasLegacyProEntitlement(),
+        evidence: collectLegacyProEntitlementEvidence()
+      };
     } catch (error) {
       console.warn("[Reverse Flow Supporter]", {
-        event: "legacy-evidence-refresh-failed",
+        event: "legacy-purchase-recovery-failed",
+        trigger,
         message: error?.message || String(error)
       });
+      return {
+        found: hasLegacyProEntitlement(),
+        error,
+        evidence: collectLegacyProEntitlementEvidence()
+      };
     }
+  })();
+
+  try {
+    return await legacyPurchaseRecoveryInFlight;
+  } finally {
+    legacyPurchaseRecoveryInFlight = null;
   }
-  return collectLegacyProEntitlementEvidence();
 }
 
+async function refreshLegacyProEntitlementEvidence() {
+  const result = await recoverLegacyProPurchase({
+    trigger: "legacy-evidence-refresh"
+  });
+  return result.evidence;
+}
+
+window.recoverLegacyProPurchase = recoverLegacyProPurchase;
 window.refreshLegacyProEntitlementEvidence = refreshLegacyProEntitlementEvidence;
 
 function getToolsSafeRedirectUrl() {
@@ -371,7 +470,9 @@ function setAccessLevel(level, grantDetails = {}) {
     }
   }));
 
-  updateAccessBadge();
+  if (typeof updateAccessBadge === "function") {
+    updateAccessBadge();
+  }
   logProAccessEvent("access-level-updated", {
     trigger: grantDetails.trigger,
     source: grantDetails.source,

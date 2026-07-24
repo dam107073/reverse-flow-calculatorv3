@@ -1,6 +1,6 @@
 # Community-Supported App Migration
 
-> Reverse Flow is a community-supported platform built by firefighters, with firefighters, for the fire service. Production tools are available to everyone. Supporters help build what comes next.
+> Reverse Flow is a community-supported platform built by firefighters, with firefighters, for the fire service. Every firefighter has access to every tool. Supporters help build what comes next.
 
 ## Pass 1 app contract
 

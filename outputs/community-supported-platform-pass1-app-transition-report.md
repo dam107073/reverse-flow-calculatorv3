@@ -5,11 +5,11 @@
 Date: July 23, 2026  
 Scope: iOS and Android app code only; no submission, deployment, or public-production modification
 
-> Reverse Flow is a community-supported platform built by firefighters, with firefighters, for the fire service. Production tools are available to everyone. Supporters help build what comes next.
+> Reverse Flow is a community-supported platform built by firefighters, with firefighters, for the fire service. Every firefighter has access to every tool. Supporters help build what comes next.
 
 ## Completion status
 
-Pass 1 app architecture and UI are implemented. Production tools no longer depend on purchase or entitlement state. Legacy purchase recognition remains solely as Supporter-claim eligibility. The registry and new store products are intentionally unavailable until later passes, and no local path fabricates a purchase or registry confirmation.
+Pass 1 app architecture and UI are implemented. Tools no longer depend on purchase or entitlement state. Legacy purchase recognition remains solely as Supporter-claim eligibility. The registry and new store products are intentionally unavailable until later passes, and no local path fabricates a purchase or registry confirmation.
 
 ## 1. Feature gates removed
 
@@ -62,7 +62,7 @@ Capacitor copied the exact `www/` source into the generated iOS and Android publ
 
 - Apple: `cordova-plugin-purchase`, App Store registration, verified-receipt inspection, exact product matching, SDK ownership checks, and receipt finalization remain.
 - Google: purchase history/transaction recovery, exact product matching, purchase token/transaction evidence, acknowledgement, bounded acknowledgement retry, and resume refresh remain.
-- Passive verified ownership may now establish legacy eligibility on a fresh installation; it does not unlock or alter any production tool.
+- Passive verified ownership may now establish legacy eligibility on a fresh installation; it does not unlock or alter any tool.
 - Eligibility is exposed through `hasLegacyProEntitlement()` and evidence through `getLegacyProEntitlementEvidence()`.
 - The unchanged legacy store product identifier is `reverse_flow_pro_lifetime`.
 

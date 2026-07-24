@@ -22,21 +22,37 @@
     </div>
   </header>
 
-  <main id="supportPage">
-    <section class="card support-card" data-support-card hidden>
-      <p class="support-eyebrow">Community Supported</p>
-      <p data-support-message></p>
-      <a class="support-primary-action" data-support-action href="#"></a>
-    </section>
+  <a class="support-action-bar" data-support-card data-support-action href="#" hidden></a>
 
+  <main id="supportPage">
     <section class="card support-page-hero">
       <h2 id="supportPageTitle">Support Reverse Flow</h2>
       <p id="supportPageIntro"></p>
+      <div class="support-philosophy">
+        <p>Built by firefighters, with firefighters, for the fire service.</p>
+        <p>Every firefighter has access to every tool.</p>
+        <p>Supporters help build what comes next.</p>
+      </div>
     </section>
 
     <section class="card" id="supportOptionsSection">
       <div id="supportOptions"></div>
       <p id="supportProductsUnavailable">Unavailable in this test fixture.</p>
+    </section>
+
+    <section class="card">
+      <ul class="support-benefits">
+        <li>Supporter recognition</li>
+        <li>Beta and early access</li>
+        <li>Private Supporter community</li>
+        <li>Opportunities to influence development</li>
+      </ul>
+    </section>
+
+    <section class="card" id="legacyRecoverySection">
+      <h2>Already purchased Reverse Flow PRO?</h2>
+      <button id="checkExistingPurchaseButton" class="support-secondary-action" type="button">Check Existing Purchase</button>
+      <p id="legacyRecoveryStatus" class="support-status" role="status"></p>
     </section>
 
     <section class="card" id="legacyClaimSection" hidden>
@@ -72,6 +88,10 @@
     (() => {
       const params = new URLSearchParams(location.search);
       const state = params.get("state");
+      const appearance = params.get("appearance");
+      if (appearance === "light" || appearance === "dark") {
+        document.documentElement.dataset.resolvedTheme = appearance;
+      }
       window.Capacitor = { getPlatform: () => params.get("platform") || "ios" };
       localStorage.removeItem(PRO_ENTITLEMENT_STORAGE_KEY);
       localStorage.removeItem(SUPPORTER_CACHE_STORAGE_KEY);
