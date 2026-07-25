@@ -298,7 +298,7 @@ test("mobile supporter APIs contain only the canonical Production host", () => {
 
 test("native Version 2.0 Release values are intentional", () => {
   assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 5;/g) || []).length,
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 6;/g) || []).length,
     6
   );
   assert.equal(
@@ -355,7 +355,7 @@ test("every Android device build packages Production", () => {
 test("environment diagnostic reports only privacy-safe Production identity", async () => {
   const calls = [];
   global.APP_VERSION = "2.0";
-  global.APP_BUILD_NUMBERS = { ios: "5", android: "144" };
+  global.APP_BUILD_NUMBERS = { ios: "6", android: "144" };
   const service = new SupporterRegistryService({
     environment: "production",
     baseUrls: { production: "https://reverse-flow.app" },
