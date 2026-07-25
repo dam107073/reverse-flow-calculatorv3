@@ -1415,12 +1415,8 @@
 
     .supporter-badge[hidden],
     .support-action-bar[hidden],
-    #legacyClaimSection[hidden],
-    #manageSupportSection[hidden],
-    #supportOptionsSection[hidden],
-    #supportRegistrationSection[hidden],
-    .support-help[hidden],
-    .support-benefits-card[hidden] {
+    #unclaimedSupporterState[hidden],
+    #claimedSupporterState[hidden] {
       display: none !important;
     }
 
@@ -1642,145 +1638,8 @@
       margin: 0.75rem 0 0.5rem;
     }
 
-    .support-option {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      width: 100%;
-      min-height: 3rem;
-      text-align: left;
-    }
-
-    .support-option.is-loading:disabled,
-    .support-option.is-unavailable:disabled {
-      opacity: 1;
-      border-color: rgba(255, 101, 0, 0.3);
-      background: rgba(255, 101, 0, 0.055);
-      color: var(--ink);
-      cursor: default;
-    }
-
-    .support-option.is-loading:disabled {
-      opacity: 0.78;
-    }
-
-    .support-option-label {
-      font-weight: 850;
-    }
-
-    .support-option-availability {
-      flex: 0 0 auto;
-      color: var(--support-accent-deep);
-      font-size: 0.72rem;
-      font-weight: 900;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-
     .support-products-note {
       font-size: 0.8rem;
-    }
-
-    .support-benefits {
-      display: grid;
-      gap: 0.4rem;
-      margin-top: 0.65rem;
-      padding-left: 1.2rem;
-    }
-
-    .legacy-recovery-card {
-      margin-top: 30px;
-      padding-top: 18px !important;
-      border-top-color: rgba(107, 114, 128, 0.28);
-      color: var(--muted);
-    }
-
-    .legacy-recovery-card h2 {
-      color: var(--ink);
-      font-size: 1rem !important;
-    }
-
-    .legacy-recovery-card .helper {
-      margin: 0 0 0.8rem;
-    }
-
-    .support-help {
-      display: grid;
-      gap: 0.55rem;
-      margin: 28px 0 22px;
-      color: var(--muted);
-    }
-
-    .support-help details {
-      border-top: 1px solid rgba(107, 114, 128, 0.22);
-      padding-top: 0.65rem;
-    }
-
-    .support-help summary {
-      color: var(--ink);
-      cursor: pointer;
-      font-weight: 800;
-    }
-
-    .support-help-panel {
-      padding: 0.8rem 0 0.3rem;
-    }
-
-    .support-help-panel h2 {
-      margin-bottom: 0.35rem;
-      font-size: 1.05rem !important;
-    }
-
-    .support-troubleshooting-action {
-      justify-self: start;
-      min-height: auto;
-      padding: 0.35rem 0;
-      border: 0;
-      background: transparent;
-      color: var(--muted);
-      font-size: 0.78rem;
-      font-weight: 750;
-      text-decoration: underline;
-      box-shadow: none;
-    }
-
-    .manage-support-options {
-      display: grid;
-      gap: 0.65rem;
-      margin: 1rem 0;
-    }
-
-    .manage-support-options h3 {
-      margin: 0.7rem 0 0;
-      color: var(--ink);
-      font-size: 0.95rem;
-    }
-
-    .manage-support-options .support-secondary-action {
-      width: 100%;
-    }
-
-    .pending-subscription-change {
-      margin: 0.85rem 0;
-      padding: 0.85rem 1rem;
-      border: 1px solid rgba(249, 115, 22, 0.28);
-      border-radius: 12px;
-      background: rgba(249, 115, 22, 0.08);
-      color: var(--ink);
-    }
-
-    .pending-subscription-change p {
-      margin: 0;
-    }
-
-    .pending-subscription-change p:first-child {
-      font-weight: 800;
-    }
-
-    .pending-subscription-change p + p {
-      margin-top: 0.25rem;
-      color: var(--muted);
     }
 
     .support-identity-form {
@@ -1790,6 +1649,16 @@
 
     .support-identity-form input {
       min-height: 2.75rem;
+    }
+
+    .support-recognition-badge {
+      margin: 0.4rem 0 1rem;
+      color: var(--ink);
+      pointer-events: none;
+    }
+
+    .support-recognition .support-secondary-action {
+      margin-top: 0.35rem;
     }
 
     .support-status {
@@ -1838,13 +1707,10 @@
 
     html[data-resolved-theme="dark"] .support-kicker,
     html[data-resolved-theme="dark"] .support-section-kicker,
-    html[data-resolved-theme="dark"] .support-option-availability,
     html[data-resolved-theme="dark"] .support-secondary-action {
       color: #ffb36f;
     }
 
-    html[data-resolved-theme="dark"] .support-secondary-action,
-    html[data-resolved-theme="dark"] .support-option.is-loading:disabled,
-    html[data-resolved-theme="dark"] .support-option.is-unavailable:disabled {
+    html[data-resolved-theme="dark"] .support-secondary-action {
       background: rgba(255, 101, 0, 0.1);
     }

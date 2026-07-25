@@ -9,7 +9,7 @@
   <script src="js/appearance.js?v=build-1"></script>
   <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
   <link rel="stylesheet" href="css/components.css?v=community-1" />
-  <link rel="stylesheet" href="css/support.css?v=community-polish-4f-hotfix" />
+  <link rel="stylesheet" href="css/support.css?v=support-simplified-1" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
 </head>
 <body>
@@ -42,93 +42,47 @@
         <p>The community builds what comes next.</p>
       </div>
       <p id="supportPageIntro" class="support-state-note"></p>
-      <p id="supportCacheStatus" class="helper"></p>
     </section>
 
-    <section class="support-editorial-section support-invitation" id="supportOptionsSection">
-      <p class="support-section-kicker" id="supportOptionsKicker">Community Supported</p>
-      <h2 id="supportOptionsTitle">Help Build What Comes Next</h2>
-      <div class="support-options" id="supportOptions"></div>
+    <section class="support-editorial-section support-invitation" id="supportSection">
+      <p class="support-section-kicker">Support</p>
+      <h2 id="supportSectionTitle">Become a Supporter</h2>
+      <p id="supportSectionCopy">
+        Support the Reverse Flow community project and help sustain what comes next.
+      </p>
+      <div class="support-options" id="supportActions"></div>
       <p class="helper support-products-note" id="supportProductsUnavailable">
-        Loading localized prices from the store…
+        Loading support options…
       </p>
     </section>
 
-    <section class="support-editorial-section support-benefits-card">
-      <h2>How Supporters Contribute</h2>
-      <ul class="support-benefits">
-        <li>Test and refine new releases</li>
-        <li>Share operational experience</li>
-        <li>Contribute and discuss new ideas</li>
-        <li>Help improve existing tools</li>
-        <li>Sustain the project</li>
-      </ul>
-    </section>
-
-    <section class="support-help" id="recoverSupporterStatusSection">
-      <details id="supporterRecoveryDisclosure">
-        <summary>Already a Supporter?</summary>
-        <div class="support-help-panel">
-          <h2>Recover Your Supporter Status</h2>
-          <p>
-            Enter the email you used when you registered to restore your Supporter status on this device.
-          </p>
-          <form id="recoverSupporterStatusForm" class="support-identity-form" novalidate>
-            <label for="recoverSupporterEmail">Email address</label>
-            <input id="recoverSupporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
-            <button class="support-secondary-action" type="submit">Recover My Supporter Status</button>
-            <p id="recoverSupporterStatusMessage" class="support-status" role="status" aria-live="polite"></p>
-          </form>
-        </div>
-      </details>
-      <details id="legacyRecoverySection">
-        <summary>Purchased the original Reverse Flow PRO?</summary>
-        <div class="support-help-panel">
-          <button
-            id="checkExistingPurchaseButton"
-            class="support-secondary-action"
-            type="button"
-          >Check Previous PRO Purchase</button>
-          <p id="legacyRecoveryStatus" class="support-status" role="status" aria-live="polite"></p>
-        </div>
-      </details>
-    </section>
-
-    <section class="card" id="supporterClaimSection" hidden>
-      <h2>Claim Supporter Status</h2>
-      <p>
-        Add your name and email to claim your Supporter recognition. Your profile is managed separately from your App Store or Google Play billing.
-      </p>
-      <form id="supporterClaimForm" class="support-identity-form" novalidate>
-        <label for="supporterFullName">Full Name</label>
-        <input id="supporterFullName" name="fullName" type="text" autocomplete="name" required />
-        <label for="supporterEmail">Email Address</label>
-        <input id="supporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
-        <button class="support-primary-action" type="submit">Claim Supporter Status</button>
-        <p id="supporterClaimStatus" class="support-status" role="status" aria-live="polite"></p>
-      </form>
-    </section>
-
-    <section class="card" id="manageSupportSection" hidden>
-      <h2>Manage Your Support</h2>
-      <p id="manageSupportDetails"></p>
-      <div
-        id="pendingSubscriptionChange"
-        class="pending-subscription-change"
-        role="status"
-        aria-live="polite"
-        hidden
-      >
-        <p id="pendingSubscriptionChangeHeading"></p>
-        <p id="pendingSubscriptionChangeDetails"></p>
+    <section class="card support-recognition" id="communityRecognitionSection">
+      <p class="support-section-kicker">Community Recognition</p>
+      <div id="unclaimedSupporterState">
+        <h2>Claim Your Supporter Status</h2>
+        <p>
+          Thank you for supporting Reverse Flow.
+        </p>
+        <p>
+          One last step—tell us who you are so we can recognize you as part of the community.
+        </p>
+        <form id="supporterClaimForm" class="support-identity-form" novalidate>
+          <label for="supporterFullName">Name</label>
+          <input id="supporterFullName" name="fullName" type="text" autocomplete="name" required />
+          <label for="supporterEmail">Email</label>
+          <input id="supporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
+          <label for="supporterOrganization">Department / Organization <span class="helper">(optional)</span></label>
+          <input id="supporterOrganization" name="organization" type="text" autocomplete="organization" />
+          <button class="support-primary-action" type="submit">Claim Supporter Status</button>
+          <p id="supporterClaimStatus" class="support-status" role="status" aria-live="polite"></p>
+        </form>
       </div>
-      <div id="manageSupportOptions" class="manage-support-options"></div>
-      <button id="manageSubscriptionButton" class="support-troubleshooting-action" type="button">Manage Billing or Cancel</button>
-      <button
-        id="refreshSupportSubscriptionsButton"
-        class="support-troubleshooting-action"
-        type="button"
-      >Having trouble with your subscription? Refresh status</button>
+      <div id="claimedSupporterState" hidden>
+        <h2>✓ Thank You for Supporting the Reverse Flow Community</h2>
+        <p>Your supporter status has been claimed.</p>
+        <span class="supporter-badge support-recognition-badge" data-supporter-badge hidden>❤️ Supporter</span>
+        <a class="support-secondary-action" href="https://reverse-flow.app/supporters/">View Supporter Registry</a>
+      </div>
     </section>
 
     <p id="supportPageStatus" class="support-status" role="status" aria-live="polite"></p>
@@ -137,6 +91,6 @@
 
   <script src="js/constants.js?v=community-4d"></script>
   <script src="js/services/entitlement.js?v=community-4b"></script>
-  <script src="js/services/supporter.js?v=supporter-v2"></script>
+  <script src="js/services/supporter.js?v=support-simplified-1"></script>
 </body>
 </html>

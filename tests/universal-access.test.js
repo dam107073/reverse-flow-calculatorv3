@@ -47,19 +47,18 @@ test("support UI uses one compact action, live store options, and approved copy"
     read("www/index.html")
   ].join("\n");
 
-  assert.match(supporter, /option\.state === "ready"[\s\S]*"Purchase"/);
+  assert.match(supporter, /"One-Time Contribution"/);
+  assert.match(supporter, /"Monthly Support"/);
+  assert.match(supporter, /"Manage Subscription"/);
   assert.doesNotMatch(supporter, /Coming Soon/);
-  assert.match(supportHtml, /Purchased the original Reverse Flow PRO\?/);
-  assert.match(supportHtml, />Check Previous PRO Purchase</);
   assert.match(supportHtml, /Claim Supporter Status/);
-  assert.match(supportHtml, />Recover My Supporter Status</);
+  assert.match(supportHtml, /Department \/ Organization/);
   assert.match(
     supportHtml,
     /A community project built by firefighters, with firefighters, for firefighters\./
   );
-  assert.match(supportHtml, /How Supporters Contribute/);
-  assert.match(supportHtml, /Share operational experience/);
-  assert.match(supportHtml, /Sustain the project/);
+  assert.match(supportHtml, /Community Recognition/);
+  assert.match(supportHtml, /View Supporter Registry/);
   assert.match(
     supporter,
     /Join the community helping shape and sustain what Reverse Flow becomes next\./
@@ -68,11 +67,13 @@ test("support UI uses one compact action, live store options, and approved copy"
     bundledSupportSources,
     /help fund continued development|help fund what comes next|opportunities to influence development/i
   );
-  assert.match(
-    supportHtml,
-    /Having trouble with your subscription\? Refresh status/
+  assert.doesNotMatch(
+    `${supportHtml}\n${supporter.slice(
+      supporter.indexOf("function renderSimplifiedSupportActions"),
+      supporter.indexOf("function initialize()")
+    )}`,
+    /Continue Supporting|localizedPrice|current plan|current support|upgrade|downgrade|scheduled|renewal|expiration/i
   );
-  assert.doesNotMatch(supportHtml, /Restore Support Purchases/);
   assert.doesNotMatch(supporter, /confirmed\.welcomeEmailConfirmed !== true/);
   assert.doesNotMatch(
     supporter,
@@ -81,13 +82,12 @@ test("support UI uses one compact action, live store options, and approved copy"
   assert.match(supporter, /completeApprovedPurchase/);
   assert.doesNotMatch(
     supporter.slice(
-      supporter.indexOf("function renderSupportPageV2"),
+      supporter.indexOf("function renderSimplifiedSupportPage"),
       supporter.indexOf("function initialize()")
     ),
     /registerVerifiedPurchase|verifyPendingPurchase/
   );
   assert.match(supportHtml, /Claim Supporter Status/);
-  assert.match(supportCss, /\.support-option\.is-unavailable:disabled\s*\{[\s\S]*opacity:\s*1/);
   assert.match(supportCss, /\.support-action-bar\s*\{[\s\S]*min-height:\s*46px/);
   const retiredAccessPhrase = new RegExp(
     ["production", "tools?"].join("\\s+"),

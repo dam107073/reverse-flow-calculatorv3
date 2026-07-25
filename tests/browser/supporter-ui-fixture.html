@@ -28,7 +28,6 @@
     <section class="card support-page-hero">
       <h2 id="supportPageTitle">Support Reverse Flow</h2>
       <p id="supportPageIntro"></p>
-      <p id="supportCacheStatus"></p>
       <div class="support-philosophy">
         <p>A community project built by firefighters, with firefighters, for firefighters.</p>
         <p>Every firefighter has access to every tool.</p>
@@ -36,63 +35,36 @@
       </div>
     </section>
 
-    <section class="card" id="supportOptionsSection">
-      <div id="supportOptions"></div>
+    <section class="card" id="supportSection">
+      <p class="support-section-kicker">Support</p>
+      <h2 id="supportSectionTitle">Become a Supporter</h2>
+      <p id="supportSectionCopy"></p>
+      <div id="supportActions"></div>
       <p id="supportProductsUnavailable">Unavailable in this test fixture.</p>
     </section>
 
-    <section id="pendingSupportRegistrationSection" hidden>
-      <button id="completePendingSupportRegistrationButton" type="button">Complete Pending Support Registration</button>
-    </section>
-
-    <section id="recoverSupporterStatusSection">
-      <form id="recoverSupporterStatusForm">
-        <input name="email" type="email" />
-        <button type="submit">Recover Supporter Status</button>
-        <p id="recoverSupporterStatusMessage"></p>
-      </form>
-    </section>
-
-    <section class="card">
-      <ul class="support-benefits">
-        <li>Test and refine new releases</li>
-        <li>Share operational experience</li>
-        <li>Contribute and discuss new ideas</li>
-        <li>Help improve existing tools</li>
-        <li>Sustain the project</li>
-      </ul>
-    </section>
-
-    <section class="card" id="legacyRecoverySection">
-      <h2>Already purchased Reverse Flow PRO?</h2>
-      <button id="checkExistingPurchaseButton" class="support-secondary-action" type="button">Check Existing Purchase</button>
-      <p id="legacyRecoveryStatus" class="support-status" role="status"></p>
-    </section>
-
-    <section class="card" id="legacyClaimSection" hidden>
-      <h2>Claim permanent Supporter status</h2>
-      <form id="legacyClaimForm" class="support-identity-form" novalidate>
-        <label for="supporterFullName">Full name</label>
+    <section class="card" id="communityRecognitionSection">
+      <p class="support-section-kicker">Community Recognition</p>
+      <div id="unclaimedSupporterState">
+        <h2>Claim Your Supporter Status</h2>
+        <p>Thank you for supporting Reverse Flow.</p>
+        <form id="supporterClaimForm" class="support-identity-form" novalidate>
+        <label for="supporterFullName">Name</label>
         <input id="supporterFullName" name="fullName" type="text" required />
-        <label for="supporterEmail">Email address</label>
+        <label for="supporterEmail">Email</label>
         <input id="supporterEmail" name="email" type="email" required />
-        <button class="support-primary-action" type="submit">Submit Claim</button>
-        <p id="legacyClaimStatus" class="support-status" role="status"></p>
-      </form>
-    </section>
-
-    <section class="card" id="manageSupportSection" hidden>
-      <p id="manageSupportDetails"></p>
-      <div id="manageSupportOptions"></div>
-      <button id="manageSubscriptionButton" type="button">Open Subscription Management</button>
-    </section>
-
-    <section id="supportRegistrationSection" hidden>
-      <form id="supportRegistrationForm">
-        <input name="fullName" />
-        <input name="email" />
-        <button type="submit">Register Support</button>
-      </form>
+        <label for="supporterOrganization">Department / Organization</label>
+        <input id="supporterOrganization" name="organization" />
+        <button class="support-primary-action" type="submit">Claim Supporter Status</button>
+        <p id="supporterClaimStatus" class="support-status" role="status"></p>
+        </form>
+      </div>
+      <div id="claimedSupporterState" hidden>
+        <h2>✓ Thank You for Supporting the Reverse Flow Community</h2>
+        <p>Your supporter status has been claimed.</p>
+        <span class="supporter-badge" data-supporter-badge hidden>❤️ Supporter</span>
+        <a href="https://reverse-flow.app/supporters/">View Supporter Registry</a>
+      </div>
     </section>
     <p id="supportPageStatus" class="support-status" role="status"></p>
   </main>
@@ -125,6 +97,10 @@
               id: productId,
               pricingPhases: [{ price }],
               async order() {
+                window.__orderedSupportProducts = [
+                  ...(window.__orderedSupportProducts || []),
+                  productId
+                ];
                 return { isError: true, code: 6777006, productId };
               }
             };
@@ -144,6 +120,10 @@
               id: "support_reverse_flow_subscription@monthly-3",
               pricingPhases: [{ price: "$2.99" }],
               async order() {
+                window.__orderedSupportProducts = [
+                  ...(window.__orderedSupportProducts || []),
+                  "support_reverse_flow_subscription@monthly-3"
+                ];
                 return { isError: true, code: 6777006 };
               }
             },
@@ -151,6 +131,10 @@
               id: "support_reverse_flow_subscription@monthly-10",
               pricingPhases: [{ price: "$9.99" }],
               async order() {
+                window.__orderedSupportProducts = [
+                  ...(window.__orderedSupportProducts || []),
+                  "support_reverse_flow_subscription@monthly-10"
+                ];
                 return { isError: true, code: 6777006 };
               }
             }
@@ -181,12 +165,16 @@
             async initialize() { return []; },
             get: productId => products.get(productId),
             async restorePurchases() {},
-            async manageSubscriptions() {}
+            async manageSubscriptions() {
+              window.__manageSubscriptionCalls =
+                (window.__manageSubscriptionCalls || 0) + 1;
+            }
           }
         };
       }
       localStorage.removeItem(PRO_ENTITLEMENT_STORAGE_KEY);
       localStorage.removeItem(SUPPORTER_CACHE_STORAGE_KEY);
+      localStorage.removeItem("reverse-flow-store-support-history-v2");
 
       if (params.get("offline") === "1") {
         Object.defineProperty(Navigator.prototype, "onLine", {
@@ -208,22 +196,20 @@
         localStorage.setItem(SUPPORTER_CACHE_STORAGE_KEY, JSON.stringify({
           version: 1,
           isSupporter: true,
+          name: "Fixture Supporter",
           supporterSince: "2021-04-08",
-          source: "legacy_apple",
-          hasActiveRecurringSupport: state === "recurring",
-          recurringStatus: state === "recurring" ? "active" : "inactive",
-          contribution: state === "recurring"
-            ? {
-                type: "monthly",
-                status: "active",
-                monthlyAmount: 3,
-                platform: params.get("platform") === "android" ? "google" : "apple",
-                renewsOrExpiresAt: "2026-08-24T12:00:00.000Z"
-              }
-            : { type: "none", status: "inactive" },
+          isPubliclyListed: true,
           supporterEmail: "fixture@example.invalid",
           platform: "ios",
           lastVerifiedAt: "2026-07-23T18:00:00.000Z"
+        }));
+      }
+      if (params.get("support") === "eligible" || state === "recurring") {
+        localStorage.setItem("reverse-flow-store-support-history-v2", JSON.stringify({
+          previouslySupported: true,
+          lastBillingState: "previously-supported",
+          lastProductId: "reverse_flow_support_one_time_5",
+          lastSupportedAt: "2026-07-23T18:00:00.000Z"
         }));
       }
       if (params.get("mockClaim") === "success") {
@@ -233,10 +219,9 @@
           headers: { get: () => null },
           text: async () => JSON.stringify({
             isSupporter: true,
+            name: "Fixture Supporter",
             supporterSince: "2021-04-08",
-            hasActiveRecurringSupport: false,
-            recurringStatus: "inactive",
-            source: "legacy_apple",
+            isPubliclyListed: true,
             lastVerifiedAt: "2026-07-23T18:05:00.000Z"
           })
         });

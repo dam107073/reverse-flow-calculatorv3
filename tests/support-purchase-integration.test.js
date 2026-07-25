@@ -1138,7 +1138,7 @@ test("V2 presentation keeps store billing and Supporter claims independent", () 
   assert.match(supportPageSource, /Claim Supporter Status/);
   assert.match(
     supportPageSource,
-    /profile is managed separately from your App Store or Google Play billing/
+    /Community Recognition/
   );
   assert.doesNotMatch(
     supportPageSource,
@@ -1148,20 +1148,11 @@ test("V2 presentation keeps store billing and Supporter claims independent", () 
     supporterServiceSource,
     /claimSupporter\(\{\s*name,\s*email,\s*public: true\s*\}\)/
   );
-  assert.match(supportPageSource, /Already a Supporter\?/);
-  assert.match(supportPageSource, /Recover Your Supporter Status/);
-  assert.match(supportPageSource, /Recover My Supporter Status/);
-  assert.match(supportPageSource, /Purchased the original Reverse Flow PRO\?/);
-  assert.match(supportPageSource, /Check Previous PRO Purchase/);
-  assert.match(
-    supportPageSource,
-    /Having trouble with your subscription\? Refresh status/
-  );
-  assert.doesNotMatch(supportPageSource, /Restore Support Purchases/);
-  assert.doesNotMatch(supportPageSource, />Refresh Subscription Status</);
+  assert.match(supportPageSource, /Department \/ Organization/);
+  assert.match(supportPageSource, /View Supporter Registry/);
   assert.match(
     supporterServiceSource,
-    /function resolveSupporterV2State/
+    /function projectSupportPresentation/
   );
   assert.match(
     supporterServiceSource,
@@ -1185,7 +1176,7 @@ test("V2 presentation keeps store billing and Supporter claims independent", () 
     /previousEnvironment === "preview"[\s\S]{0,220}item\.store\.markEnvironment\(this\.apiEnvironment\)/
   );
   const v2Renderer = supporterServiceSource.slice(
-    supporterServiceSource.indexOf("function renderSupportPageV2"),
+    supporterServiceSource.indexOf("function renderSimplifiedSupportPage"),
     supporterServiceSource.indexOf("function initialize()")
   );
   assert.doesNotMatch(
@@ -1241,18 +1232,13 @@ test("welcome delivery never gates store completion after confirmed cache persis
     supporterServiceSource,
     /welcomeEmailConfirmed[\s\S]{0,500}finishPurchase/
   );
-  assert.match(
-    supporterServiceSource,
-    /const cachedConfirmation = cache\.writeConfirmed[\s\S]*cache\.read\(\)\.isSupporter[\s\S]*finishPurchase/
+  const activeRenderer = supporterServiceSource.slice(
+    supporterServiceSource.indexOf("function renderSimplifiedSupportPage"),
+    supporterServiceSource.indexOf("function initialize()")
   );
-  assert.match(
-    supporterServiceSource,
-    /purchaseService\.markPendingAttempt\([\s\S]{0,100}"confirmed-awaiting-finish"/
-  );
-  assert.match(
-    supporterServiceSource,
-    /global\.reverseFlowPendingVerifiedSupportPurchase = null/
-  );
+  assert.match(activeRenderer, /cache\.writeConfirmed/);
+  assert.match(activeRenderer, /completeApprovedPurchase/);
+  assert.doesNotMatch(activeRenderer, /welcomeEmailConfirmed/);
 });
 
 test("cancel and pending outcomes never produce registration evidence", async () => {
@@ -1820,15 +1806,8 @@ test("restored ownership and pending profile setup do not globally lock contribu
     supporterServiceSource,
     /optionsSection\.hidden = hasPendingRegistration/
   );
-  assert.match(
-    supporterServiceSource,
-    /safeAction === ACTIONS\.CLAIM && !hasPendingRegistration/
-  );
-  assert.match(supporterServiceSource, /Current monthly support/);
-  assert.match(
-    supporterServiceSource,
-    /currentRecurringProductId:[\s\S]*currentMonthlyOption\?\.productId/
-  );
+  assert.match(supporterServiceSource, /function renderSimplifiedSupportActions/);
+  assert.doesNotMatch(supporterServiceSource, /Current monthly support/);
 });
 
 test("only an owned non-consumable is represented as store-restricted", () => {
@@ -2064,36 +2043,18 @@ test("successful replacement acknowledges the new token exactly once", async () 
   assert.equal(replacement.acknowledged, true);
 });
 
-test("active Supporter management keeps billing secondary and offers repeat support", () => {
-  assert.match(supportPageSource, /Manage Your Support/);
-  assert.match(supportPageSource, /Manage Billing or Cancel/);
-  assert.match(supporterServiceSource, /Change to \$\{option\.localizedPrice\}\/month/);
-  assert.match(supporterServiceSource, /Add One-Time Support — \$\{oneTime\.localizedPrice\}/);
-  assert.match(
-    supporterServiceSource,
-    /option\.key !== current\?\.key/
+test("active Supporter presentation exposes only repeat support and provider management", () => {
+  assert.match(supportPageSource, /id="supportSectionTitle">Become a Supporter/);
+  assert.match(supporterServiceSource, /"Make a One-Time Contribution"/);
+  assert.match(supporterServiceSource, /"Manage Subscription"/);
+  assert.match(supporterServiceSource, /openNativeSubscriptionManagement/);
+  const activeRenderer = supporterServiceSource.slice(
+    supporterServiceSource.indexOf("function renderSimplifiedSupportActions"),
+    supporterServiceSource.indexOf("function initialize()")
   );
-  assert.match(
-    supporterServiceSource,
-    /Your subscription change has been scheduled\./
-  );
-  assert.match(
-    supporterServiceSource,
-    /The App Store or Google Play will apply this change at your next renewal\./
-  );
-  assert.match(
-    supporterServiceSource,
-    /if \(storeReportedChange\) return;/
-  );
-  assert.match(supportPageSource, /id="pendingSubscriptionChange"/);
-  assert.match(supportPageSource, /id="supportOptionsTitle">Help Build What Comes Next/);
-  assert.match(
-    supporterServiceSource,
-    /optionsTitle\.textContent = hasPendingRegistration[\s\S]*"Continue Supporting"/
-  );
-  assert.match(
-    supporterServiceSource,
-    /Thank you for continuing to support Reverse Flow\./
+  assert.doesNotMatch(
+    activeRenderer,
+    /localizedPrice|current plan|current support|upgrade|downgrade|scheduled|renewal|expiration/i
   );
 });
 

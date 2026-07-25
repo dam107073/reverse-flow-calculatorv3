@@ -6,11 +6,9 @@ const path = require("node:path");
 const {
   ACTIONS,
   BILLING_STATES,
-  CLAIM_STATES,
   SupportPurchaseService,
   normalizeApiResponse,
-  pendingSubscriptionChangePresentation,
-  resolveSupporterV2State
+  projectSupportPresentation
 } = require("../www/js/services/supporter.js");
 
 const root = path.resolve(__dirname, "..");
@@ -109,7 +107,7 @@ function createAppleSubscriptionService({
   return { service, values };
 }
 
-test("all billing and claim combinations remain independent", () => {
+test("all billing states project into supportEligible independently from claimedSupporter", () => {
   const billingStates = [
     BILLING_STATES.NEVER_PURCHASED,
     BILLING_STATES.ACTIVE_MONTHLY_3,
@@ -119,29 +117,18 @@ test("all billing and claim combinations remain independent", () => {
   ];
   for (const billingState of billingStates) {
     for (const backend of [null, claimed]) {
-      const result = resolveSupporterV2State(billingState, backend);
+      const result = projectSupportPresentation(billingState, backend);
       const claimedState = backend === claimed;
-      const active = [
+      const supportEligible = [
         BILLING_STATES.ACTIVE_MONTHLY_3,
-        BILLING_STATES.ACTIVE_MONTHLY_10
+        BILLING_STATES.ACTIVE_MONTHLY_10,
+        BILLING_STATES.PREVIOUSLY_SUPPORTED
       ].includes(billingState);
-      const previouslySupported =
-        active || billingState === BILLING_STATES.PREVIOUSLY_SUPPORTED;
-      assert.equal(result.billingState, billingState);
-      assert.equal(
-        result.claimState,
-        claimedState ? CLAIM_STATES.CLAIMED : CLAIM_STATES.UNCLAIMED
-      );
-      assert.equal(result.showBadge, claimedState);
-      assert.equal(result.showClaim, !claimedState && previouslySupported);
-      assert.equal(result.showManageSupport, active);
+      assert.equal(result.supportEligible, supportEligible);
+      assert.equal(result.claimedSupporter, claimedState);
       assert.equal(
         result.primaryAction,
-        active
-          ? ACTIONS.MANAGE
-          : billingState === BILLING_STATES.PREVIOUSLY_SUPPORTED
-            ? ACTIONS.CONTINUE
-            : ACTIONS.BECOME
+        supportEligible ? ACTIONS.MANAGE : ACTIONS.BECOME
       );
     }
   }
@@ -258,7 +245,7 @@ test("active V2 client path contains no backend purchase verification", () => {
   assert.match(constantsSource, /claimSupporter: "\/api\/supporters\/claim-supporter"/);
   assert.doesNotMatch(constantsSource, /verify-purchase|verify-pending/);
   const v2Renderer = supporterSource.slice(
-    supporterSource.indexOf("function renderSupportPageV2"),
+    supporterSource.indexOf("function renderSimplifiedSupportPage"),
     supporterSource.indexOf("function initialize()")
   );
   assert.doesNotMatch(
@@ -344,7 +331,7 @@ test("cached store state preserves Manage while the store is still loading", () 
     BILLING_STATES.ACTIVE_MONTHLY_10
   );
   assert.equal(
-    resolveSupporterV2State(
+    projectSupportPresentation(
       service.deriveBillingState("android"),
       claimed
     ).primaryAction,
@@ -372,7 +359,7 @@ test("StoreKit 2 active $9.99 entitlement outranks historical support", async ()
     BILLING_STATES.ACTIVE_MONTHLY_10
   );
   assert.equal(
-    resolveSupporterV2State(
+    projectSupportPresentation(
       service.deriveBillingState("ios"),
       claimed
     ).primaryAction,
@@ -467,7 +454,7 @@ test("restart restores Manage while StoreKit refresh is pending", async () => {
     BILLING_STATES.ACTIVE_MONTHLY_10
   );
   assert.equal(
-    resolveSupporterV2State(
+    projectSupportPresentation(
       restarted.deriveBillingState("ios"),
       claimed
     ).primaryAction,
@@ -475,12 +462,17 @@ test("restart restores Manage while StoreKit refresh is pending", async () => {
   );
 });
 
-test("Manage renderer safely declares pendingProductId and hides raw exceptions", () => {
+test("simplified Manage renderer hides provider billing detail and raw exceptions", () => {
   const manageRenderer = supporterSource.slice(
-    supporterSource.indexOf("function renderManageSupportOptions"),
-    supporterSource.indexOf("function renderSupportPage(")
+    supporterSource.indexOf("function renderSimplifiedSupportActions"),
+    supporterSource.indexOf("function renderSimplifiedSupportPage")
   );
-  assert.match(manageRenderer, /const pendingProductId\s*=/);
+  assert.match(manageRenderer, /"Manage Subscription"/);
+  assert.match(manageRenderer, /openNativeSubscriptionManagement/);
+  assert.doesNotMatch(
+    manageRenderer,
+    /localizedPrice|basePlanId|pendingSubscription|upgrade|downgrade|renewal/i
+  );
   assert.doesNotMatch(manageRenderer, /textContent\s*=\s*error\.message/);
   assert.match(manageRenderer, /safeStoreErrorMessage/);
 });
@@ -523,37 +515,14 @@ test("Apple pending change uses only StoreKit renewal information", async () => 
   );
 });
 
-test("pending change copy uses store date and never estimates one", () => {
-  const options = [{
-    type: "monthly",
-    productId: "support_reverse_flow_monthly_3",
-    basePlanId: null,
-    localizedPrice: "$2.99"
-  }];
-  const dated = pendingSubscriptionChangePresentation({
-    storeReported: true,
-    targetProductId: "support_reverse_flow_monthly_3",
-    effectiveDate: "2026-07-28T12:00:00.000Z"
-  }, options, "en-US");
-  assert.equal(
-    dated.details,
-    "Your subscription will change to $2.99/month on July 28."
+test("pending subscription changes remain internal and are absent from presentation", () => {
+  const renderer = supporterSource.slice(
+    supporterSource.indexOf("function renderSimplifiedSupportActions"),
+    supporterSource.indexOf("function initialize()")
   );
-
-  const undated = pendingSubscriptionChangePresentation({
-    storeReported: true,
-    targetProductId: null,
-    effectiveDate: null
-  }, options, "en-US");
-  assert.equal(
-    undated.details,
-    "The App Store or Google Play will apply this change at your next renewal."
-  );
-  assert.equal(
-    pendingSubscriptionChangePresentation({
-      targetProductId: "support_reverse_flow_monthly_3"
-    }, options),
-    null
+  assert.doesNotMatch(
+    renderer,
+    /pendingSubscriptionChange|renewalDate|effectiveDate|scheduled/
   );
 });
 
@@ -602,12 +571,9 @@ test("Google pending update remains generic for same-product base plans", () => 
   assert.equal(change.currentProductId, "support_reverse_flow_subscription");
   assert.equal(change.targetBasePlanId, null);
   assert.equal(change.effectiveDate, null);
-  assert.equal(
-    pendingSubscriptionChangePresentation(
-      change,
-      service.getOptions("google"),
-      "en-US"
-    ).details,
-    "The App Store or Google Play will apply this change at your next renewal."
+  const presentation = projectSupportPresentation(
+    service.deriveBillingState("android"),
+    null
   );
+  assert.equal(presentation.supportEligible, true);
 });
