@@ -6,8 +6,8 @@
   <title>Supporter UI Test Fixture</title>
   <link rel="stylesheet" href="/www/css/base.css" />
   <link rel="stylesheet" href="/www/css/components.css" />
-  <link rel="stylesheet" href="/www/css/support.css" />
-  <link rel="stylesheet" href="/www/css/responsive.css" />
+  <link rel="stylesheet" href="/www/css/support.css?v=support-polish-1" />
+  <link rel="stylesheet" href="/www/css/responsive.css?v=support-polish-1" />
 </head>
 <body>
   <header class="app-header">
@@ -46,8 +46,8 @@
     <section class="card" id="communityRecognitionSection">
       <p class="support-section-kicker">Community Recognition</p>
       <div id="unclaimedSupporterState">
-        <h2>Claim Your Supporter Status</h2>
-        <p>Thank you for supporting Reverse Flow.</p>
+        <h2>Be Recognized as a Supporter</h2>
+        <p>Thank you for supporting Reverse Flow. Share your name so we can recognize you as part of the community.</p>
         <form id="supporterClaimForm" class="support-identity-form" novalidate>
         <label for="supporterFullName">Name</label>
         <input id="supporterFullName" name="fullName" type="text" required />
@@ -55,13 +55,13 @@
         <input id="supporterEmail" name="email" type="email" required />
         <label for="supporterOrganization">Department / Organization</label>
         <input id="supporterOrganization" name="organization" />
-        <button class="support-primary-action" type="submit">Claim Supporter Status</button>
+        <button class="support-primary-action" type="submit">Recognize My Support</button>
         <p id="supporterClaimStatus" class="support-status" role="status"></p>
         </form>
       </div>
       <div id="claimedSupporterState" hidden>
-        <h2>✓ Thank You for Supporting the Reverse Flow Community</h2>
-        <p>Your supporter status has been claimed.</p>
+        <h2>Thank You for Supporting Reverse Flow</h2>
+        <p>You’re recognized as part of the Reverse Flow community.</p>
         <span class="supporter-badge" data-supporter-badge hidden>❤️ Supporter</span>
         <a href="https://reverse-flow.app/supporters/">View Supporter Registry</a>
       </div>

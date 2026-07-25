@@ -305,6 +305,18 @@
         color: #f8fafc;
       }
 
+      html[data-resolved-theme="dark"] .support-primary-action {
+        border-color: #c83d00;
+        background: linear-gradient(135deg, #ff6500, #c83d00);
+        color: #fff;
+      }
+
+      html[data-resolved-theme="dark"] .support-secondary-action {
+        border-color: rgba(251, 146, 60, 0.62);
+        background: rgba(251, 146, 60, 0.08);
+        color: #ffb36f;
+      }
+
       html[data-resolved-theme="dark"] #restorePurchaseButton {
         background:
           linear-gradient(180deg, rgba(23,32,51,0.94), rgba(17,24,39,0.92));

@@ -9,8 +9,8 @@
   <script src="js/appearance.js?v=build-1"></script>
   <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
   <link rel="stylesheet" href="css/components.css?v=community-1" />
-  <link rel="stylesheet" href="css/support.css?v=support-simplified-1" />
-  <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
+  <link rel="stylesheet" href="css/support.css?v=support-polish-1" />
+  <link rel="stylesheet" href="css/responsive.css?v=support-polish-1" />
 </head>
 <body>
   <header class="app-header">
@@ -48,7 +48,7 @@
       <p class="support-section-kicker">Support</p>
       <h2 id="supportSectionTitle">Become a Supporter</h2>
       <p id="supportSectionCopy">
-        Support the Reverse Flow community project and help sustain what comes next.
+        Your support helps keep every Reverse Flow tool available to every firefighter.
       </p>
       <div class="support-options" id="supportActions"></div>
       <p class="helper support-products-note" id="supportProductsUnavailable">
@@ -59,12 +59,9 @@
     <section class="card support-recognition" id="communityRecognitionSection">
       <p class="support-section-kicker">Community Recognition</p>
       <div id="unclaimedSupporterState">
-        <h2>Claim Your Supporter Status</h2>
+        <h2>Be Recognized as a Supporter</h2>
         <p>
-          Thank you for supporting Reverse Flow.
-        </p>
-        <p>
-          One last step—tell us who you are so we can recognize you as part of the community.
+          Thank you for supporting Reverse Flow. Share your name so we can recognize you as part of the community.
         </p>
         <form id="supporterClaimForm" class="support-identity-form" novalidate>
           <label for="supporterFullName">Name</label>
@@ -73,13 +70,13 @@
           <input id="supporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
           <label for="supporterOrganization">Department / Organization <span class="helper">(optional)</span></label>
           <input id="supporterOrganization" name="organization" type="text" autocomplete="organization" />
-          <button class="support-primary-action" type="submit">Claim Supporter Status</button>
+          <button class="support-primary-action" type="submit">Recognize My Support</button>
           <p id="supporterClaimStatus" class="support-status" role="status" aria-live="polite"></p>
         </form>
       </div>
       <div id="claimedSupporterState" hidden>
-        <h2>✓ Thank You for Supporting the Reverse Flow Community</h2>
-        <p>Your supporter status has been claimed.</p>
+        <h2>Thank You for Supporting Reverse Flow</h2>
+        <p>You’re recognized as part of the Reverse Flow community.</p>
         <span class="supporter-badge support-recognition-badge" data-supporter-badge hidden>❤️ Supporter</span>
         <a class="support-secondary-action" href="https://reverse-flow.app/supporters/">View Supporter Registry</a>
       </div>
@@ -91,6 +88,6 @@
 
   <script src="js/constants.js?v=community-4d"></script>
   <script src="js/services/entitlement.js?v=community-4b"></script>
-  <script src="js/services/supporter.js?v=support-simplified-1"></script>
+  <script src="js/services/supporter.js?v=support-polish-1"></script>
 </body>
 </html>

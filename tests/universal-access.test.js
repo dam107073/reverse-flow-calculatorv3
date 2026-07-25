@@ -50,8 +50,9 @@ test("support UI uses one compact action, live store options, and approved copy"
   assert.match(supporter, /"One-Time Contribution"/);
   assert.match(supporter, /"Monthly Support"/);
   assert.match(supporter, /"Manage Subscription"/);
+  assert.match(supporter, /button\.className = "support-secondary-action"/);
   assert.doesNotMatch(supporter, /Coming Soon/);
-  assert.match(supportHtml, /Claim Supporter Status/);
+  assert.match(supportHtml, /Be Recognized as a Supporter/);
   assert.match(supportHtml, /Department \/ Organization/);
   assert.match(
     supportHtml,
@@ -65,7 +66,7 @@ test("support UI uses one compact action, live store options, and approved copy"
   );
   assert.doesNotMatch(
     bundledSupportSources,
-    /help fund continued development|help fund what comes next|opportunities to influence development/i
+    /help fund continued development|help fund what comes next|opportunities to influence development|The stores own billing/i
   );
   assert.doesNotMatch(
     `${supportHtml}\n${supporter.slice(
@@ -87,8 +88,13 @@ test("support UI uses one compact action, live store options, and approved copy"
     ),
     /registerVerifiedPurchase|verifyPendingPurchase/
   );
-  assert.match(supportHtml, /Claim Supporter Status/);
+  assert.match(supportHtml, /Recognize My Support/);
   assert.match(supportCss, /\.support-action-bar\s*\{[\s\S]*min-height:\s*46px/);
+  assert.match(
+    supportCss,
+    /#supportPage \.page-nav \.nav-button-link\s*\{[\s\S]*min-height:\s*44px/
+  );
+  assert.match(supportCss, /\.support-primary-action:focus-visible/);
   const retiredAccessPhrase = new RegExp(
     ["production", "tools?"].join("\\s+"),
     "i"

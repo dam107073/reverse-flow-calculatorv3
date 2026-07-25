@@ -1462,7 +1462,7 @@
     }
 
     #supportPage .page-nav .nav-button-link {
-      min-height: 42px;
+      min-height: 44px;
     }
 
     #supportPage > .card,
@@ -1495,8 +1495,8 @@
       position: relative;
       isolation: isolate;
       overflow: hidden;
-      margin-bottom: 26px;
-      padding: 26px 22px 24px;
+      margin-bottom: 18px;
+      padding: 22px 20px 20px;
       border: 1px solid rgba(255, 138, 31, 0.25);
       border-radius: 18px;
       background-color: #0d141d;
@@ -1524,22 +1524,23 @@
     }
 
     .support-page-hero h2 {
-      max-width: 9ch;
-      margin: 0 0 1rem;
+      max-width: 11ch;
+      margin: 0 0 0.75rem;
       color: #fff;
-      font-size: clamp(2.15rem, 11vw, 3.5rem);
+      font-size: clamp(2rem, 9vw, 3rem);
       font-style: italic;
       font-weight: 950;
-      letter-spacing: -0.055em;
-      line-height: 0.93;
+      letter-spacing: -0.045em;
+      line-height: 0.96;
       text-transform: uppercase;
+      word-spacing: 0.08em;
     }
 
     .support-hero-lead {
       max-width: 32rem;
       margin: 0;
       color: #f4f6f8;
-      font-size: 1rem;
+      font-size: 0.96rem;
       font-weight: 760;
       line-height: 1.45;
     }
@@ -1547,8 +1548,8 @@
     .support-philosophy {
       display: grid;
       gap: 0.22rem;
-      margin-top: 1rem;
-      padding-top: 0.95rem;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
       border-top: 1px solid rgba(255, 138, 31, 0.35);
     }
 
@@ -1573,14 +1574,17 @@
       line-height: 1.35;
     }
 
+    .support-state-note[hidden] {
+      display: none;
+    }
+
     #supportCacheStatus {
       margin: 0.85rem 0 0;
     }
 
     .support-editorial-section {
-      margin: 0 0 22px;
+      margin: 0 0 16px;
       border: 0;
-      border-top: 1px solid rgba(255, 101, 0, 0.24);
       border-radius: 0;
       background: transparent;
       box-shadow: none;
@@ -1597,7 +1601,7 @@
 
     .support-invitation h2 {
       max-width: 18ch;
-      font-size: clamp(1.55rem, 7vw, 2rem) !important;
+      font-size: clamp(1.4rem, 6vw, 1.75rem) !important;
       letter-spacing: -0.025em;
     }
 
@@ -1625,6 +1629,12 @@
       box-shadow: 0 4px 10px rgba(200, 61, 0, 0.2);
     }
 
+    .support-primary-action:focus-visible,
+    .support-secondary-action:focus-visible {
+      outline: 3px solid #ffd3ad;
+      outline-offset: 3px;
+    }
+
     .support-secondary-action {
       width: 100%;
       background: rgba(255, 101, 0, 0.08);
@@ -1634,8 +1644,9 @@
 
     .support-options {
       display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.6rem;
-      margin: 0.75rem 0 0.5rem;
+      margin: 0.65rem 0 0.35rem;
     }
 
     .support-products-note {
@@ -1645,6 +1656,7 @@
     .support-identity-form {
       display: grid;
       gap: 0.65rem;
+      max-width: 36rem;
     }
 
     .support-identity-form input {
@@ -1661,9 +1673,18 @@
       margin-top: 0.35rem;
     }
 
+    .support-recognition {
+      border-color: rgba(255, 138, 31, 0.2);
+      box-shadow: 0 8px 24px rgba(8, 13, 20, 0.1);
+    }
+
     .support-status {
       min-height: 1.5em;
       font-weight: 700;
+    }
+
+    .support-status:empty {
+      display: none;
     }
 
     @media (max-width: 520px) {
@@ -1682,7 +1703,7 @@
       }
 
       .support-page-hero {
-        padding: 24px 20px 22px;
+        padding: 20px 18px 18px;
       }
 
       .app-title-row {
@@ -1697,6 +1718,10 @@
       .support-primary-action,
       .support-secondary-action {
         width: 100%;
+      }
+
+      .support-options {
+        grid-template-columns: 1fr;
       }
     }
 

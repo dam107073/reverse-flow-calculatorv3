@@ -3434,7 +3434,7 @@
       if (!option) return;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "support-primary-action";
+      button.className = "support-secondary-action";
       button.textContent = label;
       button.disabled = option.state !== "ready";
       button.addEventListener("click", async () => {
@@ -3510,17 +3510,15 @@
     const unclaimedState = document.getElementById("unclaimedSupporterState");
     const claimedState = document.getElementById("claimedSupporterState");
 
-    title.textContent = presentation.supportEligible
-      ? "Manage Support"
-      : "Support Reverse Flow";
-    intro.textContent =
-      "The stores own billing. Reverse Flow owns the community.";
+    title.textContent = "Support Reverse Flow";
+    intro.textContent = "";
+    intro.hidden = true;
     supportTitle.textContent = presentation.supportEligible
-      ? "Manage Support"
+      ? "Thank You for Your Support"
       : "Become a Supporter";
     supportCopy.textContent = presentation.supportEligible
-      ? "Thank you for supporting the Reverse Flow community project. Manage your support through Apple or Google."
-      : "Support the Reverse Flow community project and help sustain what comes next.";
+      ? "Your support helps keep Reverse Flow moving forward. You can make another contribution or manage it anytime through Apple or Google."
+      : "Your support helps keep every Reverse Flow tool available to every firefighter.";
     unclaimedState.hidden = presentation.claimedSupporter;
     claimedState.hidden = !presentation.claimedSupporter;
 

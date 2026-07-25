@@ -1135,7 +1135,7 @@ test("failed store finish retains the pending marker for retry", async () => {
 });
 
 test("V2 presentation keeps store billing and Supporter claims independent", () => {
-  assert.match(supportPageSource, /Claim Supporter Status/);
+  assert.match(supportPageSource, /Be Recognized as a Supporter/);
   assert.match(
     supportPageSource,
     /Community Recognition/
