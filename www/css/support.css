@@ -1761,6 +1761,28 @@
       width: 100%;
     }
 
+    .pending-subscription-change {
+      margin: 0.85rem 0;
+      padding: 0.85rem 1rem;
+      border: 1px solid rgba(249, 115, 22, 0.28);
+      border-radius: 12px;
+      background: rgba(249, 115, 22, 0.08);
+      color: var(--ink);
+    }
+
+    .pending-subscription-change p {
+      margin: 0;
+    }
+
+    .pending-subscription-change p:first-child {
+      font-weight: 800;
+    }
+
+    .pending-subscription-change p + p {
+      margin-top: 0.25rem;
+      color: var(--muted);
+    }
+
     .support-identity-form {
       display: grid;
       gap: 0.65rem;

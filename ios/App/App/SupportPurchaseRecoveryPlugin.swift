@@ -188,6 +188,10 @@ public class SupportPurchaseRecoveryPlugin: CAPPlugin, CAPBridgedPlugin {
                     if let expirationDate = transaction.expirationDate {
                         payload["expirationDate"] = iso8601(expirationDate)
                     }
+                    let renewal = await renewalDetails(for: transaction)
+                    renewal.forEach { key, value in
+                        payload[key] = value
+                    }
                     subscriptions.append(payload)
                     print(
                         "[Reverse Flow StoreKit 2] active-support-subscription-found " +
@@ -213,6 +217,49 @@ public class SupportPurchaseRecoveryPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             call.resolve(["subscriptions": subscriptions])
         }
+    }
+
+    private func renewalDetails(
+        for transaction: Transaction
+    ) async -> [String: Any] {
+        guard let products = try? await Product.products(
+            for: [transaction.productID]
+        ),
+        let product = products.first,
+        let subscription = product.subscription,
+        let statuses = try? await subscription.status
+        else {
+            return [:]
+        }
+
+        for status in statuses {
+            guard case .verified(let statusTransaction) = status.transaction,
+                  statusTransaction.originalID == transaction.originalID,
+                  case .verified(let renewalInfo) = status.renewalInfo
+            else {
+                continue
+            }
+            var payload: [String: Any] = [
+                "willAutoRenew": renewalInfo.willAutoRenew
+            ]
+            if let pendingProductID = renewalInfo.autoRenewPreference,
+               pendingProductID != renewalInfo.currentProductID,
+               monthlySupportProductIDs.contains(pendingProductID) {
+                payload["pendingProductId"] = pendingProductID
+                if let renewalDate = renewalInfo.renewalDate {
+                    payload["renewalDate"] = iso8601(renewalDate)
+                }
+                print(
+                    "[Reverse Flow StoreKit 2] " +
+                    "store-reported-subscription-change " +
+                    "currentProductId=\(renewalInfo.currentProductID) " +
+                    "pendingProductId=\(pendingProductID) " +
+                    "renewalDatePresent=\(renewalInfo.renewalDate != nil)"
+                )
+            }
+            return payload
+        }
+        return [:]
     }
 
     private func transactionPayload(

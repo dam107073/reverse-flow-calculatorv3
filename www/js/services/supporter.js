@@ -941,6 +941,7 @@
         productId: null,
         message: null
       };
+      this.storeReportedPendingSubscriptionChange = null;
       this.authoritativeActiveMonthlyProductId = null;
       this.authoritativeMonthlyStateChecked = false;
       this.lastDerivedBillingState = null;
@@ -1145,9 +1146,10 @@
           this.config?.apple?.monthly3?.productId,
           this.config?.apple?.monthly10?.productId
         ].filter(Boolean));
-        const activeProductIds = (Array.isArray(result?.subscriptions)
+        const subscriptions = Array.isArray(result?.subscriptions)
           ? result.subscriptions
-          : [])
+          : [];
+        const activeProductIds = subscriptions
           .map(subscription => subscription?.productId)
           .filter(productId => configuredMonthlyIds.has(productId));
         this.authoritativeActiveMonthlyProductId =
@@ -1156,6 +1158,26 @@
             : activeProductIds.includes(this.config?.apple?.monthly3?.productId)
               ? this.config.apple.monthly3.productId
               : null;
+        const activeSubscription = subscriptions.find(subscription =>
+          subscription?.productId ===
+          this.authoritativeActiveMonthlyProductId
+        );
+        const pendingProductId =
+          activeSubscription?.pendingProductId || null;
+        this.storeReportedPendingSubscriptionChange =
+          pendingProductId &&
+          pendingProductId !== this.authoritativeActiveMonthlyProductId &&
+          configuredMonthlyIds.has(pendingProductId)
+            ? {
+                storeReported: true,
+                provider: "apple",
+                currentProductId: this.authoritativeActiveMonthlyProductId,
+                targetProductId: pendingProductId,
+                targetBasePlanId: null,
+                effectiveDate:
+                  activeSubscription?.renewalDate || null
+              }
+            : null;
         this.authoritativeMonthlyStateChecked = true;
         const state = this.billingStateForMonthlyProduct(
           this.authoritativeActiveMonthlyProductId
@@ -1181,6 +1203,34 @@
         });
         return null;
       }
+    }
+
+    getStoreReportedPendingSubscriptionChange(platform = getPlatform()) {
+      if (platform === "ios" || platform === "apple") {
+        return this.storeReportedPendingSubscriptionChange;
+      }
+      if (platform !== "android" && platform !== "google") return null;
+      const evidence = this.activeRecurringPurchaseEvidenceList().find(item =>
+        item.transaction?.nativePurchase?.pendingPurchaseUpdate
+      );
+      if (!evidence) return null;
+      const pendingUpdate =
+        evidence.transaction.nativePurchase.pendingPurchaseUpdate;
+      const reportedProductIds = Array.isArray(pendingUpdate?.productIds)
+        ? pendingUpdate.productIds
+        : [];
+      const supportedProductId = reportedProductIds.find(productId =>
+        this.supportProductIds("android").has(productId)
+      ) || null;
+      if (!supportedProductId) return null;
+      return {
+        storeReported: true,
+        provider: "google",
+        currentProductId: evidence.productIdentifier,
+        targetProductId: supportedProductId,
+        targetBasePlanId: null,
+        effectiveDate: null
+      };
     }
 
     deriveBillingState(platform = getPlatform()) {
@@ -3536,6 +3586,56 @@
     ) || null;
   }
 
+  function pendingSubscriptionChangePresentation(
+    change,
+    options,
+    locale = undefined
+  ) {
+    if (!change?.storeReported) return null;
+    const targetCandidates = options.filter(option =>
+      option.type === "monthly" &&
+      (
+        (
+          change.targetBasePlanId &&
+          option.productId === change.targetProductId &&
+          option.basePlanId === change.targetBasePlanId
+        ) ||
+        (
+          !change.targetBasePlanId &&
+          change.targetProductId &&
+          option.productId === change.targetProductId
+        )
+      )
+    );
+    const target =
+      change.targetBasePlanId || targetCandidates.length === 1
+        ? targetCandidates[0] || null
+        : null;
+    const targetPrice = target?.localizedPrice || null;
+    const effectiveDate = change.effectiveDate
+      ? new Date(change.effectiveDate)
+      : null;
+    const hasValidEffectiveDate =
+      effectiveDate && !Number.isNaN(effectiveDate.getTime());
+    let details =
+      "The App Store or Google Play will apply this change at your next renewal.";
+    if (targetPrice && hasValidEffectiveDate) {
+      const formattedDate = new Intl.DateTimeFormat(locale, {
+        month: "long",
+        day: "numeric"
+      }).format(effectiveDate);
+      details =
+        `Your subscription will change to ${targetPrice}/month on ${formattedDate}.`;
+    } else if (targetPrice) {
+      details =
+        `Your subscription will change to ${targetPrice}/month at your next renewal.`;
+    }
+    return {
+      heading: "Your subscription change has been scheduled.",
+      details
+    };
+  }
+
   function renderManageSupportOptions(
     container,
     purchaseService,
@@ -3556,6 +3656,8 @@
         ? purchaseService.readPendingRegistration()?.productId || null
         : null;
     const scheduledProductId = state.contribution?.pendingReplacementProductId;
+    const storeReportedChange =
+      purchaseService.getStoreReportedPendingSubscriptionChange(platform);
     const locallyActivePurchases = new Set(
       platform === "android"
         ? purchaseService.activeRecurringPurchaseEvidenceList()
@@ -3583,6 +3685,8 @@
         current;
     }
     container.innerHTML = "";
+
+    if (storeReportedChange) return;
 
     const monthlyOptions = options.filter(option =>
       option.type === "monthly" && option.key !== current?.key
@@ -3810,7 +3914,7 @@
     }
     document.getElementById("manageSupportDetails").textContent =
       state.hasActiveRecurringSupport
-        ? `Current monthly support: ${
+        ? `Current support: ${
             currentRecurringOption?.localizedPrice ||
             "current store price"
           }/month`
@@ -4572,10 +4676,37 @@
     const manageDetails = document.getElementById("manageSupportDetails");
     if (manageDetails) {
       manageDetails.textContent = currentOption
-        ? `Current monthly support: ${
+        ? `Current support: ${
             currentOption.localizedPrice || "current store price"
           }/month`
         : "";
+    }
+    const pendingChange =
+      purchaseService.getStoreReportedPendingSubscriptionChange(
+        getPlatform()
+      );
+    const pendingChangePresentation =
+      pendingSubscriptionChangePresentation(
+        pendingChange,
+        options
+      );
+    const pendingChangeContainer = document.getElementById(
+      "pendingSubscriptionChange"
+    );
+    if (pendingChangeContainer) {
+      pendingChangeContainer.hidden = !pendingChangePresentation;
+      const heading = document.getElementById(
+        "pendingSubscriptionChangeHeading"
+      );
+      const details = document.getElementById(
+        "pendingSubscriptionChangeDetails"
+      );
+      if (heading) {
+        heading.textContent = pendingChangePresentation?.heading || "";
+      }
+      if (details) {
+        details.textContent = pendingChangePresentation?.details || "";
+      }
     }
     const multipleWarning = document.getElementById(
       "multipleSubscriptionWarning"
@@ -4593,7 +4724,9 @@
         basePlanId: currentOption?.basePlanId || null,
         monthlyAmount: currentOption?.amount || null,
         multipleActiveSubscriptions:
-          purchaseService.activeRecurringPurchaseEvidenceList().length > 1
+          purchaseService.activeRecurringPurchaseEvidenceList().length > 1,
+        pendingReplacementProductId:
+          pendingChange?.targetProductId || null
       }
     };
     const completePurchase = async evidence => {
@@ -4660,6 +4793,11 @@
     }
 
     const manageButton = document.getElementById("manageSubscriptionButton");
+    if (manageButton) {
+      manageButton.textContent = pendingChange
+        ? "Manage Billing"
+        : "Manage Billing or Cancel";
+    }
     if (manageButton && manageButton.dataset.v2Bound !== "true") {
       manageButton.dataset.v2Bound = "true";
       manageButton.addEventListener("click", async () => {
@@ -4677,6 +4815,11 @@
     const refreshButton = document.getElementById(
       "refreshSupportSubscriptionsButton"
     );
+    if (refreshButton) {
+      refreshButton.textContent = pendingChange
+        ? "Refresh Status"
+        : "Having trouble with your subscription? Refresh status";
+    }
     if (refreshButton && refreshButton.dataset.v2Bound !== "true") {
       refreshButton.dataset.v2Bound = "true";
       refreshButton.addEventListener("click", async () => {
@@ -4901,6 +5044,7 @@
     resolveSupporterUiPresentation,
     normalizeSupporterRecord,
     normalizeApiResponse,
+    pendingSubscriptionChangePresentation,
     SupporterCache,
     SupporterRegistryError,
     SupporterRegistryService,

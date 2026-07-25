@@ -136,6 +136,49 @@ const replacements = [
       '  private JSONArray toJSON(final List<Purchase> purchaseList) throws JSONException {'
   ],
   [
+    '  private JSONObject toJSON(final Purchase p) throws JSONException {\n' +
+      '    return new JSONObject(p.getOriginalJson())\n' +
+      '      .put("productIds", new JSONArray(p.getProducts()))\n' +
+      '      .put("orderId", p.getOrderId())\n' +
+      '      .put("getPurchaseState", p.getPurchaseState())\n' +
+      '      .put("developerPayload", p.getDeveloperPayload())\n' +
+      '      .put("acknowledged", p.isAcknowledged())\n' +
+      '      .put("autoRenewing", p.isAutoRenewing())\n' +
+      '      .put("accountId", p.getAccountIdentifiers() != null\n' +
+      '          ? p.getAccountIdentifiers().getObfuscatedAccountId() : null)\n' +
+      '      .put("profileId", p.getAccountIdentifiers() != null\n' +
+      '          ? p.getAccountIdentifiers().getObfuscatedProfileId() : null)\n' +
+      '      .put("signature", p.getSignature())\n' +
+      '      .put("receipt", p.getOriginalJson().toString())\n' +
+      '      .put("quantity", p.getQuantity());\n' +
+      '  }',
+    '  private JSONObject toJSON(final Purchase p) throws JSONException {\n' +
+      '    final Purchase.PendingPurchaseUpdate pendingUpdate =\n' +
+      '        p.getPendingPurchaseUpdate();\n' +
+      '    final JSONObject payload = new JSONObject(p.getOriginalJson())\n' +
+      '      .put("productIds", new JSONArray(p.getProducts()))\n' +
+      '      .put("orderId", p.getOrderId())\n' +
+      '      .put("getPurchaseState", p.getPurchaseState())\n' +
+      '      .put("developerPayload", p.getDeveloperPayload())\n' +
+      '      .put("acknowledged", p.isAcknowledged())\n' +
+      '      .put("autoRenewing", p.isAutoRenewing())\n' +
+      '      .put("accountId", p.getAccountIdentifiers() != null\n' +
+      '          ? p.getAccountIdentifiers().getObfuscatedAccountId() : null)\n' +
+      '      .put("profileId", p.getAccountIdentifiers() != null\n' +
+      '          ? p.getAccountIdentifiers().getObfuscatedProfileId() : null)\n' +
+      '      .put("signature", p.getSignature())\n' +
+      '      .put("receipt", p.getOriginalJson().toString())\n' +
+      '      .put("quantity", p.getQuantity());\n' +
+      '    if (pendingUpdate != null) {\n' +
+      '      payload.put("pendingPurchaseUpdate", new JSONObject()\n' +
+      '          .put("productIds", new JSONArray(pendingUpdate.getProducts())));\n' +
+      '      Log.i(RF_BILLING_TAG,\n' +
+      '          "store-reported pending subscription update present=true");\n' +
+      '    }\n' +
+      '    return payload;\n' +
+      '  }'
+  ],
+  [
     '      else {\n' +
       '        Log.w(mTag, "onPurchasesUpdated() -> "\n' +
       '            + "Failed: " + format(result));\n' +

@@ -6,3 +6,4 @@ node_modules/
 !.env.example
 android/app/src/main/res/xml/config *.xml
 ios/App/App/config *.xml
+outputs/community-supported-platform-pass4c-production-activation-report 2.md

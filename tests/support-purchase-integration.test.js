@@ -2073,10 +2073,19 @@ test("active Supporter management keeps billing secondary and offers repeat supp
     supporterServiceSource,
     /option\.key !== current\?\.key/
   );
-  assert.doesNotMatch(
-    `${supportPageSource}\n${supporterServiceSource}`,
-    /Your monthly support will change to|scheduledSupportChange|support-plan-change-note/
+  assert.match(
+    supporterServiceSource,
+    /Your subscription change has been scheduled\./
   );
+  assert.match(
+    supporterServiceSource,
+    /The App Store or Google Play will apply this change at your next renewal\./
+  );
+  assert.match(
+    supporterServiceSource,
+    /if \(storeReportedChange\) return;/
+  );
+  assert.match(supportPageSource, /id="pendingSubscriptionChange"/);
   assert.match(supportPageSource, /id="supportOptionsTitle">Help Build What Comes Next/);
   assert.match(
     supporterServiceSource,

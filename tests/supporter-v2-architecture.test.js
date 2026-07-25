@@ -9,6 +9,7 @@ const {
   CLAIM_STATES,
   SupportPurchaseService,
   normalizeApiResponse,
+  pendingSubscriptionChangePresentation,
   resolveSupporterV2State
 } = require("../www/js/services/supporter.js");
 
@@ -50,6 +51,8 @@ const appleSubscriptionConfig = {
 function createAppleSubscriptionService({
   values = new Map(),
   activeProductId = null,
+  pendingProductId = null,
+  renewalDate = null,
   bridgeError = null
 } = {}) {
   const products = new Map(
@@ -78,7 +81,11 @@ function createAppleSubscriptionService({
           if (bridgeError) throw bridgeError;
           return {
             subscriptions: activeProductId
-              ? [{ productId: activeProductId }]
+              ? [{
+                  productId: activeProductId,
+                  pendingProductId,
+                  renewalDate
+                }]
               : []
           };
         }
@@ -485,6 +492,122 @@ test("native subscription bridge queries current StoreKit entitlements", () => {
   );
   assert.match(nativeSource, /name: "currentSupportSubscriptions"/);
   assert.match(nativeSource, /Transaction\.currentEntitlements/);
+  assert.match(nativeSource, /renewalInfo\.autoRenewPreference/);
+  assert.match(nativeSource, /renewalInfo\.renewalDate/);
   assert.match(nativeSource, /support_reverse_flow_monthly_10/);
   assert.match(nativeSource, /no-active-support-subscriptions/);
+});
+
+test("Apple pending change uses only StoreKit renewal information", async () => {
+  const { service } = createAppleSubscriptionService({
+    activeProductId: "support_reverse_flow_monthly_10",
+    pendingProductId: "support_reverse_flow_monthly_3",
+    renewalDate: "2026-07-28T12:00:00.000Z"
+  });
+  await service.refreshAppleCurrentSubscriptions();
+
+  assert.deepEqual(
+    service.getStoreReportedPendingSubscriptionChange("ios"),
+    {
+      storeReported: true,
+      provider: "apple",
+      currentProductId: "support_reverse_flow_monthly_10",
+      targetProductId: "support_reverse_flow_monthly_3",
+      targetBasePlanId: null,
+      effectiveDate: "2026-07-28T12:00:00.000Z"
+    }
+  );
+  assert.equal(
+    service.deriveBillingState("ios"),
+    BILLING_STATES.ACTIVE_MONTHLY_10
+  );
+});
+
+test("pending change copy uses store date and never estimates one", () => {
+  const options = [{
+    type: "monthly",
+    productId: "support_reverse_flow_monthly_3",
+    basePlanId: null,
+    localizedPrice: "$2.99"
+  }];
+  const dated = pendingSubscriptionChangePresentation({
+    storeReported: true,
+    targetProductId: "support_reverse_flow_monthly_3",
+    effectiveDate: "2026-07-28T12:00:00.000Z"
+  }, options, "en-US");
+  assert.equal(
+    dated.details,
+    "Your subscription will change to $2.99/month on July 28."
+  );
+
+  const undated = pendingSubscriptionChangePresentation({
+    storeReported: true,
+    targetProductId: null,
+    effectiveDate: null
+  }, options, "en-US");
+  assert.equal(
+    undated.details,
+    "The App Store or Google Play will apply this change at your next renewal."
+  );
+  assert.equal(
+    pendingSubscriptionChangePresentation({
+      targetProductId: "support_reverse_flow_monthly_3"
+    }, options),
+    null
+  );
+});
+
+test("Google pending update remains generic for same-product base plans", () => {
+  global.Capacitor = { getPlatform: () => "android" };
+  const service = new SupportPurchaseService({
+    google: {
+      monthly3: {
+        productId: "support_reverse_flow_subscription",
+        basePlanId: "monthly-3"
+      },
+      monthly10: {
+        productId: "support_reverse_flow_subscription",
+        basePlanId: "monthly-10"
+      }
+    }
+  }, {
+    store: {
+      localTransactions: [{
+        platform: "android-playstore",
+        state: "finished",
+        products: [{
+          id: "support_reverse_flow_subscription",
+          offerId: "support_reverse_flow_subscription@monthly-3"
+        }],
+        purchaseId: "test-purchase-token",
+        purchaseDate: new Date("2026-07-24T12:00:00.000Z"),
+        nativePurchase: {
+          purchaseToken: "test-purchase-token",
+          acknowledged: true,
+          autoRenewing: true,
+          pendingPurchaseUpdate: {
+            productIds: ["support_reverse_flow_subscription"]
+          }
+        }
+      }],
+      localReceipts: []
+    }
+  });
+  service.storePlatform = "android-playstore";
+  service.initialized = true;
+
+  const change =
+    service.getStoreReportedPendingSubscriptionChange("android");
+  assert.equal(change.storeReported, true);
+  assert.equal(change.currentProductId, "support_reverse_flow_subscription");
+  assert.equal(change.targetBasePlanId, null);
+  assert.equal(change.effectiveDate, null);
+  assert.equal(
+    pendingSubscriptionChangePresentation(
+      change,
+      service.getOptions("google"),
+      "en-US"
+    ).details,
+    "The App Store or Google Play will apply this change at your next renewal."
+  );
 });
