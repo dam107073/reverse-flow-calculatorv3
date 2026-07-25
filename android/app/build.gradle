@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+// Gradle intermediates are disposable and must not be synchronized by macOS
+// cloud storage, which can rehydrate stale files as Finder-style " 2" copies.
+layout.buildDirectory.set(file("build.nosync"))
+
 android {
     namespace = "app.reverseflow.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -54,7 +58,9 @@ def removeDuplicateGeneratedConfigFiles = tasks.register("removeDuplicateGenerat
             include "config *.xml"
             include ".DS_Store"
         }
-        delete fileTree(project.file("build/intermediates/packaged_res")) {
+        delete fileTree(
+            layout.buildDirectory.dir("intermediates/packaged_res")
+        ) {
             include "**/config *.xml"
             include "**/.DS_Store"
         }

@@ -12,6 +12,10 @@ const safety = fs.readFileSync(
   path.join(root, "android", "duplicate-generated-artifacts.gradle"),
   "utf8"
 );
+const androidGitignore = fs.readFileSync(
+  path.join(root, "android", ".gitignore"),
+  "utf8"
+);
 
 test("Android release loads generated-artifact lifecycle protection", () => {
   assert.match(
@@ -21,6 +25,18 @@ test("Android release loads generated-artifact lifecycle protection", () => {
   assert.match(safety, /sanitizeDuplicateGeneratedArtifacts/);
   assert.match(safety, /verifyNoDuplicateGeneratedArtifacts/);
   assert.match(safety, /task\.name\.startsWith\("mergeDex"\)/);
+});
+
+test("app build output is excluded from macOS cloud synchronization", () => {
+  assert.match(
+    appBuild,
+    /layout\.buildDirectory\.set\(file\("build\.nosync"\)\)/
+  );
+  assert.match(androidGitignore, /^build\.nosync\/$/m);
+  assert.match(
+    appBuild,
+    /layout\.buildDirectory\.dir\("intermediates\/packaged_res"\)/
+  );
 });
 
 test("artifact cleanup is limited to impossible generated conflict names", () => {
