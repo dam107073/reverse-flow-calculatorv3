@@ -2043,10 +2043,16 @@ test("successful replacement acknowledges the new token exactly once", async () 
   assert.equal(replacement.acknowledged, true);
 });
 
-test("active Supporter presentation exposes only repeat support and provider management", () => {
-  assert.match(supportPageSource, /id="supportSectionTitle">Become a Supporter/);
-  assert.match(supporterServiceSource, /"Make a One-Time Contribution"/);
+test("Support presentation keeps all purchase actions and provider management persistent", () => {
+  assert.match(supportPageSource, /id="supportSectionTitle">Support the Project/);
+  assert.match(supporterServiceSource, /"One-Time Support — \$5"/);
+  assert.match(supporterServiceSource, /"Monthly Support — \$3"/);
+  assert.match(supporterServiceSource, /"Monthly Support — \$10"/);
   assert.match(supporterServiceSource, /"Manage Subscription"/);
+  assert.match(
+    supportPageSource,
+    /Monthly support can be changed or cancelled at any time through your Apple or Google account\./
+  );
   assert.match(supporterServiceSource, /openNativeSubscriptionManagement/);
   const activeRenderer = supporterServiceSource.slice(
     supporterServiceSource.indexOf("function renderSimplifiedSupportActions"),

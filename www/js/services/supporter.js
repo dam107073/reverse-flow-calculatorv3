@@ -82,15 +82,6 @@
     };
   }
 
-  function resolveSupportActionVisibility(presentation) {
-    const supportEligible = presentation?.supportEligible === true;
-    return {
-      showOneTime: true,
-      showMonthly: true,
-      showManage: supportEligible
-    };
-  }
-
   function isValidTimestamp(value) {
     return typeof value === "string" && Number.isFinite(Date.parse(value));
   }
@@ -3427,7 +3418,6 @@
   function renderSimplifiedSupportActions(
     container,
     purchaseService,
-    presentation,
     onPurchase
   ) {
     if (!container) return;
@@ -3436,15 +3426,15 @@
       platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
     const oneTime = options.find(option => option.key === "oneTime5") || null;
-    const monthly = options.find(option => option.key === "monthly3") || null;
-    const visibility = resolveSupportActionVisibility(presentation);
+    const monthly3 = options.find(option => option.key === "monthly3") || null;
+    const monthly10 = options.find(option => option.key === "monthly10") || null;
     container.replaceChildren();
 
     const appendPurchaseButton = (option, label) => {
       if (!option) return;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "support-secondary-action";
+      button.className = "support-primary-action support-purchase-action";
       button.textContent = label;
       button.disabled = option.state !== "ready";
       button.addEventListener("click", async () => {
@@ -3469,19 +3459,13 @@
       container.appendChild(button);
     };
 
-    if (!visibility.showManage) {
-      appendPurchaseButton(oneTime, "One-Time Contribution");
-      appendPurchaseButton(monthly, "Monthly Support");
-      return;
-    }
-
-    appendPurchaseButton(oneTime, "Make a One-Time Contribution");
-    if (visibility.showMonthly) {
-      appendPurchaseButton(monthly, "Support Monthly");
-    }
+    appendPurchaseButton(oneTime, "One-Time Support — $5");
+    appendPurchaseButton(monthly3, "Monthly Support — $3");
+    appendPurchaseButton(monthly10, "Monthly Support — $10");
     const manageButton = document.createElement("button");
     manageButton.type = "button";
-    manageButton.className = "support-secondary-action";
+    manageButton.className =
+      "support-secondary-action support-management-action";
     manageButton.textContent = "Manage Subscription";
     manageButton.addEventListener("click", async () => {
       const status = document.getElementById("supportPageStatus");
@@ -3526,12 +3510,9 @@
     title.textContent = "Support Reverse Flow";
     intro.textContent = "";
     intro.hidden = true;
-    supportTitle.textContent = presentation.supportEligible
-      ? "Thank You for Your Support"
-      : "Become a Supporter";
-    supportCopy.textContent = presentation.supportEligible
-      ? "Your support helps keep Reverse Flow moving forward. You can make another contribution or manage it anytime through Apple or Google."
-      : "Your support helps keep every Reverse Flow tool available to every firefighter.";
+    supportTitle.textContent = "Support the Project";
+    supportCopy.textContent =
+      "If Reverse Flow has helped you, your support helps keep every tool available to the fire service.";
     unclaimedState.hidden = presentation.claimedSupporter;
     claimedState.hidden = !presentation.claimedSupporter;
 
@@ -3544,7 +3525,6 @@
     renderSimplifiedSupportActions(
       document.getElementById("supportActions"),
       purchaseService,
-      presentation,
       completePurchase
     );
 
@@ -3555,11 +3535,9 @@
           ? "google"
           : null;
     const options = purchaseService.getOptions(storePlatform);
-    const requiredOptions = presentation.supportEligible
-      ? options.filter(option => option.key === "oneTime5")
-      : options.filter(option =>
-          option.key === "oneTime5" || option.key === "monthly3"
-        );
+    const requiredOptions = options.filter(option =>
+      ["oneTime5", "monthly3", "monthly10"].includes(option.key)
+    );
     const productsNote = document.getElementById(
       "supportProductsUnavailable"
     );
@@ -3727,7 +3705,6 @@
     SUPPORT_UI_STATES,
     resolveSupportAction,
     projectSupportPresentation,
-    resolveSupportActionVisibility,
     resolveSupporterUiPresentation,
     normalizeSupporterRecord,
     normalizeApiResponse,

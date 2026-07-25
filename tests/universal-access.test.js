@@ -47,11 +47,23 @@ test("support UI uses one compact action, live store options, and approved copy"
     read("www/index.html")
   ].join("\n");
 
-  assert.match(supporter, /"One-Time Contribution"/);
-  assert.match(supporter, /"Monthly Support"/);
-  assert.match(supporter, /"Support Monthly"/);
+  assert.match(supporter, /"One-Time Support — \$5"/);
+  assert.match(supporter, /"Monthly Support — \$3"/);
+  assert.match(supporter, /"Monthly Support — \$10"/);
   assert.match(supporter, /"Manage Subscription"/);
-  assert.match(supporter, /button\.className = "support-secondary-action"/);
+  assert.match(
+    supporter,
+    /button\.className = "support-primary-action support-purchase-action"/
+  );
+  assert.match(
+    supportHtml,
+    /Monthly support can be changed or cancelled at any time through your Apple or Google account\./
+  );
+  assert.match(supporter, /supportTitle\.textContent = "Support the Project"/);
+  assert.match(
+    supporter,
+    /supportCopy\.textContent =\s*"If Reverse Flow has helped you, your support helps keep every tool available to the fire service\."/
+  );
   assert.doesNotMatch(supporter, /Coming Soon/);
   assert.match(supportHtml, /Be Recognized as a Supporter/);
   assert.match(supportHtml, /Department \/ Organization/);

@@ -8,8 +8,7 @@ const {
   BILLING_STATES,
   SupportPurchaseService,
   normalizeApiResponse,
-  projectSupportPresentation,
-  resolveSupportActionVisibility
+  projectSupportPresentation
 } = require("../www/js/services/supporter.js");
 
 const root = path.resolve(__dirname, "..");
@@ -132,48 +131,6 @@ test("all billing states project into supportEligible independently from claimed
         supportEligible ? ACTIONS.MANAGE : ACTIONS.BECOME
       );
     }
-  }
-});
-
-test("monthly support is reachable across every billing scenario", () => {
-  const scenarios = [
-    {
-      name: "never purchased",
-      billingState: BILLING_STATES.NEVER_PURCHASED,
-      expected: { showOneTime: true, showMonthly: true, showManage: false }
-    },
-    {
-      name: "one-time contribution only",
-      billingState: BILLING_STATES.PREVIOUSLY_SUPPORTED,
-      expected: { showOneTime: true, showMonthly: true, showManage: true }
-    },
-    {
-      name: "active monthly subscription",
-      billingState: BILLING_STATES.ACTIVE_MONTHLY_3,
-      expected: { showOneTime: true, showMonthly: true, showManage: true }
-    },
-    {
-      name: "previously canceled monthly subscription",
-      billingState: BILLING_STATES.PREVIOUSLY_SUPPORTED,
-      expected: { showOneTime: true, showMonthly: true, showManage: true }
-    },
-    {
-      name: "expired monthly subscription",
-      billingState: BILLING_STATES.PREVIOUSLY_SUPPORTED,
-      expected: { showOneTime: true, showMonthly: true, showManage: true }
-    }
-  ];
-
-  for (const scenario of scenarios) {
-    const presentation = projectSupportPresentation(
-      scenario.billingState,
-      null
-    );
-    assert.deepEqual(
-      resolveSupportActionVisibility(presentation),
-      scenario.expected,
-      scenario.name
-    );
   }
 });
 
@@ -511,10 +468,24 @@ test("simplified Manage renderer hides provider billing detail and raw exception
     supporterSource.indexOf("function renderSimplifiedSupportPage")
   );
   assert.match(manageRenderer, /"Manage Subscription"/);
-  assert.match(manageRenderer, /"Support Monthly"/);
+  assert.match(manageRenderer, /"One-Time Support — \$5"/);
+  assert.match(manageRenderer, /"Monthly Support — \$3"/);
+  assert.match(manageRenderer, /"Monthly Support — \$10"/);
   assert.match(
     manageRenderer,
-    /if \(visibility\.showMonthly\)/
+    /appendPurchaseButton\(oneTime, "One-Time Support — \$5"\)/
+  );
+  assert.match(
+    manageRenderer,
+    /appendPurchaseButton\(monthly3, "Monthly Support — \$3"\)/
+  );
+  assert.match(
+    manageRenderer,
+    /appendPurchaseButton\(monthly10, "Monthly Support — \$10"\)/
+  );
+  assert.doesNotMatch(
+    manageRenderer,
+    /presentation|supportEligible|billingState|BILLING_STATES|visibility/
   );
   assert.match(manageRenderer, /openNativeSubscriptionManagement/);
   assert.doesNotMatch(
