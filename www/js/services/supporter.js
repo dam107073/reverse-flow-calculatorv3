@@ -901,6 +901,7 @@
       this.googleSubscriptionFinalizingKeys = new Set();
       this.acknowledgedTransactionKeys = new Set();
       this.finishedTransactionKeys = new Set();
+      this.historicalAppleFinishingRequests = new Map();
       this.supportUiState = SUPPORT_UI_STATES.NOT_SUPPORTER;
       this.lastConfirmedSupporterState = null;
       this.lastConfirmedSupportAction = null;
@@ -1798,14 +1799,31 @@
       if (!productId) return false;
       const waiter = this.waiters.get(productId);
       if (!waiter) return false;
-      this.waiters.delete(productId);
-      clearTimeout(waiter.timeout);
       if (kind === "approved") {
         const evidence = this.transactionEvidence(transaction, waiter.option);
         const key = this.transactionKey(evidence);
         this.logTransaction("purchase-discovered", evidence, {
           lifecycle: "approved"
         });
+        if (
+          evidence.paymentSource === "ios" &&
+          evidence.purchaseType === "monthly" &&
+          !this.isFreshAppleMonthlyTransaction(evidence, waiter)
+        ) {
+          this.receivedTransactionKeys.add(key);
+          this.logTransaction(
+            "store-transaction-duplicate-ignored",
+            evidence,
+            {
+              lifecycle: "approved-redelivery",
+              failureCategory: "preexisting-apple-transaction"
+            }
+          );
+          void this.finishHistoricalAppleSubscription(evidence);
+          return true;
+        }
+        this.waiters.delete(productId);
+        clearTimeout(waiter.timeout);
         if (this.receivedTransactionKeys.has(key)) {
           this.logTransaction("store-transaction-duplicate-ignored", evidence, {
             lifecycle: "approved"
@@ -1847,17 +1865,97 @@
         }
         waiter.resolve(evidence);
       } else if (kind === "pending") {
+        this.waiters.delete(productId);
+        clearTimeout(waiter.timeout);
         waiter.reject(new SupportPurchaseError(
           "This purchase is pending store approval. Supporter status will update after payment completes.",
           "purchase_pending"
         ));
       } else {
+        this.waiters.delete(productId);
+        clearTimeout(waiter.timeout);
         waiter.reject(new SupportPurchaseError(
           "The store could not complete this purchase. Please try again.",
           "purchase_failed"
         ));
       }
       return true;
+    }
+
+    isFreshAppleMonthlyTransaction(evidence, waiter) {
+      const key = this.transactionKey(evidence);
+      if (
+        !evidence?.transactionId ||
+        waiter?.preexistingTransactionKeys?.has(key)
+      ) {
+        return false;
+      }
+      const purchaseTime = Date.parse(evidence.purchaseTimestamp || "");
+      return Number.isFinite(purchaseTime) &&
+        purchaseTime >= (waiter?.startedAt || 0) - 300000;
+    }
+
+    async finishHistoricalAppleSubscription(evidence) {
+      const key = this.transactionKey(evidence);
+      const existing =
+        this.historicalAppleFinishingRequests.get(key);
+      if (existing) return existing;
+      if (
+        evidence?.paymentSource !== "ios" ||
+        evidence?.purchaseType !== "monthly" ||
+        this.finishedTransactionKeys.has(key) ||
+        typeof evidence?.transaction?.finish !== "function"
+      ) {
+        return false;
+      }
+      const finishing = (async () => {
+        try {
+          await evidence.transaction.finish();
+          this.finishedTransactionKeys.add(key);
+          this.logTransaction(
+            "historical-apple-subscription-finished",
+            evidence,
+            {
+              stage: "approved-redelivery",
+              backendOutcome: "finished",
+              retryable: false
+            }
+          );
+          return true;
+        } catch (error) {
+          this.logTransaction(
+            "historical-apple-subscription-finish-deferred",
+            evidence,
+            {
+              stage: "approved-redelivery",
+              failureCategory:
+                error?.code || "historical_transaction_finish_failed",
+              retryable: true
+            }
+          );
+          return false;
+        } finally {
+          this.historicalAppleFinishingRequests.delete(key);
+        }
+      })();
+      this.historicalAppleFinishingRequests.set(key, finishing);
+      return finishing;
+    }
+
+    async drainHistoricalAppleSubscriptions() {
+      const candidates = this.allSupportTransactions()
+        .map(transaction => this.transactionEvidence(transaction))
+        .filter(evidence =>
+          evidence.paymentSource === "ios" &&
+          evidence.purchaseType === "monthly" &&
+          evidence.purchaseState !== "finished"
+        );
+      await Promise.all([
+        ...this.historicalAppleFinishingRequests.values(),
+        ...candidates.map(evidence =>
+          this.finishHistoricalAppleSubscription(evidence)
+        )
+      ]);
     }
 
     oneTimeSupportProductId() {
@@ -1932,6 +2030,24 @@
             this.logTransaction("purchase-discovered", evidence, {
               lifecycle: "approved-redelivery"
             });
+            if (
+              evidence.paymentSource === "ios" &&
+              evidence.purchaseType === "monthly"
+            ) {
+              if (!this.receivedTransactionKeys.has(key)) {
+                this.receivedTransactionKeys.add(key);
+                void this.finishHistoricalAppleSubscription(evidence);
+              }
+              this.logTransaction(
+                "store-transaction-duplicate-ignored",
+                evidence,
+                {
+                  lifecycle: "historical-callback",
+                  failureCategory: "no-current-purchase-action"
+                }
+              );
+              return;
+            }
             if (this.receivedTransactionKeys.has(key)) {
               if (
                 evidence.paymentSource === "android" &&
@@ -2218,6 +2334,13 @@
             "product_unavailable"
           );
         }
+        if (platform === "apple" && current.type === "monthly") {
+          await this.drainHistoricalAppleSubscriptions();
+          if (typeof this.store?.update === "function") {
+            await this.store.update();
+          }
+          await this.drainHistoricalAppleSubscriptions();
+        }
         if (platform === "google" && current.type === "monthly") {
           await this.reconcileGooglePlaySubscriptions({ refresh: true });
           if (this.hasUnacknowledgedGoogleSubscriptions()) {
@@ -2232,6 +2355,12 @@
           current,
           context
         );
+        const startedAt = Date.now();
+        const preexistingTransactionKeys = new Set(
+          this.allSupportTransactions()
+            .map(transaction => this.transactionEvidence(transaction))
+            .map(evidence => this.transactionKey(evidence))
+        );
         const transactionPromise = new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
             this.waiters.delete(current.productId);
@@ -2243,6 +2372,8 @@
           this.waiters.set(current.productId, {
             option: current,
             replacementData,
+            startedAt,
+            preexistingTransactionKeys,
             resolve,
             reject,
             timeout
@@ -2829,9 +2960,6 @@
           this.logTransaction("store-transaction-reconciliation-completed", evidence, {
             outcome: "success"
           });
-          if (evidence?.purchaseType === "monthly") {
-            this.logTransaction("subscription-current-product-updated", evidence);
-          }
           return result;
         })
         .catch(error => {
@@ -2851,13 +2979,19 @@
 
     async completeApprovedPurchase(evidence) {
       return this.reconcileTransaction(evidence, async () => {
-        if (
+        const isAppleMonthly =
           evidence?.paymentSource === "ios" &&
-          evidence?.purchaseType === "monthly"
-        ) {
-          this.authoritativeActiveMonthlyProductId =
-            evidence.productIdentifier;
-          this.authoritativeMonthlyStateChecked = true;
+          evidence?.purchaseType === "monthly";
+        if (isAppleMonthly) {
+          const outcome = await this.confirmAppleMonthlySelection(
+            evidence.productIdentifier
+          );
+          if (!outcome) {
+            throw new SupportPurchaseError(
+              "Apple did not confirm this monthly support change. Your existing subscription is unchanged. Please try again.",
+              "apple_subscription_not_reconciled"
+            );
+          }
         }
         this.recordBillingHistory(evidence);
         if (evidence?.paymentSource === "android") {
@@ -2876,6 +3010,20 @@
           await this.refreshAppleCurrentSubscriptions();
         }
         this.deriveBillingState();
+        if (isAppleMonthly) {
+          this.logTransaction(
+            "subscription-current-product-updated",
+            evidence,
+            {
+              stage: "storekit2-authoritative-reconciliation",
+              backendOutcome:
+                this.authoritativeActiveMonthlyProductId ===
+                evidence.productIdentifier
+                  ? "active"
+                  : "pending"
+            }
+          );
+        }
         this.logTransaction("store-purchase-completed", evidence, {
           stage: "store-completion",
           outcome: "success",
@@ -2884,6 +3032,43 @@
         this.notify();
         return evidence;
       });
+    }
+
+    async confirmAppleMonthlySelection(productId) {
+      const configuredMonthlyIds = new Set([
+        this.config?.apple?.monthly3?.productId,
+        this.config?.apple?.monthly10?.productId
+      ].filter(Boolean));
+      if (!configuredMonthlyIds.has(productId)) return null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, attempt * 250));
+        }
+        await this.refreshAppleCurrentSubscriptions();
+        if (this.authoritativeActiveMonthlyProductId === productId) {
+          return "active";
+        }
+        if (
+          this.storeReportedPendingSubscriptionChange?.targetProductId ===
+          productId
+        ) {
+          return "pending";
+        }
+      }
+      this.logTransaction(
+        "apple-subscription-reconciliation-failed",
+        {
+          paymentSource: "ios",
+          productIdentifier: productId,
+          purchaseType: "monthly"
+        },
+        {
+          stage: "storekit2-authoritative-reconciliation",
+          failureCategory: "requested-product-not-active-or-pending",
+          retryable: true
+        }
+      );
+      return null;
     }
 
     nativeRecoveryEvidence(result) {

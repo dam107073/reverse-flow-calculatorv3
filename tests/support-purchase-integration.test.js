@@ -146,7 +146,7 @@ function createStore(platform, behavior = "approved") {
           transactionId: platform === "ios" ? "2000000123456789" : "GPA.123",
           originalTransactionId: platform === "ios" ? "1000000123456789" : null,
           purchaseId: platform === "android" ? "google-token" : null,
-          purchaseDate: new Date("2026-07-24T12:00:00Z"),
+          purchaseDate: new Date(),
           jwsRepresentation: platform === "ios" ? "header.payload.signature" : null,
           nativePurchase: platform === "android"
             ? { purchaseToken: "google-token" }
@@ -1448,29 +1448,31 @@ test("duplicate taps cannot start a second native purchase", async () => {
   await firstPurchase;
 });
 
-test("restored subscription callbacks create only subscription pending state", async () => {
+test("historical Apple subscription callbacks are finished without creating purchase state", async () => {
   const fixture = createStore("ios");
   installPurchaseGlobals("ios", fixture.store);
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
   await service.initialize();
-  fixture.callbacks.approved({
+  let finishCalls = 0;
+  const historicalTransaction = {
     platform: "ios-appstore",
     products: [{ id: "support_reverse_flow_monthly_3" }],
     transactionId: "historical-subscription-transaction",
     originalTransactionId: "historical-subscription-original",
     purchaseDate: new Date("2026-07-01T12:00:00Z"),
-    state: "approved"
-  });
+    state: "approved",
+    async finish() {
+      finishCalls += 1;
+    }
+  };
+  fixture.callbacks.approved(historicalTransaction);
+  fixture.callbacks.approved(historicalTransaction);
+  await new Promise(resolve => setImmediate(resolve));
 
   assert.equal(service.oneTimeRetryStore.read(), null);
-  assert.equal(
-    service.subscriptionRetryStore.read()?.productId,
-    "support_reverse_flow_monthly_3"
-  );
-  assert.equal(
-    service.readPendingRegistration()?.productId,
-    "support_reverse_flow_monthly_3"
-  );
+  assert.equal(service.subscriptionRetryStore.read(), null);
+  assert.equal(service.readPendingRegistration(), null);
+  assert.equal(finishCalls, 1);
 });
 
 test("subscription and consumable pending records are product-specific", () => {
@@ -1725,7 +1727,7 @@ test("subscription refresh returns only recurring support and management opens n
   });
 });
 
-test("fresh-install restored subscriptions use registration recovery only on iOS", async () => {
+test("fresh-install historical subscriptions never masquerade as a new support action", async () => {
   for (const platform of ["ios", "android"]) {
     const fixture = createStore(platform);
     installPurchaseGlobals(platform, fixture.store);
@@ -1755,24 +1757,114 @@ test("fresh-install restored subscriptions use registration recovery only on iOS
               acknowledged: true
             }
           : {},
-      async finish() {}
+      async finish() {
+        fixture.callbacks.finishCount =
+          (fixture.callbacks.finishCount || 0) + 1;
+      }
     };
 
     fixture.callbacks.approved(transaction);
 
     if (platform === "ios") {
-      assert.equal(recovered.length, 1);
-      assert.equal(recovered[0].recoverySource, "store-restored-subscription");
-      assert.equal(
-        service.readPendingSubscriptionRegistration().productId,
-        option.productId
-      );
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(recovered.length, 0);
+      assert.equal(service.readPendingSubscriptionRegistration(), null);
+      assert.equal(fixture.callbacks.finishCount, 1);
     } else {
       await new Promise(resolve => setImmediate(resolve));
       assert.equal(recovered.length, 0);
       assert.equal(service.readPendingSubscriptionRegistration(), null);
     }
   }
+});
+
+test("stale Apple approval cannot satisfy a fresh monthly purchase action", async () => {
+  const fixture = createStore("ios", "manual-error");
+  installPurchaseGlobals("ios", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+  const target = service.getOptions("apple")
+    .find(option => option.key === "monthly10");
+  const purchase = service.purchase(target);
+
+  while (service.waiters.size === 0) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+
+  let historicalFinishCalls = 0;
+  fixture.callbacks.approved({
+    platform: "ios-appstore",
+    products: [{ id: target.productId }],
+    transactionId: "historical-ten",
+    originalTransactionId: "historical-original",
+    purchaseDate: new Date("2026-07-01T12:00:00Z"),
+    state: "approved",
+    async finish() {
+      historicalFinishCalls += 1;
+    }
+  });
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(historicalFinishCalls, 1);
+  assert.equal(service.waiters.has(target.productId), true);
+  assert.equal(service.readPendingRegistration(), null);
+
+  fixture.callbacks.approved({
+    platform: "ios-appstore",
+    products: [{ id: target.productId }],
+    transactionId: "fresh-ten",
+    originalTransactionId: "fresh-original",
+    purchaseDate: new Date(),
+    state: "approved",
+    async finish() {}
+  });
+  const evidence = await purchase;
+  assert.equal(evidence.transactionId, "fresh-ten");
+  assert.equal(service.waiters.size, 0);
+});
+
+test("unfinished Apple subscriptions are drained before a new monthly order", async () => {
+  const fixture = createStore("ios", "manual-error");
+  installPurchaseGlobals("ios", fixture.store);
+  const sequence = [];
+  fixture.store.localTransactions.push({
+    platform: "ios-appstore",
+    products: [{ id: "support_reverse_flow_monthly_10" }],
+    transactionId: "queued-historical-ten",
+    originalTransactionId: "queued-historical-original",
+    purchaseDate: new Date("2026-07-01T12:00:00Z"),
+    state: "approved",
+    async finish() {
+      sequence.push("finish-historical");
+    }
+  });
+  const targetOffer = fixture.products
+    .get("support_reverse_flow_monthly_10")
+    .offers[0];
+  const originalOrder = targetOffer.order;
+  targetOffer.order = async additionalData => {
+    sequence.push("order-target");
+    return originalOrder(additionalData);
+  };
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+  const target = service.getOptions("apple")
+    .find(option => option.key === "monthly10");
+  const purchase = service.purchase(target);
+
+  while (service.waiters.size === 0) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.deepEqual(sequence, ["finish-historical", "order-target"]);
+
+  fixture.callbacks.error({
+    code: global.CdvPurchase.ErrorCode.PAYMENT_CANCELLED,
+    productId: target.productId
+  });
+  await assert.rejects(
+    purchase,
+    error => error.code === "purchase_cancelled"
+  );
 });
 
 test("restored ownership and pending profile setup do not globally lock contribution options", async () => {

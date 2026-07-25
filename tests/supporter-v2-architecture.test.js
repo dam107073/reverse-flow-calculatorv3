@@ -534,6 +534,83 @@ test("Apple pending change uses only StoreKit renewal information", async () => 
   );
 });
 
+test("Apple approval is not completed when StoreKit keeps the old product active", async () => {
+  const values = new Map();
+  const { service } = createAppleSubscriptionService({
+    values,
+    activeProductId: "support_reverse_flow_monthly_3"
+  });
+  let finishCalls = 0;
+  const evidence = {
+    paymentSource: "ios",
+    productIdentifier: "support_reverse_flow_monthly_10",
+    purchaseType: "monthly",
+    monthlyAmount: 10,
+    transactionId: "stale-approved-ten",
+    purchaseTimestamp: new Date().toISOString(),
+    transaction: {
+      async finish() {
+        finishCalls += 1;
+      }
+    }
+  };
+
+  await assert.rejects(
+    service.completeApprovedPurchase(evidence),
+    error => error.code === "apple_subscription_not_reconciled"
+  );
+
+  assert.equal(finishCalls, 0);
+  assert.equal(
+    service.authoritativeActiveMonthlyProductId,
+    "support_reverse_flow_monthly_3"
+  );
+  assert.equal(service.completedTransactionKeys.size, 0);
+  assert.equal(service.supporterCache.read().isSupporter, false);
+  assert.equal(
+    JSON.parse(
+      values.get("reverse-flow-store-support-history-v2")
+    ).lastProductId,
+    "support_reverse_flow_monthly_3"
+  );
+});
+
+test("Apple approval completes only when StoreKit confirms the target active or pending", async () => {
+  for (const confirmation of ["active", "pending"]) {
+    const target = "support_reverse_flow_monthly_10";
+    const { service } = createAppleSubscriptionService({
+      activeProductId:
+        confirmation === "active"
+          ? target
+          : "support_reverse_flow_monthly_3",
+      pendingProductId: confirmation === "pending" ? target : null,
+      renewalDate:
+        confirmation === "pending"
+          ? "2026-07-28T12:00:00.000Z"
+          : null
+    });
+    let finishCalls = 0;
+    const evidence = {
+      paymentSource: "ios",
+      productIdentifier: target,
+      purchaseType: "monthly",
+      monthlyAmount: 10,
+      transactionId: `confirmed-ten-${confirmation}`,
+      purchaseTimestamp: new Date().toISOString(),
+      transaction: {
+        async finish() {
+          finishCalls += 1;
+        }
+      }
+    };
+
+    await service.completeApprovedPurchase(evidence);
+    assert.equal(finishCalls, 1);
+    assert.equal(service.completedTransactionKeys.size, 1);
+    assert.equal(service.supporterCache.read().isSupporter, false);
+  }
+});
+
 test("pending subscription changes remain internal and are absent from presentation", () => {
   const renderer = supporterSource.slice(
     supporterSource.indexOf("function renderSimplifiedSupportActions"),
