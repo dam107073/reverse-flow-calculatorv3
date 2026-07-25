@@ -294,6 +294,17 @@ async function recoverIosLegacyProEntitlement(options = {}) {
         null,
       environment: result.environment || null
     });
+  } else if (
+    window.navigator?.onLine !== false &&
+    hasLegacyProEntitlement()
+  ) {
+    setAccessLevel(ACCESS_LEVELS.BASIC, {
+      source: "store-reconciliation",
+      provenanceSource:
+        LEGACY_ENTITLEMENT_SOURCES.STOREKIT2_CURRENT_ENTITLEMENTS,
+      productId: REVERSE_FLOW_PRO_PRODUCT_ID,
+      trigger
+    });
   }
 
   console.info("[Reverse Flow IAP]", {
@@ -631,6 +642,8 @@ function setAccessLevel(level, grantDetails = {}) {
   }
   if (!wasLegacyEligible && hasLegacyProEntitlement()) {
     logLegacyEntitlementStateChanged(true, provenanceSource);
+  } else if (wasLegacyEligible && !hasLegacyProEntitlement()) {
+    logLegacyEntitlementStateChanged(false, provenanceSource);
   }
   logProAccessEvent("access-level-updated", {
     trigger: grantDetails.trigger,

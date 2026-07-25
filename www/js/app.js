@@ -1820,6 +1820,16 @@ logStoreEvent("initialize-start", {
 		        return;
 		      }
 
+		      if (!approvedProductIds.includes(REVERSE_FLOW_PRO_PRODUCT_ID)) {
+		        logStoreEvent("transaction-approved-ignored", {
+		          productId: null,
+		          configuredProductId: REVERSE_FLOW_PRO_PRODUCT_ID,
+		          state: transaction?.state || null,
+		          reason: "no-canonical-legacy-product"
+		        });
+		        return;
+		      }
+
 		      transaction.verify();
 		    })
 		    .verified(receipt => {

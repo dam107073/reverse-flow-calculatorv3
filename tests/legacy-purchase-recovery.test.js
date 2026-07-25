@@ -251,6 +251,39 @@ test("upgraded install retains stored legacy eligibility while offline", async (
   );
 });
 
+test("online StoreKit no-entitlement response clears stale verified legacy cache", async () => {
+  const recovery = createRecoveryContext({
+    online: true,
+    nativeEntitlement: {
+      owned: false,
+      productId: "reverse_flow_pro_lifetime"
+    },
+    storedEntitlement: {
+      access: "pro",
+      source: "purchase",
+      productId: "reverse_flow_pro_lifetime",
+      verifiedAt: "2026-07-23T12:00:00.000Z"
+    }
+  });
+
+  const result = await recovery.context.recoverLegacyProPurchase({
+    trigger: "clean-sandbox-startup",
+    startup: true
+  });
+
+  assert.equal(result.found, false);
+  assert.equal(recovery.context.hasLegacyProEntitlement(), false);
+  assert.equal(recovery.entitlement(), null);
+  assert.equal(
+    legacyStateChangeLogs(recovery).at(-1).eligible,
+    false
+  );
+  assert.equal(
+    legacyStateChangeLogs(recovery).at(-1).source,
+    "storekit2-current-entitlements"
+  );
+});
+
 test("manual iOS recovery synchronizes once and coalesces duplicate taps", async () => {
   const recovery = createRecoveryContext({
     nativeEntitlement: {

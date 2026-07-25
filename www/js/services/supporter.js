@@ -1071,6 +1071,14 @@
             ? "google"
             : null;
       if (!configKey) return BILLING_STATES.BILLING_UNAVAILABLE;
+      const pendingRecovery = this.readPendingRegistration();
+      if (
+        configKey === "apple" &&
+        !this.initialized &&
+        pendingRecovery?.provider === "apple"
+      ) {
+        return BILLING_STATES.NEVER_PURCHASED;
+      }
       const options = this.getOptions(configKey);
       const cachedBilling = this.readBillingHistory();
       const activeEvidence = configKey === "google"
@@ -1479,6 +1487,40 @@
       this.retryStoreForEvidence(evidence).clear();
     }
 
+    clearStalePendingRegistration(pending, reason) {
+      const evidence = {
+        paymentSource: pending?.provider === "apple" ? "ios" : "android",
+        productIdentifier: pending?.productId || null,
+        purchaseType:
+          pending?.productId === this.oneTimeSupportProductId()
+            ? "one-time"
+            : "monthly"
+      };
+      const pendingStore = this.retryStoreForEvidence(evidence);
+      pendingStore.clear();
+      const history = this.readBillingHistory();
+      const hasMatchingStoreHistory = this.allSupportTransactions()
+        .some(transaction =>
+          this.transactionProductId(transaction) === pending?.productId
+        );
+      if (
+        !hasMatchingStoreHistory &&
+        history.lastProductId === pending?.productId
+      ) {
+        this.storage?.removeItem?.(BILLING_HISTORY_CACHE_KEY);
+      }
+      this.logTransaction(
+        "stale-pending-recovery-cleared",
+        evidence,
+        {
+          stage: "store-reconciliation",
+          failureCategory: reason,
+          retryable: false
+        }
+      );
+      this.notify();
+    }
+
     isSupersededSubscriptionEvidence(evidence) {
       if (
         evidence?.paymentSource !== "ios" ||
@@ -1675,6 +1717,21 @@
           if (this.supportProductIds().has(product?.id)) this.notify();
         }, "reverseFlowSupportProducts")
         .approved(transaction => {
+          if (!this.transactionProductId(transaction)) {
+            this.logTransaction(
+              "store-non-product-callback-ignored",
+              {
+                paymentSource: getPlatform(),
+                productIdentifier: null
+              },
+              {
+                stage: "approved",
+                failureCategory: "no-canonical-support-product",
+                retryable: false
+              }
+            );
+            return;
+          }
           const settled = this.settleTransaction(transaction, "approved");
           if (!settled) {
             const evidence = this.transactionEvidence(transaction);
@@ -1914,14 +1971,21 @@
           );
         }
         this.initialized = true;
-        this.notify();
         this.migrateSupportEnvironment();
         if (platform === "ios") {
-          void this.recoverUnfinishedConsumable({ automatic: true });
-        } else if (platform === "android") {
+          await this.recoverPendingRegistration();
+          await this.recoverUnfinishedConsumable({
+            automatic: true,
+            skipInitialize: true
+          });
+        }
+        this.notify();
+        if (platform === "android") {
           void this.reconcileGooglePlaySubscriptions();
         }
-        void this.recoverPendingRegistration();
+        if (platform !== "ios") {
+          void this.recoverPendingRegistration();
+        }
       })().catch(error => {
         this.initialized = true;
         this.initializeError = error;
@@ -2245,6 +2309,20 @@
         };
         this.notifyRecovery(recovered);
         return recovered;
+      }
+      if (
+        getPlatform() === "ios" &&
+        this.initialized &&
+        pending.provider === "apple" &&
+        pending.productId !== this.oneTimeSupportProductId()
+      ) {
+        this.clearStalePendingRegistration(
+          pending,
+          this.supportProductIds("apple").has(pending.productId)
+            ? "no-matching-store-transaction"
+            : "unsupported-persisted-product"
+        );
+        return null;
       }
       this.logTransaction(
         "store-completion-awaiting-redelivery",
@@ -2610,8 +2688,11 @@
       return transaction ? this.transactionEvidence(transaction) : null;
     }
 
-    async recoverUnfinishedConsumable({ automatic = false } = {}) {
-      await this.initialize();
+    async recoverUnfinishedConsumable({
+      automatic = false,
+      skipInitialize = false
+    } = {}) {
+      if (!skipInitialize) await this.initialize();
       if (getPlatform() !== "ios") {
         throw new SupportPurchaseError(
           "Unfinished one-time support recovery is available in the iOS app.",
@@ -2627,6 +2708,7 @@
       });
 
       const plugin = this.global.Capacitor?.Plugins?.SupportPurchaseRecovery;
+      let nativeScanConfirmedNoMatch = false;
       if (plugin?.recoverUnfinishedConsumable) {
         try {
           const result = await plugin.recoverUnfinishedConsumable();
@@ -2636,6 +2718,7 @@
               "storekit2-transaction-unfinished"
             );
           }
+          nativeScanConfirmedNoMatch = result?.found === false;
         } catch (error) {
           this.logTransaction("consumable-recovery-bridge-failed", {
             paymentSource: "ios",
@@ -2658,6 +2741,20 @@
 
       const persisted = this.oneTimeRetryStore.read();
       if (persisted) {
+        if (nativeScanConfirmedNoMatch) {
+          this.clearStalePendingRegistration(
+            persisted,
+            "no-matching-unfinished-transaction"
+          );
+          this.logTransaction("no-recoverable-transaction-found", {
+            paymentSource: "ios",
+            productIdentifier: this.oneTimeSupportProductId()
+          }, {
+            stage: "store-query",
+            retryable: false
+          });
+          return null;
+        }
         const cachedSupporter = this.supporterCache.read();
         if (
           cachedSupporter.isSupporter &&
@@ -3089,7 +3186,9 @@
     if (!container) return;
     const storePlatform = platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
-    const pendingRecord = purchaseService.readPendingRegistration();
+    const pendingRecord = purchaseService.initialized
+      ? purchaseService.readPendingRegistration()
+      : null;
     const pendingProductId =
       state.isSupporter && pendingRecord?.productId ===
         purchaseService.oneTimeSupportProductId()
@@ -3226,8 +3325,9 @@
       platform === "ios" ? "apple" : platform === "android" ? "google" : null;
     const options = purchaseService.getOptions(storePlatform);
     let current = recurringOptionForState(options, state.contribution);
-    const pendingSubscription =
-      purchaseService.readPendingSubscriptionRegistration();
+    const pendingSubscription = purchaseService.initialized
+      ? purchaseService.readPendingSubscriptionRegistration()
+      : null;
     const scheduledProductId = state.contribution?.pendingReplacementProductId;
     const locallyActivePurchases = new Set(
       platform === "android"
@@ -4418,7 +4518,7 @@
           const confirmed = await registryService.claimSupporter({
             name,
             email,
-            public: claimForm.elements.publicRecognition?.checked !== false
+            public: true
           });
           cache.writeConfirmed(confirmed, {
             email,
@@ -4466,6 +4566,8 @@
 
   function initialize() {
     if (!global.localStorage) return;
+    if (global.__reverseFlowSupporterV2Initialized === true) return;
+    global.__reverseFlowSupporterV2Initialized = true;
     const cache = new SupporterCache(global.localStorage);
     const registry = new SupporterRegistryService();
     const productConfig =

@@ -96,17 +96,13 @@
     <section class="card" id="supporterClaimSection" hidden>
       <h2>Claim Supporter Status</h2>
       <p>
-        Add your name and email to join the Reverse Flow Supporter community. Your profile is separate from store billing.
+        Add your name and email to claim your Supporter recognition. Your profile is managed separately from your App Store or Google Play billing.
       </p>
       <form id="supporterClaimForm" class="support-identity-form" novalidate>
-        <label for="supporterFullName">Full name</label>
+        <label for="supporterFullName">Full Name</label>
         <input id="supporterFullName" name="fullName" type="text" autocomplete="name" required />
-        <label for="supporterEmail">Email address</label>
+        <label for="supporterEmail">Email Address</label>
         <input id="supporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
-        <label class="support-public-preference">
-          <input name="publicRecognition" type="checkbox" checked />
-          List my chosen name in the public Supporter Directory
-        </label>
         <button class="support-primary-action" type="submit">Claim Supporter Status</button>
         <p id="supporterClaimStatus" class="support-status" role="status" aria-live="polite"></p>
       </form>

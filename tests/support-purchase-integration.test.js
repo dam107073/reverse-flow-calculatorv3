@@ -23,6 +23,10 @@ const analyticsSource = fs.readFileSync(
   path.join(__dirname, "..", "www", "js", "analytics.js"),
   "utf8"
 );
+const appSource = fs.readFileSync(
+  path.join(__dirname, "..", "www", "js", "app.js"),
+  "utf8"
+);
 
 const constantsSource = fs.readFileSync(
   path.join(__dirname, "..", "www", "js", "constants.js"),
@@ -298,7 +302,7 @@ test("mobile supporter APIs contain only the canonical Production host", () => {
 
 test("native Version 2.0 Release values are intentional", () => {
   assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 6;/g) || []).length,
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 7;/g) || []).length,
     6
   );
   assert.equal(
@@ -355,7 +359,7 @@ test("every Android device build packages Production", () => {
 test("environment diagnostic reports only privacy-safe Production identity", async () => {
   const calls = [];
   global.APP_VERSION = "2.0";
-  global.APP_BUILD_NUMBERS = { ios: "6", android: "145" };
+  global.APP_BUILD_NUMBERS = { ios: "7", android: "145" };
   const service = new SupporterRegistryService({
     environment: "production",
     baseUrls: { production: "https://reverse-flow.app" },
@@ -1127,7 +1131,18 @@ test("failed store finish retains the pending marker for retry", async () => {
 
 test("V2 presentation keeps store billing and Supporter claims independent", () => {
   assert.match(supportPageSource, /Claim Supporter Status/);
-  assert.match(supportPageSource, /profile is separate from store billing/);
+  assert.match(
+    supportPageSource,
+    /profile is managed separately from your App Store or Google Play billing/
+  );
+  assert.doesNotMatch(
+    supportPageSource,
+    /publicRecognition|List my chosen name|type="checkbox"/
+  );
+  assert.match(
+    supporterServiceSource,
+    /claimSupporter\(\{\s*name,\s*email,\s*public: true\s*\}\)/
+  );
   assert.match(supportPageSource, /Already a Supporter\?/);
   assert.match(supportPageSource, /Recover Your Supporter Status/);
   assert.match(supportPageSource, /Recover My Supporter Status/);
@@ -1523,7 +1538,7 @@ test("duplicate transaction reconciliation runs backend work once", async () => 
   assert.equal(await reconcile(), null);
 });
 
-test("Supporter claim state cannot clear an unresolved store completion marker", async () => {
+test("StoreKit no-match clears a stale completion marker even for a claimed Supporter", async () => {
   const fixture = createStore("ios");
   const values = new Map();
   const storage = {
@@ -1565,7 +1580,132 @@ test("Supporter claim state cannot clear an unresolved store completion marker",
   });
   await service.initialize();
   await service.recoverUnfinishedConsumable({ automatic: true });
-  assert.notEqual(service.oneTimeRetryStore.read(), null);
+  assert.equal(service.oneTimeRetryStore.read(), null);
+  assert.equal(cache.read().isSupporter, true);
+});
+
+test("stale Apple monthly recovery and its premature billing history are cleared", async () => {
+  const fixture = createStore("ios");
+  installPurchaseGlobals("ios", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  const staleEvidence = {
+    paymentSource: "ios",
+    productIdentifier: "support_reverse_flow_monthly_10",
+    purchaseType: "monthly",
+    transactionId: "stale-monthly-transaction",
+    purchaseTimestamp: "2026-07-24T12:00:00Z"
+  };
+  service.persistPendingEvidence(staleEvidence);
+  service.recordBillingHistory(staleEvidence);
+
+  assert.equal(
+    service.deriveBillingState("ios"),
+    require("../www/js/services/supporter.js").BILLING_STATES.NEVER_PURCHASED
+  );
+  await service.initialize();
+
+  assert.equal(service.readPendingSubscriptionRegistration(), null);
+  assert.equal(service.readBillingHistory().previouslySupported, false);
+  assert.equal(
+    service.deriveBillingState("ios"),
+    require("../www/js/services/supporter.js").BILLING_STATES.NEVER_PURCHASED
+  );
+  assert.ok(
+    service.getOptions("apple")
+      .filter(option => option.type === "monthly")
+      .every(option => option.state === "ready")
+  );
+});
+
+test("non-product and application-receipt callbacks never enter Supporter recovery", async () => {
+  const fixture = createStore("ios");
+  installPurchaseGlobals("ios", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  const recovered = [];
+  service.onRecovery(evidence => recovered.push(evidence));
+  await service.initialize();
+
+  fixture.callbacks.approved({
+    platform: "ios-appstore",
+    state: "approved",
+    products: [],
+    transactionId: "application-receipt-callback"
+  });
+  fixture.callbacks.approved({
+    platform: "ios-appstore",
+    state: "approved",
+    products: [{ id: "app.reverseflow.mobile" }],
+    transactionId: "bundle-identifier-callback"
+  });
+
+  assert.equal(recovered.length, 0);
+  assert.equal(service.readPendingRegistration(), null);
+  assert.equal(service.receivedTransactionKeys.size, 0);
+  assert.equal(
+    service.deriveBillingState("ios"),
+    require("../www/js/services/supporter.js").BILLING_STATES.NEVER_PURCHASED
+  );
+  assert.match(
+    appSource,
+    /if \(!approvedProductIds\.includes\(REVERSE_FLOW_PRO_PRODUCT_ID\)\)[\s\S]{0,500}transaction-approved-ignored[\s\S]{0,500}return;[\s\S]{0,120}transaction\.verify\(\)/
+  );
+});
+
+test("a matching unfinished Apple consumable preserves recovery without finishing it", async () => {
+  const fixture = createStore("ios");
+  installPurchaseGlobals("ios", fixture.store);
+  let nativeFinishCalls = 0;
+  global.Capacitor.Plugins = {
+    SupportPurchaseRecovery: {
+      async addListener() {},
+      async recoverUnfinishedConsumable() {
+        return {
+          found: true,
+          productId: "reverse_flow_support_one_time_5",
+          transactionId: "recoverable-consumable-transaction",
+          originalTransactionId: "recoverable-consumable-original",
+          purchaseDate: "2026-07-24T12:00:00Z",
+          environment: "Sandbox"
+        };
+      },
+      async finishRecoveredConsumable() {
+        nativeFinishCalls += 1;
+      }
+    }
+  };
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  service.persistPendingEvidence({
+    paymentSource: "ios",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseType: "one-time",
+    transactionId: "recoverable-consumable-transaction",
+    originalTransactionId: "recoverable-consumable-original",
+    purchaseTimestamp: "2026-07-24T12:00:00Z"
+  });
+
+  await service.initialize();
+
+  assert.notEqual(service.readPendingOneTimeRegistration(), null);
+  assert.equal(nativeFinishCalls, 0);
+});
+
+test("Supporter service initialization and listener binding are idempotent", async () => {
+  const fixture = createStore("ios");
+  installPurchaseGlobals("ios", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+
+  await Promise.all([
+    service.initialize(),
+    service.initialize(),
+    service.initialize()
+  ]);
+
+  assert.equal(service.bound, true);
+  assert.equal(fixture.registered.length, 3);
+  assert.match(
+    supporterServiceSource,
+    /if \(global\.__reverseFlowSupporterV2Initialized === true\) return;/
+  );
 });
 
 test("subscription refresh returns only recurring support and management opens natively", async () => {
