@@ -4,8 +4,8 @@
 
 const APP_VERSION = "2.0";
 const APP_BUILD_NUMBERS = Object.freeze({
-  ios: "8",
-  android: "146"
+  ios: "9",
+  android: "148"
 });
     const BUILD_DATE = "2026-07-24";
 
