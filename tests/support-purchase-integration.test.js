@@ -135,6 +135,9 @@ function createStore(platform, behavior = "approved") {
         if (behavior === "cancel") {
           return { isError: true, code: 6777006, productId: configured.productId };
         }
+        if (behavior === "manual-error") {
+          return undefined;
+        }
         const transaction = {
           platform: storePlatform,
           state: behavior === "pending" ? "pending" : "approved",
@@ -246,6 +249,8 @@ function installPurchaseGlobals(platform, store) {
     },
     GooglePlay: {
       ReplacementMode: {
+        CHARGE_FULL_PRICE: "IMMEDIATE_AND_CHARGE_FULL_PRICE",
+        WITHOUT_PRORATION: "IMMEDIATE_WITHOUT_PRORATION",
         CHARGE_PRORATED_PRICE: "IMMEDIATE_AND_CHARGE_PRORATED_PRICE",
         DEFERRED: "DEFERRED"
       }
@@ -302,7 +307,7 @@ test("mobile supporter APIs contain only the canonical Production host", () => {
 
 test("native Version 2.0 Release values are intentional", () => {
   assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 7;/g) || []).length,
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 8;/g) || []).length,
     6
   );
   assert.equal(
@@ -310,7 +315,7 @@ test("native Version 2.0 Release values are intentional", () => {
     6
   );
   assert.match(constantsSource, /const APP_VERSION = "2\.0"/);
-  assert.match(androidBuildSource, /versionCode 145/);
+  assert.match(androidBuildSource, /versionCode 146/);
   assert.match(androidBuildSource, /versionName "2\.0"/);
 });
 
@@ -359,7 +364,7 @@ test("every Android device build packages Production", () => {
 test("environment diagnostic reports only privacy-safe Production identity", async () => {
   const calls = [];
   global.APP_VERSION = "2.0";
-  global.APP_BUILD_NUMBERS = { ios: "7", android: "145" };
+  global.APP_BUILD_NUMBERS = { ios: "8", android: "146" };
   const service = new SupporterRegistryService({
     environment: "production",
     baseUrls: { production: "https://reverse-flow.app" },
@@ -397,7 +402,7 @@ test("environment diagnostic reports only privacy-safe Production identity", asy
   assert.equal(diagnostic.resolvedApiOrigin, "https://reverse-flow.app");
   assert.equal(diagnostic.environmentCategory, "production");
   assert.equal(diagnostic.databaseEnvironmentIdentifier, "vbjhbqpvnfjfilntzdgk");
-  assert.equal(diagnostic.buildNumber, "145");
+  assert.equal(diagnostic.buildNumber, "146");
   assert.equal(calls.length, 1);
   assert.doesNotMatch(calls[0], /token|receipt|signature|email|orderId/i);
 });
@@ -1859,8 +1864,8 @@ test("Apple monthly changes use the alternate subscription product in-app", asyn
 
 test("Google monthly changes replace the active purchase with deliberate modes", async () => {
   for (const [fromKey, toKey, expectedMode] of [
-    [1, 2, "IMMEDIATE_AND_CHARGE_PRORATED_PRICE"],
-    [2, 1, "DEFERRED"]
+    [1, 2, "IMMEDIATE_AND_CHARGE_FULL_PRICE"],
+    [2, 1, "IMMEDIATE_WITHOUT_PRORATION"]
   ]) {
     const fixture = createStore("android");
     installPurchaseGlobals("android", fixture.store);
@@ -1889,7 +1894,8 @@ test("Google monthly changes replace the active purchase with deliberate modes",
         replacementRequired: true,
         oldProductId: options[fromKey].productId,
         oldBasePlanId: options[fromKey].basePlanId,
-        targetBasePlanId: options[toKey].basePlanId
+        targetBasePlanId: options[toKey].basePlanId,
+        sameSubscriptionBasePlanChange: true
       }
     });
     assert.equal(fixture.counts().restoreCalls, 1);
@@ -1963,13 +1969,99 @@ test("Google initial monthly support remains a normal purchase", async () => {
 });
 
 test("native Google replacement guard is packaged", () => {
-  assert.match(
-    fs.readFileSync(
-      path.join(__dirname, "..", "scripts", "patch-android-purchase-plugin.js"),
-      "utf8"
-    ),
-    /subscription replacement configured/
+  const patchSource = fs.readFileSync(
+    path.join(__dirname, "..", "scripts", "patch-android-purchase-plugin.js"),
+    "utf8"
   );
+  assert.match(patchSource, /subscription replacement configured/);
+  assert.match(patchSource, /duplicate purchase failure suppressed/);
+  assert.match(patchSource, /purchase flow failure responseCode/);
+});
+
+test("failed same-product replacement retains the source tier and reports once", async () => {
+  const fixture = createStore("android", "manual-error");
+  installPurchaseGlobals("android", fixture.store);
+  const sourceTransaction = {
+    platform: "android-playstore",
+    products: [{
+      id: "support_reverse_flow_subscription",
+      offerId: "support_reverse_flow_subscription@monthly-3"
+    }],
+    purchaseId: "acknowledged-source-token",
+    purchaseDate: new Date("2026-07-24T10:00:00Z"),
+    state: "finished",
+    nativePurchase: {
+      purchaseToken: "acknowledged-source-token",
+      acknowledged: true
+    }
+  };
+  fixture.store.localTransactions.push(sourceTransaction);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+  const target = service.getOptions("google")
+    .find(option => option.basePlanId === "monthly-10");
+  const failures = [];
+  const purchase = service.purchase(target, {
+    currentRecurringProductId: "support_reverse_flow_subscription",
+    currentBasePlanId: "monthly-3",
+    currentMonthlyAmount: 3
+  }).catch(error => {
+    failures.push(error);
+    throw error;
+  });
+
+  while (service.waiters.size === 0) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  const nativeError = {
+    code: 6777003,
+    message: "DEVELOPER_ERROR"
+  };
+  fixture.callbacks.error(nativeError);
+  fixture.callbacks.error(nativeError);
+
+  await assert.rejects(
+    purchase,
+    error =>
+      error.code === "subscription_replacement_failed" &&
+      /current subscription is still active/.test(error.message)
+  );
+  assert.equal(failures.length, 1);
+  assert.equal(service.waiters.size, 0);
+  assert.equal(service.purchaseInFlight, null);
+  assert.equal(
+    service.deriveBillingState("android"),
+    require("../www/js/services/supporter.js").BILLING_STATES.ACTIVE_MONTHLY_3
+  );
+  assert.equal(sourceTransaction.state, "finished");
+});
+
+test("successful replacement acknowledges the new token exactly once", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  let acknowledgmentCalls = 0;
+  const replacement = {
+    paymentSource: "android",
+    productIdentifier: "support_reverse_flow_subscription",
+    purchaseType: "monthly",
+    basePlanId: "monthly-10",
+    purchaseToken: "new-replacement-token",
+    purchaseTimestamp: "2026-07-24T12:00:00Z",
+    acknowledged: false,
+    transaction: {
+      async finish() {
+        acknowledgmentCalls += 1;
+      }
+    }
+  };
+
+  await Promise.all([
+    service.completeApprovedPurchase(replacement),
+    service.completeApprovedPurchase(replacement)
+  ]);
+  assert.equal(acknowledgmentCalls, 1);
+  assert.equal(replacement.acknowledged, true);
 });
 
 test("active Supporter management keeps billing secondary and offers repeat support", () => {

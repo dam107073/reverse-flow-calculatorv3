@@ -136,6 +136,25 @@ const replacements = [
       '  private JSONArray toJSON(final List<Purchase> purchaseList) throws JSONException {'
   ],
   [
+    '      else {\n' +
+      '        Log.w(mTag, "onPurchasesUpdated() -> "\n' +
+      '            + "Failed: " + format(result));\n' +
+      '        callError(Constants.ERR_PURCHASE, codeToString(code));\n' +
+      '      }',
+    '      else {\n' +
+      '        if (mCallbackContext == null) {\n' +
+      '          Log.i(RF_BILLING_TAG, "duplicate purchase failure suppressed"\n' +
+      '              + " responseCode=" + code);\n' +
+      '          return;\n' +
+      '        }\n' +
+      '        Log.e(RF_BILLING_TAG, "purchase flow failure responseCode="\n' +
+      '            + code + " debugMessage=" + result.getDebugMessage());\n' +
+      '        Log.w(mTag, "onPurchasesUpdated() -> "\n' +
+      '            + "Failed: " + format(result));\n' +
+      '        callError(Constants.ERR_PURCHASE, codeToString(code));\n' +
+      '      }'
+  ],
+  [
     '    if (result.getResponseCode() == BillingResponseCode.OK) {\n' +
       '      Log.d(mTag, "onAcknowledgePurchaseResponse() -> Success");\n' +
       '      callSuccess();\n' +

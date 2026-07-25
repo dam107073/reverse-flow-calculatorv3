@@ -2050,11 +2050,21 @@
         clearTimeout(waiter.timeout);
         const cancelled =
           error?.code === this.global.CdvPurchase?.ErrorCode?.PAYMENT_CANCELLED;
+        const replacementFailed =
+          !cancelled &&
+          getPlatform() === "android" &&
+          waiter.replacementData?.googlePlay?.replacementRequired === true;
         waiter.reject(new SupportPurchaseError(
           cancelled
             ? "Purchase canceled. No charge was made."
-            : "The store could not complete this purchase. Please try again.",
-          cancelled ? "purchase_cancelled" : "purchase_failed"
+            : replacementFailed
+              ? "Google Play couldn’t change your monthly support. Your current subscription is still active. Please try again."
+              : "The store could not complete this purchase. Please try again.",
+          cancelled
+            ? "purchase_cancelled"
+            : replacementFailed
+              ? "subscription_replacement_failed"
+              : "purchase_failed"
         ));
       });
     }
@@ -2213,6 +2223,7 @@
           }, 120000);
           this.waiters.set(current.productId, {
             option: current,
+            replacementData,
             resolve,
             reject,
             timeout
@@ -2227,11 +2238,20 @@
           }
           const cancelled =
             orderError.code === this.global.CdvPurchase?.ErrorCode?.PAYMENT_CANCELLED;
+          const replacementFailed =
+            !cancelled &&
+            replacementData?.googlePlay?.replacementRequired === true;
           throw new SupportPurchaseError(
             cancelled
               ? "Purchase canceled. No charge was made."
-              : "The store could not complete this purchase. Please try again.",
-            cancelled ? "purchase_cancelled" : "purchase_failed"
+              : replacementFailed
+                ? "Google Play couldn’t change your monthly support. Your current subscription is still active. Please try again."
+                : "The store could not complete this purchase. Please try again.",
+            cancelled
+              ? "purchase_cancelled"
+              : replacementFailed
+                ? "subscription_replacement_failed"
+                : "purchase_failed"
           );
         }
         const transaction = await transactionPromise;
@@ -2416,8 +2436,15 @@
         );
       }
       const modes = this.global.CdvPurchase?.GooglePlay?.ReplacementMode || {};
-      const replacementMode =
-        Number(option.amount) > Number(context.currentMonthlyAmount)
+      const isUpgrade =
+        Number(option.amount) > Number(context.currentMonthlyAmount);
+      const isSameSubscriptionBasePlanChange =
+        fromProductId === option.productId;
+      const replacementMode = isSameSubscriptionBasePlanChange
+        ? isUpgrade
+          ? modes.CHARGE_FULL_PRICE || "IMMEDIATE_AND_CHARGE_FULL_PRICE"
+          : modes.WITHOUT_PRORATION || "IMMEDIATE_WITHOUT_PRORATION"
+        : isUpgrade
           ? modes.CHARGE_PRORATED_PRICE || "IMMEDIATE_AND_CHARGE_PRORATED_PRICE"
           : modes.DEFERRED || "DEFERRED";
       this.logTransaction(
@@ -2443,7 +2470,8 @@
           replacementRequired: true,
           oldProductId: fromProductId,
           oldBasePlanId: fromBasePlanId,
-          targetBasePlanId: option.basePlanId
+          targetBasePlanId: option.basePlanId,
+          sameSubscriptionBasePlanChange: isSameSubscriptionBasePlanChange
         }
       };
     }
