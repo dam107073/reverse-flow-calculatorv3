@@ -30,6 +30,78 @@ const claimed = {
   lastVerifiedAt: "2026-07-24T12:00:00.000Z"
 };
 
+const appleSubscriptionConfig = {
+  apple: {
+    oneTime5: {
+      productId: "reverse_flow_support_one_time_5",
+      productType: "consumable"
+    },
+    monthly3: {
+      productId: "support_reverse_flow_monthly_3",
+      productType: "paid subscription"
+    },
+    monthly10: {
+      productId: "support_reverse_flow_monthly_10",
+      productType: "paid subscription"
+    }
+  }
+};
+
+function createAppleSubscriptionService({
+  values = new Map(),
+  activeProductId = null,
+  bridgeError = null
+} = {}) {
+  const products = new Map(
+    Object.values(appleSubscriptionConfig.apple).map(item => [
+      item.productId,
+      {
+        owned: false,
+        pricing: { price: item.productId.endsWith("_10") ? "$9.99" : "$2.99" },
+        offers: [{
+          id: item.productId,
+          pricingPhases: [{
+            price: item.productId.endsWith("_10") ? "$9.99" : "$2.99"
+          }]
+        }],
+        getOffer() {
+          return this.offers[0];
+        }
+      }
+    ])
+  );
+  global.Capacitor = {
+    getPlatform: () => "ios",
+    Plugins: {
+      SupportPurchaseRecovery: {
+        async currentSupportSubscriptions() {
+          if (bridgeError) throw bridgeError;
+          return {
+            subscriptions: activeProductId
+              ? [{ productId: activeProductId }]
+              : []
+          };
+        }
+      }
+    }
+  };
+  const service = new SupportPurchaseService(appleSubscriptionConfig, {
+    store: {
+      get: id => products.get(id),
+      localTransactions: [],
+      localReceipts: []
+    },
+    storage: {
+      getItem: key => values.get(key) || null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: key => values.delete(key)
+    }
+  });
+  service.storePlatform = "ios-appstore";
+  service.initialized = true;
+  return { service, values };
+}
+
 test("all billing and claim combinations remain independent", () => {
   const billingStates = [
     BILLING_STATES.NEVER_PURCHASED,
@@ -271,4 +343,148 @@ test("cached store state preserves Manage while the store is still loading", () 
     ).primaryAction,
     ACTIONS.MANAGE
   );
+});
+
+test("StoreKit 2 active $9.99 entitlement outranks historical support", async () => {
+  const values = new Map([[
+    "reverse-flow-store-support-history-v2",
+    JSON.stringify({
+      previouslySupported: true,
+      lastBillingState: BILLING_STATES.PREVIOUSLY_SUPPORTED,
+      lastProductId: "reverse_flow_support_one_time_5"
+    })
+  ]]);
+  const { service } = createAppleSubscriptionService({
+    values,
+    activeProductId: "support_reverse_flow_monthly_10"
+  });
+
+  await service.refreshAppleCurrentSubscriptions();
+  assert.equal(
+    service.deriveBillingState("ios"),
+    BILLING_STATES.ACTIVE_MONTHLY_10
+  );
+  assert.equal(
+    resolveSupporterV2State(
+      service.deriveBillingState("ios"),
+      claimed
+    ).primaryAction,
+    ACTIONS.MANAGE
+  );
+  assert.equal(service.readBillingHistory().previouslySupported, true);
+  assert.equal(service.purchaseInFlight, null);
+
+  service.recordBillingHistory({
+    paymentSource: "ios",
+    productIdentifier: "reverse_flow_support_one_time_5",
+    purchaseType: "one-time"
+  });
+  assert.equal(
+    service.deriveBillingState("ios"),
+    BILLING_STATES.ACTIVE_MONTHLY_10
+  );
+  assert.equal(
+    service.readBillingHistory().lastBillingState,
+    BILLING_STATES.ACTIVE_MONTHLY_10
+  );
+});
+
+test("StoreKit 2 active $2.99 entitlement survives delayed history callbacks", async () => {
+  const { service } = createAppleSubscriptionService({
+    activeProductId: "support_reverse_flow_monthly_3"
+  });
+  await service.refreshAppleCurrentSubscriptions();
+
+  service.recordBillingState(BILLING_STATES.PREVIOUSLY_SUPPORTED);
+  assert.equal(
+    service.deriveBillingState("ios"),
+    BILLING_STATES.ACTIVE_MONTHLY_3
+  );
+});
+
+test("authoritative no-active result permits historical Continue Supporting", async () => {
+  const values = new Map([[
+    "reverse-flow-store-support-history-v2",
+    JSON.stringify({
+      previouslySupported: true,
+      lastBillingState: BILLING_STATES.ACTIVE_MONTHLY_10,
+      lastProductId: "support_reverse_flow_monthly_10"
+    })
+  ]]);
+  const { service } = createAppleSubscriptionService({ values });
+
+  await service.refreshAppleCurrentSubscriptions();
+  assert.equal(
+    service.deriveBillingState("ios"),
+    BILLING_STATES.PREVIOUSLY_SUPPORTED
+  );
+});
+
+test("StoreKit reconciliation failure preserves last active tier", async () => {
+  const values = new Map([[
+    "reverse-flow-store-support-history-v2",
+    JSON.stringify({
+      previouslySupported: true,
+      lastBillingState: BILLING_STATES.ACTIVE_MONTHLY_10,
+      lastProductId: "support_reverse_flow_monthly_10"
+    })
+  ]]);
+  const { service } = createAppleSubscriptionService({
+    values,
+    bridgeError: new Error("native callback failed")
+  });
+
+  await service.refreshAppleCurrentSubscriptions();
+  assert.equal(
+    service.deriveBillingState("ios"),
+    BILLING_STATES.ACTIVE_MONTHLY_10
+  );
+});
+
+test("restart restores Manage while StoreKit refresh is pending", async () => {
+  const values = new Map();
+  const first = createAppleSubscriptionService({
+    values,
+    activeProductId: "support_reverse_flow_monthly_10"
+  }).service;
+  await first.refreshAppleCurrentSubscriptions();
+  assert.equal(
+    first.deriveBillingState("ios"),
+    BILLING_STATES.ACTIVE_MONTHLY_10
+  );
+
+  const restarted = createAppleSubscriptionService({ values }).service;
+  restarted.initialized = false;
+  assert.equal(
+    restarted.deriveBillingState("ios"),
+    BILLING_STATES.ACTIVE_MONTHLY_10
+  );
+  assert.equal(
+    resolveSupporterV2State(
+      restarted.deriveBillingState("ios"),
+      claimed
+    ).primaryAction,
+    ACTIONS.MANAGE
+  );
+});
+
+test("Manage renderer safely declares pendingProductId and hides raw exceptions", () => {
+  const manageRenderer = supporterSource.slice(
+    supporterSource.indexOf("function renderManageSupportOptions"),
+    supporterSource.indexOf("function renderSupportPage(")
+  );
+  assert.match(manageRenderer, /const pendingProductId\s*=/);
+  assert.doesNotMatch(manageRenderer, /textContent\s*=\s*error\.message/);
+  assert.match(manageRenderer, /safeStoreErrorMessage/);
+});
+
+test("native subscription bridge queries current StoreKit entitlements", () => {
+  const nativeSource = fs.readFileSync(
+    path.join(root, "ios/App/App/SupportPurchaseRecoveryPlugin.swift"),
+    "utf8"
+  );
+  assert.match(nativeSource, /name: "currentSupportSubscriptions"/);
+  assert.match(nativeSource, /Transaction\.currentEntitlements/);
+  assert.match(nativeSource, /support_reverse_flow_monthly_10/);
+  assert.match(nativeSource, /no-active-support-subscriptions/);
 });

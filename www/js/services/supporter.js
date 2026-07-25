@@ -941,6 +941,9 @@
         productId: null,
         message: null
       };
+      this.authoritativeActiveMonthlyProductId = null;
+      this.authoritativeMonthlyStateChecked = false;
+      this.lastDerivedBillingState = null;
     }
 
     getOptions(platform) {
@@ -1017,7 +1020,7 @@
     }
 
     recordBillingHistory(evidence) {
-      const monthlyState =
+      const derivedMonthlyState =
         (
           Boolean(evidence?.basePlanId) &&
           evidence.basePlanId === this.config?.google?.monthly10?.basePlanId
@@ -1030,13 +1033,22 @@
           : evidence?.purchaseType === "monthly"
             ? BILLING_STATES.ACTIVE_MONTHLY_3
             : BILLING_STATES.PREVIOUSLY_SUPPORTED;
+      const authoritativeMonthlyState = this.billingStateForMonthlyProduct(
+        this.authoritativeActiveMonthlyProductId
+      );
+      const monthlyState =
+        authoritativeMonthlyState || derivedMonthlyState;
+      const authoritativeProductId =
+        authoritativeMonthlyState
+          ? this.authoritativeActiveMonthlyProductId
+          : null;
       const record = {
         previouslySupported: true,
         lastBillingState: monthlyState,
         lastProductId: this.supportProductIds().has(
-          evidence?.productIdentifier
+          authoritativeProductId || evidence?.productIdentifier
         )
-          ? evidence.productIdentifier
+          ? authoritativeProductId || evidence.productIdentifier
           : null,
         lastBasePlanId: basePlanIdFromOfferId(evidence?.basePlanId),
         lastSupportedAt:
@@ -1054,13 +1066,121 @@
       if (!this.storage?.setItem || state === BILLING_STATES.NEVER_PURCHASED) {
         return;
       }
+      const authoritativeMonthlyState = this.billingStateForMonthlyProduct(
+        this.authoritativeActiveMonthlyProductId
+      );
+      const persistedState = authoritativeMonthlyState || state;
       const current = this.readBillingHistory();
       this.storage.setItem(BILLING_HISTORY_CACHE_KEY, JSON.stringify({
         ...current,
         previouslySupported: true,
-        lastBillingState: state,
+        lastBillingState: persistedState,
+        lastProductId:
+          authoritativeMonthlyState
+            ? this.authoritativeActiveMonthlyProductId
+            : current.lastProductId || null,
         lastCheckedAt: new Date().toISOString()
       }));
+    }
+
+    logBillingStateTransition(nextState, reason, details = {}) {
+      const previousState = this.lastDerivedBillingState;
+      this.lastDerivedBillingState = nextState;
+      if (previousState === nextState) return nextState;
+      const history = this.readBillingHistory();
+      const pending =
+        this.readPendingSubscriptionRegistration() ||
+        this.readPendingRegistration();
+      const claim = this.supporterCache.read();
+      console.info(
+        `[Reverse Flow Support Purchase] ${JSON.stringify({
+          event: "billing-state-transition",
+          previousNormalizedState: previousState,
+          nextNormalizedState: nextState,
+          reason,
+          currentProductId: details.currentProductId || null,
+          activeSubscriptionProductId:
+            this.authoritativeActiveMonthlyProductId ||
+            details.activeSubscriptionProductId ||
+            null,
+          historyFlag: history.previouslySupported === true,
+          pendingProductId: pending?.productId || null,
+          backendClaimState:
+            claim.isSupporter === true
+              ? CLAIM_STATES.CLAIMED
+              : CLAIM_STATES.UNCLAIMED,
+          timestamp: new Date().toISOString()
+        })}`
+      );
+      return nextState;
+    }
+
+    billingStateForMonthlyProduct(productId) {
+      if (productId === this.config?.apple?.monthly10?.productId) {
+        return BILLING_STATES.ACTIVE_MONTHLY_10;
+      }
+      if (productId === this.config?.apple?.monthly3?.productId) {
+        return BILLING_STATES.ACTIVE_MONTHLY_3;
+      }
+      return null;
+    }
+
+    async refreshAppleCurrentSubscriptions() {
+      if (getPlatform() !== "ios") return null;
+      const plugin = this.global.Capacitor?.Plugins?.SupportPurchaseRecovery;
+      if (!plugin?.currentSupportSubscriptions) {
+        this.logTransaction("apple-subscription-bridge-failed", {
+          paymentSource: "ios",
+          productIdentifier: null
+        }, {
+          stage: "storekit2-current-entitlements",
+          failureCategory: "bridge-unavailable",
+          retryable: true
+        });
+        return null;
+      }
+      try {
+        const result = await plugin.currentSupportSubscriptions();
+        const configuredMonthlyIds = new Set([
+          this.config?.apple?.monthly3?.productId,
+          this.config?.apple?.monthly10?.productId
+        ].filter(Boolean));
+        const activeProductIds = (Array.isArray(result?.subscriptions)
+          ? result.subscriptions
+          : [])
+          .map(subscription => subscription?.productId)
+          .filter(productId => configuredMonthlyIds.has(productId));
+        this.authoritativeActiveMonthlyProductId =
+          activeProductIds.includes(this.config?.apple?.monthly10?.productId)
+            ? this.config.apple.monthly10.productId
+            : activeProductIds.includes(this.config?.apple?.monthly3?.productId)
+              ? this.config.apple.monthly3.productId
+              : null;
+        this.authoritativeMonthlyStateChecked = true;
+        const state = this.billingStateForMonthlyProduct(
+          this.authoritativeActiveMonthlyProductId
+        );
+        if (state) this.recordBillingState(state);
+        this.logTransaction("apple-subscription-entitlements-refreshed", {
+          paymentSource: "ios",
+          productIdentifier: this.authoritativeActiveMonthlyProductId
+        }, {
+          stage: "storekit2-current-entitlements",
+          backendOutcome: state ? "active" : "no-active-subscription",
+          retryable: false
+        });
+        return this.authoritativeActiveMonthlyProductId;
+      } catch (error) {
+        this.logTransaction("apple-subscription-bridge-failed", {
+          paymentSource: "ios",
+          productIdentifier: this.authoritativeActiveMonthlyProductId
+        }, {
+          stage: "storekit2-current-entitlements",
+          failureCategory: error?.code || "native-bridge-error",
+          retryable: true
+        });
+        return null;
+      }
     }
 
     deriveBillingState(platform = getPlatform()) {
@@ -1070,14 +1190,22 @@
           : platform === "android" || platform === "google"
             ? "google"
             : null;
-      if (!configKey) return BILLING_STATES.BILLING_UNAVAILABLE;
+      if (!configKey) {
+        return this.logBillingStateTransition(
+          BILLING_STATES.BILLING_UNAVAILABLE,
+          "unsupported-platform"
+        );
+      }
       const pendingRecovery = this.readPendingRegistration();
       if (
         configKey === "apple" &&
         !this.initialized &&
         pendingRecovery?.provider === "apple"
       ) {
-        return BILLING_STATES.NEVER_PURCHASED;
+        return this.logBillingStateTransition(
+          BILLING_STATES.NEVER_PURCHASED,
+          "pending-apple-reconciliation"
+        );
       }
       const options = this.getOptions(configKey);
       const cachedBilling = this.readBillingHistory();
@@ -1091,25 +1219,51 @@
             ? cachedBilling.lastBasePlanId
             : null
         );
-      const activeMonthly = activeEvidence
+      const authoritativeAppleOption =
+        configKey === "apple" && this.authoritativeActiveMonthlyProductId
+          ? options.find(option =>
+              option.type === "monthly" &&
+              option.productId === this.authoritativeActiveMonthlyProductId
+            )
+          : null;
+      const activeMonthly = authoritativeAppleOption || (activeEvidence
         ? options.find(option =>
             option.type === "monthly" &&
             option.basePlanId === activeBasePlanId
           )
         : options
             .filter(option => option.type === "monthly" && option.owned)
-            .sort((left, right) => Number(right.amount) - Number(left.amount))[0];
+            .sort((left, right) => Number(right.amount) - Number(left.amount))[0]);
       if (activeMonthly?.amount === 10) {
         this.recordBillingState(BILLING_STATES.ACTIVE_MONTHLY_10);
-        return BILLING_STATES.ACTIVE_MONTHLY_10;
+        return this.logBillingStateTransition(
+          BILLING_STATES.ACTIVE_MONTHLY_10,
+          authoritativeAppleOption
+            ? "storekit2-current-entitlements"
+            : "store-active-product",
+          {
+            currentProductId: activeMonthly.productId,
+            activeSubscriptionProductId: activeMonthly.productId
+          }
+        );
       }
       if (activeMonthly?.amount === 3) {
         this.recordBillingState(BILLING_STATES.ACTIVE_MONTHLY_3);
-        return BILLING_STATES.ACTIVE_MONTHLY_3;
+        return this.logBillingStateTransition(
+          BILLING_STATES.ACTIVE_MONTHLY_3,
+          authoritativeAppleOption
+            ? "storekit2-current-entitlements"
+            : "store-active-product",
+          {
+            currentProductId: activeMonthly.productId,
+            activeSubscriptionProductId: activeMonthly.productId
+          }
+        );
       }
       if (
         (
           !this.initialized ||
+          (configKey === "apple" && !this.authoritativeMonthlyStateChecked) ||
           !options.some(option =>
             option.type === "monthly" && option.state === "ready"
           )
@@ -1119,7 +1273,11 @@
           BILLING_STATES.ACTIVE_MONTHLY_10
         ].includes(cachedBilling.lastBillingState)
       ) {
-        return cachedBilling.lastBillingState;
+        return this.logBillingStateTransition(
+          cachedBilling.lastBillingState,
+          "cached-active-state-awaiting-authoritative-refresh",
+          { currentProductId: cachedBilling.lastProductId }
+        );
       }
       const hasStoreHistory = this.allSupportTransactions().some(transaction =>
         this.supportProductIds().has(this.transactionProductId(transaction))
@@ -1130,7 +1288,11 @@
         Boolean(this.global.hasLegacyProEntitlement?.())
       ) {
         this.recordBillingState(BILLING_STATES.PREVIOUSLY_SUPPORTED);
-        return BILLING_STATES.PREVIOUSLY_SUPPORTED;
+        return this.logBillingStateTransition(
+          BILLING_STATES.PREVIOUSLY_SUPPORTED,
+          "historical-support-without-active-subscription",
+          { currentProductId: cachedBilling.lastProductId }
+        );
       }
       if (
         this.initializeError ||
@@ -1139,15 +1301,24 @@
           !options.some(option => option.state === "ready")
         )
       ) {
-        return BILLING_STATES.BILLING_UNAVAILABLE;
+        return this.logBillingStateTransition(
+          BILLING_STATES.BILLING_UNAVAILABLE,
+          "store-state-unavailable"
+        );
       }
-      return BILLING_STATES.NEVER_PURCHASED;
+      return this.logBillingStateTransition(
+        BILLING_STATES.NEVER_PURCHASED,
+        "no-store-or-history-evidence"
+      );
     }
 
     async refreshBillingState() {
       await this.initialize();
       if (typeof this.store?.update === "function") {
         await this.store.update();
+      }
+      if (getPlatform() === "ios") {
+        await this.refreshAppleCurrentSubscriptions();
       }
       if (getPlatform() === "android") {
         await this.reconcileGooglePlaySubscriptions();
@@ -1299,7 +1470,10 @@
         status: "failed",
         provider: evidence.paymentSource === "ios" ? "apple" : "google",
         productId: evidence.productIdentifier,
-        message: error?.message || "The store could not verify this subscription."
+        message: safeStoreErrorMessage(
+          error,
+          "The store could not verify this subscription."
+        )
       };
     }
 
@@ -1973,6 +2147,7 @@
         this.initialized = true;
         this.migrateSupportEnvironment();
         if (platform === "ios") {
+          await this.refreshAppleCurrentSubscriptions();
           await this.recoverPendingRegistration();
           await this.recoverUnfinishedConsumable({
             automatic: true,
@@ -2629,6 +2804,14 @@
 
     async completeApprovedPurchase(evidence) {
       return this.reconcileTransaction(evidence, async () => {
+        if (
+          evidence?.paymentSource === "ios" &&
+          evidence?.purchaseType === "monthly"
+        ) {
+          this.authoritativeActiveMonthlyProductId =
+            evidence.productIdentifier;
+          this.authoritativeMonthlyStateChecked = true;
+        }
         this.recordBillingHistory(evidence);
         if (evidence?.paymentSource === "android") {
           await this.acknowledgeVerifiedGooglePurchase(evidence, {
@@ -2641,6 +2824,9 @@
         });
         if (typeof this.store?.update === "function") {
           await this.store.update();
+        }
+        if (evidence?.paymentSource === "ios") {
+          await this.refreshAppleCurrentSubscriptions();
         }
         this.deriveBillingState();
         this.logTransaction("store-purchase-completed", evidence, {
@@ -3176,6 +3362,12 @@
     }, 8000);
   }
 
+  function safeStoreErrorMessage(error, fallback) {
+    return error instanceof SupportPurchaseError
+      ? error.message
+      : fallback;
+  }
+
   function renderSupportOptions(
     container,
     purchaseService,
@@ -3280,7 +3472,10 @@
           });
           await onPurchase(pendingPurchase);
         } catch (error) {
-          status.textContent = error.message;
+          status.textContent = safeStoreErrorMessage(
+            error,
+            "Store support could not be refreshed. Please try again."
+          );
         } finally {
           clearTimeout(slowMessageTimer);
           button.dataset.purchasing = "false";
@@ -3328,6 +3523,10 @@
     const pendingSubscription = purchaseService.initialized
       ? purchaseService.readPendingSubscriptionRegistration()
       : null;
+    const pendingProductId =
+      purchaseService.initialized
+        ? purchaseService.readPendingRegistration()?.productId || null
+        : null;
     const scheduledProductId = state.contribution?.pendingReplacementProductId;
     const locallyActivePurchases = new Set(
       platform === "android"
@@ -3403,7 +3602,10 @@
           });
           await onPurchase(pendingPurchase);
         } catch (error) {
-          status.textContent = error.message;
+          status.textContent = safeStoreErrorMessage(
+            error,
+            "Store support could not be refreshed. Please try again."
+          );
         } finally {
           clearTimeout(slowMessageTimer);
           button.dataset.purchasing = "false";
@@ -3454,7 +3656,10 @@
           const pendingPurchase = await purchaseService.purchase(oneTime);
           await onPurchase(pendingPurchase);
         } catch (error) {
-          status.textContent = error.message;
+          status.textContent = safeStoreErrorMessage(
+            error,
+            "Store support could not be refreshed. Please try again."
+          );
         } finally {
           clearTimeout(slowMessageTimer);
           button.dataset.purchasing = "false";
@@ -3847,8 +4052,10 @@
           if (pendingPurchase?.purchaseType === "monthly") {
             purchaseService.renderSubscriptionVerificationStatus(pageStatus);
           } else {
-            pageStatus.textContent = error?.message ||
-              "We couldn’t resume your Supporter setup automatically. Please try again.";
+            pageStatus.textContent = safeStoreErrorMessage(
+              error,
+              "We couldn’t resume your Supporter setup automatically. Please try again."
+            );
           }
         });
       });
@@ -3880,7 +4087,10 @@
           );
           renderSupportPage(cache, registryService, purchaseService);
         } catch (error) {
-          pageStatus.textContent = error.message;
+          pageStatus.textContent = safeStoreErrorMessage(
+            error,
+            "Subscription management could not be opened. Please try again."
+          );
         }
       });
     }
@@ -3903,7 +4113,10 @@
           renderSupportPage(cache, registryService, purchaseService);
           pageStatus.textContent = "Support status refreshed.";
         } catch (error) {
-          pageStatus.textContent = error.message;
+          pageStatus.textContent = safeStoreErrorMessage(
+            error,
+            "Store support could not be refreshed. Please try again."
+          );
         } finally {
           subscriptionRefreshButton.dataset.refreshing = "false";
           subscriptionRefreshButton.disabled = false;
@@ -4396,8 +4609,10 @@
           })
           .catch(error => {
             pageStatus.textContent =
-              error?.message ||
-              "Store completion will retry when the purchase service is available.";
+              safeStoreErrorMessage(
+                error,
+                "Store completion will retry when the purchase service is available."
+              );
           });
       });
     }
@@ -4423,7 +4638,10 @@
         try {
           await purchaseService.openNativeSubscriptionManagement();
         } catch (error) {
-          pageStatus.textContent = error.message;
+          pageStatus.textContent = safeStoreErrorMessage(
+            error,
+            "Subscription management could not be opened. Please try again."
+          );
         }
       });
     }
@@ -4443,7 +4661,10 @@
           renderSupportPageV2(cache, registryService, purchaseService);
           pageStatus.textContent = "Store purchase status refreshed.";
         } catch (error) {
-          pageStatus.textContent = error.message;
+          pageStatus.textContent = safeStoreErrorMessage(
+            error,
+            "Store support could not be refreshed. Please try again."
+          );
         } finally {
           refreshButton.dataset.refreshing = "false";
           refreshButton.disabled = false;
@@ -4591,8 +4812,10 @@
       void purchases.initialize().catch(error => {
         const status = document.getElementById("supportPageStatus");
         if (status && !status.textContent) {
-          status.textContent =
-            error?.message || "Store support options are temporarily unavailable.";
+          status.textContent = safeStoreErrorMessage(
+            error,
+            "Store support options are temporarily unavailable."
+          );
         }
       });
     }

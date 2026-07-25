@@ -14,10 +14,18 @@ public class SupportPurchaseRecoveryPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(
             name: "finishRecoveredConsumable",
             returnType: CAPPluginReturnPromise
+        ),
+        CAPPluginMethod(
+            name: "currentSupportSubscriptions",
+            returnType: CAPPluginReturnPromise
         )
     ]
 
     private let oneTimeSupportProductID = "reverse_flow_support_one_time_5"
+    private let monthlySupportProductIDs: Set<String> = [
+        "support_reverse_flow_monthly_3",
+        "support_reverse_flow_monthly_10"
+    ]
     private var transactionUpdatesTask: Task<Void, Never>?
     private var initialUnfinishedScanTask: Task<Void, Never>?
 
@@ -155,6 +163,55 @@ public class SupportPurchaseRecoveryPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject(
                 "The recovered transaction is no longer unfinished in StoreKit."
             )
+        }
+    }
+
+    @objc func currentSupportSubscriptions(_ call: CAPPluginCall) {
+        print("[Reverse Flow StoreKit 2] support-subscription-check-started")
+
+        Task {
+            var subscriptions: [[String: Any]] = []
+
+            for await result in Transaction.currentEntitlements {
+                switch result {
+                case .verified(let transaction):
+                    guard monthlySupportProductIDs.contains(transaction.productID)
+                    else {
+                        continue
+                    }
+                    var payload: [String: Any] = [
+                        "productId": transaction.productID,
+                        "transactionRef": redact(transaction.id),
+                        "purchaseDate": iso8601(transaction.purchaseDate),
+                        "environment": environmentName(transaction)
+                    ]
+                    if let expirationDate = transaction.expirationDate {
+                        payload["expirationDate"] = iso8601(expirationDate)
+                    }
+                    subscriptions.append(payload)
+                    print(
+                        "[Reverse Flow StoreKit 2] active-support-subscription-found " +
+                        "productId=\(transaction.productID) " +
+                        "transactionRef=\(redact(transaction.id)) " +
+                        "environment=\(environmentName(transaction))"
+                    )
+                case .unverified(let transaction, _):
+                    guard monthlySupportProductIDs.contains(transaction.productID)
+                    else {
+                        continue
+                    }
+                    print(
+                        "[Reverse Flow StoreKit 2] support-subscription-unverified " +
+                        "productId=\(transaction.productID) " +
+                        "transactionRef=\(redact(transaction.id))"
+                    )
+                }
+            }
+
+            if subscriptions.isEmpty {
+                print("[Reverse Flow StoreKit 2] no-active-support-subscriptions")
+            }
+            call.resolve(["subscriptions": subscriptions])
         }
     }
 
