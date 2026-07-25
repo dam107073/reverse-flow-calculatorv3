@@ -82,6 +82,15 @@
     };
   }
 
+  function resolveSupportActionVisibility(presentation) {
+    const supportEligible = presentation?.supportEligible === true;
+    return {
+      showOneTime: true,
+      showMonthly: true,
+      showManage: supportEligible
+    };
+  }
+
   function isValidTimestamp(value) {
     return typeof value === "string" && Number.isFinite(Date.parse(value));
   }
@@ -3428,6 +3437,7 @@
     const options = purchaseService.getOptions(storePlatform);
     const oneTime = options.find(option => option.key === "oneTime5") || null;
     const monthly = options.find(option => option.key === "monthly3") || null;
+    const visibility = resolveSupportActionVisibility(presentation);
     container.replaceChildren();
 
     const appendPurchaseButton = (option, label) => {
@@ -3459,13 +3469,16 @@
       container.appendChild(button);
     };
 
-    if (!presentation.supportEligible) {
+    if (!visibility.showManage) {
       appendPurchaseButton(oneTime, "One-Time Contribution");
       appendPurchaseButton(monthly, "Monthly Support");
       return;
     }
 
     appendPurchaseButton(oneTime, "Make a One-Time Contribution");
+    if (visibility.showMonthly) {
+      appendPurchaseButton(monthly, "Support Monthly");
+    }
     const manageButton = document.createElement("button");
     manageButton.type = "button";
     manageButton.className = "support-secondary-action";
@@ -3714,6 +3727,7 @@
     SUPPORT_UI_STATES,
     resolveSupportAction,
     projectSupportPresentation,
+    resolveSupportActionVisibility,
     resolveSupporterUiPresentation,
     normalizeSupporterRecord,
     normalizeApiResponse,

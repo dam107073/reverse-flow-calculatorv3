@@ -111,6 +111,12 @@
             }];
           })
         );
+        if (params.get("billing") === "active-monthly") {
+          const activeProductId = platform === "android"
+            ? "support_reverse_flow_subscription"
+            : "support_reverse_flow_monthly_3";
+          products.get(activeProductId).owned = true;
+        }
         if (platform === "android") {
           const subscription = products.get(
             "support_reverse_flow_subscription"
@@ -204,7 +210,11 @@
           lastVerifiedAt: "2026-07-23T18:00:00.000Z"
         }));
       }
-      if (params.get("support") === "eligible" || state === "recurring") {
+      if (
+        params.get("support") === "eligible" ||
+        ["one-time", "canceled", "expired"].includes(params.get("billing")) ||
+        state === "recurring"
+      ) {
         localStorage.setItem("reverse-flow-store-support-history-v2", JSON.stringify({
           previouslySupported: true,
           lastBillingState: "previously-supported",
@@ -229,6 +239,6 @@
     })();
   </script>
   <script src="/www/js/services/entitlement.js"></script>
-  <script src="/www/js/services/supporter.js"></script>
+  <script src="/www/js/services/supporter.js?v=support-monthly-1"></script>
 </body>
 </html>

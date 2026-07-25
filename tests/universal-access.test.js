@@ -49,6 +49,7 @@ test("support UI uses one compact action, live store options, and approved copy"
 
   assert.match(supporter, /"One-Time Contribution"/);
   assert.match(supporter, /"Monthly Support"/);
+  assert.match(supporter, /"Support Monthly"/);
   assert.match(supporter, /"Manage Subscription"/);
   assert.match(supporter, /button\.className = "support-secondary-action"/);
   assert.doesNotMatch(supporter, /Coming Soon/);
