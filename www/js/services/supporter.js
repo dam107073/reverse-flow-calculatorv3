@@ -10,6 +10,16 @@
     "reverse-flow-support-environment-v1";
   const LEGACY_PURCHASE_RETRY_CACHE_KEY = "reverse-flow-support-purchase-retry-v1";
   const BILLING_HISTORY_CACHE_KEY = "reverse-flow-store-support-history-v2";
+  const LEGACY_GOOGLE_SUBSCRIPTION_PRODUCTS = Object.freeze({
+    support_reverse_flow_monthly_3: {
+      basePlanId: "monthly-3",
+      monthlyAmount: 3
+    },
+    support_reverse_flow_monthly_10: {
+      basePlanId: "monthly-10",
+      monthlyAmount: 10
+    }
+  });
   const PENDING_REGISTRATION_STATUSES = new Set([
     "not-attempted",
     "verification-started",
@@ -918,6 +928,8 @@
       this.receivedTransactionKeys = new Set();
       this.completedTransactionKeys = new Set();
       this.reconciliationRequests = new Map();
+      this.googleAcknowledgmentRequests = new Map();
+      this.googleSubscriptionFinalizingKeys = new Set();
       this.acknowledgedTransactionKeys = new Set();
       this.finishedTransactionKeys = new Set();
       this.supportUiState = SUPPORT_UI_STATES.NOT_SUPPORTER;
@@ -1128,6 +1140,9 @@
       await this.initialize();
       if (typeof this.store?.update === "function") {
         await this.store.update();
+      }
+      if (getPlatform() === "android") {
+        await this.reconcileGooglePlaySubscriptions();
       }
       return this.deriveBillingState();
     }
@@ -1350,11 +1365,16 @@
 
     supportProductIds(platform = getPlatform()) {
       const storeKey = platform === "ios" ? "apple" : platform === "android" ? "google" : platform;
-      return new Set(
+      const ids = new Set(
         Object.values(this.config[storeKey] || {})
           .map(value => typeof value === "string" ? value : value?.productId)
           .filter(Boolean)
       );
+      if (storeKey === "google") {
+        Object.keys(LEGACY_GOOGLE_SUBSCRIPTION_PRODUCTS)
+          .forEach(productId => ids.add(productId));
+      }
+      return ids;
     }
 
     transactionProductId(transaction) {
@@ -1383,16 +1403,27 @@
           )
         ) || option;
       const nativePurchase = transaction?.nativePurchase || {};
+      const legacyGoogleSubscription =
+        getPlatform() === "android"
+          ? LEGACY_GOOGLE_SUBSCRIPTION_PRODUCTS[productIdentifier] || null
+          : null;
       return {
         paymentSource: getPlatform(),
         productIdentifier,
-        purchaseType: configuredOption?.type || option?.type || null,
-        monthlyAmount: configuredOption?.type === "monthly"
-          ? configuredOption.amount
-          : null,
-        basePlanId:
+        purchaseType:
+          configuredOption?.type ||
+          option?.type ||
+          (legacyGoogleSubscription ? "monthly" : null),
+        monthlyAmount:
           configuredOption?.type === "monthly"
-            ? basePlanId || configuredOption?.basePlanId || null
+            ? configuredOption.amount
+            : legacyGoogleSubscription?.monthlyAmount || null,
+        basePlanId:
+          configuredOption?.type === "monthly" || legacyGoogleSubscription
+            ? basePlanId ||
+              configuredOption?.basePlanId ||
+              legacyGoogleSubscription?.basePlanId ||
+              null
             : null,
         transactionId: transaction?.transactionId || null,
         originalTransactionId:
@@ -1559,9 +1590,25 @@
             retryable: true
           });
         } catch (error) {
-          this.receivedTransactionKeys.delete(key);
-          waiter.reject(error);
-          return true;
+          this.logTransaction(
+            "support-pending-state-write-deferred",
+            evidence,
+            {
+              stage: "local-persistence",
+              failureCategory:
+                error?.code || "pending_state_write_failed",
+              localPendingStateWritten: false,
+              retryable: true
+            }
+          );
+          if (
+            evidence.paymentSource !== "android" ||
+            evidence.purchaseType !== "monthly"
+          ) {
+            this.receivedTransactionKeys.delete(key);
+            waiter.reject(error);
+            return true;
+          }
         }
         waiter.resolve(evidence);
       } else if (kind === "pending") {
@@ -1636,8 +1683,48 @@
               lifecycle: "approved-redelivery"
             });
             if (this.receivedTransactionKeys.has(key)) {
+              if (
+                evidence.paymentSource === "android" &&
+                evidence.purchaseType === "monthly" &&
+                evidence.acknowledged !== true
+              ) {
+                void this.completeApprovedPurchase(evidence).catch(error => {
+                  this.logTransaction(
+                    "google-purchase-acknowledgment-deferred",
+                    evidence,
+                    {
+                      stage: "approved-redelivery",
+                      failureCategory:
+                        error?.code || "google_acknowledgment_failed",
+                      retryable: true,
+                      acknowledgmentAttempted: true
+                    }
+                  );
+                });
+              }
               this.logTransaction("store-transaction-duplicate-ignored", evidence, {
                 lifecycle: "approved-redelivery"
+              });
+              return;
+            }
+            if (
+              evidence.paymentSource === "android" &&
+              evidence.purchaseType === "monthly"
+            ) {
+              this.receivedTransactionKeys.add(key);
+              void this.completeApprovedPurchase(evidence).catch(error => {
+                this.receivedTransactionKeys.delete(key);
+                this.logTransaction(
+                  "google-purchase-acknowledgment-deferred",
+                  evidence,
+                  {
+                    stage: "approved-redelivery",
+                    failureCategory:
+                      error?.code || "google_acknowledgment_failed",
+                    retryable: true,
+                    acknowledgmentAttempted: true
+                  }
+                );
               });
               return;
             }
@@ -1711,6 +1798,9 @@
         }, "reverseFlowSupportPending");
       storeCallbacks.receiptUpdated?.(() => {
         this.notify();
+        if (getPlatform() === "android") {
+          void this.reconcileGooglePlaySubscriptions();
+        }
         if (this.readPendingRegistration()) {
           void this.recoverPendingRegistration();
         }
@@ -1828,6 +1918,8 @@
         this.migrateSupportEnvironment();
         if (platform === "ios") {
           void this.recoverUnfinishedConsumable({ automatic: true });
+        } else if (platform === "android") {
+          void this.reconcileGooglePlaySubscriptions();
         }
         void this.recoverPendingRegistration();
       })().catch(error => {
@@ -1857,6 +1949,15 @@
             "This support option is temporarily unavailable from the store.",
             "product_unavailable"
           );
+        }
+        if (platform === "google" && current.type === "monthly") {
+          await this.reconcileGooglePlaySubscriptions({ refresh: true });
+          if (this.hasUnacknowledgedGoogleSubscriptions()) {
+            throw new SupportPurchaseError(
+              "Finalizing your subscription…",
+              "google_subscription_finalizing"
+            );
+          }
         }
 
         const replacementData = await this.prepareSubscriptionReplacement(
@@ -1958,6 +2059,76 @@
       });
     }
 
+    allGoogleSubscriptionEvidence() {
+      if (getPlatform() !== "android") return [];
+      const seen = new Set();
+      return this.allSupportTransactions()
+        .map(transaction => this.transactionEvidence(transaction))
+        .filter(evidence =>
+          evidence.paymentSource === "android" &&
+          evidence.purchaseType === "monthly" &&
+          Boolean(evidence.purchaseToken) &&
+          evidence.transaction?.isPending !== true &&
+          ["1", "approved", "purchased", "finished"].includes(
+            evidence.purchaseState
+          )
+        )
+        .filter(evidence => {
+          const key = this.transactionKey(evidence);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .sort((left, right) =>
+          Date.parse(left.purchaseTimestamp || 0) -
+          Date.parse(right.purchaseTimestamp || 0)
+        );
+    }
+
+    unacknowledgedGoogleSubscriptions() {
+      return this.allGoogleSubscriptionEvidence().filter(evidence =>
+        evidence.acknowledged !== true &&
+        !this.acknowledgedTransactionKeys.has(this.transactionKey(evidence))
+      );
+    }
+
+    hasUnacknowledgedGoogleSubscriptions() {
+      return this.googleSubscriptionFinalizingKeys.size > 0 ||
+        this.unacknowledgedGoogleSubscriptions().length > 0;
+    }
+
+    async reconcileGooglePlaySubscriptions({ refresh = false } = {}) {
+      if (getPlatform() !== "android" || !this.store) {
+        return { discovered: 0, acknowledged: 0, unresolved: 0 };
+      }
+      if (refresh && typeof this.store.update === "function") {
+        await this.store.update();
+      }
+      const purchases = this.unacknowledgedGoogleSubscriptions();
+      const results = [];
+      for (const evidence of purchases) {
+        try {
+          results.push({
+            status: "fulfilled",
+            value: await this.completeApprovedPurchase(evidence)
+          });
+        } catch (reason) {
+          results.push({ status: "rejected", reason });
+        }
+      }
+      const summary = {
+        discovered: purchases.length,
+        acknowledged: results.filter(result =>
+          result.status === "fulfilled"
+        ).length,
+        unresolved: results.filter(result =>
+          result.status === "rejected"
+        ).length
+      };
+      this.notify();
+      return summary;
+    }
+
     activeRecurringPurchaseEvidence(productId) {
       return this.activeRecurringPurchaseEvidenceList()
         .find(evidence =>
@@ -1984,6 +2155,13 @@
       }
       if (typeof this.store?.restorePurchases === "function") {
         await this.store.restorePurchases();
+      }
+      await this.reconcileGooglePlaySubscriptions();
+      if (this.hasUnacknowledgedGoogleSubscriptions()) {
+        throw new SupportPurchaseError(
+          "Finalizing your subscription…",
+          "google_subscription_finalizing"
+        );
       }
       const active = this.activeRecurringPurchaseEvidenceList();
       const current = active.find(evidence =>
@@ -2187,33 +2365,33 @@
       if (verifiedPurchase?.paymentSource !== "android") {
         return false;
       }
-      const pendingStore = this.retryStoreForEvidence(verifiedPurchase);
-      const pending = pendingStore.read();
-      if (
-        completion.storeApproved !== true ||
-        completion.pendingPersisted !== true ||
-        !pending ||
-        !this.transactionMatchesPending(verifiedPurchase, pending)
-      ) {
+      if (completion.storeApproved !== true) {
         this.logTransaction(
           "google-purchase-acknowledgment-deferred",
           verifiedPurchase,
           {
             stage: "store-acknowledgment",
             backendOutcome: "deferred",
-            failureCategory:
-              completion.storeApproved === true
-                ? "durable_pending_state_unavailable"
-                : "store_approval_not_confirmed",
+            failureCategory: "store_approval_not_confirmed",
             retryable: true,
-            localPendingStateWritten:
-              completion.pendingPersisted === true,
+            localPendingStateWritten: null,
             acknowledgmentAttempted: false
           }
         );
         throw new SupportPurchaseError(
-          "The approved Google Play purchase must be saved on this device before acknowledgment.",
+          "Google Play has not approved this purchase yet.",
           "google_acknowledgment_preconditions_not_met"
+        );
+      }
+      if (
+        verifiedPurchase.purchaseState &&
+        !["1", "approved", "purchased", "finished"].includes(
+          verifiedPurchase.purchaseState
+        )
+      ) {
+        throw new SupportPurchaseError(
+          "Google Play has not completed this purchase yet.",
+          "google_purchase_not_completed"
         );
       }
       const transactionKey = this.transactionKey(verifiedPurchase);
@@ -2239,63 +2417,82 @@
         );
         return false;
       }
+      const existingRequest =
+        this.googleAcknowledgmentRequests.get(transactionKey);
+      if (existingRequest) return existingRequest;
       if (typeof verifiedPurchase?.transaction?.finish !== "function") {
         throw new SupportPurchaseError(
           "Your support is saved and Google Play acknowledgment will retry automatically.",
           "google_acknowledgment_unavailable"
         );
       }
-      this.logTransaction(
-        "google-purchase-acknowledgment-attempted",
-        verifiedPurchase,
-        {
-          stage: "store-acknowledgment",
-          acknowledgmentAttempted: true,
-          retryable: true
+      const acknowledgment = (async () => {
+        if (verifiedPurchase.purchaseType === "monthly") {
+          this.googleSubscriptionFinalizingKeys.add(transactionKey);
+          this.notify();
         }
-      );
-      try {
-        if (this.isOneTimeEvidence(verifiedPurchase)) {
-          await this.acknowledgeGoogleOneTimePurchase(verifiedPurchase);
-        } else {
-          await verifiedPurchase.transaction.finish();
-          this.finishedTransactionKeys.add(transactionKey);
-        }
-      } catch (error) {
         this.logTransaction(
-          "google-purchase-acknowledgment-deferred",
+          "google-purchase-acknowledgment-attempted",
           verifiedPurchase,
           {
             stage: "store-acknowledgment",
-          backendOutcome: "deferred",
-          acknowledgmentResult: "failed-retryable",
-            failureCategory:
-              error?.code || "google_acknowledgment_failed",
+            acknowledgmentAttempted: true,
             retryable: true,
-            localPendingStateWritten: true,
-            acknowledgmentAttempted: true
           }
         );
-        throw error;
-      }
-      verifiedPurchase.acknowledged = true;
-      this.acknowledgedTransactionKeys.add(transactionKey);
-      this.markPendingAttempt(
-        verifiedPurchase,
-        "store-approved"
-      );
-      this.logTransaction(
-        "google-purchase-acknowledgment-succeeded",
-        verifiedPurchase,
-        {
-          stage: "store-acknowledgment",
-          backendOutcome: "success",
-          acknowledgmentResult: "succeeded",
-          acknowledgmentAttempted: true,
-          retryable: false
+        try {
+          if (this.isOneTimeEvidence(verifiedPurchase)) {
+            await this.acknowledgeGoogleOneTimePurchase(verifiedPurchase);
+          } else {
+            await verifiedPurchase.transaction.finish();
+            this.finishedTransactionKeys.add(transactionKey);
+          }
+        } catch (error) {
+          this.logTransaction(
+            "google-purchase-acknowledgment-deferred",
+            verifiedPurchase,
+            {
+              stage: "store-acknowledgment",
+              backendOutcome: "deferred",
+              acknowledgmentResult: "failed-retryable",
+              failureCategory:
+                error?.code || "google_acknowledgment_failed",
+              retryable: true,
+              localPendingStateWritten: null,
+              acknowledgmentAttempted: true
+            }
+          );
+          throw error;
         }
+        verifiedPurchase.acknowledged = true;
+        this.acknowledgedTransactionKeys.add(transactionKey);
+        try {
+          this.markPendingAttempt(verifiedPurchase, "store-approved");
+        } catch {
+          // Store completion is intentionally independent of local retry state.
+        }
+        this.logTransaction(
+          "google-purchase-acknowledgment-succeeded",
+          verifiedPurchase,
+          {
+            stage: "store-acknowledgment",
+            backendOutcome: "success",
+            acknowledgmentResult: "succeeded",
+            acknowledgmentAttempted: true,
+            retryable: false
+          }
+        );
+        return true;
+      })().finally(() => {
+        this.googleAcknowledgmentRequests.delete(transactionKey);
+        this.googleSubscriptionFinalizingKeys.delete(transactionKey);
+        this.notify();
+      });
+      this.googleAcknowledgmentRequests.set(
+        transactionKey,
+        acknowledgment
       );
-      return true;
+      return acknowledgment;
     }
 
     async acknowledgeVerifiedPendingSubscription(
@@ -2354,14 +2551,10 @@
 
     async completeApprovedPurchase(evidence) {
       return this.reconcileTransaction(evidence, async () => {
-        const pendingPersisted = Boolean(
-          this.retryStoreForEvidence(evidence).read()
-        );
         this.recordBillingHistory(evidence);
         if (evidence?.paymentSource === "android") {
           await this.acknowledgeVerifiedGooglePurchase(evidence, {
-            storeApproved: true,
-            pendingPersisted
+            storeApproved: true
           });
         }
         await this.finishPurchase(evidence, {
@@ -2612,10 +2805,7 @@
         await this.acknowledgeVerifiedGooglePurchase(
           verifiedPurchase,
           {
-            storeApproved: true,
-            pendingPersisted: Boolean(
-              this.retryStoreForEvidence(verifiedPurchase).read()
-            )
+            storeApproved: true
           }
         );
         if (this.isOneTimeEvidence(verifiedPurchase)) {
@@ -2912,6 +3102,9 @@
       options,
       state.contribution
     );
+    const googleSubscriptionFinalizing =
+      platform === "android" &&
+      purchaseService.hasUnacknowledgedGoogleSubscriptions();
     container.innerHTML = "";
 
     options.forEach(option => {
@@ -2931,6 +3124,7 @@
         option.state !== "ready" ||
         isPendingProduct ||
         isCurrentMonthly ||
+        (option.type === "monthly" && googleSubscriptionFinalizing) ||
         option.repurchaseRestricted;
       const label = document.createElement("span");
       label.className = "support-option-label";
@@ -2944,6 +3138,8 @@
       availability.textContent =
         isPendingProduct
           ? "Finishing your support…"
+          : option.type === "monthly" && googleSubscriptionFinalizing
+            ? "Finalizing your subscription…"
           : isCurrentMonthly
             ? "Current monthly support"
             : option.repurchaseRestricted
@@ -2993,6 +3189,7 @@
             option.state !== "ready" ||
             isPendingProduct ||
             isCurrentMonthly ||
+            (option.type === "monthly" && googleSubscriptionFinalizing) ||
             option.repurchaseRestricted;
         }
       });
@@ -3041,6 +3238,9 @@
     const hasMultipleActiveSubscriptions =
       state.contribution?.multipleActiveSubscriptions === true ||
       locallyActivePurchases.size > 1;
+    const googleSubscriptionFinalizing =
+      platform === "android" &&
+      purchaseService.hasUnacknowledgedGoogleSubscriptions();
     if (locallyActivePurchases.size > 1) {
       const activeBasePlans = new Set(
         purchaseService.activeRecurringPurchaseEvidenceList()
@@ -3068,8 +3268,12 @@
       button.textContent = option.localizedPrice
         ? `Change to ${option.localizedPrice}/month`
         : "Change Monthly Support";
+      if (googleSubscriptionFinalizing) {
+        button.textContent = "Finalizing your subscription…";
+      }
       button.disabled =
         option.state !== "ready" ||
+        googleSubscriptionFinalizing ||
         hasMultipleActiveSubscriptions ||
         Boolean(scheduledProductId) ||
         (
@@ -3105,6 +3309,7 @@
           button.dataset.purchasing = "false";
           button.disabled =
             option.state !== "ready" ||
+            googleSubscriptionFinalizing ||
             hasMultipleActiveSubscriptions ||
             Boolean(scheduledProductId) ||
             (
@@ -4051,7 +4256,11 @@
       }
     };
     const completePurchase = async evidence => {
-      pageStatus.textContent = "Completing your store purchase…";
+      pageStatus.textContent =
+        evidence?.paymentSource === "android" &&
+        evidence?.purchaseType === "monthly"
+          ? "Finalizing your subscription…"
+          : "Completing your store purchase…";
       await purchaseService.completeApprovedPurchase(evidence);
       pageStatus.textContent = claimRecord.isSupporter
         ? "Thank you for continuing to support Reverse Flow."

@@ -306,7 +306,7 @@ test("native Version 2.0 Release values are intentional", () => {
     6
   );
   assert.match(constantsSource, /const APP_VERSION = "2\.0"/);
-  assert.match(androidBuildSource, /versionCode 144/);
+  assert.match(androidBuildSource, /versionCode 145/);
   assert.match(androidBuildSource, /versionName "2\.0"/);
 });
 
@@ -355,7 +355,7 @@ test("every Android device build packages Production", () => {
 test("environment diagnostic reports only privacy-safe Production identity", async () => {
   const calls = [];
   global.APP_VERSION = "2.0";
-  global.APP_BUILD_NUMBERS = { ios: "6", android: "144" };
+  global.APP_BUILD_NUMBERS = { ios: "6", android: "145" };
   const service = new SupporterRegistryService({
     environment: "production",
     baseUrls: { production: "https://reverse-flow.app" },
@@ -393,7 +393,7 @@ test("environment diagnostic reports only privacy-safe Production identity", asy
   assert.equal(diagnostic.resolvedApiOrigin, "https://reverse-flow.app");
   assert.equal(diagnostic.environmentCategory, "production");
   assert.equal(diagnostic.databaseEnvironmentIdentifier, "vbjhbqpvnfjfilntzdgk");
-  assert.equal(diagnostic.buildNumber, "144");
+  assert.equal(diagnostic.buildNumber, "145");
   assert.equal(calls.length, 1);
   assert.doesNotMatch(calls[0], /token|receipt|signature|email|orderId/i);
 });
@@ -641,7 +641,7 @@ test("Google one-time acknowledgment uses the native acknowledge action without 
   delete global.cordova;
 });
 
-test("Google purchase stays unacknowledged only until store approval and durable local state", async () => {
+test("Google purchase stays unacknowledged only until store approval", async () => {
   const fixture = createStore("android");
   installPurchaseGlobals("android", fixture.store);
   const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
@@ -773,6 +773,248 @@ test("relaunch rediscovers and acknowledges an unfinished Google subscription on
     afterRestart.deriveBillingState("android"),
     require("../www/js/services/supporter.js").BILLING_STATES.ACTIVE_MONTHLY_3
   );
+});
+
+test("Google subscription acknowledgment does not depend on local retry storage", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  let finishCalls = 0;
+  const service = new SupportPurchaseService(CONFIG, {
+    store: fixture.store,
+    subscriptionPendingStore: new PendingSupportRegistrationStore({
+      getItem() {
+        throw new Error("storage unavailable");
+      },
+      setItem() {
+        throw new Error("storage unavailable");
+      },
+      removeItem() {
+        throw new Error("storage unavailable");
+      }
+    }, "unavailable-subscription-storage")
+  });
+  const evidence = {
+    paymentSource: "android",
+    productIdentifier: "support_reverse_flow_subscription",
+    purchaseType: "monthly",
+    basePlanId: "monthly-3",
+    purchaseToken: "storage-independent-token",
+    purchaseTimestamp: "2026-07-24T12:00:00Z",
+    acknowledged: false,
+    transaction: {
+      async finish() {
+        finishCalls += 1;
+      }
+    }
+  };
+
+  assert.equal(await service.acknowledgeVerifiedGooglePurchase(evidence, {
+    storeApproved: true
+  }), true);
+  assert.equal(finishCalls, 1);
+  assert.equal(evidence.acknowledged, true);
+});
+
+test("Google reconciliation acknowledges every returned subscription token exactly once", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const finishCalls = new Map();
+  const makeTransaction = (token, offerId) => ({
+    platform: "android-playstore",
+    state: "approved",
+    products: [{
+      id: "support_reverse_flow_subscription",
+      offerId
+    }],
+    purchaseId: token,
+    purchaseDate: new Date("2026-07-24T12:00:00Z"),
+    nativePurchase: {
+      purchaseToken: token,
+      acknowledged: false
+    },
+    async finish() {
+      finishCalls.set(token, (finishCalls.get(token) || 0) + 1);
+    }
+  });
+  fixture.store.localTransactions.push(
+    makeTransaction(
+      "source-plan-token",
+      "support_reverse_flow_subscription@monthly-3"
+    ),
+    makeTransaction(
+      "replacement-plan-token",
+      "support_reverse_flow_subscription@monthly-10"
+    )
+  );
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+
+  await service.initialize();
+  await service.reconcileGooglePlaySubscriptions();
+  await service.reconcileGooglePlaySubscriptions();
+
+  assert.deepEqual(
+    [...finishCalls.entries()].sort(),
+    [
+      ["replacement-plan-token", 1],
+      ["source-plan-token", 1]
+    ]
+  );
+  assert.equal(service.hasUnacknowledgedGoogleSubscriptions(), false);
+});
+
+test("Google reconciliation never acknowledges a pending subscription", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  let finishCalls = 0;
+  fixture.store.localTransactions.push({
+    platform: "android-playstore",
+    state: "pending",
+    isPending: true,
+    products: [{
+      id: "support_reverse_flow_subscription",
+      offerId: "support_reverse_flow_subscription@monthly-3"
+    }],
+    purchaseId: "pending-subscription-token",
+    nativePurchase: {
+      purchaseToken: "pending-subscription-token",
+      purchaseState: 2,
+      acknowledged: false
+    },
+    async finish() {
+      finishCalls += 1;
+    }
+  });
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+
+  await service.initialize();
+  const result = await service.reconcileGooglePlaySubscriptions();
+
+  assert.deepEqual(result, {
+    discovered: 0,
+    acknowledged: 0,
+    unresolved: 0
+  });
+  assert.equal(finishCalls, 0);
+});
+
+test("Google reconciliation acknowledges legacy monthly product IDs without offering them", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  const acknowledged = [];
+  for (const [productId, token] of [
+    ["support_reverse_flow_monthly_3", "legacy-monthly-3-token"],
+    ["support_reverse_flow_monthly_10", "legacy-monthly-10-token"]
+  ]) {
+    fixture.store.localTransactions.push({
+      platform: "android-playstore",
+      state: "approved",
+      products: [{ id: productId }],
+      purchaseId: token,
+      purchaseDate: new Date("2026-07-24T12:00:00Z"),
+      nativePurchase: {
+        purchaseToken: token,
+        acknowledged: false
+      },
+      async finish() {
+        acknowledged.push(productId);
+      }
+    });
+  }
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+
+  await service.initialize();
+  await service.reconcileGooglePlaySubscriptions();
+
+  assert.deepEqual(acknowledged.sort(), [
+    "support_reverse_flow_monthly_10",
+    "support_reverse_flow_monthly_3"
+  ]);
+  assert.equal(
+    fixture.registered.some(item =>
+      item.id === "support_reverse_flow_monthly_3" ||
+      item.id === "support_reverse_flow_monthly_10"
+    ),
+    false
+  );
+});
+
+test("duplicate Google subscription callbacks share one acknowledgment request", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  let finishCalls = 0;
+  let releaseFinish;
+  const finishGate = new Promise(resolve => {
+    releaseFinish = resolve;
+  });
+  const evidence = {
+    paymentSource: "android",
+    productIdentifier: "support_reverse_flow_subscription",
+    purchaseType: "monthly",
+    basePlanId: "monthly-3",
+    purchaseToken: "duplicate-callback-token",
+    purchaseTimestamp: "2026-07-24T12:00:00Z",
+    acknowledged: false,
+    transaction: {
+      async finish() {
+        finishCalls += 1;
+        await finishGate;
+      }
+    }
+  };
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+
+  const first = service.acknowledgeVerifiedGooglePurchase(evidence, {
+    storeApproved: true
+  });
+  const duplicate = service.acknowledgeVerifiedGooglePurchase(evidence, {
+    storeApproved: true
+  });
+  releaseFinish();
+
+  assert.equal(await first, true);
+  assert.equal(await duplicate, true);
+  assert.equal(finishCalls, 1);
+});
+
+test("plan change remains blocked while a source Google subscription cannot be acknowledged", async () => {
+  const fixture = createStore("android");
+  installPurchaseGlobals("android", fixture.store);
+  let acknowledgmentAttempts = 0;
+  fixture.store.localTransactions.push({
+    platform: "android-playstore",
+    state: "approved",
+    products: [{
+      id: "support_reverse_flow_subscription",
+      offerId: "support_reverse_flow_subscription@monthly-3"
+    }],
+    purchaseId: "unresolved-source-token",
+    purchaseDate: new Date("2026-07-24T12:00:00Z"),
+    nativePurchase: {
+      purchaseToken: "unresolved-source-token",
+      acknowledged: false
+    },
+    async finish() {
+      acknowledgmentAttempts += 1;
+      throw Object.assign(new Error("temporary Play failure"), {
+        code: "temporary_store_failure"
+      });
+    }
+  });
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+  const target = service.getOptions("google")
+    .find(option => option.basePlanId === "monthly-10");
+
+  await assert.rejects(
+    service.purchase(target, {
+      currentRecurringProductId: "support_reverse_flow_subscription",
+      currentBasePlanId: "monthly-3",
+      currentMonthlyAmount: 3
+    }),
+    error => error.code === "google_subscription_finalizing"
+  );
+  assert.ok(acknowledgmentAttempts >= 1);
+  assert.equal(fixture.orders.length, 0);
 });
 
 test("approved Apple purchase completes after durable local store state", async () => {
@@ -934,14 +1176,18 @@ test("V2 presentation keeps store billing and Supporter claims independent", () 
   assert.match(analyticsSource, /if \(!isNativeApp\)/);
 });
 
-test("Google acknowledgment is gated by store approval and durable local state", () => {
+test("Google acknowledgment is gated only by Google Play approval", () => {
   assert.match(
     supporterServiceSource,
     /async acknowledgeVerifiedGooglePurchase/
   );
   assert.match(
     supporterServiceSource,
-    /completion\.storeApproved !== true[\s\S]{0,220}completion\.pendingPersisted !== true/
+    /if \(completion\.storeApproved !== true\)/
+  );
+  assert.doesNotMatch(
+    supporterServiceSource,
+    /completion\.pendingPersisted !== true|durable_pending_state_unavailable/
   );
   assert.doesNotMatch(
     supporterServiceSource,
@@ -1348,7 +1594,7 @@ test("subscription refresh returns only recurring support and management opens n
   });
 });
 
-test("fresh-install restored subscriptions recreate registration state on iOS and Android", async () => {
+test("fresh-install restored subscriptions use registration recovery only on iOS", async () => {
   for (const platform of ["ios", "android"]) {
     const fixture = createStore(platform);
     installPurchaseGlobals(platform, fixture.store);
@@ -1383,12 +1629,18 @@ test("fresh-install restored subscriptions recreate registration state on iOS an
 
     fixture.callbacks.approved(transaction);
 
-    assert.equal(recovered.length, 1);
-    assert.equal(recovered[0].recoverySource, "store-restored-subscription");
-    assert.equal(
-      service.readPendingSubscriptionRegistration().productId,
-      option.productId
-    );
+    if (platform === "ios") {
+      assert.equal(recovered.length, 1);
+      assert.equal(recovered[0].recoverySource, "store-restored-subscription");
+      assert.equal(
+        service.readPendingSubscriptionRegistration().productId,
+        option.productId
+      );
+    } else {
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(recovered.length, 0);
+      assert.equal(service.readPendingSubscriptionRegistration(), null);
+    }
   }
 });
 
