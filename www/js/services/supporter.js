@@ -56,7 +56,7 @@
   const ACTION_CONTENT = Object.freeze({
     [ACTIONS.BECOME]: {
       label: "Become a Supporter",
-      message: "Help fund continued development and keep Reverse Flow growing."
+      message: "Join the community helping shape and sustain what Reverse Flow becomes next."
     },
     [ACTIONS.CLAIM]: {
       label: "Claim Supporter Status",
@@ -64,7 +64,7 @@
     },
     [ACTIONS.CONTINUE]: {
       label: "Continue Supporting",
-      message: "Thank you for supporting Reverse Flow. Help fund what comes next."
+      message: "Thank you for helping build the project. Continue shaping what comes next."
     },
     [ACTIONS.MANAGE]: {
       label: "Manage Support",

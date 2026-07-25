@@ -21,11 +21,19 @@ test("production save, load, and export paths do not check legacy eligibility", 
 
 test("main app exposes one centralized support action and no access ribbons", () => {
   const html = read("www/index.html");
+  const settings = read("www/settings.html");
   assert.equal((html.match(/data-support-action/g) || []).length, 1);
   assert.equal((html.match(/data-support-card/g) || []).length, 1);
   assert.match(html, /<\/header>\s*<a[\s\S]*class="support-action-bar"[\s\S]*<\/a>\s*<main>/);
   assert.doesNotMatch(html, /data-support-message|support-eyebrow|support-card-message/);
   assert.doesNotMatch(html, /mode-card-pro|Upgrade to Pro|Restore Purchase|Buy Pro|Go Pro/i);
+  for (const surface of [html, settings]) {
+    assert.match(
+      surface,
+      /Reverse Flow is a community project built by firefighters, with firefighters, for firefighters\./
+    );
+    assert.match(surface, /This app is one outcome of that project/);
+  }
 });
 
 test("support UI uses one compact action, live store options, and approved copy", () => {
@@ -45,6 +53,21 @@ test("support UI uses one compact action, live store options, and approved copy"
   assert.match(supportHtml, />Check Previous PRO Purchase</);
   assert.match(supportHtml, /Claim Supporter Status/);
   assert.match(supportHtml, />Recover My Supporter Status</);
+  assert.match(
+    supportHtml,
+    /A community project built by firefighters, with firefighters, for firefighters\./
+  );
+  assert.match(supportHtml, /How Supporters Contribute/);
+  assert.match(supportHtml, /Share operational experience/);
+  assert.match(supportHtml, /Sustain the project/);
+  assert.match(
+    supporter,
+    /Join the community helping shape and sustain what Reverse Flow becomes next\./
+  );
+  assert.doesNotMatch(
+    bundledSupportSources,
+    /help fund continued development|help fund what comes next|opportunities to influence development/i
+  );
   assert.match(
     supportHtml,
     /Having trouble with your subscription\? Refresh status/
