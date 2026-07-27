@@ -1135,21 +1135,35 @@ test("failed store finish retains the pending marker for retry", async () => {
 });
 
 test("V2 presentation keeps store billing and Supporter claims independent", () => {
-  assert.match(supportPageSource, /Be Recognized as a Supporter/);
+  assert.match(supportPageSource, /Join the Supporter Community/);
   assert.match(
     supportPageSource,
     /Community Recognition/
   );
+  assert.doesNotMatch(supportPageSource, /type="checkbox"|name="publicRecognition"/);
+  assert.match(supporterServiceSource, /public:\s*true/);
   assert.match(
     supportPageSource,
-    /name="publicRecognition" type="checkbox" checked/
-  );
-  assert.match(
-    supporterServiceSource,
-    /public:\s*claimForm\.elements\.publicRecognition\?\.checked !== false/
+    /By joining, your name will be added to the public Reverse Flow Supporter Registry\. You may request removal at any time\./
   );
   assert.match(supportPageSource, /Department \/ Organization/);
   assert.match(supportPageSource, /View Supporter Registry/);
+  const purchaseCompletionStart = supporterServiceSource.indexOf(
+    "const completePurchase = async evidence =>"
+  );
+  const purchaseCompletionEnd = supporterServiceSource.indexOf(
+    "renderSimplifiedSupportActions(",
+    purchaseCompletionStart
+  );
+  const purchaseCompletionSource = supporterServiceSource.slice(
+    purchaseCompletionStart,
+    purchaseCompletionEnd
+  );
+  assert.doesNotMatch(
+    purchaseCompletionSource,
+    /claimSupporter|registerVerifiedPurchase|writeConfirmed/,
+    "A completed purchase must not create or confirm Supporter membership"
+  );
   assert.match(
     supporterServiceSource,
     /function projectSupportPresentation/

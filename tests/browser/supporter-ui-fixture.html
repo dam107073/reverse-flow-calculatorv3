@@ -41,11 +41,11 @@
       <p id="supportSectionCopy"></p>
       <div class="support-options" id="supportActions"></div>
       <p class="helper support-renewal-disclosure" id="supportRenewalDisclosure">
-        Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Apple ID account. You can manage or cancel subscriptions in your App Store account settings.
+        Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Apple ID account. You can manage or cancel subscriptions in your App Store subscription settings.
       </p>
-      <nav class="support-legal-links" aria-label="Subscription legal information">
+      <nav class="support-legal-links" aria-label="Purchase legal information">
         <a href="https://reverse-flow.app/privacy.html" target="_blank" rel="noopener noreferrer external" aria-label="Open Privacy Policy">Privacy Policy</a>
-        <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener noreferrer external" aria-label="Open Terms of Use">Terms of Use</a>
+        <a id="appleStandardEulaLink" href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener noreferrer external" aria-label="Open Apple Standard EULA" hidden>Terms of Use (Apple Standard EULA)</a>
       </nav>
       <p id="supportProductsUnavailable">Unavailable in this test fixture.</p>
     </section>
@@ -53,8 +53,8 @@
     <section class="card" id="communityRecognitionSection">
       <p class="support-section-kicker">Community Recognition</p>
       <div id="unclaimedSupporterState">
-        <h2>Be Recognized as a Supporter</h2>
-        <p>Thank you for supporting Reverse Flow. Share your name so we can recognize you as part of the community.</p>
+        <h2>Join the Supporter Community</h2>
+        <p>Add your name to the public Reverse Flow Supporter Registry and become part of the community helping shape what comes next.</p>
         <form id="supporterClaimForm" class="support-identity-form" novalidate>
         <label for="supporterFullName">Name</label>
         <input id="supporterFullName" name="fullName" type="text" required />
@@ -62,17 +62,14 @@
         <input id="supporterEmail" name="email" type="email" required />
         <label for="supporterOrganization">Department / Organization</label>
         <input id="supporterOrganization" name="organization" />
-        <label class="support-public-recognition">
-          <input name="publicRecognition" type="checkbox" checked />
-          <span>List my name in the public Supporter Registry.</span>
-        </label>
-        <button class="support-primary-action" type="submit">Recognize My Support</button>
+        <p class="helper support-public-note">By joining, your name will be added to the public Reverse Flow Supporter Registry. You may request removal at any time. Your email is used to confirm your claim and is never displayed publicly.</p>
+        <button class="support-primary-action" type="submit">Join the Supporter Community</button>
         <p id="supporterClaimStatus" class="support-status" role="status"></p>
         </form>
       </div>
       <div id="claimedSupporterState" hidden>
-        <h2>Thank You for Supporting Reverse Flow</h2>
-        <p>You’re recognized as part of the Reverse Flow community.</p>
+        <h2>Welcome to the Supporter Community</h2>
+        <p>Your name is included in the public Reverse Flow Supporter Registry.</p>
         <span class="supporter-badge" data-supporter-badge hidden>❤️ Supporter</span>
         <a href="https://reverse-flow.app/supporters/">View Supporter Registry</a>
       </div>

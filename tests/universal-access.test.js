@@ -60,15 +60,23 @@ test("support UI uses one compact action, live store options, and approved copy"
     /Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period\./
   );
   assert.match(supportHtml, /href="https:\/\/reverse-flow\.app\/privacy\.html"[\s\S]*>Privacy Policy<\/a>/);
-  assert.match(supportHtml, /href="https:\/\/www\.apple\.com\/legal\/internet-services\/itunes\/dev\/stdeula\/"[\s\S]*>Terms of Use<\/a>/);
-  assert.match(supportHtml, /name="publicRecognition" type="checkbox" checked/);
+  assert.match(supportHtml, /id="appleStandardEulaLink"[\s\S]*href="https:\/\/www\.apple\.com\/legal\/internet-services\/itunes\/dev\/stdeula\/"[\s\S]*hidden[\s\S]*>Terms of Use \(Apple Standard EULA\)<\/a>/);
+  assert.doesNotMatch(supportHtml, /type="checkbox"|name="publicRecognition"/);
+  assert.match(
+    supportHtml,
+    /By joining, your name will be added to the public Reverse Flow Supporter Registry\. You may request removal at any time\./
+  );
+  assert.match(supporter, /public:\s*true/);
+  assert.match(supporter, /appleStandardEulaLink\.hidden = platform !== "ios"/);
+  assert.match(supporter, /Google Play subscription settings/);
+  assert.match(supporter, /App Store subscription settings/);
   assert.match(supporter, /supportTitle\.textContent = "Support the Project"/);
   assert.match(
     supporter,
     /supportCopy\.textContent =\s*"If Reverse Flow has helped you, your support helps keep every tool available to the fire service\."/
   );
   assert.doesNotMatch(supporter, /Coming Soon/);
-  assert.match(supportHtml, /Be Recognized as a Supporter/);
+  assert.match(supportHtml, /Join the Supporter Community/);
   assert.match(supportHtml, /Department \/ Organization/);
   assert.match(
     supportHtml,
@@ -104,7 +112,7 @@ test("support UI uses one compact action, live store options, and approved copy"
     ),
     /registerVerifiedPurchase|verifyPendingPurchase/
   );
-  assert.match(supportHtml, /Recognize My Support/);
+  assert.match(supportHtml, /Join the Supporter Community/);
   assert.match(supportCss, /\.support-action-bar\s*\{[\s\S]*min-height:\s*46px/);
   assert.match(
     supportCss,

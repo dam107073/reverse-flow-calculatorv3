@@ -1868,7 +1868,7 @@
         this.waiters.delete(productId);
         clearTimeout(waiter.timeout);
         waiter.reject(new SupportPurchaseError(
-          "This purchase is pending store approval. Supporter status will update after payment completes.",
+          "This purchase is pending store approval. Purchase status will update after payment completes.",
           "purchase_pending"
         ));
       } else {
@@ -3312,7 +3312,7 @@
           return;
         }
         throw new SupportPurchaseError(
-          "Your Supporter status is saved. We’ll finish this step automatically when the store is available.",
+          "Your purchase is saved. We’ll finish this step automatically when the store is available.",
           "consumable_finish_unavailable"
         );
       }
@@ -3327,7 +3327,7 @@
           const transaction = verifiedPurchase?.transaction;
           if (typeof transaction?.finish !== "function") {
             throw new SupportPurchaseError(
-              "Your Supporter status is saved. Google Play completion will retry automatically.",
+              "Your purchase is saved. Google Play completion will retry automatically.",
               "google_consumption_unavailable"
             );
           }
@@ -3374,7 +3374,7 @@
       const transaction = verifiedPurchase?.transaction;
       if (typeof transaction?.finish !== "function") {
         throw new SupportPurchaseError(
-          "Your Supporter status is saved. We’ll finish this step automatically when the store is available.",
+          "Your purchase is saved. We’ll finish this step automatically when the store is available.",
           "purchase_finish_unavailable"
         );
       }
@@ -3691,6 +3691,9 @@
     const renewalDisclosure = document.getElementById(
       "supportRenewalDisclosure"
     );
+    const appleStandardEulaLink = document.getElementById(
+      "appleStandardEulaLink"
+    );
     const pageStatus = document.getElementById("supportPageStatus");
     const unclaimedState = document.getElementById("unclaimedSupporterState");
     const claimedState = document.getElementById("claimedSupporterState");
@@ -3701,9 +3704,15 @@
     supportTitle.textContent = "Support the Project";
     supportCopy.textContent =
       "If Reverse Flow has helped you, your support helps keep every tool available to the fire service.";
-    if (renewalDisclosure && getPlatform() === "android") {
-      renewalDisclosure.textContent =
-        "Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Google Play account. You can manage or cancel subscriptions in your Google Play account settings.";
+    const platform = getPlatform();
+    if (renewalDisclosure) {
+      renewalDisclosure.hidden = platform !== "ios" && platform !== "android";
+      renewalDisclosure.textContent = platform === "android"
+        ? "Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Google Play account. You can manage or cancel subscriptions in your Google Play subscription settings."
+        : "Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Apple ID account. You can manage or cancel subscriptions in your App Store subscription settings.";
+    }
+    if (appleStandardEulaLink) {
+      appleStandardEulaLink.hidden = platform !== "ios";
     }
     unclaimedState.hidden = presentation.claimedSupporter;
     claimedState.hidden = !presentation.claimedSupporter;
@@ -3777,20 +3786,18 @@
           return;
         }
         submit.disabled = true;
-        status.textContent = "Claiming your Supporter status…";
+        status.textContent = "Joining the Supporter Community…";
         try {
           const confirmed = await registryService.claimSupporter({
             name,
             email,
-            public:
-              claimForm.elements.publicRecognition?.checked !== false
+            public: true
           });
           cache.writeConfirmed(confirmed, {
             email,
             platform: getPlatform()
           });
-          status.textContent =
-            "Your Supporter status has been claimed. Thank you.";
+          status.textContent = "You joined the Supporter Community.";
           renderSimplifiedSupportPage(cache, registryService, purchaseService);
         } catch (error) {
           status.textContent =

@@ -1680,6 +1680,10 @@
       text-underline-offset: 0.18em;
     }
 
+    .support-legal-links a[hidden] {
+      display: none;
+    }
+
     .support-legal-links a:focus-visible {
       outline: 3px solid #ffd3ad;
       outline-offset: 2px;
@@ -1700,26 +1704,9 @@
       min-height: 2.75rem;
     }
 
-    .support-public-recognition {
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      min-height: 44px;
-      font-weight: 750;
-      cursor: pointer;
-    }
-
-    .support-public-recognition input {
-      width: 20px;
-      min-width: 20px;
-      height: 20px;
-      min-height: 20px;
-      margin: 0;
-      accent-color: var(--support-accent-deep);
-    }
-
     .support-public-note {
-      margin: -0.35rem 0 0;
+      margin: 0.1rem 0 0;
+      line-height: 1.5;
     }
 
     .support-recognition-badge {
