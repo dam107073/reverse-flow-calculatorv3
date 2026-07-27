@@ -47,9 +47,9 @@ test("support UI uses one compact action, live store options, and approved copy"
     read("www/index.html")
   ].join("\n");
 
-  assert.match(supporter, /"One-Time Support — \$5"/);
-  assert.match(supporter, /"Monthly Support — \$3"/);
-  assert.match(supporter, /"Monthly Support — \$10"/);
+  assert.match(supporter, /oneTime\?\.label \|\| "One-Time Support"/);
+  assert.match(supporter, /monthly3\?\.label \|\| "Monthly Support"/);
+  assert.match(supporter, /monthly10\?\.label \|\| "Monthly Support"/);
   assert.match(supporter, /"Manage Subscription"/);
   assert.match(
     supporter,
@@ -57,8 +57,11 @@ test("support UI uses one compact action, live store options, and approved copy"
   );
   assert.match(
     supportHtml,
-    /Monthly support can be changed or cancelled at any time through your Apple or Google account\./
+    /Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period\./
   );
+  assert.match(supportHtml, /href="https:\/\/reverse-flow\.app\/privacy\.html"[\s\S]*>Privacy Policy<\/a>/);
+  assert.match(supportHtml, /href="https:\/\/www\.apple\.com\/legal\/internet-services\/itunes\/dev\/stdeula\/"[\s\S]*>Terms of Use<\/a>/);
+  assert.match(supportHtml, /name="publicRecognition" type="checkbox" checked/);
   assert.match(supporter, /supportTitle\.textContent = "Support the Project"/);
   assert.match(
     supporter,
@@ -86,7 +89,7 @@ test("support UI uses one compact action, live store options, and approved copy"
       supporter.indexOf("function renderSimplifiedSupportActions"),
       supporter.indexOf("function initialize()")
     )}`,
-    /Continue Supporting|localizedPrice|current plan|current support|upgrade|downgrade|scheduled|renewal|expiration/i
+    /Continue Supporting|current plan|current support|upgrade|downgrade|scheduled|expiration/i
   );
   assert.doesNotMatch(supporter, /confirmed\.welcomeEmailConfirmed !== true/);
   assert.doesNotMatch(

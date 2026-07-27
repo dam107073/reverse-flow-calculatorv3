@@ -468,20 +468,17 @@ test("simplified Manage renderer hides provider billing detail and raw exception
     supporterSource.indexOf("function renderSimplifiedSupportPage")
   );
   assert.match(manageRenderer, /"Manage Subscription"/);
-  assert.match(manageRenderer, /"One-Time Support — \$5"/);
-  assert.match(manageRenderer, /"Monthly Support — \$3"/);
-  assert.match(manageRenderer, /"Monthly Support — \$10"/);
   assert.match(
     manageRenderer,
-    /appendPurchaseButton\(oneTime, "One-Time Support — \$5"\)/
+    /appendPurchaseButton\(oneTime, oneTime\?\.label \|\| "One-Time Support"\)/
   );
   assert.match(
     manageRenderer,
-    /appendPurchaseButton\(monthly3, "Monthly Support — \$3"\)/
+    /appendPurchaseButton\(monthly3, monthly3\?\.label \|\| "Monthly Support"\)/
   );
   assert.match(
     manageRenderer,
-    /appendPurchaseButton\(monthly10, "Monthly Support — \$10"\)/
+    /appendPurchaseButton\(monthly10, monthly10\?\.label \|\| "Monthly Support"\)/
   );
   assert.doesNotMatch(
     manageRenderer,
@@ -490,7 +487,7 @@ test("simplified Manage renderer hides provider billing detail and raw exception
   assert.match(manageRenderer, /openNativeSubscriptionManagement/);
   assert.doesNotMatch(
     manageRenderer,
-    /localizedPrice|basePlanId|pendingSubscription|upgrade|downgrade|renewal/i
+    /basePlanId|pendingSubscription|upgrade|downgrade/i
   );
   assert.doesNotMatch(manageRenderer, /textContent\s*=\s*error\.message/);
   assert.match(manageRenderer, /safeStoreErrorMessage/);

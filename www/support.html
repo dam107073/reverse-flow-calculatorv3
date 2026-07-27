@@ -51,9 +51,23 @@
         If Reverse Flow has helped you, your support helps keep every tool available to the fire service.
       </p>
       <div class="support-options" id="supportActions"></div>
-      <p class="helper support-management-note">
-        Monthly support can be changed or cancelled at any time through your Apple or Google account.
+      <p class="helper support-renewal-disclosure" id="supportRenewalDisclosure">
+        Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Apple ID account. You can manage or cancel subscriptions in your App Store account settings.
       </p>
+      <nav class="support-legal-links" aria-label="Subscription legal information">
+        <a
+          href="https://reverse-flow.app/privacy.html"
+          target="_blank"
+          rel="noopener noreferrer external"
+          aria-label="Open Privacy Policy"
+        >Privacy Policy</a>
+        <a
+          href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+          target="_blank"
+          rel="noopener noreferrer external"
+          aria-label="Open Terms of Use"
+        >Terms of Use</a>
+      </nav>
       <p class="helper support-products-note" id="supportProductsUnavailable">
         Loading support options…
       </p>
@@ -73,6 +87,13 @@
           <input id="supporterEmail" name="email" type="email" inputmode="email" autocomplete="email" required />
           <label for="supporterOrganization">Department / Organization <span class="helper">(optional)</span></label>
           <input id="supporterOrganization" name="organization" type="text" autocomplete="organization" />
+          <label class="support-public-recognition">
+            <input name="publicRecognition" type="checkbox" checked />
+            <span>List my name in the public Supporter Registry.</span>
+          </label>
+          <p class="helper support-public-note">
+            Your email is used to confirm your claim and is never displayed publicly.
+          </p>
           <button class="support-primary-action" type="submit">Recognize My Support</button>
           <p id="supporterClaimStatus" class="support-status" role="status" aria-live="polite"></p>
         </form>

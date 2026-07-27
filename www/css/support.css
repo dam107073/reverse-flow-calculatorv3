@@ -1654,11 +1654,36 @@
       box-shadow: none;
     }
 
-    .support-management-note {
+    .support-renewal-disclosure {
       margin: 0.45rem 0 0;
       color: var(--muted);
       font-size: 0.78rem;
       line-height: 1.45;
+    }
+
+    .support-legal-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.9rem;
+      margin: 0.35rem 0 0;
+    }
+
+    .support-legal-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      color: var(--support-accent-deep);
+      font-size: 0.82rem;
+      font-weight: 850;
+      text-decoration: underline;
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.18em;
+    }
+
+    .support-legal-links a:focus-visible {
+      outline: 3px solid #ffd3ad;
+      outline-offset: 2px;
+      border-radius: 4px;
     }
 
     .support-products-note {
@@ -1673,6 +1698,28 @@
 
     .support-identity-form input {
       min-height: 2.75rem;
+    }
+
+    .support-public-recognition {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      min-height: 44px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .support-public-recognition input {
+      width: 20px;
+      min-width: 20px;
+      height: 20px;
+      min-height: 20px;
+      margin: 0;
+      accent-color: var(--support-accent-deep);
+    }
+
+    .support-public-note {
+      margin: -0.35rem 0 0;
     }
 
     .support-recognition-badge {
@@ -1744,7 +1791,8 @@
 
     html[data-resolved-theme="dark"] .support-kicker,
     html[data-resolved-theme="dark"] .support-section-kicker,
-    html[data-resolved-theme="dark"] .support-secondary-action {
+    html[data-resolved-theme="dark"] .support-secondary-action,
+    html[data-resolved-theme="dark"] .support-legal-links a {
       color: #ffb36f;
     }
 

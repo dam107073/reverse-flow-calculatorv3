@@ -39,10 +39,14 @@
       <p class="support-section-kicker">Support</p>
       <h2 id="supportSectionTitle">Become a Supporter</h2>
       <p id="supportSectionCopy"></p>
-      <div id="supportActions"></div>
-      <p class="helper support-management-note">
-        Monthly support can be changed or cancelled at any time through your Apple or Google account.
+      <div class="support-options" id="supportActions"></div>
+      <p class="helper support-renewal-disclosure" id="supportRenewalDisclosure">
+        Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Apple ID account. You can manage or cancel subscriptions in your App Store account settings.
       </p>
+      <nav class="support-legal-links" aria-label="Subscription legal information">
+        <a href="https://reverse-flow.app/privacy.html" target="_blank" rel="noopener noreferrer external" aria-label="Open Privacy Policy">Privacy Policy</a>
+        <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener noreferrer external" aria-label="Open Terms of Use">Terms of Use</a>
+      </nav>
       <p id="supportProductsUnavailable">Unavailable in this test fixture.</p>
     </section>
 
@@ -58,6 +62,10 @@
         <input id="supporterEmail" name="email" type="email" required />
         <label for="supporterOrganization">Department / Organization</label>
         <input id="supporterOrganization" name="organization" />
+        <label class="support-public-recognition">
+          <input name="publicRecognition" type="checkbox" checked />
+          <span>List my name in the public Supporter Registry.</span>
+        </label>
         <button class="support-primary-action" type="submit">Recognize My Support</button>
         <p id="supporterClaimStatus" class="support-status" role="status"></p>
         </form>

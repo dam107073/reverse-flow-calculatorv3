@@ -3644,9 +3644,9 @@
       container.appendChild(button);
     };
 
-    appendPurchaseButton(oneTime, "One-Time Support — $5");
-    appendPurchaseButton(monthly3, "Monthly Support — $3");
-    appendPurchaseButton(monthly10, "Monthly Support — $10");
+    appendPurchaseButton(oneTime, oneTime?.label || "One-Time Support");
+    appendPurchaseButton(monthly3, monthly3?.label || "Monthly Support");
+    appendPurchaseButton(monthly10, monthly10?.label || "Monthly Support");
     const manageButton = document.createElement("button");
     manageButton.type = "button";
     manageButton.className =
@@ -3688,6 +3688,9 @@
     const intro = document.getElementById("supportPageIntro");
     const supportTitle = document.getElementById("supportSectionTitle");
     const supportCopy = document.getElementById("supportSectionCopy");
+    const renewalDisclosure = document.getElementById(
+      "supportRenewalDisclosure"
+    );
     const pageStatus = document.getElementById("supportPageStatus");
     const unclaimedState = document.getElementById("unclaimedSupporterState");
     const claimedState = document.getElementById("claimedSupporterState");
@@ -3698,6 +3701,10 @@
     supportTitle.textContent = "Support the Project";
     supportCopy.textContent =
       "If Reverse Flow has helped you, your support helps keep every tool available to the fire service.";
+    if (renewalDisclosure && getPlatform() === "android") {
+      renewalDisclosure.textContent =
+        "Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Google Play account. You can manage or cancel subscriptions in your Google Play account settings.";
+    }
     unclaimedState.hidden = presentation.claimedSupporter;
     claimedState.hidden = !presentation.claimedSupporter;
 
@@ -3775,7 +3782,8 @@
           const confirmed = await registryService.claimSupporter({
             name,
             email,
-            public: true
+            public:
+              claimForm.elements.publicRecognition?.checked !== false
           });
           cache.writeConfirmed(confirmed, {
             email,

@@ -307,7 +307,7 @@ test("mobile supporter APIs contain only the canonical Production host", () => {
 
 test("native Version 2.0 Release values are intentional", () => {
   assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 8;/g) || []).length,
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 9;/g) || []).length,
     6
   );
   assert.equal(
@@ -315,7 +315,7 @@ test("native Version 2.0 Release values are intentional", () => {
     6
   );
   assert.match(constantsSource, /const APP_VERSION = "2\.0"/);
-  assert.match(androidBuildSource, /versionCode 146/);
+  assert.match(androidBuildSource, /versionCode 148/);
   assert.match(androidBuildSource, /versionName "2\.0"/);
 });
 
@@ -1140,13 +1140,13 @@ test("V2 presentation keeps store billing and Supporter claims independent", () 
     supportPageSource,
     /Community Recognition/
   );
-  assert.doesNotMatch(
+  assert.match(
     supportPageSource,
-    /publicRecognition|List my chosen name|type="checkbox"/
+    /name="publicRecognition" type="checkbox" checked/
   );
   assert.match(
     supporterServiceSource,
-    /claimSupporter\(\{\s*name,\s*email,\s*public: true\s*\}\)/
+    /public:\s*claimForm\.elements\.publicRecognition\?\.checked !== false/
   );
   assert.match(supportPageSource, /Department \/ Organization/);
   assert.match(supportPageSource, /View Supporter Registry/);
@@ -2137,14 +2137,16 @@ test("successful replacement acknowledges the new token exactly once", async () 
 
 test("Support presentation keeps all purchase actions and provider management persistent", () => {
   assert.match(supportPageSource, /id="supportSectionTitle">Support the Project/);
-  assert.match(supporterServiceSource, /"One-Time Support — \$5"/);
-  assert.match(supporterServiceSource, /"Monthly Support — \$3"/);
-  assert.match(supporterServiceSource, /"Monthly Support — \$10"/);
+  assert.match(supporterServiceSource, /oneTime\?\.label \|\| "One-Time Support"/);
+  assert.match(supporterServiceSource, /monthly3\?\.label \|\| "Monthly Support"/);
+  assert.match(supporterServiceSource, /monthly10\?\.label \|\| "Monthly Support"/);
   assert.match(supporterServiceSource, /"Manage Subscription"/);
   assert.match(
     supportPageSource,
-    /Monthly support can be changed or cancelled at any time through your Apple or Google account\./
+    /Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period\./
   );
+  assert.match(supportPageSource, /https:\/\/reverse-flow\.app\/privacy\.html/);
+  assert.match(supportPageSource, /https:\/\/www\.apple\.com\/legal\/internet-services\/itunes\/dev\/stdeula\//);
   assert.match(supporterServiceSource, /openNativeSubscriptionManagement/);
   const activeRenderer = supporterServiceSource.slice(
     supporterServiceSource.indexOf("function renderSimplifiedSupportActions"),
@@ -2152,7 +2154,7 @@ test("Support presentation keeps all purchase actions and provider management pe
   );
   assert.doesNotMatch(
     activeRenderer,
-    /localizedPrice|current plan|current support|upgrade|downgrade|scheduled|renewal|expiration/i
+    /current plan|current support|upgrade|downgrade|scheduled|expiration/i
   );
 });
 
