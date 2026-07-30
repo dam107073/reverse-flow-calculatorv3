@@ -24,10 +24,15 @@ private func expectNear(_ actual: Double, _ expected: Double, _ message: String)
 enum RequiredPDPWidgetTests {
     static func main() throws {
         try calculationParity()
+        try wholeNumberRounding()
         try customCoefficient()
+        try coefficientPersistenceAndValidation()
+        try hoseSizeChangeUsesDefault()
+        try accentPersistenceAndIndependence()
         try incrementsAndBounds()
         try independentConfigurations()
         try configurationChangesUseNewState()
+        try tankTimeRegression()
         print("Required PDP widget tests passed")
     }
 
@@ -51,20 +56,24 @@ enum RequiredPDPWidgetTests {
             try expect(result.roundedRequiredPDP == expectedPDP, "Required PDP rounding parity failed")
         }
 
-        try expect(
-            RequiredPDPCalculation.calculate(
-                coefficient: 15.5,
-                flowGPM: 160,
-                nozzlePressure: 50,
-                hoseLengthFeet: 200
-            ).formattedFrictionLoss == "79.4",
-            "Friction loss display did not match the app's one-decimal output"
-        )
         try expect(RequiredPDPHoseCatalog.attackHoses.count == 7, "Attack hose catalog drifted")
         try expect(
             RequiredPDPHoseCatalog.hose(id: "1.75").coefficient == 15.5,
             "Authoritative 1.75-inch coefficient drifted"
         )
+    }
+
+    private static func wholeNumberRounding() throws {
+        let below = RequiredPDPResult(frictionLoss: 51.49, requiredPDP: 91.49)
+        let midpoint = RequiredPDPResult(frictionLoss: 51.5, requiredPDP: 91.5)
+        let above = RequiredPDPResult(frictionLoss: 51.51, requiredPDP: 91.51)
+
+        try expect(below.roundedFrictionLoss == 51, "Friction loss below midpoint rounded up")
+        try expect(midpoint.roundedFrictionLoss == 52, "Friction loss midpoint rounding drifted")
+        try expect(above.roundedFrictionLoss == 52, "Friction loss above midpoint rounded down")
+        try expect(below.roundedRequiredPDP == 91, "PDP below midpoint rounded up")
+        try expect(midpoint.roundedRequiredPDP == 92, "PDP midpoint rounding drifted")
+        try expect(above.roundedRequiredPDP == 92, "PDP above midpoint rounded down")
     }
 
     private static func customCoefficient() throws {
@@ -78,6 +87,104 @@ enum RequiredPDPWidgetTests {
         try expect(result.roundedRequiredPDP == 123, "Custom coefficient PDP failed")
     }
 
+    private static func coefficientPersistenceAndValidation() throws {
+        let defaults = try makeDefaults("coefficient")
+        let key = "front-crosslay"
+        let custom = loadState(
+            key: key,
+            coefficient: 8.25,
+            defaults: defaults
+        )
+        try expect(custom.coefficient == 8.25, "Custom coefficient was not persisted")
+
+        let reloaded = loadState(
+            key: key,
+            coefficient: 8.25,
+            defaults: defaults
+        )
+        try expect(reloaded.coefficient == 8.25, "Normal reload replaced custom coefficient")
+
+        for invalid in [nil, 0, -1, .infinity, -.infinity, .nan] as [Double?] {
+            let rejected = loadState(
+                key: key,
+                coefficient: invalid,
+                defaults: defaults
+            )
+            try expect(rejected.coefficient == 8.25, "Invalid coefficient replaced last valid value")
+        }
+    }
+
+    private static func hoseSizeChangeUsesDefault() throws {
+        let initialDefaults = try makeDefaults("initial-hose-default")
+        let initiallySelectedHose = loadState(
+            key: "initial-blue-line",
+            hoseID: "1.88",
+            coefficient: 15.5,
+            defaults: initialDefaults
+        )
+        try expect(
+            initiallySelectedHose.coefficient == 8,
+            "Initial non-default hose retained the configuration field's stale default"
+        )
+
+        let defaults = try makeDefaults("hose-change")
+        let key = "blue-line"
+        let custom = loadState(
+            key: key,
+            hoseID: "1.75",
+            coefficient: 12.63,
+            defaults: defaults
+        )
+        try expect(custom.coefficient == 12.63, "Initial custom coefficient failed")
+
+        let changed = loadState(
+            key: key,
+            hoseID: "1.88",
+            coefficient: 12.63,
+            defaults: defaults
+        )
+        try expect(changed.coefficient == 8, "Hose change did not load authoritative default")
+
+        let normalReload = loadState(
+            key: key,
+            hoseID: "1.88",
+            coefficient: 12.63,
+            defaults: defaults
+        )
+        try expect(normalReload.coefficient == 8, "Normal reload restored stale coefficient")
+
+        let newCustom = loadState(
+            key: key,
+            hoseID: "1.88",
+            coefficient: 8.25,
+            defaults: defaults
+        )
+        try expect(newCustom.coefficient == 8.25, "New hose custom coefficient was not accepted")
+    }
+
+    private static func accentPersistenceAndIndependence() throws {
+        let defaults = try makeDefaults("accents")
+        let blue = loadState(
+            key: "blue-line",
+            accentColorID: "blue",
+            defaults: defaults
+        )
+        let red = loadState(
+            key: "red-line",
+            accentColorID: "red",
+            defaults: defaults
+        )
+        try expect(blue.accentColorID == "blue", "Blue accent was not persisted")
+        try expect(red.accentColorID == "red", "Red accent was not independent")
+
+        let blueReloaded = loadState(
+            key: "blue-line",
+            accentColorID: "blue",
+            defaults: defaults
+        )
+        try expect(blueReloaded.accentColorID == "blue", "Accent changed on normal reload")
+    }
+
     private static func incrementsAndBounds() throws {
         for increment in [25, 50, 100] {
             let defaults = try makeDefaults("increment-\(increment)")
@@ -87,6 +194,9 @@ enum RequiredPDPWidgetTests {
                 startingLength: increment,
                 increment: increment,
                 delta: 1,
+                hoseID: "1.75",
+                configuredCoefficient: 15.5,
+                accentColorID: "orange",
                 defaults: defaults
             )
             try expect(increased.hoseLengthFeet == increment * 2, "\(increment)-foot increment failed")
@@ -96,6 +206,9 @@ enum RequiredPDPWidgetTests {
                 startingLength: increment,
                 increment: increment,
                 delta: -1,
+                hoseID: "1.75",
+                configuredCoefficient: 15.5,
+                accentColorID: "orange",
                 defaults: defaults
             )
             let minimum = RequiredPDPStateStore.adjustLength(
@@ -103,6 +216,9 @@ enum RequiredPDPWidgetTests {
                 startingLength: increment,
                 increment: increment,
                 delta: -1,
+                hoseID: "1.75",
+                configuredCoefficient: 15.5,
+                accentColorID: "orange",
                 defaults: defaults
             )
             try expect(minimum.hoseLengthFeet == increment, "Length fell below minimum")
@@ -117,6 +233,9 @@ enum RequiredPDPWidgetTests {
                 startingLength: increment,
                 increment: increment,
                 delta: 1,
+                hoseID: "1.75",
+                configuredCoefficient: 15.5,
+                accentColorID: "orange",
                 defaults: defaults
             )
             try expect(maximum.hoseLengthFeet == 2_000, "Length exceeded maximum")
@@ -130,44 +249,73 @@ enum RequiredPDPWidgetTests {
             startingLength: 200,
             increment: 50,
             delta: 1,
+            hoseID: "1.75",
+            configuredCoefficient: 15.5,
+            accentColorID: "orange",
             defaults: defaults
         )
         let front = RequiredPDPStateStore.load(
             configurationKey: "front-crosslay",
             startingLength: 200,
             increment: 50,
+            hoseID: "1.75",
+            configuredCoefficient: 15.5,
+            accentColorID: "orange",
             defaults: defaults
         )
         let rear = RequiredPDPStateStore.load(
             configurationKey: "rear-crosslay",
             startingLength: 150,
             increment: 25,
+            hoseID: "1.88",
+            configuredCoefficient: 8,
+            accentColorID: "blue",
             defaults: defaults
         )
         try expect(front.hoseLengthFeet == 250, "First widget state was not saved")
         try expect(rear.hoseLengthFeet == 150, "Second widget inherited another widget's state")
+        try expect(front.coefficient == 15.5, "First widget coefficient was not independent")
+        try expect(rear.coefficient == 8, "Second widget inherited another widget's coefficient")
+        try expect(front.accentColorID == "orange", "First widget accent was not independent")
+        try expect(rear.accentColorID == "blue", "Second widget inherited another widget's accent")
     }
 
     private static func configurationChangesUseNewState() throws {
         let original = RequiredPDPCalculation.configurationKey(
-            packageName: "Front Crosslay",
-            hoseID: "1.75",
-            coefficient: 15.5,
-            flowGPM: 160,
-            nozzlePressure: 50,
-            startingLength: 200,
-            increment: 50
+            packageName: "Front Crosslay"
         )
         let updated = RequiredPDPCalculation.configurationKey(
-            packageName: "Front Crosslay",
-            hoseID: "1.75",
-            coefficient: 12.63,
-            flowGPM: 170,
-            nozzlePressure: 50,
-            startingLength: 200,
-            increment: 50
+            packageName: "Rear Crosslay"
         )
-        try expect(original != updated, "Configuration update did not produce a new state identity")
+        try expect(original != updated, "Package identities were not independent")
+    }
+
+    private static func tankTimeRegression() throws {
+        try expect(TankTimeCalculation.clampedFlow(25) == 50, "Tank Time minimum flow changed")
+        try expect(TankTimeCalculation.clampedFlow(2_500) == 2_000, "Tank Time maximum flow changed")
+        try expect(
+            TankTimeCalculation.durationSeconds(tankGallons: 750, flowGPM: 200) == 225,
+            "Tank Time duration calculation changed"
+        )
+        try expect(TankTimeCalculation.displayTime(seconds: 225) == "03:45", "Tank Time display changed")
+    }
+
+    private static func loadState(
+        key: String,
+        hoseID: String = "1.75",
+        coefficient: Double? = 15.5,
+        accentColorID: String = "orange",
+        defaults: UserDefaults
+    ) -> RequiredPDPState {
+        RequiredPDPStateStore.load(
+            configurationKey: key,
+            startingLength: 200,
+            increment: 50,
+            hoseID: hoseID,
+            configuredCoefficient: coefficient,
+            accentColorID: accentColorID,
+            defaults: defaults
+        )
     }
 
     private static func makeDefaults(_ suffix: String) throws -> UserDefaults {

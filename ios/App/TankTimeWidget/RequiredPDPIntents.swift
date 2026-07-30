@@ -42,21 +42,25 @@ enum RequiredPDPLengthIncrement: Int, AppEnum {
 }
 
 @available(iOS 17.0, *)
-struct RequiredPDPCoefficientOptionsProvider: DynamicOptionsProvider {
-    @IntentParameterDependency<RequiredPDPConfigurationIntent>(\.$hoseSize)
-    private var configuration
+enum RequiredPDPAccentColor: String, AppEnum {
+    case orange
+    case red
+    case blue
+    case green
+    case yellow
+    case white
+    case gray
 
-    private var selectedHose: RequiredPDPHose {
-        (configuration?.hoseSize ?? .oneAndThreeQuarter).hose
-    }
-
-    func results() async throws -> [Double] {
-        [selectedHose.coefficient]
-    }
-
-    func defaultResult() async -> Double? {
-        selectedHose.coefficient
-    }
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Accent Color")
+    static var caseDisplayRepresentations: [RequiredPDPAccentColor: DisplayRepresentation] = [
+        .orange: "Reverse Flow Orange",
+        .red: "Red",
+        .blue: "Blue",
+        .green: "Green",
+        .yellow: "Yellow",
+        .white: "White",
+        .gray: "Gray"
+    ]
 }
 
 @available(iOS 17.0, *)
@@ -73,9 +77,9 @@ struct RequiredPDPConfigurationIntent: WidgetConfigurationIntent {
     @Parameter(
         title: "Coefficient",
         description: "Defaults to the selected hose size coefficient and accepts a custom value.",
+        default: 15.5,
         controlStyle: .field,
-        inclusiveRange: (0.01, 1_000),
-        optionsProvider: RequiredPDPCoefficientOptionsProvider()
+        inclusiveRange: (0.01, 1_000)
     )
     var coefficient: Double?
 
@@ -91,36 +95,17 @@ struct RequiredPDPConfigurationIntent: WidgetConfigurationIntent {
     @Parameter(title: "Length Increment", default: .feet50)
     var lengthIncrement: RequiredPDPLengthIncrement
 
-    static var parameterSummary: some ParameterSummary {
-        Summary("\(\.$packageName): \(\.$hoseSize), \(\.$flowGPM) GPM") {
-            \.$coefficient
-            \.$nozzlePressure
-            \.$startingLength
-            \.$lengthIncrement
-        }
-    }
+    @Parameter(title: "Accent Color", default: .orange)
+    var accentColor: RequiredPDPAccentColor
 
     var effectivePackageName: String {
         let trimmed = packageName.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "Required PDP" : trimmed
     }
 
-    var effectiveCoefficient: Double {
-        guard let coefficient, coefficient > 0 else {
-            return hoseSize.hose.coefficient
-        }
-        return coefficient
-    }
-
     var configurationKey: String {
         RequiredPDPCalculation.configurationKey(
-            packageName: effectivePackageName,
-            hoseID: hoseSize.rawValue,
-            coefficient: effectiveCoefficient,
-            flowGPM: flowGPM,
-            nozzlePressure: nozzlePressure,
-            startingLength: startingLength,
-            increment: lengthIncrement.rawValue
+            packageName: effectivePackageName
         )
     }
 }
@@ -142,13 +127,33 @@ struct AdjustRequiredPDPLengthIntent: AppIntent {
     @Parameter(title: "Direction")
     var direction: Int
 
+    @Parameter(title: "Hose Size")
+    var hoseID: String
+
+    @Parameter(title: "Coefficient")
+    var coefficient: Double?
+
+    @Parameter(title: "Accent Color")
+    var accentColorID: String
+
     init() {}
 
-    init(configurationKey: String, startingLength: Int, increment: Int, direction: Int) {
+    init(
+        configurationKey: String,
+        startingLength: Int,
+        increment: Int,
+        direction: Int,
+        hoseID: String,
+        coefficient: Double?,
+        accentColorID: String
+    ) {
         self.configurationKey = configurationKey
         self.startingLength = startingLength
         self.increment = increment
         self.direction = direction
+        self.hoseID = hoseID
+        self.coefficient = coefficient
+        self.accentColorID = accentColorID
     }
 
     func perform() async throws -> some IntentResult {
@@ -156,7 +161,10 @@ struct AdjustRequiredPDPLengthIntent: AppIntent {
             configurationKey: configurationKey,
             startingLength: startingLength,
             increment: increment,
-            delta: direction
+            delta: direction,
+            hoseID: hoseID,
+            configuredCoefficient: coefficient,
+            accentColorID: accentColorID
         )
         WidgetCenter.shared.reloadTimelines(ofKind: RequiredPDPWidgetConstants.kind)
         return .result()

@@ -2,6 +2,44 @@ import Foundation
 
 struct RequiredPDPState: Codable, Equatable {
     let hoseLengthFeet: Int
+    let hoseID: String
+    let coefficient: Double
+    let configurationCoefficientSnapshot: Double?
+    let accentColorID: String
+
+    init(
+        hoseLengthFeet: Int,
+        hoseID: String = "1.75",
+        coefficient: Double = 15.5,
+        configurationCoefficientSnapshot: Double? = 15.5,
+        accentColorID: String = "orange"
+    ) {
+        self.hoseLengthFeet = hoseLengthFeet
+        self.hoseID = hoseID
+        self.coefficient = coefficient
+        self.configurationCoefficientSnapshot = configurationCoefficientSnapshot
+        self.accentColorID = accentColorID
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case hoseLengthFeet
+        case hoseID
+        case coefficient
+        case configurationCoefficientSnapshot
+        case accentColorID
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        hoseLengthFeet = try container.decode(Int.self, forKey: .hoseLengthFeet)
+        hoseID = try container.decodeIfPresent(String.self, forKey: .hoseID) ?? "1.75"
+        coefficient = try container.decodeIfPresent(Double.self, forKey: .coefficient) ?? 15.5
+        configurationCoefficientSnapshot = try container.decodeIfPresent(
+            Double.self,
+            forKey: .configurationCoefficientSnapshot
+        )
+        accentColorID = try container.decodeIfPresent(String.self, forKey: .accentColorID) ?? "orange"
+    }
 }
 
 enum RequiredPDPStateStore {
@@ -11,9 +49,16 @@ enum RequiredPDPStateStore {
         configurationKey: String,
         startingLength: Int,
         increment: Int,
+        hoseID: String,
+        configuredCoefficient: Double?,
+        accentColorID: String,
         defaults: UserDefaults = .standard
     ) -> RequiredPDPState {
         let safeIncrement = RequiredPDPCalculation.normalizedIncrement(increment)
+        let hose = RequiredPDPHoseCatalog.hose(id: hoseID)
+        let validConfigurationCoefficient = RequiredPDPCalculation.validatedCoefficient(
+            configuredCoefficient
+        )
         let key = storageKey(configurationKey)
         let decoder = JSONDecoder()
 
@@ -21,20 +66,62 @@ enum RequiredPDPStateStore {
             let data = defaults.data(forKey: key),
             let saved = try? decoder.decode(RequiredPDPState.self, from: data)
         {
-            return RequiredPDPState(
+            let reconciledCoefficient: Double
+            let reconciledSnapshot: Double?
+
+            if saved.hoseID != hose.id {
+                reconciledCoefficient = hose.coefficient
+                reconciledSnapshot = validConfigurationCoefficient
+            } else if validConfigurationCoefficient != saved.configurationCoefficientSnapshot {
+                reconciledCoefficient = validConfigurationCoefficient ?? saved.coefficient
+                reconciledSnapshot = validConfigurationCoefficient
+                    ?? saved.configurationCoefficientSnapshot
+            } else {
+                reconciledCoefficient = RequiredPDPCalculation.validatedCoefficient(
+                    saved.coefficient
+                ) ?? hose.coefficient
+                reconciledSnapshot = saved.configurationCoefficientSnapshot
+            }
+
+            let reconciled = RequiredPDPState(
                 hoseLengthFeet: RequiredPDPCalculation.clampedLength(
                     saved.hoseLengthFeet,
                     increment: safeIncrement
-                )
+                ),
+                hoseID: hose.id,
+                coefficient: reconciledCoefficient,
+                configurationCoefficientSnapshot: reconciledSnapshot,
+                accentColorID: accentColorID
             )
+            if reconciled != saved {
+                save(reconciled, configurationKey: configurationKey, defaults: defaults)
+            }
+            return reconciled
         }
 
-        return RequiredPDPState(
+        let defaultHose = RequiredPDPHoseCatalog.hose(id: "1.75")
+        let initialCoefficient: Double
+        if
+            hose.id != defaultHose.id,
+            validConfigurationCoefficient == defaultHose.coefficient
+        {
+            initialCoefficient = hose.coefficient
+        } else {
+            initialCoefficient = validConfigurationCoefficient ?? hose.coefficient
+        }
+
+        let initial = RequiredPDPState(
             hoseLengthFeet: RequiredPDPCalculation.clampedLength(
                 startingLength,
                 increment: safeIncrement
-            )
+            ),
+            hoseID: hose.id,
+            coefficient: initialCoefficient,
+            configurationCoefficientSnapshot: validConfigurationCoefficient,
+            accentColorID: accentColorID
         )
+        save(initial, configurationKey: configurationKey, defaults: defaults)
+        return initial
     }
 
     @discardableResult
@@ -43,6 +130,9 @@ enum RequiredPDPStateStore {
         startingLength: Int,
         increment: Int,
         delta: Int,
+        hoseID: String,
+        configuredCoefficient: Double?,
+        accentColorID: String,
         defaults: UserDefaults = .standard
     ) -> RequiredPDPState {
         let safeIncrement = RequiredPDPCalculation.normalizedIncrement(increment)
@@ -50,6 +140,9 @@ enum RequiredPDPStateStore {
             configurationKey: configurationKey,
             startingLength: startingLength,
             increment: safeIncrement,
+            hoseID: hoseID,
+            configuredCoefficient: configuredCoefficient,
+            accentColorID: accentColorID,
             defaults: defaults
         )
         let allowedDelta = delta < 0 ? -safeIncrement : delta > 0 ? safeIncrement : 0
@@ -57,7 +150,11 @@ enum RequiredPDPStateStore {
             hoseLengthFeet: RequiredPDPCalculation.clampedLength(
                 current.hoseLengthFeet + allowedDelta,
                 increment: safeIncrement
-            )
+            ),
+            hoseID: current.hoseID,
+            coefficient: current.coefficient,
+            configurationCoefficientSnapshot: current.configurationCoefficientSnapshot,
+            accentColorID: current.accentColorID
         )
 
         save(next, configurationKey: configurationKey, defaults: defaults)

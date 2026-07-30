@@ -10,7 +10,7 @@ struct RequiredPDPEntry: TimelineEntry {
 
     var result: RequiredPDPResult {
         RequiredPDPCalculation.calculate(
-            coefficient: configuration.effectiveCoefficient,
+            coefficient: state.coefficient,
             flowGPM: configuration.flowGPM,
             nozzlePressure: configuration.nozzlePressure,
             hoseLengthFeet: state.hoseLengthFeet
@@ -48,7 +48,10 @@ struct RequiredPDPProvider: AppIntentTimelineProvider {
             state: RequiredPDPStateStore.load(
                 configurationKey: configuration.configurationKey,
                 startingLength: configuration.startingLength,
-                increment: configuration.lengthIncrement.rawValue
+                increment: configuration.lengthIncrement.rawValue,
+                hoseID: configuration.hoseSize.rawValue,
+                configuredCoefficient: configuration.coefficient,
+                accentColorID: configuration.accentColor.rawValue
             )
         )
     }
@@ -72,6 +75,18 @@ struct RequiredPDPWidgetView: View {
 
     private var effectiveFamily: WidgetFamily { familyOverride ?? family }
     private var isAccented: Bool { renderingMode == .accented }
+    private var selectedAccent: Color {
+        if isAccented { return .white }
+        return switch entry.state.accentColorID {
+        case "red": Color(red: 1.0, green: 0.38, blue: 0.36)
+        case "blue": Color(red: 0.35, green: 0.68, blue: 1.0)
+        case "green": Color(red: 0.34, green: 0.84, blue: 0.52)
+        case "yellow": Color(red: 1.0, green: 0.84, blue: 0.30)
+        case "white": .white
+        case "gray": Color(red: 0.74, green: 0.77, blue: 0.82)
+        default: orange
+        }
+    }
     private var increment: Int { entry.configuration.lengthIncrement.rawValue }
     private var minimumLength: Int { max(RequiredPDPWidgetConstants.minimumLengthFeet, increment) }
     private var canDecrease: Bool { entry.state.hoseLengthFeet > minimumLength }
@@ -106,7 +121,7 @@ struct RequiredPDPWidgetView: View {
                 )
                 if !isAccented {
                     Rectangle()
-                        .fill(orange)
+                        .fill(selectedAccent)
                         .frame(height: 4)
                         .frame(maxHeight: .infinity, alignment: .top)
                 }
@@ -116,9 +131,9 @@ struct RequiredPDPWidgetView: View {
 
     private var mediumLayout: some View {
         VStack(spacing: 3) {
-            header(iconSize: 29, subtitleSize: 8)
+            header(iconSize: 27, brandSize: 9, packageSize: 12)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                lengthValue(fontSize: 34)
+                lengthValue(fontSize: 32)
                 Spacer(minLength: 4)
                 pdpValue(fontSize: 36)
             }
@@ -135,7 +150,7 @@ struct RequiredPDPWidgetView: View {
 
     private var largeLayout: some View {
         VStack(spacing: 0) {
-            header(iconSize: 42, subtitleSize: 10)
+            header(iconSize: 40, brandSize: 12, packageSize: 16)
             Spacer(minLength: 12)
             pdpValue(fontSize: 68)
                 .frame(maxWidth: .infinity)
@@ -148,8 +163,8 @@ struct RequiredPDPWidgetView: View {
                 )
                 metricPanel(
                     label: "FRICTION LOSS",
-                    value: "\(entry.result.formattedFrictionLoss) PSI",
-                    accessibility: "Friction loss \(entry.result.formattedFrictionLoss) PSI"
+                    value: "\(entry.result.roundedFrictionLoss) PSI",
+                    accessibility: "Friction loss \(entry.result.roundedFrictionLoss) PSI"
                 )
             }
             Spacer(minLength: 12)
@@ -164,36 +179,34 @@ struct RequiredPDPWidgetView: View {
         .padding(.vertical, 18)
     }
 
-    private func header(iconSize: CGFloat, subtitleSize: CGFloat) -> some View {
-        HStack(spacing: 10) {
-            appIconImage
-                .resizable()
-                .scaledToFit()
-                .frame(width: iconSize, height: iconSize)
-                .clipShape(RoundedRectangle(cornerRadius: iconSize * 0.22, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: iconSize * 0.22, style: .continuous)
-                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
-                )
-                .widgetAccentable()
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(entry.configuration.effectivePackageName)
-                    .font(.system(size: iconSize >= 40 ? 16 : 13, weight: .black, design: .rounded))
+    private func header(iconSize: CGFloat, brandSize: CGFloat, packageSize: CGFloat) -> some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 8) {
+                appIconImage
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: iconSize, height: iconSize)
+                    .clipShape(RoundedRectangle(cornerRadius: iconSize * 0.22, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: iconSize * 0.22, style: .continuous)
+                            .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                    )
+                    .widgetAccentable()
+                    .accessibilityHidden(true)
+                Text("REVERSE FLOW")
+                    .font(.system(size: brandSize, weight: .black, design: .rounded))
+                    .tracking(0.6)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.65)
-                Text("REQUIRED PDP")
-                    .font(.system(size: subtitleSize, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.64))
-                    .tracking(0.8)
+                    .fixedSize(horizontal: true, vertical: false)
             }
-            Spacer(minLength: 6)
-            Text("REVERSE FLOW")
-                .font(.system(size: subtitleSize, weight: .black, design: .rounded))
-                .foregroundStyle(isAccented ? .white : orange)
-                .tracking(0.6)
+            Spacer(minLength: 10)
+            Text(entry.configuration.effectivePackageName)
+                .font(.system(size: packageSize, weight: .black, design: .rounded))
                 .lineLimit(1)
-                .widgetAccentable()
+                .minimumScaleFactor(0.65)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .multilineTextAlignment(.trailing)
+                .accessibilityLabel("Package \(entry.configuration.effectivePackageName)")
         }
     }
 
@@ -203,7 +216,7 @@ struct RequiredPDPWidgetView: View {
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.52)
-            .foregroundStyle(isAccented ? .white : orange)
+            .foregroundStyle(selectedAccent)
             .contentTransition(.numericText())
             .widgetAccentable()
             .accessibilityLabel("Pump discharge pressure \(entry.result.roundedRequiredPDP) PSI")
@@ -223,7 +236,7 @@ struct RequiredPDPWidgetView: View {
         Text(
             "\(entry.configuration.hoseSize.hose.label) • " +
             "\(entry.configuration.flowGPM) GPM • " +
-            "\(entry.configuration.nozzlePressure) PSI NP"
+            "NP \(entry.configuration.nozzlePressure)"
         )
         .font(.system(size: fontSize, weight: .bold, design: .rounded))
         .foregroundStyle(.white.opacity(0.72))
@@ -237,11 +250,11 @@ struct RequiredPDPWidgetView: View {
     }
 
     private func frictionLoss(fontSize: CGFloat) -> some View {
-        Text("FL: \(entry.result.formattedFrictionLoss) PSI")
+        Text("FL: \(entry.result.roundedFrictionLoss) PSI")
             .font(.system(size: fontSize, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(.white.opacity(0.72))
-            .accessibilityLabel("Friction loss \(entry.result.formattedFrictionLoss) PSI")
+            .accessibilityLabel("Friction loss \(entry.result.roundedFrictionLoss) PSI")
     }
 
     private func metricPanel(label: String, value: String, accessibility: String) -> some View {
@@ -278,7 +291,10 @@ struct RequiredPDPWidgetView: View {
                 configurationKey: entry.configuration.configurationKey,
                 startingLength: entry.configuration.startingLength,
                 increment: increment,
-                direction: direction
+                direction: direction,
+                hoseID: entry.configuration.hoseSize.rawValue,
+                coefficient: entry.configuration.coefficient,
+                accentColorID: entry.configuration.accentColor.rawValue
             )
         ) {
             Text(label)

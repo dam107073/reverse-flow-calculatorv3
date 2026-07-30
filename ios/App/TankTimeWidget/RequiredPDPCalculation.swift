@@ -34,12 +34,8 @@ struct RequiredPDPResult: Equatable {
     let frictionLoss: Double
     let requiredPDP: Double
 
-    var formattedFrictionLoss: String {
-        String(
-            format: "%.1f",
-            locale: Locale(identifier: "en_US_POSIX"),
-            frictionLoss
-        )
+    var roundedFrictionLoss: Int {
+        Int(frictionLoss.rounded())
     }
 
     var roundedRequiredPDP: Int {
@@ -48,6 +44,13 @@ struct RequiredPDPResult: Equatable {
 }
 
 enum RequiredPDPCalculation {
+    static func validatedCoefficient(_ coefficient: Double?) -> Double? {
+        guard let coefficient, coefficient.isFinite, coefficient > 0 else {
+            return nil
+        }
+        return coefficient
+    }
+
     static func calculate(
         coefficient: Double,
         flowGPM: Int,
@@ -75,26 +78,10 @@ enum RequiredPDPCalculation {
 
     static func configurationKey(
         packageName: String,
-        hoseID: String,
-        coefficient: Double,
-        flowGPM: Int,
-        nozzlePressure: Int,
-        startingLength: Int,
-        increment: Int
+        fallbackIdentity: String = "Required PDP"
     ) -> String {
-        let canonical = [
-            packageName.trimmingCharacters(in: .whitespacesAndNewlines),
-            hoseID,
-            String(
-                format: "%.6f",
-                locale: Locale(identifier: "en_US_POSIX"),
-                coefficient
-            ),
-            String(flowGPM),
-            String(nozzlePressure),
-            String(startingLength),
-            String(increment)
-        ].joined(separator: "\u{1F}")
+        let trimmedName = packageName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let canonical = trimmedName.isEmpty ? fallbackIdentity : trimmedName
 
         return String(format: "required-pdp-%016llx", stableHash(canonical))
     }
