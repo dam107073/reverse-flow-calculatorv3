@@ -5,5 +5,6 @@ import WidgetKit
 struct TankTimeWidgetBundle: WidgetBundle {
     var body: some Widget {
         TankTimeWidget()
+        RequiredPDPWidget()
     }
 }

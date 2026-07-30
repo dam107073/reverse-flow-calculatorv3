@@ -26,6 +26,13 @@
 		AA1000082E20000100A10008 /* TankTimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000022E20000100A20002 /* TankTimeState.swift */; };
 		AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000032E20000100A20003 /* TankTimeIntents.swift */; };
 		AA1000102E20000100A10010 /* AppIcon-1024.png in Resources */ = {isa = PBXBuildFile; fileRef = AA2000082E20000100A20008 /* AppIcon-1024.png */; };
+		AB1000012E50000100B10001 /* RequiredPDPCalculation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2000012E50000100B20001 /* RequiredPDPCalculation.swift */; };
+		AB1000022E50000100B10002 /* RequiredPDPState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2000022E50000100B20002 /* RequiredPDPState.swift */; };
+		AB1000032E50000100B10003 /* RequiredPDPIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2000032E50000100B20003 /* RequiredPDPIntents.swift */; };
+		AB1000042E50000100B10004 /* RequiredPDPWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2000042E50000100B20004 /* RequiredPDPWidget.swift */; };
+		AB1000052E50000100B10005 /* RequiredPDPCalculation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2000012E50000100B20001 /* RequiredPDPCalculation.swift */; };
+		AB1000062E50000100B10006 /* RequiredPDPState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2000022E50000100B20002 /* RequiredPDPState.swift */; };
+		AB1000072E50000100B10007 /* RequiredPDPIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2000032E50000100B20003 /* RequiredPDPIntents.swift */; };
 		D401FA302E20000100FB2520 /* LegacyEntitlementPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */; };
 		D401FA322E20000100FB2522 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA312E20000100FB2522 /* MainViewController.swift */; };
 		D401FA352E40000100FB2525 /* SupportPurchaseRecoveryPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D401FA342E40000100FB2524 /* SupportPurchaseRecoveryPlugin.swift */; };
@@ -76,6 +83,10 @@
 		AA2000062E20000100A20006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA2000072E20000100A20007 /* TankTimeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TankTimeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA2000082E20000100A20008 /* AppIcon-1024.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "AppIcon-1024.png"; path = "../App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"; sourceTree = "<group>"; };
+		AB2000012E50000100B20001 /* RequiredPDPCalculation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequiredPDPCalculation.swift; sourceTree = "<group>"; };
+		AB2000022E50000100B20002 /* RequiredPDPState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequiredPDPState.swift; sourceTree = "<group>"; };
+		AB2000032E50000100B20003 /* RequiredPDPIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequiredPDPIntents.swift; sourceTree = "<group>"; };
+		AB2000042E50000100B20004 /* RequiredPDPWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequiredPDPWidget.swift; sourceTree = "<group>"; };
 		D401FA2F2E20000100FB2520 /* LegacyEntitlementPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyEntitlementPlugin.swift; sourceTree = "<group>"; };
 		D401FA312E20000100FB2522 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		D401FA342E40000100FB2524 /* SupportPurchaseRecoveryPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportPurchaseRecoveryPlugin.swift; sourceTree = "<group>"; };
@@ -156,6 +167,10 @@
 				AA2000032E20000100A20003 /* TankTimeIntents.swift */,
 				AA2000042E20000100A20004 /* TankTimeWidget.swift */,
 				AA2000052E20000100A20005 /* TankTimeWidgetBundle.swift */,
+				AB2000012E50000100B20001 /* RequiredPDPCalculation.swift */,
+				AB2000022E50000100B20002 /* RequiredPDPState.swift */,
+				AB2000032E50000100B20003 /* RequiredPDPIntents.swift */,
+				AB2000042E50000100B20004 /* RequiredPDPWidget.swift */,
 				AA2000062E20000100A20006 /* Info.plist */,
 				AA2000082E20000100A20008 /* AppIcon-1024.png */,
 			);
@@ -303,6 +318,9 @@
 				AA1000072E20000100A10007 /* TankTimeCalculation.swift in Sources */,
 				AA1000082E20000100A10008 /* TankTimeState.swift in Sources */,
 				AA1000092E20000100A10009 /* TankTimeIntents.swift in Sources */,
+				AB1000052E50000100B10005 /* RequiredPDPCalculation.swift in Sources */,
+				AB1000062E50000100B10006 /* RequiredPDPState.swift in Sources */,
+				AB1000072E50000100B10007 /* RequiredPDPIntents.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				D401FA302E20000100FB2520 /* LegacyEntitlementPlugin.swift in Sources */,
 				D401FA352E40000100FB2525 /* SupportPurchaseRecoveryPlugin.swift in Sources */,
@@ -319,6 +337,10 @@
 				AA1000032E20000100A10003 /* TankTimeIntents.swift in Sources */,
 				AA1000042E20000100A10004 /* TankTimeWidget.swift in Sources */,
 				AA1000052E20000100A10005 /* TankTimeWidgetBundle.swift in Sources */,
+				AB1000012E50000100B10001 /* RequiredPDPCalculation.swift in Sources */,
+				AB1000022E50000100B10002 /* RequiredPDPState.swift in Sources */,
+				AB1000032E50000100B10003 /* RequiredPDPIntents.swift in Sources */,
+				AB1000042E50000100B10004 /* RequiredPDPWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -514,7 +536,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TankTimeWidget/Info.plist;
@@ -539,7 +561,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TankTimeWidget/Info.plist;
@@ -637,7 +659,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TankTimeWidget/Info.plist;
