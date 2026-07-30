@@ -88,14 +88,9 @@ struct RequiredPDPMediumDisplay: Equatable {
     let nozzlePressure: Int
     let result: RequiredPDPResult
 
-    var lengthLabel: String { "LENGTH" }
     var pdpLabel: String { "PDP:" }
     var flowLabel: String { "GPM" }
     var frictionLossLabel: String { "FL" }
-
-    var lengthValue: String {
-        "\(hoseLengthFeet)'"
-    }
 
     var pdpValue: String {
         String(result.roundedRequiredPDP)
@@ -110,7 +105,7 @@ struct RequiredPDPMediumDisplay: Equatable {
     }
 
     var packageLine: String {
-        "\(hoseLabel) • NP \(nozzlePressure)"
+        "\(hoseLengthFeet)' • \(hoseLabel) • NP \(nozzlePressure)"
     }
 
     var accessibilitySummary: String {

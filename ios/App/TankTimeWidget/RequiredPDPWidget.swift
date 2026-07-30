@@ -252,29 +252,23 @@ struct RequiredPDPWidgetView: View {
             Spacer(minLength: 5)
             HStack(spacing: 0) {
                 mediumMetric(
-                    label: mediumDisplay.lengthLabel,
-                    value: mediumDisplay.lengthValue,
-                    valueSize: 29
+                    label: mediumDisplay.flowLabel,
+                    value: mediumDisplay.flowValue,
+                    valueSize: 34,
+                    accentsLabel: true
                 )
                 mediumDivider
                 mediumMetric(
                     label: mediumDisplay.pdpLabel,
                     value: mediumDisplay.pdpValue,
-                    valueSize: 43,
+                    valueSize: 48,
                     isPrimary: true
-                )
-                mediumDivider
-                mediumMetric(
-                    label: mediumDisplay.flowLabel,
-                    value: mediumDisplay.flowValue,
-                    valueSize: 29,
-                    accentsLabel: true
                 )
                 mediumDivider
                 mediumMetric(
                     label: mediumDisplay.frictionLossLabel,
                     value: mediumDisplay.frictionLossValue,
-                    valueSize: 29,
+                    valueSize: 34,
                     accentsLabel: true
                 )
             }
@@ -288,8 +282,8 @@ struct RequiredPDPWidgetView: View {
             Spacer(minLength: 5)
             HStack(spacing: 10) {
                 Text(mediumDisplay.packageLine)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.72))
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.78))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .accessibilityHidden(true)
