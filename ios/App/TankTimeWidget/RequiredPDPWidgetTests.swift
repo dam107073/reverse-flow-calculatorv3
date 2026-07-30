@@ -30,6 +30,7 @@ enum RequiredPDPWidgetTests {
         try hoseSizeChangeUsesDefault()
         try accentPersistenceAndIndependence()
         try smallReferenceBehavior()
+        try smallDisplayFormatting()
         try incrementsAndBounds()
         try independentConfigurations()
         try configurationChangesUseNewState()
@@ -254,6 +255,34 @@ enum RequiredPDPWidgetTests {
         try expect(
             interactiveState.hoseLengthFeet == 250,
             "Small reference state mutated interactive length persistence"
+        )
+    }
+
+    private static func smallDisplayFormatting() throws {
+        let display = RequiredPDPSmallDisplay(
+            packageName: "Red Line",
+            hoseLabel: "1.88\"",
+            hoseAccessibilityLabel: "1.88",
+            hoseLengthFeet: 200,
+            flowGPM: 160,
+            nozzlePressure: 50,
+            result: RequiredPDPResult(frictionLoss: 41.4, requiredPDP: 91.4)
+        )
+
+        try expect(display.pdpValue == "91", "Small visible PDP formatting changed")
+        try expect(!display.pdpValue.contains("PSI"), "Small visible PDP includes PSI")
+        try expect(display.frictionLossValue == "41", "Small visible FL formatting changed")
+        try expect(!display.frictionLossValue.contains("PSI"), "Small visible FL includes PSI")
+        try expect(display.flowValue == "160", "Small GPM value formatting changed")
+        try expect(
+            display.detailLine == "1.88\" • 200' • NP 50",
+            "Small package details are not on the required single line"
+        )
+        try expect(
+            display.accessibilitySummary ==
+                "Red Line. Required PDP 91 PSI. 1.88 inch hose, 200 feet, " +
+                "nozzle pressure 50 PSI, flow 160 GPM, friction loss 41 PSI.",
+            "Small accessibility summary lost hydraulic units"
         )
     }
 

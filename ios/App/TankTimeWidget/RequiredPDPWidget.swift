@@ -105,6 +105,17 @@ struct RequiredPDPWidgetView: View {
     private var minimumLength: Int { max(RequiredPDPWidgetConstants.minimumLengthFeet, increment) }
     private var canDecrease: Bool { entry.state.hoseLengthFeet > minimumLength }
     private var canIncrease: Bool { entry.state.hoseLengthFeet < RequiredPDPWidgetConstants.maximumLengthFeet }
+    private var smallDisplay: RequiredPDPSmallDisplay {
+        RequiredPDPSmallDisplay(
+            packageName: entry.configuration.effectivePackageName,
+            hoseLabel: entry.configuration.hoseSize.hose.label,
+            hoseAccessibilityLabel: entry.configuration.hoseSize.rawValue,
+            hoseLengthFeet: entry.state.hoseLengthFeet,
+            flowGPM: entry.configuration.flowGPM,
+            nozzlePressure: entry.configuration.nozzlePressure,
+            result: entry.result
+        )
+    }
 
     private var appIconImage: Image {
         guard
@@ -160,45 +171,68 @@ struct RequiredPDPWidgetView: View {
                     .widgetAccentable()
                     .accessibilityHidden(true)
                 Text(entry.configuration.effectivePackageName)
-                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .font(.system(size: 12, weight: .black, design: .rounded))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.68)
+                    .minimumScaleFactor(0.72)
             }
-            Spacer(minLength: 5)
-            pdpValue(fontSize: 27)
-            Spacer(minLength: 6)
-            Text("\(entry.configuration.hoseSize.hose.label) • \(entry.state.hoseLengthFeet)'")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+            Spacer(minLength: 2)
+            VStack(spacing: -5) {
+                Text("PDP:")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.68))
+                Text(smallDisplay.pdpValue)
+                    .font(.system(size: 50, weight: .black, design: .rounded))
+                    .monospacedDigit()
+                    .tracking(-1)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .foregroundStyle(selectedAccent)
+                    .widgetAccentable()
+            }
+            .frame(maxWidth: .infinity)
+            Spacer(minLength: 1)
+            Text(smallDisplay.detailLine)
+                .font(.system(size: 9.5, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.78)
+                .minimumScaleFactor(0.72)
                 .foregroundStyle(.white.opacity(0.78))
-            Text(
-                "\(entry.configuration.flowGPM) GPM • " +
-                "NP \(entry.configuration.nozzlePressure)"
-            )
-            .font(.system(size: 11, weight: .bold, design: .rounded))
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.72)
-            .foregroundStyle(.white.opacity(0.72))
-            frictionLoss(fontSize: 11)
-                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+            Rectangle()
+                .fill(Color.white.opacity(0.16))
+                .frame(height: 1)
+                .padding(.vertical, 4)
+            HStack(spacing: 0) {
+                smallMetric(label: "GPM", value: smallDisplay.flowValue)
+                Rectangle()
+                    .fill(Color.white.opacity(0.16))
+                    .frame(width: 1, height: 34)
+                    .padding(.horizontal, 5)
+                smallMetric(label: "FL", value: smallDisplay.frictionLossValue)
+            }
+            .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .padding(.vertical, 9)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(smallAccessibilitySummary)
+        .accessibilityLabel(smallDisplay.accessibilitySummary)
     }
 
-    private var smallAccessibilitySummary: String {
-        "\(entry.configuration.effectivePackageName). " +
-        "Required PDP \(entry.result.roundedRequiredPDP) PSI. " +
-        "\(entry.configuration.hoseSize.rawValue) inch hose, " +
-        "\(entry.state.hoseLengthFeet) feet, " +
-        "\(entry.configuration.flowGPM) GPM, " +
-        "nozzle pressure \(entry.configuration.nozzlePressure) PSI, " +
-        "friction loss \(entry.result.roundedFrictionLoss) PSI."
+    private func smallMetric(label: String, value: String) -> some View {
+        VStack(spacing: -1) {
+            Text(label)
+                .font(.system(size: 8, weight: .black, design: .rounded))
+                .foregroundStyle(selectedAccent.opacity(0.88))
+                .widgetAccentable()
+            Text(value)
+                .font(.system(size: 27, weight: .black, design: .rounded))
+                .monospacedDigit()
+                .tracking(-0.5)
+                .lineLimit(1)
+                .minimumScaleFactor(0.58)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var mediumLayout: some View {

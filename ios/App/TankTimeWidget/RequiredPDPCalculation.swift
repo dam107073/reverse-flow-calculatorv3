@@ -43,6 +43,42 @@ struct RequiredPDPResult: Equatable {
     }
 }
 
+struct RequiredPDPSmallDisplay: Equatable {
+    let packageName: String
+    let hoseLabel: String
+    let hoseAccessibilityLabel: String
+    let hoseLengthFeet: Int
+    let flowGPM: Int
+    let nozzlePressure: Int
+    let result: RequiredPDPResult
+
+    var pdpValue: String {
+        String(result.roundedRequiredPDP)
+    }
+
+    var frictionLossValue: String {
+        String(result.roundedFrictionLoss)
+    }
+
+    var flowValue: String {
+        String(flowGPM)
+    }
+
+    var detailLine: String {
+        "\(hoseLabel) • \(hoseLengthFeet)' • NP \(nozzlePressure)"
+    }
+
+    var accessibilitySummary: String {
+        "\(packageName). " +
+        "Required PDP \(result.roundedRequiredPDP) PSI. " +
+        "\(hoseAccessibilityLabel) inch hose, " +
+        "\(hoseLengthFeet) feet, " +
+        "nozzle pressure \(nozzlePressure) PSI, " +
+        "flow \(flowGPM) GPM, " +
+        "friction loss \(result.roundedFrictionLoss) PSI."
+    }
+}
+
 enum RequiredPDPCalculation {
     static func validatedCoefficient(_ coefficient: Double?) -> Double? {
         guard let coefficient, coefficient.isFinite, coefficient > 0 else {
