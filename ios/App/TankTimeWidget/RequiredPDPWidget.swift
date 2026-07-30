@@ -282,10 +282,10 @@ struct RequiredPDPWidgetView: View {
             Spacer(minLength: 5)
             HStack(spacing: 10) {
                 Text(mediumDisplay.packageLine)
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.94))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                    .minimumScaleFactor(0.78)
                     .accessibilityHidden(true)
                 Spacer(minLength: 8)
                 controls(height: 32, spacing: 7)

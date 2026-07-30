@@ -317,6 +317,26 @@ enum RequiredPDPWidgetTests {
         )
         try expect(!display.packageLine.contains("GPM"), "Medium package line duplicates GPM")
         try expect(!display.packageLine.contains("PDP"), "Medium package line duplicates PDP")
+        try expect(!display.packageLine.contains("FL"), "Medium package line duplicates FL")
+        let expectedPackageLines: [(Int, String, Int, String)] = [
+            (100, "1.75\"", 55, "100' • 1.75\" • NP 55"),
+            (200, "1.88\"", 50, "200' • 1.88\" • NP 50"),
+            (200, "2.5\"", 40, "200' • 2.5\" • NP 40"),
+            (1_000, "2.5\"", 50, "1000' • 2.5\" • NP 50")
+        ]
+        for (length, hose, nozzlePressure, expected) in expectedPackageLines {
+            let packageDisplay = RequiredPDPMediumDisplay(
+                packageName: "Test Package",
+                hoseLabel: hose,
+                hoseAccessibilityLabel: hose.replacingOccurrences(of: "\"", with: ""),
+                hoseLengthFeet: length,
+                flowGPM: 160,
+                nozzlePressure: nozzlePressure,
+                result: RequiredPDPResult(frictionLoss: 20, requiredPDP: 70)
+            )
+            try expect(packageDisplay.packageLine == expected, "Medium package line formatting changed")
+            try expect(!packageDisplay.packageLine.contains("\n"), "Medium package line contains a line break")
+        }
         try expect(
             display.accessibilitySummary ==
                 "Red Line. Hose length 200 feet. Required PDP 91 PSI. Flow 160 GPM. " +
