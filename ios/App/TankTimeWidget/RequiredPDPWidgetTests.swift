@@ -31,6 +31,7 @@ enum RequiredPDPWidgetTests {
         try accentPersistenceAndIndependence()
         try smallReferenceBehavior()
         try smallDisplayFormatting()
+        try mediumDisplayFormatting()
         try incrementsAndBounds()
         try independentConfigurations()
         try configurationChangesUseNewState()
@@ -283,6 +284,46 @@ enum RequiredPDPWidgetTests {
                 "Red Line. Required PDP 91 PSI. 1.88 inch hose, 200 feet, " +
                 "nozzle pressure 50 PSI, flow 160 GPM, friction loss 41 PSI.",
             "Small accessibility summary lost hydraulic units"
+        )
+    }
+
+    private static func mediumDisplayFormatting() throws {
+        let display = RequiredPDPMediumDisplay(
+            packageName: "Red Line",
+            hoseLabel: "1.88\"",
+            hoseAccessibilityLabel: "1.88",
+            hoseLengthFeet: 200,
+            flowGPM: 160,
+            nozzlePressure: 50,
+            result: RequiredPDPResult(frictionLoss: 41.4, requiredPDP: 91.4)
+        )
+
+        try expect(
+            [
+                display.lengthLabel,
+                display.pdpLabel,
+                display.flowLabel,
+                display.frictionLossLabel
+            ] == ["LENGTH", "PDP:", "GPM", "FL"],
+            "Medium primary row lost an operational metric"
+        )
+        try expect(display.lengthValue == "200'", "Medium visible length formatting changed")
+        try expect(display.pdpValue == "91", "Medium visible PDP formatting changed")
+        try expect(!display.pdpValue.contains("PSI"), "Medium visible PDP includes PSI")
+        try expect(display.flowValue == "160", "Medium visible GPM formatting changed")
+        try expect(display.frictionLossValue == "41", "Medium visible FL formatting changed")
+        try expect(!display.frictionLossValue.contains("PSI"), "Medium visible FL includes PSI")
+        try expect(
+            display.packageLine == "1.88\" • NP 50",
+            "Medium package line lost Hose Size or NP"
+        )
+        try expect(!display.packageLine.contains("GPM"), "Medium package line duplicates GPM")
+        try expect(!display.packageLine.contains("200'"), "Medium package line duplicates length")
+        try expect(
+            display.accessibilitySummary ==
+                "Red Line. Hose length 200 feet. Required PDP 91 PSI. Flow 160 GPM. " +
+                "Friction loss 41 PSI. 1.88 inch hose. Nozzle pressure 50 PSI.",
+            "Medium accessibility summary lost hydraulic units"
         )
     }
 

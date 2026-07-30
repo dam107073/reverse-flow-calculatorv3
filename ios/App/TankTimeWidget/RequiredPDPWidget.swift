@@ -116,6 +116,17 @@ struct RequiredPDPWidgetView: View {
             result: entry.result
         )
     }
+    private var mediumDisplay: RequiredPDPMediumDisplay {
+        RequiredPDPMediumDisplay(
+            packageName: entry.configuration.effectivePackageName,
+            hoseLabel: entry.configuration.hoseSize.hose.label,
+            hoseAccessibilityLabel: entry.configuration.hoseSize.rawValue,
+            hoseLengthFeet: entry.state.hoseLengthFeet,
+            flowGPM: entry.configuration.flowGPM,
+            nozzlePressure: entry.configuration.nozzlePressure,
+            result: entry.result
+        )
+    }
 
     private var appIconImage: Image {
         guard
@@ -236,22 +247,95 @@ struct RequiredPDPWidgetView: View {
     }
 
     private var mediumLayout: some View {
-        VStack(spacing: 3) {
-            header(iconSize: 27, brandSize: 9, packageSize: 12)
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                lengthValue(fontSize: 32)
-                Spacer(minLength: 4)
-                pdpValue(fontSize: 36)
+        VStack(spacing: 0) {
+            header(iconSize: 25, brandSize: 9, packageSize: 12, packageMinimumScale: 0.85)
+            Spacer(minLength: 5)
+            HStack(spacing: 0) {
+                mediumMetric(
+                    label: mediumDisplay.lengthLabel,
+                    value: mediumDisplay.lengthValue,
+                    valueSize: 29
+                )
+                mediumDivider
+                mediumMetric(
+                    label: mediumDisplay.pdpLabel,
+                    value: mediumDisplay.pdpValue,
+                    valueSize: 43,
+                    isPrimary: true
+                )
+                mediumDivider
+                mediumMetric(
+                    label: mediumDisplay.flowLabel,
+                    value: mediumDisplay.flowValue,
+                    valueSize: 29,
+                    accentsLabel: true
+                )
+                mediumDivider
+                mediumMetric(
+                    label: mediumDisplay.frictionLossLabel,
+                    value: mediumDisplay.frictionLossValue,
+                    valueSize: 29,
+                    accentsLabel: true
+                )
             }
-            packageSummary(fontSize: 11)
-            HStack {
-                frictionLoss(fontSize: 11)
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(mediumDisplay.accessibilitySummary)
+            Spacer(minLength: 4)
+            Rectangle()
+                .fill(Color.white.opacity(0.16))
+                .frame(height: 1)
+            Spacer(minLength: 5)
+            HStack(spacing: 10) {
+                Text(mediumDisplay.packageLine)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .accessibilityHidden(true)
                 Spacer(minLength: 8)
-                controls(height: 31, spacing: 8)
+                controls(height: 32, spacing: 7)
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 7)
+        .padding(.vertical, 8)
+    }
+
+    private var mediumDivider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.16))
+            .frame(width: 1, height: 50)
+            .padding(.horizontal, 5)
+    }
+
+    private func mediumMetric(
+        label: String,
+        value: String,
+        valueSize: CGFloat,
+        isPrimary: Bool = false,
+        accentsLabel: Bool = false
+    ) -> some View {
+        VStack(spacing: isPrimary ? -4 : -1) {
+            Text(label)
+                .font(.system(size: isPrimary ? 10 : 9, weight: .black, design: .rounded))
+                .tracking(isPrimary ? 0 : 0.5)
+                .foregroundStyle(
+                    isPrimary || accentsLabel
+                        ? selectedAccent.opacity(isPrimary ? 1 : 0.86)
+                        : Color.white.opacity(0.62)
+                )
+                .widgetAccentable()
+            Text(value)
+                .font(.system(size: valueSize, weight: .black, design: .rounded))
+                .monospacedDigit()
+                .tracking(isPrimary ? -1 : -0.5)
+                .lineLimit(1)
+                .minimumScaleFactor(0.48)
+                .foregroundStyle(isPrimary ? selectedAccent : .white)
+                .contentTransition(.numericText())
+                .widgetAccentable(isPrimary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var largeLayout: some View {
@@ -285,7 +369,12 @@ struct RequiredPDPWidgetView: View {
         .padding(.vertical, 18)
     }
 
-    private func header(iconSize: CGFloat, brandSize: CGFloat, packageSize: CGFloat) -> some View {
+    private func header(
+        iconSize: CGFloat,
+        brandSize: CGFloat,
+        packageSize: CGFloat,
+        packageMinimumScale: CGFloat = 0.65
+    ) -> some View {
         HStack(spacing: 0) {
             HStack(spacing: 8) {
                 appIconImage
@@ -309,7 +398,7 @@ struct RequiredPDPWidgetView: View {
             Text(entry.configuration.effectivePackageName)
                 .font(.system(size: packageSize, weight: .black, design: .rounded))
                 .lineLimit(1)
-                .minimumScaleFactor(0.65)
+                .minimumScaleFactor(packageMinimumScale)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .multilineTextAlignment(.trailing)
                 .accessibilityLabel("Package \(entry.configuration.effectivePackageName)")
