@@ -45,6 +45,32 @@ struct RequiredPDPState: Codable, Equatable {
 enum RequiredPDPStateStore {
     private static let keyPrefix = "reverse-flow-required-pdp-widget-v1."
 
+    static func fixedReferenceState(
+        startingLength: Int,
+        hoseID: String,
+        configuredCoefficient: Double?,
+        accentColorID: String
+    ) -> RequiredPDPState {
+        let hose = RequiredPDPHoseCatalog.hose(id: hoseID)
+        let validConfigurationCoefficient = RequiredPDPCalculation.validatedCoefficient(
+            configuredCoefficient
+        )
+
+        return RequiredPDPState(
+            hoseLengthFeet: min(
+                max(startingLength, RequiredPDPWidgetConstants.minimumLengthFeet),
+                RequiredPDPWidgetConstants.maximumLengthFeet
+            ),
+            hoseID: hose.id,
+            coefficient: initialCoefficient(
+                hose: hose,
+                configuredCoefficient: validConfigurationCoefficient
+            ),
+            configurationCoefficientSnapshot: validConfigurationCoefficient,
+            accentColorID: accentColorID
+        )
+    }
+
     static func load(
         configurationKey: String,
         startingLength: Int,
@@ -99,24 +125,16 @@ enum RequiredPDPStateStore {
             return reconciled
         }
 
-        let defaultHose = RequiredPDPHoseCatalog.hose(id: "1.75")
-        let initialCoefficient: Double
-        if
-            hose.id != defaultHose.id,
-            validConfigurationCoefficient == defaultHose.coefficient
-        {
-            initialCoefficient = hose.coefficient
-        } else {
-            initialCoefficient = validConfigurationCoefficient ?? hose.coefficient
-        }
-
         let initial = RequiredPDPState(
             hoseLengthFeet: RequiredPDPCalculation.clampedLength(
                 startingLength,
                 increment: safeIncrement
             ),
             hoseID: hose.id,
-            coefficient: initialCoefficient,
+            coefficient: initialCoefficient(
+                hose: hose,
+                configuredCoefficient: validConfigurationCoefficient
+            ),
             configurationCoefficientSnapshot: validConfigurationCoefficient,
             accentColorID: accentColorID
         )
@@ -172,5 +190,19 @@ enum RequiredPDPStateStore {
 
     private static func storageKey(_ configurationKey: String) -> String {
         keyPrefix + configurationKey
+    }
+
+    private static func initialCoefficient(
+        hose: RequiredPDPHose,
+        configuredCoefficient: Double?
+    ) -> Double {
+        let defaultHose = RequiredPDPHoseCatalog.hose(id: "1.75")
+        if
+            hose.id != defaultHose.id,
+            configuredCoefficient == defaultHose.coefficient
+        {
+            return hose.coefficient
+        }
+        return configuredCoefficient ?? hose.coefficient
     }
 }

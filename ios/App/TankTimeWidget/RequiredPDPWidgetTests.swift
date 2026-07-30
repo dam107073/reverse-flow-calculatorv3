@@ -29,6 +29,7 @@ enum RequiredPDPWidgetTests {
         try coefficientPersistenceAndValidation()
         try hoseSizeChangeUsesDefault()
         try accentPersistenceAndIndependence()
+        try smallReferenceBehavior()
         try incrementsAndBounds()
         try independentConfigurations()
         try configurationChangesUseNewState()
@@ -183,6 +184,77 @@ enum RequiredPDPWidgetTests {
             defaults: defaults
         )
         try expect(blueReloaded.accentColorID == "blue", "Accent changed on normal reload")
+    }
+
+    private static func smallReferenceBehavior() throws {
+        let defaults = try makeDefaults("small-reference")
+        let key = "small-red-line"
+        _ = RequiredPDPStateStore.adjustLength(
+            configurationKey: key,
+            startingLength: 200,
+            increment: 50,
+            delta: 1,
+            hoseID: "1.75",
+            configuredCoefficient: 15.5,
+            accentColorID: "orange",
+            defaults: defaults
+        )
+
+        let redLine = RequiredPDPStateStore.fixedReferenceState(
+            startingLength: 200,
+            hoseID: "1.88",
+            configuredCoefficient: 8.25,
+            accentColorID: "red"
+        )
+        let blueLine = RequiredPDPStateStore.fixedReferenceState(
+            startingLength: 300,
+            hoseID: "2.5",
+            configuredCoefficient: 2,
+            accentColorID: "blue"
+        )
+
+        try expect(redLine.hoseLengthFeet == 200, "Small widget did not use Starting Length")
+        try expect(redLine.coefficient == 8.25, "Small widget ignored its custom coefficient")
+        try expect(redLine.accentColorID == "red", "Small widget ignored its accent")
+        try expect(blueLine.hoseLengthFeet == 300, "Second Small widget inherited length")
+        try expect(blueLine.coefficient == 2, "Second Small widget inherited coefficient")
+        try expect(blueLine.accentColorID == "blue", "Second Small widget inherited accent")
+
+        let redResult = RequiredPDPCalculation.calculate(
+            coefficient: redLine.coefficient,
+            flowGPM: 160,
+            nozzlePressure: 50,
+            hoseLengthFeet: redLine.hoseLengthFeet
+        )
+        let sharedResult = RequiredPDPCalculation.calculate(
+            coefficient: 8.25,
+            flowGPM: 160,
+            nozzlePressure: 50,
+            hoseLengthFeet: 200
+        )
+        try expect(redResult == sharedResult, "Small widget calculation diverged from shared logic")
+        try expect(
+            redResult.roundedFrictionLoss == sharedResult.roundedFrictionLoss,
+            "Small widget friction-loss rounding diverged"
+        )
+        try expect(
+            redResult.roundedRequiredPDP == sharedResult.roundedRequiredPDP,
+            "Small widget PDP rounding diverged"
+        )
+
+        let interactiveState = RequiredPDPStateStore.load(
+            configurationKey: key,
+            startingLength: 200,
+            increment: 50,
+            hoseID: "1.75",
+            configuredCoefficient: 15.5,
+            accentColorID: "orange",
+            defaults: defaults
+        )
+        try expect(
+            interactiveState.hoseLengthFeet == 250,
+            "Small reference state mutated interactive length persistence"
+        )
     }
 
     private static func incrementsAndBounds() throws {

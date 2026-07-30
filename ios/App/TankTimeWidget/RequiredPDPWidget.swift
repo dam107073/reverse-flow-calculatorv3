@@ -31,21 +31,29 @@ struct RequiredPDPProvider: AppIntentTimelineProvider {
         for configuration: RequiredPDPConfigurationIntent,
         in context: Context
     ) async -> RequiredPDPEntry {
-        entry(for: configuration)
+        entry(for: configuration, family: context.family)
     }
 
     func timeline(
         for configuration: RequiredPDPConfigurationIntent,
         in context: Context
     ) async -> Timeline<RequiredPDPEntry> {
-        Timeline(entries: [entry(for: configuration)], policy: .never)
+        Timeline(entries: [entry(for: configuration, family: context.family)], policy: .never)
     }
 
-    private func entry(for configuration: RequiredPDPConfigurationIntent) -> RequiredPDPEntry {
-        RequiredPDPEntry(
-            date: .now,
-            configuration: configuration,
-            state: RequiredPDPStateStore.load(
+    private func entry(
+        for configuration: RequiredPDPConfigurationIntent,
+        family: WidgetFamily
+    ) -> RequiredPDPEntry {
+        let state = if family == .systemSmall {
+            RequiredPDPStateStore.fixedReferenceState(
+                startingLength: configuration.startingLength,
+                hoseID: configuration.hoseSize.rawValue,
+                configuredCoefficient: configuration.coefficient,
+                accentColorID: configuration.accentColor.rawValue
+            )
+        } else {
+            RequiredPDPStateStore.load(
                 configurationKey: configuration.configurationKey,
                 startingLength: configuration.startingLength,
                 increment: configuration.lengthIncrement.rawValue,
@@ -53,6 +61,12 @@ struct RequiredPDPProvider: AppIntentTimelineProvider {
                 configuredCoefficient: configuration.coefficient,
                 accentColorID: configuration.accentColor.rawValue
             )
+        }
+
+        return RequiredPDPEntry(
+            date: .now,
+            configuration: configuration,
+            state: state
         )
     }
 }
@@ -104,7 +118,9 @@ struct RequiredPDPWidgetView: View {
 
     var body: some View {
         Group {
-            if effectiveFamily == .systemLarge {
+            if effectiveFamily == .systemSmall {
+                smallLayout
+            } else if effectiveFamily == .systemLarge {
                 largeLayout
             } else {
                 mediumLayout
@@ -127,6 +143,62 @@ struct RequiredPDPWidgetView: View {
                 }
             }
         }
+    }
+
+    private var smallLayout: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 7) {
+                appIconImage
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 21, height: 21)
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                    )
+                    .widgetAccentable()
+                    .accessibilityHidden(true)
+                Text(entry.configuration.effectivePackageName)
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+            }
+            Spacer(minLength: 5)
+            pdpValue(fontSize: 27)
+            Spacer(minLength: 6)
+            Text("\(entry.configuration.hoseSize.hose.label) • \(entry.state.hoseLengthFeet)'")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .foregroundStyle(.white.opacity(0.78))
+            Text(
+                "\(entry.configuration.flowGPM) GPM • " +
+                "NP \(entry.configuration.nozzlePressure)"
+            )
+            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .foregroundStyle(.white.opacity(0.72))
+            frictionLoss(fontSize: 11)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(smallAccessibilitySummary)
+    }
+
+    private var smallAccessibilitySummary: String {
+        "\(entry.configuration.effectivePackageName). " +
+        "Required PDP \(entry.result.roundedRequiredPDP) PSI. " +
+        "\(entry.configuration.hoseSize.rawValue) inch hose, " +
+        "\(entry.state.hoseLengthFeet) feet, " +
+        "\(entry.configuration.flowGPM) GPM, " +
+        "nozzle pressure \(entry.configuration.nozzlePressure) PSI, " +
+        "friction loss \(entry.result.roundedFrictionLoss) PSI."
     }
 
     private var mediumLayout: some View {
@@ -341,9 +413,24 @@ struct RequiredPDPWidget: Widget {
         }
         .configurationDisplayName("Required PDP")
         .description("Required pump discharge pressure for one configured attack-line package.")
-        .supportedFamilies([.systemMedium, .systemLarge])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         .contentMarginsDisabled()
     }
+}
+
+#Preview("Required PDP — Small", as: .systemSmall) {
+    RequiredPDPWidget()
+} timeline: {
+    RequiredPDPEntry(
+        date: .now,
+        configuration: RequiredPDPConfigurationIntent(),
+        state: RequiredPDPStateStore.fixedReferenceState(
+            startingLength: 200,
+            hoseID: "1.75",
+            configuredCoefficient: 15.5,
+            accentColorID: "orange"
+        )
+    )
 }
 
 #Preview("Required PDP — Medium", as: .systemMedium) {
