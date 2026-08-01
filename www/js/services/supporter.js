@@ -51,15 +51,10 @@
     BECOME: "become-supporter"
   });
 
-  const ACTION_CONTENT = Object.freeze({
-    [ACTIONS.BECOME]: {
-      label: "Become a Supporter",
-      message: "Join the community helping shape and sustain what Reverse Flow becomes next."
-    },
-    [ACTIONS.MANAGE]: {
-      label: "Manage Support",
-      message: "Manage your support through Apple or Google."
-    }
+  const SUPPORT_BANNER = Object.freeze({
+    label: "Reverse Flow Supporters",
+    href: "support.html",
+    ariaLabel: "Reverse Flow Supporters. Open the Supporters screen."
   });
 
   function resolveSupportAction(state) {
@@ -3506,14 +3501,8 @@
     };
   }
 
-  function getActionUrl(action) {
-    return `support.html?action=${encodeURIComponent(action)}`;
-  }
-
-  function renderSharedSupportUi(cache, stateOverride = null, actionOverride = null) {
+  function renderSharedSupportUi(cache, stateOverride = null) {
     const state = stateOverride || getRuntimeState(cache);
-    const action = actionOverride || resolveSupportAction(state);
-    const content = ACTION_CONTENT[action];
 
     document.querySelectorAll("[data-supporter-badge]").forEach(badge => {
       badge.hidden = !state.isSupporter;
@@ -3524,18 +3513,17 @@
     });
 
     document.querySelectorAll("[data-support-card]").forEach(card => {
-      card.dataset.supportActionState = action;
       const link = card.matches("[data-support-action]")
         ? card
         : card.querySelector("[data-support-action]");
       if (!link) return;
-      link.textContent = content.label;
-      link.href = getActionUrl(action);
-      link.setAttribute("aria-label", `${content.label}. Open Support Reverse Flow.`);
+      link.textContent = SUPPORT_BANNER.label;
+      link.href = SUPPORT_BANNER.href;
+      link.setAttribute("aria-label", SUPPORT_BANNER.ariaLabel);
       card.hidden = false;
     });
 
-    return { state, action };
+    return { state };
   }
 
   async function refreshSupporterStatus(cache, registryService) {
@@ -3675,14 +3663,7 @@
       purchaseService.deriveBillingState(),
       claimRecord
     );
-    renderSharedSupportUi(
-      cache,
-      {
-        ...claimRecord,
-        supportEligible: presentation.supportEligible
-      },
-      presentation.primaryAction
-    );
+    renderSharedSupportUi(cache, claimRecord);
 
     const title = document.getElementById("supportPageTitle");
     const intro = document.getElementById("supportPageIntro");
@@ -3823,18 +3804,7 @@
     const purchases = new SupportPurchaseService(productConfig);
     const renderSharedV2 = () => {
       const claimRecord = cache.read();
-      const presentation = projectSupportPresentation(
-        purchases.deriveBillingState(),
-        claimRecord
-      );
-      return renderSharedSupportUi(
-        cache,
-        {
-          ...claimRecord,
-          supportEligible: presentation.supportEligible
-        },
-        presentation.primaryAction
-      );
+      return renderSharedSupportUi(cache, claimRecord);
     };
     renderSharedV2();
     renderSimplifiedSupportPage(cache, registry, purchases);
@@ -3899,7 +3869,6 @@
 
   const api = {
     ACTIONS,
-    ACTION_CONTENT,
     BILLING_STATES,
     CLAIM_STATES,
     SUPPORT_UI_STATES,
@@ -3920,6 +3889,7 @@
     createPendingVerificationPayload,
     refreshSupporterStatus,
     recoverSupporterIdentity,
+    renderSharedSupportUi,
     getConfiguredApi,
     isValidEmail
   };

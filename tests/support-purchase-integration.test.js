@@ -1147,7 +1147,7 @@ test("V2 presentation keeps store billing and Supporter claims independent", () 
     /By joining, your name will be added to the public Reverse Flow Supporter Registry\. You may request removal at any time\./
   );
   assert.match(supportPageSource, /Department \/ Organization/);
-  assert.match(supportPageSource, /View Supporter Registry/);
+  assert.match(supportPageSource, /View the Supporters Page/);
   const purchaseCompletionStart = supporterServiceSource.indexOf(
     "const completePurchase = async evidence =>"
   );

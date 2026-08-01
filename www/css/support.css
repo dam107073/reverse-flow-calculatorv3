@@ -1578,6 +1578,10 @@
       display: none;
     }
 
+    .support-public-page-action {
+      margin-top: 1rem;
+    }
+
     #supportCacheStatus {
       margin: 0.85rem 0 0;
     }

@@ -83,11 +83,7 @@ test("support UI uses one compact action, live store options, and approved copy"
     /A community project built by firefighters, with firefighters, for firefighters\./
   );
   assert.match(supportHtml, /Community Recognition/);
-  assert.match(supportHtml, /View Supporter Registry/);
-  assert.match(
-    supporter,
-    /Join the community helping shape and sustain what Reverse Flow becomes next\./
-  );
+  assert.match(supportHtml, /View the Supporters Page/);
   assert.doesNotMatch(
     bundledSupportSources,
     /help fund continued development|help fund what comes next|opportunities to influence development|The stores own billing/i
