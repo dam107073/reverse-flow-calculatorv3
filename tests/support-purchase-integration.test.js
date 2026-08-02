@@ -305,18 +305,20 @@ test("mobile supporter APIs contain only the canonical Production host", () => {
   assert.doesNotMatch(constantsSource, /vercel\.app|localhost|127\.0\.0\.1/);
 });
 
-test("native Version 2.0 Release values are intentional", () => {
+test("native Release versions match the current app and widget targets", () => {
   assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 9;/g) || []).length,
+    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 2;/g) || []).length,
     6
   );
   assert.equal(
-    (iosProjectSource.match(/MARKETING_VERSION = 2\.0;/g) || []).length,
+    (iosProjectSource.match(/MARKETING_VERSION = 2\.1;/g) || []).length,
     6
   );
-  assert.match(constantsSource, /const APP_VERSION = "2\.0"/);
-  assert.match(androidBuildSource, /versionCode 148/);
-  assert.match(androidBuildSource, /versionName "2\.0"/);
+  assert.match(constantsSource, /const APP_VERSION = "2\.1"/);
+  assert.match(constantsSource, /ios:\s*"2"/);
+  assert.match(constantsSource, /android:\s*"151"/);
+  assert.match(androidBuildSource, /versionCode 151/);
+  assert.match(androidBuildSource, /versionName "2\.1"/);
 });
 
 test("every iOS build configuration packages Production", () => {
