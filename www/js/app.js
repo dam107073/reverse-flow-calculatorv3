@@ -3,7 +3,7 @@
     // APPLICATION STATE
     // ========================================
     const DEFAULT_STATE = {
-      mode: "reverse",
+      mode: "attackPumper",
       pdp: "",
       targetGpm: "",
       hoseLength: "",
@@ -125,6 +125,7 @@
       "apparatusMounted",
       "relay",
       "wyeOps",
+      "attackPumper",
       "requiredPdp",
       "reverse",
       "splitLay",
@@ -287,6 +288,19 @@
 
       pumpChartList:
         document.getElementById("pumpChartList"),
+
+      attackPumperModeButton: document.getElementById("attackPumperModeButton"),
+      attackPumperWorkspace: document.getElementById("attackPumperWorkspace"),
+      attackPumperHeader: document.getElementById("attackPumperHeader"),
+      attackPumperStickySentinel: document.getElementById("attackPumperStickySentinel"),
+      attackPumperPressure: document.getElementById("attackPumperPressure"),
+      attackPumperTotalFlow: document.getElementById("attackPumperTotalFlow"),
+      attackPumperExplanation: document.getElementById("attackPumperExplanation"),
+      attackPumperLines: document.getElementById("attackPumperLines"),
+      attackPumperEmptyAdd: document.getElementById("attackPumperEmptyAdd"),
+      attackPumperIncidentActions: document.getElementById("attackPumperIncidentActions"),
+      attackPumperAddLine: document.getElementById("attackPumperAddLine"),
+      attackPumperEndIncident: document.getElementById("attackPumperEndIncident"),
 
       reverseModeButton: document.getElementById("reverseModeButton"),
       pdpModeButton: document.getElementById("pdpModeButton"),
@@ -2169,6 +2183,7 @@ logStoreEvent("initialize-start", {
   renderPresetOptions();
   syncInputsFromState();
   setupModeCarousel();
+  setupAttackPumperInteractions();
   enforceRestoredSessionModeAccess();
 
   syncReverseSupplyUi();
@@ -2377,6 +2392,392 @@ let pumpChartView = {
 let activePumpChartEdit = null;
 let activePumpOperatorPackage = null;
 let shouldScrollToTopAfterPumpChartSaveClose = false;
+let attackPumperSelection = null;
+let attackPumperPendingAnimationId = "";
+let attackPumperStickyObserver = null;
+let attackPumperSwipe = null;
+let attackPumperIgnoreClickUntil = 0;
+
+function loadAttackPumperIncident() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ATTACK_PUMPER_INCIDENT_KEY) || "{}");
+    const lines = Array.isArray(saved.lines)
+      ? saved.lines.filter(line => (
+          line &&
+          typeof line.id === "string" &&
+          Number.isFinite(Number(line.gpm)) &&
+          Number.isFinite(Number(line.pdp))
+        ))
+      : [];
+    return { version: 1, lines };
+  } catch {
+    return { version: 1, lines: [] };
+  }
+}
+
+function saveAttackPumperIncident(incident) {
+  localStorage.setItem(ATTACK_PUMPER_INCIDENT_KEY, JSON.stringify({
+    version: 1,
+    lines: Array.isArray(incident?.lines) ? incident.lines : []
+  }));
+}
+
+function formatAttackPumperNumber(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+  return Number.isInteger(number) ? String(number) : number.toFixed(1);
+}
+
+function getAttackPumperTotals(lines = loadAttackPumperIncident().lines) {
+  return {
+    totalFlow: lines.reduce((total, line) => total + (Number(line.gpm) || 0), 0),
+    pumpPressure: lines.reduce((highest, line) => Math.max(highest, Number(line.pdp) || 0), 0)
+  };
+}
+
+function normalizeAttackPumperSnapshotText(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s*\n\s*/g, " • ")
+    .replace(/\s{2,}/g, " ");
+}
+
+function formatAttackPumperPackageSummary(hoseValue, nozzlePressureValue) {
+  const hosePath = normalizeAttackPumperSnapshotText(hoseValue)
+    .split(/\s*→\s*/)
+    .map(section => {
+      const match = section.match(/^(.+?)\s*×\s*(-?\d+(?:\.\d+)?')$/);
+      return match ? `${match[2]} • ${match[1]}` : section;
+    })
+    .filter(Boolean)
+    .join(" → ");
+  const nozzlePressure = String(nozzlePressureValue ?? "").match(/-?\d+(?:\.\d+)?/)?.[0] || "";
+
+  return [hosePath, nozzlePressure ? `NP ${formatAttackPumperNumber(nozzlePressure)}` : ""]
+    .filter(Boolean)
+    .join(" • ");
+}
+
+function getAttackPumperSnapshot(setup) {
+  if (!setup) return null;
+
+  const structure = getPumpOperatorHydraulicStructure(setup);
+  const row = getPumpOperatorSetupRow(setup);
+  const gpm = Number(row.gpm);
+  const pdp = Number(row.pdp);
+  const frictionLoss = normalizeAttackPumperSnapshotText(row.frictionLoss);
+  const hoseSummary = formatAttackPumperPackageSummary(row.hose, row.nozzlePressure);
+
+  if (
+    structure.confidence !== "confident" ||
+    !String(row.name || setup.name || "").trim() ||
+    !(gpm > 0) ||
+    !(pdp > 0) ||
+    !frictionLoss ||
+    !/\d/.test(frictionLoss) ||
+    frictionLoss.includes("—") ||
+    !hoseSummary
+  ) {
+    return null;
+  }
+
+  return {
+    id: generatePumpChartId("attack-line"),
+    sourceSetupId: setup.id,
+    sourceMode: setup.mode,
+    capturedAt: nowIsoString(),
+    name: String(row.name || setup.name).trim(),
+    gpm,
+    pdp,
+    frictionLoss,
+    hoseSummary
+  };
+}
+
+function isAttackPumperCompatibleSetup(setup) {
+  return Boolean(getAttackPumperSnapshot(setup));
+}
+
+function applyAttackPumperSnapshot(incident, snapshot, replaceLineId = "") {
+  const nextIncident = {
+    version: 1,
+    lines: Array.isArray(incident?.lines) ? incident.lines.map(line => ({ ...line })) : []
+  };
+  const replaceIndex = replaceLineId
+    ? nextIncident.lines.findIndex(line => line.id === replaceLineId)
+    : -1;
+
+  if (replaceIndex >= 0) {
+    nextIncident.lines[replaceIndex] = {
+      ...snapshot,
+      id: nextIncident.lines[replaceIndex].id
+    };
+  } else {
+    nextIncident.lines.push({ ...snapshot });
+  }
+
+  return nextIncident;
+}
+
+function animateAttackPumperMetric(element, text) {
+  if (!element) return;
+  if (element.textContent === text) return;
+  element.textContent = text;
+  element.classList.remove("attack-pumper-value-change");
+  void element.offsetWidth;
+  element.classList.add("attack-pumper-value-change");
+}
+
+function renderAttackPumperIncident() {
+  if (!els.attackPumperWorkspace || !els.attackPumperLines) return;
+
+  const incident = loadAttackPumperIncident();
+  const hasLines = incident.lines.length > 0;
+  const totals = getAttackPumperTotals(incident.lines);
+
+  animateAttackPumperMetric(
+    els.attackPumperPressure,
+    `${formatAttackPumperNumber(totals.pumpPressure)} PSI`
+  );
+  animateAttackPumperMetric(
+    els.attackPumperTotalFlow,
+    `${formatAttackPumperNumber(totals.totalFlow)} GPM`
+  );
+
+  els.attackPumperExplanation.hidden = hasLines;
+  els.attackPumperEmptyAdd.hidden = hasLines;
+  els.attackPumperIncidentActions.hidden = !hasLines;
+  els.attackPumperLines.innerHTML = incident.lines.map(line => `
+    <article
+      class="attack-pumper-line${line.id === attackPumperPendingAnimationId ? " attack-pumper-line-enter" : ""}"
+      data-attack-pumper-line-id="${escapeHtml(line.id)}"
+      role="button"
+      tabindex="0"
+      aria-label="Replace ${escapeHtml(line.name)}. Swipe left to delete."
+    >
+      <div class="attack-pumper-line-content">
+        <strong class="attack-pumper-line-name">${escapeHtml(line.name)}</strong>
+        <div class="attack-pumper-gate-to">
+          <span>Gate To</span>
+          <strong>${escapeHtml(formatAttackPumperNumber(line.pdp))}<small> PSI</small></strong>
+        </div>
+        <div class="attack-pumper-line-metrics">
+          <div><span>GPM</span><strong>${escapeHtml(formatAttackPumperNumber(line.gpm))}</strong></div>
+          <div><span>Friction Loss</span><strong>${escapeHtml(line.frictionLoss)}<small> PSI</small></strong></div>
+        </div>
+        <p class="attack-pumper-hose-summary">${escapeHtml(line.hoseSummary)}</p>
+      </div>
+      <div class="attack-pumper-swipe-delete" aria-hidden="true">Delete</div>
+    </article>
+  `).join("");
+
+  if (attackPumperPendingAnimationId) {
+    window.setTimeout(() => {
+      attackPumperPendingAnimationId = "";
+    }, 360);
+  }
+}
+
+function renderAttackPumperSetupPicker() {
+  const compatibleGroups = loadPumpCharts().charts
+    .map(chart => ({
+      chart,
+      setups: chart.setups.filter(isAttackPumperCompatibleSetup)
+    }))
+    .filter(group => group.setups.length);
+
+  setPumpChartSubtitle(
+    attackPumperSelection?.replaceLineId
+      ? "Select a compatible setup to replace this attack line."
+      : "Select a compatible setup to add an attack line."
+  );
+
+  if (!compatibleGroups.length) {
+    els.pumpChartList.innerHTML = `
+      <div class="disabled-note">
+        No compatible pumpable discharge setups are saved yet. Save a complete setup to Pump Chart first.
+      </div>
+    `;
+    return;
+  }
+
+  els.pumpChartList.innerHTML = compatibleGroups.map(({ chart, setups }) => `
+    <section class="attack-pumper-picker-group">
+      <h3>${escapeHtml(chart.name)}</h3>
+      ${setups.map(setup => {
+        const snapshot = getAttackPumperSnapshot(setup);
+        return `
+          <button
+            class="attack-pumper-setup-choice"
+            type="button"
+            onclick="selectAttackPumperSetup('${escapeHtml(chart.id)}', '${escapeHtml(setup.id)}')"
+          >
+            <span>
+              <strong>${escapeHtml(snapshot.name)}</strong>
+              <small>${escapeHtml(snapshot.hoseSummary)}</small>
+            </span>
+            <span class="attack-pumper-setup-choice-result">
+              ${escapeHtml(formatAttackPumperNumber(snapshot.gpm))} GPM • Gate To ${escapeHtml(formatAttackPumperNumber(snapshot.pdp))} PSI
+            </span>
+          </button>
+        `;
+      }).join("")}
+    </section>
+  `).join("");
+}
+
+function restoreAttackPumperScrollPosition(scrollY) {
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: scrollY, behavior: "auto" });
+  });
+}
+
+function openAttackPumperPumpChart(replaceLineId = "") {
+  attackPumperSelection = {
+    replaceLineId,
+    scrollY: window.scrollY
+  };
+  shouldScrollToTopAfterPumpChartSaveClose = false;
+  pumpChartView = { screen: "list", chartId: null, setupId: null };
+  els.closePumpChartModal.textContent = "Dismiss";
+  els.closePumpChartModal.classList.add("attack-pumper-dismiss");
+  renderPumpChart();
+  els.pumpChartModal.hidden = false;
+}
+
+function finishAttackPumperSelectionSession() {
+  if (!attackPumperSelection) return;
+  const scrollY = attackPumperSelection.scrollY;
+  attackPumperSelection = null;
+  els.closePumpChartModal.textContent = "✕";
+  els.closePumpChartModal.classList.remove("attack-pumper-dismiss");
+  restoreAttackPumperScrollPosition(scrollY);
+}
+
+function deleteAttackPumperLine(lineId, card = null) {
+  const removeLine = () => {
+    const incident = loadAttackPumperIncident();
+    incident.lines = incident.lines.filter(line => line.id !== lineId);
+    saveAttackPumperIncident(incident);
+    renderAttackPumperIncident();
+  };
+
+  if (!card) {
+    removeLine();
+    return;
+  }
+
+  card.classList.add("attack-pumper-line-remove");
+  window.setTimeout(removeLine, 190);
+}
+
+function syncAttackPumperPinnedHeader() {
+  if (!els.attackPumperWorkspace || !els.attackPumperHeader || !els.attackPumperStickySentinel) return;
+
+  const topOffset = 8;
+  const workspaceRect = els.attackPumperWorkspace.getBoundingClientRect();
+  const sentinelRect = els.attackPumperStickySentinel.getBoundingClientRect();
+  const shouldPin = isAttackPumperMode() &&
+    sentinelRect.top < topOffset &&
+    workspaceRect.bottom > topOffset + 58;
+
+  els.attackPumperHeader.classList.toggle("is-pinned", shouldPin);
+  els.attackPumperStickySentinel.classList.toggle("is-header-placeholder", shouldPin);
+
+  if (shouldPin) {
+    els.attackPumperHeader.style.setProperty("--attack-pumper-header-left", `${workspaceRect.left}px`);
+    els.attackPumperHeader.style.setProperty("--attack-pumper-header-width", `${workspaceRect.width}px`);
+  } else {
+    els.attackPumperHeader.style.removeProperty("--attack-pumper-header-left");
+    els.attackPumperHeader.style.removeProperty("--attack-pumper-header-width");
+  }
+}
+
+function setupAttackPumperInteractions() {
+  if (!els.attackPumperWorkspace) return;
+
+  const openAdd = () => openAttackPumperPumpChart();
+  els.attackPumperEmptyAdd?.addEventListener("click", openAdd);
+  els.attackPumperAddLine?.addEventListener("click", openAdd);
+  els.attackPumperEndIncident?.addEventListener("click", () => {
+    if (!loadAttackPumperIncident().lines.length) return;
+    if (!confirm("End this incident and remove every active attack line?")) return;
+    saveAttackPumperIncident({ version: 1, lines: [] });
+    renderAttackPumperIncident();
+  });
+
+  els.attackPumperLines?.addEventListener("click", event => {
+    if (Date.now() < attackPumperIgnoreClickUntil) return;
+    const card = event.target.closest?.("[data-attack-pumper-line-id]");
+    if (card) openAttackPumperPumpChart(card.dataset.attackPumperLineId);
+  });
+
+  els.attackPumperLines?.addEventListener("keydown", event => {
+    const card = event.target.closest?.("[data-attack-pumper-line-id]");
+    if (!card) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openAttackPumperPumpChart(card.dataset.attackPumperLineId);
+    } else if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      deleteAttackPumperLine(card.dataset.attackPumperLineId, card);
+    }
+  });
+
+  els.attackPumperLines?.addEventListener("pointerdown", event => {
+    const card = event.target.closest?.("[data-attack-pumper-line-id]");
+    if (!card) return;
+    attackPumperSwipe = {
+      card,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      deltaX: 0,
+      active: false
+    };
+    card.setPointerCapture?.(event.pointerId);
+  });
+
+  els.attackPumperLines?.addEventListener("pointermove", event => {
+    if (!attackPumperSwipe || attackPumperSwipe.pointerId !== event.pointerId) return;
+    const deltaX = Math.min(0, event.clientX - attackPumperSwipe.startX);
+    const deltaY = Math.abs(event.clientY - attackPumperSwipe.startY);
+    if (!attackPumperSwipe.active && (Math.abs(deltaX) < 8 || Math.abs(deltaX) <= deltaY)) return;
+    attackPumperSwipe.active = true;
+    attackPumperSwipe.deltaX = Math.max(-112, deltaX);
+    attackPumperSwipe.card.style.setProperty("--attack-pumper-swipe-x", `${attackPumperSwipe.deltaX}px`);
+  });
+
+  const finishSwipe = event => {
+    if (!attackPumperSwipe || attackPumperSwipe.pointerId !== event.pointerId) return;
+    const swipe = attackPumperSwipe;
+    attackPumperSwipe = null;
+    swipe.card.releasePointerCapture?.(event.pointerId);
+
+    if (!swipe.active) return;
+    attackPumperIgnoreClickUntil = Date.now() + 420;
+    if (swipe.deltaX <= -72) {
+      swipe.card.style.setProperty("--attack-pumper-swipe-x", "-100%");
+      deleteAttackPumperLine(swipe.card.dataset.attackPumperLineId, swipe.card);
+      return;
+    }
+    swipe.card.style.setProperty("--attack-pumper-swipe-x", "0px");
+  };
+
+  els.attackPumperLines?.addEventListener("pointerup", finishSwipe);
+  els.attackPumperLines?.addEventListener("pointercancel", finishSwipe);
+
+  window.addEventListener("scroll", syncAttackPumperPinnedHeader, { passive: true });
+  window.addEventListener("resize", syncAttackPumperPinnedHeader, { passive: true });
+
+  if ("IntersectionObserver" in window && els.attackPumperStickySentinel) {
+    attackPumperStickyObserver = new IntersectionObserver(
+      syncAttackPumperPinnedHeader,
+      { threshold: 0 }
+    );
+    attackPumperStickyObserver.observe(els.attackPumperStickySentinel);
+  }
+}
 
 function scrollCalculatorPageToTop() {
   requestAnimationFrame(() => {
@@ -2390,6 +2791,10 @@ function scrollCalculatorPageToTop() {
 function closePumpChartModal({ allowPostSaveScroll = true } = {}) {
   els.pumpChartModal.hidden = true;
   els.viewPumpChartButton?.classList.remove("active");
+
+  if (attackPumperSelection) {
+    finishAttackPumperSelectionSession();
+  }
 
   if (allowPostSaveScroll && shouldScrollToTopAfterPumpChartSaveClose) {
     shouldScrollToTopAfterPumpChartSaveClose = false;
@@ -2840,6 +3245,7 @@ function extractResultFromLegacyPreset(preset = {}) {
 }
 
 function getModeLabel(mode) {
+	  if (mode === "attackPumper") return "Attack Pumper";
 	  if (mode === "requiredPdp") return "Required PDP";
 	  if (mode === "relay") return "Relay Pumping";
 	  if (mode === "wyeOps") return "Wye Ops";
@@ -4355,6 +4761,11 @@ function populateStandpipeSmoothboreTipOptions(lineNumber) {
 
 function renderPumpChart() {
   if (!els.pumpChartList) return;
+
+  if (attackPumperSelection) {
+    renderAttackPumperSetupPicker();
+    return;
+  }
 
   if (pumpChartView.screen === "save") {
     renderSavePumpChartForm();
@@ -6424,6 +6835,7 @@ function getNozzleTypeHelperText() {
     function syncModeUi() {
       const smoothboreRequiredPdp = isRequiredPdpMode() && usesSmoothboreHydraulics();
 
+      els.attackPumperModeButton?.classList.toggle("active", isAttackPumperMode());
       els.reverseModeButton.classList.toggle("active", isReverseMode());
       els.pdpModeButton.classList.toggle("active", isRequiredPdpMode());
 	      els.apparatusMountedModeButton?.classList.toggle("active", isApparatusMountedMode());
@@ -6432,6 +6844,10 @@ function getNozzleTypeHelperText() {
 	      els.splitLayButton.classList.toggle("active", isSplitLayMode());
       els.standpipeOpsButton?.classList.toggle("active", isStandpipeOpsMode());
       syncModeCarouselActiveState();
+      document.body.classList.toggle("attack-pumper-active", isAttackPumperMode());
+      if (els.attackPumperWorkspace) {
+        els.attackPumperWorkspace.hidden = !isAttackPumperMode();
+      }
 
       els.pdpLabel.textContent =
         isApparatusMountedMode()
@@ -6538,6 +6954,8 @@ document.querySelector('label[for="applianceLoss"]').textContent =
 	  ? "Split Lay: Calculate longer deployments using separate supply and attack sections joined by an appliance."
 	  : isWyeOpsMode()
 	    ? "Wye Ops: model a gated wye with two attack lines and fixed-PDP behavior when one line closes."
+	  : isAttackPumperMode()
+    ? "Attack Pumper: manage active attack lines from saved Pump Chart setup snapshots."
 	  : isStandpipeOpsMode()
     ? "Standpipe Ops: calculate engine PDP for standpipe stretches using attack demand, elevation, standpipe loss, and FDC supply loss."
   : isApparatusMountedMode()
@@ -6708,10 +7126,22 @@ if (!isWyeOpsMode()) {
 }
 
 if (els.standardResultsCard) {
-  els.standardResultsCard.hidden = isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode();
+  els.standardResultsCard.hidden = isAttackPumperMode() || isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode();
 }
 if (els.standardResultsCard) {
-  els.standardResultsCard.hidden = isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode();
+  els.standardResultsCard.hidden = isAttackPumperMode() || isWyeOpsMode() || isSplitLayMode() || isStandpipeOpsMode();
+}
+
+if (els.warningsCard && isAttackPumperMode()) {
+  els.warningsCard.hidden = true;
+}
+
+if (els.attackPumperWorkspace && isAttackPumperMode()) {
+  renderAttackPumperIncident();
+  requestAnimationFrame(syncAttackPumperPinnedHeader);
+} else if (els.attackPumperHeader) {
+  els.attackPumperHeader.classList.remove("is-pinned");
+  els.attackPumperStickySentinel?.classList.remove("is-header-placeholder");
 }
 
 if (els.reverseSupplyToggleField) {
@@ -7352,6 +7782,12 @@ function openProModal() {
         activated = true;
       }
 
+      if (mode === "attackPumper") {
+        setMode("attackPumper");
+        renderAttackPumperIncident();
+        activated = true;
+      }
+
       if (mode === "splitLay") {
         resetSplitLayInputs();
         resetSplitLayResultCard();
@@ -7791,13 +8227,17 @@ els.apparatusMountedModeButton?.addEventListener("click", event => {
 	  activateCarouselMode("relay", { targetButton: event.currentTarget });
 	});
 
-	els.wyeOpsButton?.addEventListener("click", event => {
+els.wyeOpsButton?.addEventListener("click", event => {
 	  activateCarouselMode("wyeOps", { targetButton: event.currentTarget });
 	});
 
 	els.relayResidualPressure.addEventListener("change", e => {
   state.relayResidualPressure = e.target.value;
   updateCalculator();
+});
+
+els.attackPumperModeButton?.addEventListener("click", event => {
+  activateCarouselMode("attackPumper", { targetButton: event.currentTarget });
 });
 
 els.splitLayButton.addEventListener("click", event => {
@@ -8079,6 +8519,7 @@ els.closeProModal.addEventListener("click", () => {
   els.proModal.hidden = true;
 });
       els.viewPumpChartButton.addEventListener("click", () => {
+  finishAttackPumperSelectionSession();
   shouldScrollToTopAfterPumpChartSaveClose = false;
   const data = loadPumpCharts();
   const lastViewedChartId = getLastViewedPumpChartId();
@@ -9173,8 +9614,35 @@ window.renamePumpChartSetup = function(chartId, setupId) {
 };
 
 window.loadPumpChartSetup = function(chartId, setupId) {
+  if (attackPumperSelection) {
+    window.selectAttackPumperSetup(chartId, setupId);
+    return;
+  }
+
   applyPumpChartSetup(chartId, setupId);
   setPumpChartEditState(chartId, setupId);
+  closePumpChartModal({ allowPostSaveScroll: false });
+};
+
+window.selectAttackPumperSetup = function(chartId, setupId) {
+  if (!attackPumperSelection) return;
+
+  const { setup } = findPumpChartSetup(chartId, setupId);
+  const snapshot = getAttackPumperSnapshot(setup);
+  if (!snapshot) return;
+
+  const incident = applyAttackPumperSnapshot(
+    loadAttackPumperIncident(),
+    snapshot,
+    attackPumperSelection.replaceLineId
+  );
+
+  const selectedLine = attackPumperSelection.replaceLineId
+    ? incident.lines.find(line => line.id === attackPumperSelection.replaceLineId)
+    : incident.lines[incident.lines.length - 1];
+  attackPumperPendingAnimationId = selectedLine?.id || "";
+  saveAttackPumperIncident(incident);
+  renderAttackPumperIncident();
   closePumpChartModal({ allowPostSaveScroll: false });
 };
 
@@ -11862,6 +12330,11 @@ function getWyeScenarioWarnings(scenario) {
 	    // CALCULATION ORCHESTRATION
     // ========================================
     function calculateAndRender() {
+      if (isAttackPumperMode()) {
+        renderAttackPumperIncident();
+        return;
+      }
+
       const inputs = getCalculationInputs();
       const warnings = [];
 
@@ -14567,6 +15040,10 @@ return `Automatic Fog • ${displayPressure} psi`;
 	    function isWyeOpsMode() {
 	      return state.mode === "wyeOps";
 	    }
+
+    function isAttackPumperMode() {
+      return state.mode === "attackPumper";
+    }
 
 	    function isSplitLayMode() {
       return state.mode === "splitLay";
