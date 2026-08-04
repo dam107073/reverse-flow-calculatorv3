@@ -39,7 +39,7 @@
        STYLES
   ========================================= -->
   <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
-  <link rel="stylesheet" href="css/components.css?v=attack-pumper-2" />
+  <link rel="stylesheet" href="css/components.css?v=pump-panel-7" />
   <link rel="stylesheet" href="css/calculators.css?v=standpipe-1" />
   <link rel="stylesheet" href="css/support.css?v=support-final-1" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
@@ -75,7 +75,7 @@
     ========================================= -->
     <section class="card" id="calculatorInputCard">
       <div class="form-grid">
-        <div class="field full" data-attack-pumper-keep>
+        <div id="pumpChartEntryField" class="field full" data-attack-pumper-keep>
           <label>Pump Chart</label>
 <p class="helper">Save, load, and manage operational hose/nozzle setups.</p>
           <div id="pumpChartButtons">
@@ -97,12 +97,13 @@
 </div>
         </div>
 
-        <div class="field full" data-attack-pumper-keep>
-          <label>Operations Module</label>
-<p class="helper">
+        <div id="operationsModuleField" class="field full" data-attack-pumper-keep>
+          <label id="operationsModuleLabel">Operations Module</label>
+<p id="operationsModuleHelper" class="helper">
 Select a hydraulic calculation mode.
 </p>
 
+          <div class="mode-carousel-shell">
           <div class="mode-carousel" id="modeButtons" aria-label="Operations module carousel">
   <button id="apparatusMountedModeButton" type="button" data-mode="apparatusMounted">
     <span>App Mounted</span>
@@ -118,8 +119,8 @@ Select a hydraulic calculation mode.
   </button>
 
   <button id="attackPumperModeButton" type="button" data-mode="attackPumper">
-    <span>Attack</span>
-    <span>Pumper</span>
+    <span>Pump</span>
+    <span>Panel</span>
   </button>
 
   <button id="reverseModeButton" type="button" data-mode="reverse">
@@ -150,34 +151,34 @@ Select a hydraulic calculation mode.
     <span>Ops</span>
   </button>
 </div>
+          </div>
           <p class="helper" id="modeHelper">Reverse Flow Mode: Enter PDP to estimate GPM and Nozzle Pressure based on hose and nozzle characteristics.</p>
           <div class="section-divider">
         </div>
 
           <section id="attackPumperWorkspace" class="attack-pumper-workspace" hidden aria-labelledby="attackPumperTitle">
-            <div id="attackPumperStickySentinel" class="attack-pumper-sticky-sentinel" aria-hidden="true"></div>
             <header id="attackPumperHeader" class="attack-pumper-header">
               <div class="attack-pumper-header-metric attack-pumper-header-pressure" aria-live="polite">
                 <span>PDP</span>
                 <strong id="attackPumperPressure">0 PSI</strong>
               </div>
-              <h2 id="attackPumperTitle">Attack Pumper</h2>
+              <h2 id="attackPumperTitle">Pump Panel</h2>
               <div class="attack-pumper-header-metric attack-pumper-header-flow" aria-live="polite">
-                <span>Flow</span>
+                <span>Total Flow</span>
                 <strong id="attackPumperTotalFlow">0 GPM</strong>
               </div>
             </header>
             <p id="attackPumperExplanation" class="attack-pumper-explanation">
-              Build one active incident from saved Pump Chart attack-line setups.
+              Build your pump panel from eligible setups saved in your Pump Chart.
             </p>
             <div id="attackPumperLines" class="attack-pumper-lines" aria-live="polite"></div>
             <button id="attackPumperEmptyAdd" class="attack-pumper-empty-add" type="button">
-              Add Line
+              Add a Line
             </button>
             <div id="attackPumperIncidentActions" class="attack-pumper-incident-actions" hidden>
               <button id="attackPumperAddLine" class="attack-pumper-add-card" type="button">
                 <span aria-hidden="true">＋</span>
-                <strong>Add Line</strong>
+                <strong>Add a Line</strong>
               </button>
               <button id="attackPumperEndIncident" class="attack-pumper-end-incident" type="button">
                 End Incident
@@ -1630,14 +1631,14 @@ Select a hydraulic calculation mode.
   <!-- ========================================
        APPLICATION SCRIPT
   ========================================= -->
-  <script src="js/constants.js?v=attack-pumper-2"></script>
+  <script src="js/constants.js?v=pump-panel-7"></script>
   <script src="js/services/entitlement.js?v=community-polish-1"></script>
   <script src="js/services/supporter.js?v=ios-store-reconcile-1"></script>
   <script src="js/data/hydraulics.js?v=build-8"></script>
   <script src="vendor/html2canvas.min.js?v=1.4.1"></script>
   <script src="vendor/jspdf.umd.min.js?v=3.0.3"></script>
   <script src="js/pump-operator-package.js?v=25"></script>
-  <script src="js/app.js?v=attack-pumper-2"></script>
+  <script src="js/app.js?v=pump-panel-7"></script>
 
   <script type="module" src="js/analytics.js"></script>
 

@@ -291,8 +291,6 @@
 
       attackPumperModeButton: document.getElementById("attackPumperModeButton"),
       attackPumperWorkspace: document.getElementById("attackPumperWorkspace"),
-      attackPumperHeader: document.getElementById("attackPumperHeader"),
-      attackPumperStickySentinel: document.getElementById("attackPumperStickySentinel"),
       attackPumperPressure: document.getElementById("attackPumperPressure"),
       attackPumperTotalFlow: document.getElementById("attackPumperTotalFlow"),
       attackPumperExplanation: document.getElementById("attackPumperExplanation"),
@@ -2394,7 +2392,6 @@ let activePumpOperatorPackage = null;
 let shouldScrollToTopAfterPumpChartSaveClose = false;
 let attackPumperSelection = null;
 let attackPumperPendingAnimationId = "";
-let attackPumperStickyObserver = null;
 let attackPumperSwipe = null;
 let attackPumperIgnoreClickUntil = 0;
 
@@ -2453,9 +2450,69 @@ function formatAttackPumperPackageSummary(hoseValue, nozzlePressureValue) {
     .join(" → ");
   const nozzlePressure = String(nozzlePressureValue ?? "").match(/-?\d+(?:\.\d+)?/)?.[0] || "";
 
+  if (!hosePath) return "";
+
   return [hosePath, nozzlePressure ? `NP ${formatAttackPumperNumber(nozzlePressure)}` : ""]
     .filter(Boolean)
     .join(" • ");
+}
+
+function getAttackPumperPackageSummary(setup, row, structure) {
+  const result = setup?.result || {};
+  const structuredSummary = structure?.confidence === "confident"
+    ? formatAttackPumperPackageSummary(row?.hose, row?.nozzlePressure)
+    : "";
+
+  if (structuredSummary && !structuredSummary.includes("—")) {
+    return structuredSummary;
+  }
+
+  const storedSummary = normalizeAttackPumperSnapshotText(
+    result.packageSummary ||
+    result.hoseSummary ||
+    result.setupDisplay ||
+    result.summary ||
+    ""
+  ).replace(/\s*\|\s*/g, " • ");
+
+  return storedSummary && !storedSummary.includes("—")
+    ? storedSummary
+    : "";
+}
+
+function getAttackPumperFrictionLoss(setup, row, pdp, structure) {
+  const result = setup?.result || {};
+  const normalizedRowLoss = normalizeAttackPumperSnapshotText(row?.frictionLoss);
+
+  if (
+    structure?.confidence === "confident" &&
+    normalizedRowLoss &&
+    /\d/.test(normalizedRowLoss) &&
+    !normalizedRowLoss.includes("—")
+  ) {
+    return normalizedRowLoss;
+  }
+
+  const storedLoss = getPumpOperatorNumericValue(
+    result.totalFrictionLoss ||
+    result.attackFrictionLoss ||
+    result.frictionLoss ||
+    ""
+  );
+  if (storedLoss !== "") return formatAttackPumperNumber(storedLoss);
+
+  const nozzlePressureValue = getPumpOperatorNumericValue(row?.nozzlePressure);
+  const nozzlePressure = Number(nozzlePressureValue);
+  if (
+    nozzlePressureValue !== "" &&
+    Number.isFinite(pdp) &&
+    Number.isFinite(nozzlePressure) &&
+    pdp >= nozzlePressure
+  ) {
+    return formatAttackPumperNumber(pdp - nozzlePressure);
+  }
+
+  return "";
 }
 
 function getAttackPumperSnapshot(setup) {
@@ -2465,11 +2522,10 @@ function getAttackPumperSnapshot(setup) {
   const row = getPumpOperatorSetupRow(setup);
   const gpm = Number(row.gpm);
   const pdp = Number(row.pdp);
-  const frictionLoss = normalizeAttackPumperSnapshotText(row.frictionLoss);
-  const hoseSummary = formatAttackPumperPackageSummary(row.hose, row.nozzlePressure);
+  const frictionLoss = getAttackPumperFrictionLoss(setup, row, pdp, structure);
+  const hoseSummary = getAttackPumperPackageSummary(setup, row, structure);
 
   if (
-    structure.confidence !== "confident" ||
     !String(row.name || setup.name || "").trim() ||
     !(gpm > 0) ||
     !(pdp > 0) ||
@@ -2487,6 +2543,7 @@ function getAttackPumperSnapshot(setup) {
     sourceMode: setup.mode,
     capturedAt: nowIsoString(),
     name: String(row.name || setup.name).trim(),
+    accentColorID: normalizePumpChartAccentColorID(setup.accentColorID),
     gpm,
     pdp,
     frictionLoss,
@@ -2534,6 +2591,7 @@ function renderAttackPumperIncident() {
   const incident = loadAttackPumperIncident();
   const hasLines = incident.lines.length > 0;
   const totals = getAttackPumperTotals(incident.lines);
+  document.body.classList.toggle("attack-pumper-has-lines", hasLines);
 
   animateAttackPumperMetric(
     els.attackPumperPressure,
@@ -2543,7 +2601,6 @@ function renderAttackPumperIncident() {
     els.attackPumperTotalFlow,
     `${formatAttackPumperNumber(totals.totalFlow)} GPM`
   );
-
   els.attackPumperExplanation.hidden = hasLines;
   els.attackPumperEmptyAdd.hidden = hasLines;
   els.attackPumperIncidentActions.hidden = !hasLines;
@@ -2551,19 +2608,26 @@ function renderAttackPumperIncident() {
     <article
       class="attack-pumper-line${line.id === attackPumperPendingAnimationId ? " attack-pumper-line-enter" : ""}"
       data-attack-pumper-line-id="${escapeHtml(line.id)}"
+      style="--attack-pumper-widget-accent: ${getPumpChartAccentColorValue(line.accentColorID)}"
       role="button"
       tabindex="0"
       aria-label="Replace ${escapeHtml(line.name)}. Swipe left to delete."
     >
       <div class="attack-pumper-line-content">
         <strong class="attack-pumper-line-name">${escapeHtml(line.name)}</strong>
-        <div class="attack-pumper-gate-to">
-          <span>Gate To</span>
-          <strong>${escapeHtml(formatAttackPumperNumber(line.pdp))}<small> PSI</small></strong>
-        </div>
         <div class="attack-pumper-line-metrics">
-          <div><span>GPM</span><strong>${escapeHtml(formatAttackPumperNumber(line.gpm))}</strong></div>
-          <div><span>Friction Loss</span><strong>${escapeHtml(line.frictionLoss)}<small> PSI</small></strong></div>
+          <div class="attack-pumper-line-metric attack-pumper-line-flow">
+            <span>GPM</span>
+            <strong>${escapeHtml(formatAttackPumperNumber(line.gpm))}</strong>
+          </div>
+          <div class="attack-pumper-gate-to">
+            <span>Gate To</span>
+            <strong>${escapeHtml(formatAttackPumperNumber(line.pdp))}</strong>
+          </div>
+          <div class="attack-pumper-line-metric attack-pumper-line-friction">
+            <span>FL</span>
+            <strong>${escapeHtml(line.frictionLoss)}</strong>
+          </div>
         </div>
         <p class="attack-pumper-hose-summary">${escapeHtml(line.hoseSummary)}</p>
       </div>
@@ -2576,6 +2640,7 @@ function renderAttackPumperIncident() {
       attackPumperPendingAnimationId = "";
     }, 360);
   }
+
 }
 
 function renderAttackPumperSetupPicker() {
@@ -2588,8 +2653,8 @@ function renderAttackPumperSetupPicker() {
 
   setPumpChartSubtitle(
     attackPumperSelection?.replaceLineId
-      ? "Select a compatible setup to replace this attack line."
-      : "Select a compatible setup to add an attack line."
+      ? "Select a compatible setup to replace this active discharge."
+      : "Select a compatible setup to add an active discharge."
   );
 
   if (!compatibleGroups.length) {
@@ -2671,28 +2736,6 @@ function deleteAttackPumperLine(lineId, card = null) {
   window.setTimeout(removeLine, 190);
 }
 
-function syncAttackPumperPinnedHeader() {
-  if (!els.attackPumperWorkspace || !els.attackPumperHeader || !els.attackPumperStickySentinel) return;
-
-  const topOffset = 8;
-  const workspaceRect = els.attackPumperWorkspace.getBoundingClientRect();
-  const sentinelRect = els.attackPumperStickySentinel.getBoundingClientRect();
-  const shouldPin = isAttackPumperMode() &&
-    sentinelRect.top < topOffset &&
-    workspaceRect.bottom > topOffset + 58;
-
-  els.attackPumperHeader.classList.toggle("is-pinned", shouldPin);
-  els.attackPumperStickySentinel.classList.toggle("is-header-placeholder", shouldPin);
-
-  if (shouldPin) {
-    els.attackPumperHeader.style.setProperty("--attack-pumper-header-left", `${workspaceRect.left}px`);
-    els.attackPumperHeader.style.setProperty("--attack-pumper-header-width", `${workspaceRect.width}px`);
-  } else {
-    els.attackPumperHeader.style.removeProperty("--attack-pumper-header-left");
-    els.attackPumperHeader.style.removeProperty("--attack-pumper-header-width");
-  }
-}
-
 function setupAttackPumperInteractions() {
   if (!els.attackPumperWorkspace) return;
 
@@ -2701,7 +2744,7 @@ function setupAttackPumperInteractions() {
   els.attackPumperAddLine?.addEventListener("click", openAdd);
   els.attackPumperEndIncident?.addEventListener("click", () => {
     if (!loadAttackPumperIncident().lines.length) return;
-    if (!confirm("End this incident and remove every active attack line?")) return;
+    if (!confirm("End this incident and remove every active discharge?")) return;
     saveAttackPumperIncident({ version: 1, lines: [] });
     renderAttackPumperIncident();
   });
@@ -2767,16 +2810,6 @@ function setupAttackPumperInteractions() {
   els.attackPumperLines?.addEventListener("pointerup", finishSwipe);
   els.attackPumperLines?.addEventListener("pointercancel", finishSwipe);
 
-  window.addEventListener("scroll", syncAttackPumperPinnedHeader, { passive: true });
-  window.addEventListener("resize", syncAttackPumperPinnedHeader, { passive: true });
-
-  if ("IntersectionObserver" in window && els.attackPumperStickySentinel) {
-    attackPumperStickyObserver = new IntersectionObserver(
-      syncAttackPumperPinnedHeader,
-      { threshold: 0 }
-    );
-    attackPumperStickyObserver.observe(els.attackPumperStickySentinel);
-  }
 }
 
 function scrollCalculatorPageToTop() {
@@ -2972,6 +3005,25 @@ function normalizePumpChartComparableValue(value) {
   return value;
 }
 
+function normalizePumpChartAccentColorID(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["orange", "red", "blue", "green", "yellow", "white", "gray"].includes(normalized)
+    ? normalized
+    : "orange";
+}
+
+function getPumpChartAccentColorValue(value) {
+  switch (normalizePumpChartAccentColorID(value)) {
+    case "red": return "#ff615c";
+    case "blue": return "#59adff";
+    case "green": return "#57d685";
+    case "yellow": return "#ffd64d";
+    case "white": return "#ffffff";
+    case "gray": return "#bdc4d1";
+    default: return "#f98f3d";
+  }
+}
+
 function getStableJsonString(value) {
   return JSON.stringify(normalizePumpChartComparableValue(value));
 }
@@ -3059,6 +3111,7 @@ function normalizePumpChartSetup(setup) {
   return {
     id: setup.id || generatePumpChartId("setup"),
     name: String(setup.name || "Untitled Setup").trim() || "Untitled Setup",
+    accentColorID: normalizePumpChartAccentColorID(setup.accentColorID),
     mode,
     modeLabel: setup.modeLabel || getModeLabel(mode),
     notes: String(setup.notes || "").trim(),
@@ -3245,7 +3298,7 @@ function extractResultFromLegacyPreset(preset = {}) {
 }
 
 function getModeLabel(mode) {
-	  if (mode === "attackPumper") return "Attack Pumper";
+	  if (mode === "attackPumper") return "Pump Panel";
 	  if (mode === "requiredPdp") return "Required PDP";
 	  if (mode === "relay") return "Relay Pumping";
 	  if (mode === "wyeOps") return "Wye Ops";
@@ -5066,6 +5119,28 @@ function renderSavePumpChartForm() {
         <span class="pump-chart-character-count" id="pumpChartSetupNameCount">0 / 28</span>
       </div>
 
+      <fieldset class="pump-chart-color-field">
+        <legend>Widget Color</legend>
+        <p>Used as the accent color when this setup is active in Pump Panel.</p>
+        <div class="pump-chart-color-options">
+          ${[
+            ["orange", "Reverse Flow Orange"],
+            ["red", "Red"],
+            ["blue", "Blue"],
+            ["green", "Green"],
+            ["yellow", "Yellow"],
+            ["white", "White"],
+            ["gray", "Gray"]
+          ].map(([id, label]) => `
+            <label class="pump-chart-color-option" style="--pump-chart-color: ${getPumpChartAccentColorValue(id)}">
+              <input type="radio" name="pumpChartAccentColor" value="${id}" ${id === "orange" ? "checked" : ""} />
+              <span class="pump-chart-color-swatch" aria-hidden="true"></span>
+              <span>${label}</span>
+            </label>
+          `).join("")}
+        </div>
+      </fieldset>
+
       <div class="field full">
         <label>Notes</label>
         <textarea id="pumpChartSetupNotes" rows="3" placeholder="Optional"></textarea>
@@ -5158,6 +5233,9 @@ function renderPumpChartSetupRenameForm(chartId, setupId) {
 function submitPumpChartSaveForm() {
   const setupName = document.getElementById("pumpChartSetupName")?.value.trim();
   const setupNotes = document.getElementById("pumpChartSetupNotes")?.value.trim() || "";
+  const accentColorID = normalizePumpChartAccentColorID(
+    document.querySelector('input[name="pumpChartAccentColor"]:checked')?.value
+  );
   const saveMode = document.getElementById("pumpChartSaveMode")?.value || "existing";
 
   const setupNameValidation = window.ReverseFlowPumpOperatorPackage
@@ -5200,6 +5278,7 @@ function submitPumpChartSaveForm() {
   const setup = buildCurrentPumpChartSetup({
     name: setupName,
     notes: setupNotes,
+    accentColorID,
     timestamp
   });
 
@@ -5259,6 +5338,7 @@ function updateActivePumpChartSetup() {
     id: existingSetup.id,
     name: existingSetup.name,
     notes: existingSetup.notes,
+    accentColorID: existingSetup.accentColorID,
     createdAt: existingSetup.createdAt,
     timestamp
   });
@@ -5273,13 +5353,14 @@ function updateActivePumpChartSetup() {
   alert("Saved setup updated.");
 }
 
-function buildCurrentPumpChartSetup({ name, notes, timestamp, id, createdAt }) {
+function buildCurrentPumpChartSetup({ name, notes, accentColorID, timestamp, id, createdAt }) {
   const presetData = buildPresetData();
   const snapshot = captureCurrentResultSnapshot(presetData);
 
   return normalizePumpChartSetup({
     id: id || generatePumpChartId("setup"),
     name,
+    accentColorID: normalizePumpChartAccentColorID(accentColorID),
     mode: state.mode || "",
     modeLabel: getModeLabel(state.mode),
     notes,
@@ -6955,7 +7036,7 @@ document.querySelector('label[for="applianceLoss"]').textContent =
 	  : isWyeOpsMode()
 	    ? "Wye Ops: model a gated wye with two attack lines and fixed-PDP behavior when one line closes."
 	  : isAttackPumperMode()
-    ? "Attack Pumper: manage active attack lines from saved Pump Chart setup snapshots."
+    ? "Pump Panel: manage active discharges from saved Pump Chart setup snapshots."
 	  : isStandpipeOpsMode()
     ? "Standpipe Ops: calculate engine PDP for standpipe stretches using attack demand, elevation, standpipe loss, and FDC supply loss."
   : isApparatusMountedMode()
@@ -7138,10 +7219,6 @@ if (els.warningsCard && isAttackPumperMode()) {
 
 if (els.attackPumperWorkspace && isAttackPumperMode()) {
   renderAttackPumperIncident();
-  requestAnimationFrame(syncAttackPumperPinnedHeader);
-} else if (els.attackPumperHeader) {
-  els.attackPumperHeader.classList.remove("is-pinned");
-  els.attackPumperStickySentinel?.classList.remove("is-header-placeholder");
 }
 
 if (els.reverseSupplyToggleField) {
