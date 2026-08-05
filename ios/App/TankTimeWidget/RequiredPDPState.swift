@@ -45,6 +45,24 @@ struct RequiredPDPState: Codable, Equatable {
 enum RequiredPDPStateStore {
     private static let keyPrefix = "reverse-flow-required-pdp-widget-v1."
 
+    static func displayState(
+        interactiveState: RequiredPDPState,
+        isSmall: Bool,
+        startingLength: Int,
+        hoseID: String,
+        configuredCoefficient: Double?,
+        accentColorID: String
+    ) -> RequiredPDPState {
+        guard isSmall else { return interactiveState }
+
+        return fixedReferenceState(
+            startingLength: startingLength,
+            hoseID: hoseID,
+            configuredCoefficient: configuredCoefficient,
+            accentColorID: accentColorID
+        )
+    }
+
     static func fixedReferenceState(
         startingLength: Int,
         hoseID: String,

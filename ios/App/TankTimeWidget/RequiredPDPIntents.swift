@@ -75,8 +75,8 @@ struct RequiredPDPConfigurationIntent: WidgetConfigurationIntent {
     var hoseSize: RequiredPDPHoseSize
 
     @Parameter(
-        title: "Coefficient",
-        description: "Defaults to the selected hose size coefficient and accepts a custom value.",
+        title: "Coefficient (Tap to Edit)",
+        description: "Tap to enter any numeric coefficient. The field starts with the standard 1.75-inch hose coefficient.",
         default: 15.5,
         controlStyle: .field,
         inclusiveRange: (0.01, 1_000)

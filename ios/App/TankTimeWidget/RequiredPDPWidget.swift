@@ -8,12 +8,24 @@ struct RequiredPDPEntry: TimelineEntry {
     let configuration: RequiredPDPConfigurationIntent
     let state: RequiredPDPState
 
-    var result: RequiredPDPResult {
-        RequiredPDPCalculation.calculate(
-            coefficient: state.coefficient,
+    func state(for family: WidgetFamily) -> RequiredPDPState {
+        RequiredPDPStateStore.displayState(
+            interactiveState: state,
+            isSmall: family == .systemSmall,
+            startingLength: configuration.startingLength,
+            hoseID: configuration.hoseSize.rawValue,
+            configuredCoefficient: configuration.coefficient,
+            accentColorID: configuration.accentColor.rawValue
+        )
+    }
+
+    func result(for family: WidgetFamily) -> RequiredPDPResult {
+        let displayState = state(for: family)
+        return RequiredPDPCalculation.calculate(
+            coefficient: displayState.coefficient,
             flowGPM: configuration.flowGPM,
             nozzlePressure: configuration.nozzlePressure,
-            hoseLengthFeet: state.hoseLengthFeet
+            hoseLengthFeet: displayState.hoseLengthFeet
         )
     }
 }
@@ -31,29 +43,21 @@ struct RequiredPDPProvider: AppIntentTimelineProvider {
         for configuration: RequiredPDPConfigurationIntent,
         in context: Context
     ) async -> RequiredPDPEntry {
-        entry(for: configuration, family: context.family)
+        entry(for: configuration)
     }
 
     func timeline(
         for configuration: RequiredPDPConfigurationIntent,
         in context: Context
     ) async -> Timeline<RequiredPDPEntry> {
-        Timeline(entries: [entry(for: configuration, family: context.family)], policy: .never)
+        Timeline(entries: [entry(for: configuration)], policy: .never)
     }
 
-    private func entry(
-        for configuration: RequiredPDPConfigurationIntent,
-        family: WidgetFamily
-    ) -> RequiredPDPEntry {
-        let state = if family == .systemSmall {
-            RequiredPDPStateStore.fixedReferenceState(
-                startingLength: configuration.startingLength,
-                hoseID: configuration.hoseSize.rawValue,
-                configuredCoefficient: configuration.coefficient,
-                accentColorID: configuration.accentColor.rawValue
-            )
-        } else {
-            RequiredPDPStateStore.load(
+    private func entry(for configuration: RequiredPDPConfigurationIntent) -> RequiredPDPEntry {
+        RequiredPDPEntry(
+            date: .now,
+            configuration: configuration,
+            state: RequiredPDPStateStore.load(
                 configurationKey: configuration.configurationKey,
                 startingLength: configuration.startingLength,
                 increment: configuration.lengthIncrement.rawValue,
@@ -61,12 +65,6 @@ struct RequiredPDPProvider: AppIntentTimelineProvider {
                 configuredCoefficient: configuration.coefficient,
                 accentColorID: configuration.accentColor.rawValue
             )
-        }
-
-        return RequiredPDPEntry(
-            date: .now,
-            configuration: configuration,
-            state: state
         )
     }
 }
@@ -88,10 +86,12 @@ struct RequiredPDPWidgetView: View {
     private let softPanel = Color.white.opacity(0.075)
 
     private var effectiveFamily: WidgetFamily { familyOverride ?? family }
+    private var displayState: RequiredPDPState { entry.state(for: effectiveFamily) }
+    private var result: RequiredPDPResult { entry.result(for: effectiveFamily) }
     private var isAccented: Bool { renderingMode == .accented }
     private var selectedAccent: Color {
         if isAccented { return .white }
-        return switch entry.state.accentColorID {
+        return switch displayState.accentColorID {
         case "red": Color(red: 1.0, green: 0.38, blue: 0.36)
         case "blue": Color(red: 0.35, green: 0.68, blue: 1.0)
         case "green": Color(red: 0.34, green: 0.84, blue: 0.52)
@@ -103,17 +103,17 @@ struct RequiredPDPWidgetView: View {
     }
     private var increment: Int { entry.configuration.lengthIncrement.rawValue }
     private var minimumLength: Int { max(RequiredPDPWidgetConstants.minimumLengthFeet, increment) }
-    private var canDecrease: Bool { entry.state.hoseLengthFeet > minimumLength }
-    private var canIncrease: Bool { entry.state.hoseLengthFeet < RequiredPDPWidgetConstants.maximumLengthFeet }
+    private var canDecrease: Bool { displayState.hoseLengthFeet > minimumLength }
+    private var canIncrease: Bool { displayState.hoseLengthFeet < RequiredPDPWidgetConstants.maximumLengthFeet }
     private var smallDisplay: RequiredPDPSmallDisplay {
         RequiredPDPSmallDisplay(
             packageName: entry.configuration.effectivePackageName,
             hoseLabel: entry.configuration.hoseSize.hose.label,
             hoseAccessibilityLabel: entry.configuration.hoseSize.rawValue,
-            hoseLengthFeet: entry.state.hoseLengthFeet,
+            hoseLengthFeet: displayState.hoseLengthFeet,
             flowGPM: entry.configuration.flowGPM,
             nozzlePressure: entry.configuration.nozzlePressure,
-            result: entry.result
+            result: result
         )
     }
     private var mediumDisplay: RequiredPDPMediumDisplay {
@@ -121,10 +121,10 @@ struct RequiredPDPWidgetView: View {
             packageName: entry.configuration.effectivePackageName,
             hoseLabel: entry.configuration.hoseSize.hose.label,
             hoseAccessibilityLabel: entry.configuration.hoseSize.rawValue,
-            hoseLengthFeet: entry.state.hoseLengthFeet,
+            hoseLengthFeet: displayState.hoseLengthFeet,
             flowGPM: entry.configuration.flowGPM,
             nozzlePressure: entry.configuration.nozzlePressure,
-            result: entry.result
+            result: result
         )
     }
 
@@ -342,13 +342,13 @@ struct RequiredPDPWidgetView: View {
             HStack(spacing: 12) {
                 metricPanel(
                     label: "HOSE LENGTH",
-                    value: "\(entry.state.hoseLengthFeet)'",
-                    accessibility: "Hose length \(entry.state.hoseLengthFeet) feet"
+                    value: "\(displayState.hoseLengthFeet)'",
+                    accessibility: "Hose length \(displayState.hoseLengthFeet) feet"
                 )
                 metricPanel(
                     label: "FRICTION LOSS",
-                    value: "\(entry.result.roundedFrictionLoss) PSI",
-                    accessibility: "Friction loss \(entry.result.roundedFrictionLoss) PSI"
+                    value: "\(result.roundedFrictionLoss) PSI",
+                    accessibility: "Friction loss \(result.roundedFrictionLoss) PSI"
                 )
             }
             Spacer(minLength: 12)
@@ -400,7 +400,7 @@ struct RequiredPDPWidgetView: View {
     }
 
     private func pdpValue(fontSize: CGFloat) -> some View {
-        Text("PDP: \(entry.result.roundedRequiredPDP) PSI")
+        Text("PDP: \(result.roundedRequiredPDP) PSI")
             .font(.system(size: fontSize, weight: .black, design: .rounded))
             .monospacedDigit()
             .lineLimit(1)
@@ -408,17 +408,17 @@ struct RequiredPDPWidgetView: View {
             .foregroundStyle(selectedAccent)
             .contentTransition(.numericText())
             .widgetAccentable()
-            .accessibilityLabel("Pump discharge pressure \(entry.result.roundedRequiredPDP) PSI")
+            .accessibilityLabel("Pump discharge pressure \(result.roundedRequiredPDP) PSI")
     }
 
     private func lengthValue(fontSize: CGFloat) -> some View {
-        Text("\(entry.state.hoseLengthFeet)'")
+        Text("\(displayState.hoseLengthFeet)'")
             .font(.system(size: fontSize, weight: .black, design: .rounded))
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .contentTransition(.numericText())
-            .accessibilityLabel("Hose length \(entry.state.hoseLengthFeet) feet")
+            .accessibilityLabel("Hose length \(displayState.hoseLengthFeet) feet")
     }
 
     private func packageSummary(fontSize: CGFloat) -> some View {
@@ -439,11 +439,11 @@ struct RequiredPDPWidgetView: View {
     }
 
     private func frictionLoss(fontSize: CGFloat) -> some View {
-        Text("FL: \(entry.result.roundedFrictionLoss) PSI")
+        Text("FL: \(result.roundedFrictionLoss) PSI")
             .font(.system(size: fontSize, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(.white.opacity(0.72))
-            .accessibilityLabel("Friction loss \(entry.result.roundedFrictionLoss) PSI")
+            .accessibilityLabel("Friction loss \(result.roundedFrictionLoss) PSI")
     }
 
     private func metricPanel(label: String, value: String, accessibility: String) -> some View {

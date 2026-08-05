@@ -27,9 +27,10 @@ enum RequiredPDPWidgetTests {
         try wholeNumberRounding()
         try customCoefficient()
         try coefficientPersistenceAndValidation()
-        try hoseSizeChangeUsesDefault()
+        try savedConfigurationHoseChangeUsesDefaultForCalculation()
         try accentPersistenceAndIndependence()
         try smallReferenceBehavior()
+        try familyTransitionsPreserveState()
         try smallDisplayFormatting()
         try mediumDisplayFormatting()
         try incrementsAndBounds()
@@ -117,7 +118,23 @@ enum RequiredPDPWidgetTests {
         }
     }
 
-    private static func hoseSizeChangeUsesDefault() throws {
+    // Verifies timeline/state reconciliation after configuration is saved.
+    // App Intents owns the native configuration sheet, so this does not exercise its live field UI.
+    private static func savedConfigurationHoseChangeUsesDefaultForCalculation() throws {
+        for hose in RequiredPDPHoseCatalog.attackHoses {
+            let defaults = try makeDefaults("hose-default-\(hose.id)")
+            let selected = loadState(
+                key: "hose-default-\(hose.id)",
+                hoseID: hose.id,
+                coefficient: 15.5,
+                defaults: defaults
+            )
+            try expect(
+                selected.coefficient == hose.coefficient,
+                "\(hose.label) did not load coefficient \(hose.coefficient)"
+            )
+        }
+
         let initialDefaults = try makeDefaults("initial-hose-default")
         let initiallySelectedHose = loadState(
             key: "initial-blue-line",
@@ -257,6 +274,38 @@ enum RequiredPDPWidgetTests {
             interactiveState.hoseLengthFeet == 250,
             "Small reference state mutated interactive length persistence"
         )
+    }
+
+    private static func familyTransitionsPreserveState() throws {
+        let interactive = RequiredPDPState(
+            hoseLengthFeet: 350,
+            hoseID: "1.88",
+            coefficient: 8.25,
+            configurationCoefficientSnapshot: 8.25,
+            accentColorID: "blue"
+        )
+
+        func state(isSmall: Bool) -> RequiredPDPState {
+            RequiredPDPStateStore.displayState(
+                interactiveState: interactive,
+                isSmall: isSmall,
+                startingLength: 200,
+                hoseID: "1.88",
+                configuredCoefficient: 8.25,
+                accentColorID: "blue"
+            )
+        }
+
+        for isSmall in [false, true, false, true, false, true] {
+            let displayed = state(isSmall: isSmall)
+            try expect(displayed.hoseID == "1.88", "Family transition changed Hose Size")
+            try expect(displayed.coefficient == 8.25, "Family transition changed custom coefficient")
+            try expect(displayed.accentColorID == "blue", "Family transition changed accent")
+            try expect(
+                displayed.hoseLengthFeet == (isSmall ? 200 : 350),
+                "Family transition used the wrong hose length behavior"
+            )
+        }
     }
 
     private static func smallDisplayFormatting() throws {
