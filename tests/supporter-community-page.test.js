@@ -126,10 +126,13 @@ test("community membership remains separate from all store purchase completion",
   const purchaseCompletion = supporter.slice(purchaseStart, purchaseEnd);
 
   assert.match(html, /No purchase is required\./);
+  assert.match(html, /Changing your department does not change your Supporter identity or number\./);
+  assert.match(html, /Request a manual email-change review/);
   assert.match(html, /Keep Reverse Flow Free|id="supportActions"/);
   assert.doesNotMatch(
     purchaseCompletion,
     /claimSupporter|writeConfirmed|registration/
   );
   assert.match(supporter, /registryService\.claimSupporter\(/);
+  assert.match(supporter, /already registered as Supporter/);
 });

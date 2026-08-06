@@ -152,7 +152,11 @@
         { code: "malformed_response" }
       );
     }
-    return normalizeSupporterRecord(payload);
+    const normalized = normalizeSupporterRecord(payload);
+    if (typeof payload.created === "boolean") {
+      normalized.created = payload.created;
+    }
+    return normalized;
   }
 
   class SupporterCache {
@@ -3796,7 +3800,9 @@
             email,
             platform: getPlatform()
           });
-          status.textContent = "You joined the Supporter Community.";
+          status.textContent = confirmed.created === false
+            ? `You are already registered as Supporter #${String(confirmed.supporterNumber).padStart(4, "0")}. Your information has been updated.`
+            : "You joined the Supporter Community.";
           renderSimplifiedSupportPage(cache, registryService, purchaseService);
         } catch (error) {
           status.textContent =
