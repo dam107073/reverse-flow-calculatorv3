@@ -81,15 +81,26 @@
             Changing your department does not change your Supporter identity or number.
           </p>
           <p class="helper support-public-note">
-            Already have a Supporter Number but use a different email now?
-            <a href="mailto:derek@reverse-flow.app?subject=Supporter%20Email%20Change%20Review">Request a manual email-change review</a>
-            before submitting another claim.
-          </p>
-          <p class="helper support-public-note">
             By joining, your name may be added to the public Reverse Flow Supporter Registry. No purchase is required.
           </p>
           <button class="support-primary-action" type="submit">Join the Supporter Community</button>
           <p id="supporterClaimStatus" class="support-status" role="status" aria-live="polite"></p>
+          <section id="supporterNameConfirmation" class="support-name-confirmation" role="alertdialog" aria-modal="false" aria-labelledby="supporterNameConfirmationHeading" aria-describedby="supporterNameConfirmationMessage" tabindex="-1" hidden>
+            <h3 id="supporterNameConfirmationHeading">A Supporter with this name already exists</h3>
+            <p id="supporterNameConfirmationMessage">A Supporter with this name already exists, but the email address is different. Is that you?</p>
+            <div class="support-name-confirmation-actions">
+              <button class="support-primary-action" id="supporterSamePerson" type="button">Yes, that’s me</button>
+              <button class="support-secondary-action" id="supporterDifferentPerson" type="button">No, I’m a different person</button>
+            </div>
+          </section>
+          <section id="supporterContactResolution" class="support-name-confirmation" aria-labelledby="supporterContactResolutionHeading" tabindex="-1" hidden>
+            <h3 id="supporterContactResolutionHeading">Keep your original Supporter Number</h3>
+            <p>Contact Reverse Flow to update the email on your existing Supporter record and keep your original Supporter Number.</p>
+            <div class="support-name-confirmation-actions">
+              <a class="support-primary-action" href="mailto:derek@reverse-flow.app?subject=Supporter%20Email%20Change%20Review">Contact Reverse Flow</a>
+              <button class="support-secondary-action" id="supporterConfirmationBack" type="button">Go Back</button>
+            </div>
+          </section>
         </form>
       </div>
       <div id="claimedSupporterState" hidden>

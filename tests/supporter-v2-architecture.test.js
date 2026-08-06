@@ -7,6 +7,7 @@ const {
   ACTIONS,
   BILLING_STATES,
   SupportPurchaseService,
+  SupporterRegistryService,
   normalizeApiResponse,
   projectSupportPresentation
 } = require("../www/js/services/supporter.js");
@@ -107,6 +108,97 @@ function createAppleSubscriptionService({
   service.initialized = true;
   return { service, values };
 }
+
+const supporterApiConfig = {
+  environment: "test",
+  baseUrl: "https://reverse-flow.test",
+  routes: {
+    claimSupporter: "/api/supporters/claim-supporter",
+    status: "/api/supporters/status"
+  },
+  timeoutsMs: {
+    claimSupporter: 1000,
+    status: 1000
+  }
+};
+
+test("changed-email confirmation metadata is retained without exposing an existing email or id", async () => {
+  const service = new SupporterRegistryService(supporterApiConfig, {
+    fetch: async () => ({
+      ok: false,
+      status: 409,
+      headers: { get: () => null },
+      text: async () => JSON.stringify({
+        error: "A Supporter with this name already exists.",
+        code: "supporter_name_confirmation_required",
+        matchedNormalizedName: "derek murdock",
+        confirmationToken: "test-confirmation-token",
+        expiresAt: "2026-08-06T12:10:00.000Z"
+      })
+    }),
+    navigator: { onLine: true },
+    console: { info() {}, warn() {} }
+  });
+
+  await assert.rejects(
+    service.claimSupporter({
+      name: "Derek Murdock",
+      email: "different@example.com",
+      organization: "Test Fire Department"
+    }),
+    error => {
+      assert.equal(error.code, "supporter_name_confirmation_required");
+      assert.equal(error.confirmationToken, "test-confirmation-token");
+      assert.equal(error.confirmationExpiresAt, "2026-08-06T12:10:00.000Z");
+      assert.equal(error.matchedNormalizedName, "derek murdock");
+      assert.equal(error.existingEmail, undefined);
+      assert.equal(error.supporterId, undefined);
+      return true;
+    }
+  );
+});
+
+test("confirmed different-person claims preserve the original payload and add only confirmation state", async () => {
+  let requestBody = null;
+  const service = new SupporterRegistryService(supporterApiConfig, {
+    fetch: async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        text: async () => JSON.stringify({
+          isSupporter: true,
+          name: "Derek Murdock",
+          supporterNumber: 31,
+          supporterSince: "2026-08-06",
+          isPubliclyListed: true,
+          lastVerifiedAt: "2026-08-06T12:00:00.000Z"
+        })
+      };
+    },
+    navigator: { onLine: true },
+    console: { info() {}, warn() {} }
+  });
+
+  await service.claimSupporter({
+    name: " Derek Murdock ",
+    email: " DIFFERENT@example.com ",
+    organization: " Test Fire Department ",
+    public: true,
+    confirmationToken: "test-confirmation-token",
+    confirmationDecision: "different_person"
+  });
+
+  assert.deepEqual(requestBody, {
+    name: "Derek Murdock",
+    email: "different@example.com",
+    organization: "Test Fire Department",
+    public: true,
+    confirmationToken: "test-confirmation-token",
+    confirmationDecision: "different_person"
+  });
+});
 
 test("all billing states project into supportEligible independently from claimedSupporter", () => {
   const billingStates = [

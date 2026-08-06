@@ -1778,6 +1778,31 @@
       line-height: 1.5;
     }
 
+    .support-name-confirmation {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+      border: 1px solid rgba(255, 138, 31, 0.32);
+      border-radius: 0.65rem;
+      padding: 1rem;
+      background: rgba(255, 138, 31, 0.08);
+    }
+
+    .support-name-confirmation[hidden] {
+      display: none !important;
+    }
+
+    .support-name-confirmation h3,
+    .support-name-confirmation p {
+      margin: 0;
+    }
+
+    .support-name-confirmation-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+
     .support-community-details {
       display: grid;
       gap: 0.45rem;

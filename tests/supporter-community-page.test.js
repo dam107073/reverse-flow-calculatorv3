@@ -127,7 +127,12 @@ test("community membership remains separate from all store purchase completion",
 
   assert.match(html, /No purchase is required\./);
   assert.match(html, /Changing your department does not change your Supporter identity or number\./);
-  assert.match(html, /Request a manual email-change review/);
+  assert.match(html, /A Supporter with this name already exists, but the email address is different\. Is that you\?/);
+  assert.match(html, /Yes, that’s me/);
+  assert.match(html, /No, I’m a different person/);
+  assert.match(html, /Contact Reverse Flow to update the email on your existing Supporter record and keep your original Supporter Number\./);
+  assert.match(html, /mailto:derek@reverse-flow\.app/);
+  assert.doesNotMatch(html, /Request a manual email-change review/);
   assert.match(html, /Keep Reverse Flow Free|id="supportActions"/);
   assert.doesNotMatch(
     purchaseCompletion,

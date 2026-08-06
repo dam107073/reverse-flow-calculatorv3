@@ -227,6 +227,9 @@
       this.code = details.code || "supporter_registry_error";
       this.status = details.status || null;
       this.retryAfterSeconds = details.retryAfterSeconds || null;
+      this.confirmationToken = details.confirmationToken || null;
+      this.confirmationExpiresAt = details.confirmationExpiresAt || null;
+      this.matchedNormalizedName = details.matchedNormalizedName || null;
     }
   }
 
@@ -586,7 +589,16 @@
           {
             code,
             status: response.status,
-            retryAfterSeconds: Number.isFinite(retryAfter) ? retryAfter : null
+            retryAfterSeconds: Number.isFinite(retryAfter) ? retryAfter : null,
+            confirmationToken: typeof payload?.confirmationToken === "string"
+              ? payload.confirmationToken
+              : null,
+            confirmationExpiresAt: typeof payload?.expiresAt === "string"
+              ? payload.expiresAt
+              : null,
+            matchedNormalizedName: typeof payload?.matchedNormalizedName === "string"
+              ? payload.matchedNormalizedName
+              : null
           }
         );
       }
@@ -639,7 +651,12 @@
         {
           name: String(payload?.name || "").trim(),
           email: String(payload?.email || "").trim().toLowerCase(),
-          public: payload?.public !== false
+          organization: String(payload?.organization || "").trim(),
+          public: payload?.public !== false,
+          ...(payload?.confirmationToken ? {
+            confirmationToken: payload.confirmationToken,
+            confirmationDecision: payload.confirmationDecision
+          } : {})
         },
         "claimSupporter"
       );
@@ -3776,40 +3793,122 @@
     const claimForm = document.getElementById("supporterClaimForm");
     if (claimForm && claimForm.dataset.simplifiedBound !== "true") {
       claimForm.dataset.simplifiedBound = "true";
+      const status = document.getElementById("supporterClaimStatus");
+      const submit = claimForm.querySelector("button[type='submit']");
+      const confirmation = document.getElementById("supporterNameConfirmation");
+      const contactResolution = document.getElementById("supporterContactResolution");
+      const samePerson = document.getElementById("supporterSamePerson");
+      const differentPerson = document.getElementById("supporterDifferentPerson");
+      const goBack = document.getElementById("supporterConfirmationBack");
+      let pendingConfirmation = null;
+
+      const closeConfirmation = () => {
+        pendingConfirmation = null;
+        confirmation.hidden = true;
+        contactResolution.hidden = true;
+        submit.disabled = false;
+      };
+
+      const completeClaim = async (payload, options = {}) => {
+        const confirmed = await registryService.claimSupporter({
+          ...payload,
+          ...(options.confirmationToken ? {
+            confirmationToken: options.confirmationToken,
+            confirmationDecision: "different_person"
+          } : {})
+        });
+        cache.writeConfirmed(confirmed, {
+          email: payload.email,
+          platform: getPlatform()
+        });
+        status.textContent = confirmed.created === false
+          ? `You are already registered as Supporter #${String(confirmed.supporterNumber).padStart(4, "0")}. Your information has been updated.`
+          : "You joined the Supporter Community.";
+        closeConfirmation();
+        renderSimplifiedSupportPage(cache, registryService, purchaseService);
+      };
+
       claimForm.addEventListener("submit", async event => {
         event.preventDefault();
-        const status = document.getElementById("supporterClaimStatus");
-        const submit = claimForm.querySelector("button[type='submit']");
         const name = String(claimForm.elements.fullName.value || "").trim();
         const email = String(claimForm.elements.email.value || "")
           .trim()
           .toLowerCase();
+        const organization = String(claimForm.elements.organization.value || "")
+          .trim();
         if (!name || !isValidEmail(email)) {
           status.textContent = "Enter a name and valid email address.";
           return;
         }
+        const submission = { name, email, organization, public: true };
         submit.disabled = true;
         status.textContent = "Joining the Supporter Community…";
         try {
-          const confirmed = await registryService.claimSupporter({
-            name,
-            email,
-            public: true
-          });
-          cache.writeConfirmed(confirmed, {
-            email,
-            platform: getPlatform()
-          });
-          status.textContent = confirmed.created === false
-            ? `You are already registered as Supporter #${String(confirmed.supporterNumber).padStart(4, "0")}. Your information has been updated.`
-            : "You joined the Supporter Community.";
-          renderSimplifiedSupportPage(cache, registryService, purchaseService);
+          await completeClaim(submission);
         } catch (error) {
+          if (
+            error.code === "supporter_name_confirmation_required" &&
+            error.confirmationToken
+          ) {
+            pendingConfirmation = {
+              token: error.confirmationToken,
+              submission
+            };
+            confirmation.hidden = false;
+            contactResolution.hidden = true;
+            status.textContent = "";
+            confirmation.focus();
+            return;
+          }
           status.textContent =
             error.message ||
             "Supporter status could not be claimed. Please try again.";
         } finally {
-          submit.disabled = false;
+          if (!pendingConfirmation) submit.disabled = false;
+        }
+      });
+
+      samePerson.addEventListener("click", () => {
+        confirmation.hidden = true;
+        contactResolution.hidden = false;
+        status.textContent = "";
+        contactResolution.focus();
+      });
+
+      differentPerson.addEventListener("click", async () => {
+        if (!pendingConfirmation) return;
+        samePerson.disabled = true;
+        differentPerson.disabled = true;
+        status.textContent = "Confirming your new Supporter record…";
+        try {
+          await completeClaim(pendingConfirmation.submission, {
+            confirmationToken: pendingConfirmation.token
+          });
+        } catch (error) {
+          if ([
+            "supporter_name_confirmation_expired",
+            "supporter_name_confirmation_invalid",
+            "supporter_name_confirmation_mismatch"
+          ].includes(error.code)) closeConfirmation();
+          status.textContent = error.message || "Supporter status could not be claimed. Please try again.";
+        } finally {
+          samePerson.disabled = false;
+          differentPerson.disabled = false;
+        }
+      });
+
+      goBack.addEventListener("click", () => {
+        closeConfirmation();
+        status.textContent = "";
+        claimForm.elements.fullName.focus();
+      });
+
+      claimForm.addEventListener("keydown", event => {
+        if (event.key === "Escape" && pendingConfirmation) {
+          event.preventDefault();
+          closeConfirmation();
+          status.textContent = "";
+          claimForm.elements.fullName.focus();
         }
       });
     }
