@@ -1,7 +1,54 @@
 import AppIntents
+import OSLog
 import SwiftUI
 import UIKit
 import WidgetKit
+
+private enum RequiredPDPDiagnostics {
+    private static let logger = Logger(
+        subsystem: "app.reverseflow.mobile.widget",
+        category: "required-pdp"
+    )
+
+    static func provider(
+        event: String,
+        family: WidgetFamily,
+        configuration: RequiredPDPConfigurationIntent,
+        state: RequiredPDPState
+    ) {
+#if DEBUG
+        let result = RequiredPDPCalculation.calculate(
+            coefficient: state.coefficient,
+            flowGPM: configuration.flowGPM,
+            nozzlePressure: configuration.nozzlePressure,
+            hoseLengthFeet: state.hoseLengthFeet
+        )
+        let familyName = String(describing: family)
+        let safeFlow = RequiredPDPCalculation.normalizedFlow(configuration.flowGPM)
+        let safeNozzlePressure = RequiredPDPCalculation.normalizedNozzlePressure(
+            configuration.nozzlePressure
+        )
+        let usedFallback = safeFlow != configuration.flowGPM
+            || safeNozzlePressure != configuration.nozzlePressure
+            || RequiredPDPCalculation.validatedCoefficient(configuration.coefficient) == nil
+            || state.hoseID != configuration.hoseSize.rawValue
+            || state.accentColorID != configuration.accentColor.rawValue
+        logger.debug(
+            "\(event, privacy: .public) family=\(familyName, privacy: .public) hose=\(state.hoseID, privacy: .public) length=\(state.hoseLengthFeet) flow=\(safeFlow) np=\(safeNozzlePressure) coefficient=\(state.coefficient) accent=\(state.accentColorID, privacy: .public) fallback=\(usedFallback) fl=\(result.frictionLoss) pdp=\(result.requiredPDP)"
+        )
+#endif
+    }
+
+    static func render(
+        family: WidgetFamily,
+        configuration: RequiredPDPConfigurationIntent,
+        state: RequiredPDPState
+    ) {
+#if DEBUG
+        provider(event: "render", family: family, configuration: configuration, state: state)
+#endif
+    }
+}
 
 struct RequiredPDPEntry: TimelineEntry {
     let date: Date
@@ -28,29 +75,58 @@ struct RequiredPDPEntry: TimelineEntry {
             hoseLengthFeet: displayState.hoseLengthFeet
         )
     }
+
+    var flowGPM: Int {
+        RequiredPDPCalculation.normalizedFlow(configuration.flowGPM)
+    }
+
+    var nozzlePressure: Int {
+        RequiredPDPCalculation.normalizedNozzlePressure(configuration.nozzlePressure)
+    }
 }
 
 struct RequiredPDPProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> RequiredPDPEntry {
-        RequiredPDPEntry(
+        let entry = RequiredPDPEntry(
             date: .now,
             configuration: RequiredPDPConfigurationIntent(),
             state: RequiredPDPState(hoseLengthFeet: 200)
         )
+        RequiredPDPDiagnostics.provider(
+            event: "placeholder",
+            family: context.family,
+            configuration: entry.configuration,
+            state: entry.state
+        )
+        return entry
     }
 
     func snapshot(
         for configuration: RequiredPDPConfigurationIntent,
         in context: Context
     ) async -> RequiredPDPEntry {
-        entry(for: configuration)
+        let entry = entry(for: configuration)
+        RequiredPDPDiagnostics.provider(
+            event: "snapshot",
+            family: context.family,
+            configuration: configuration,
+            state: entry.state
+        )
+        return entry
     }
 
     func timeline(
         for configuration: RequiredPDPConfigurationIntent,
         in context: Context
     ) async -> Timeline<RequiredPDPEntry> {
-        Timeline(entries: [entry(for: configuration)], policy: .never)
+        let entry = entry(for: configuration)
+        RequiredPDPDiagnostics.provider(
+            event: "timeline",
+            family: context.family,
+            configuration: configuration,
+            state: entry.state
+        )
+        return Timeline(entries: [entry], policy: .never)
     }
 
     private func entry(for configuration: RequiredPDPConfigurationIntent) -> RequiredPDPEntry {
@@ -111,8 +187,8 @@ struct RequiredPDPWidgetView: View {
             hoseLabel: entry.configuration.hoseSize.hose.label,
             hoseAccessibilityLabel: entry.configuration.hoseSize.rawValue,
             hoseLengthFeet: displayState.hoseLengthFeet,
-            flowGPM: entry.configuration.flowGPM,
-            nozzlePressure: entry.configuration.nozzlePressure,
+            flowGPM: entry.flowGPM,
+            nozzlePressure: entry.nozzlePressure,
             result: result
         )
     }
@@ -122,8 +198,8 @@ struct RequiredPDPWidgetView: View {
             hoseLabel: entry.configuration.hoseSize.hose.label,
             hoseAccessibilityLabel: entry.configuration.hoseSize.rawValue,
             hoseLengthFeet: displayState.hoseLengthFeet,
-            flowGPM: entry.configuration.flowGPM,
-            nozzlePressure: entry.configuration.nozzlePressure,
+            flowGPM: entry.flowGPM,
+            nozzlePressure: entry.nozzlePressure,
             result: result
         )
     }
@@ -139,6 +215,11 @@ struct RequiredPDPWidgetView: View {
     }
 
     var body: some View {
+        let _ = RequiredPDPDiagnostics.render(
+            family: effectiveFamily,
+            configuration: entry.configuration,
+            state: displayState
+        )
         Group {
             if effectiveFamily == .systemSmall {
                 smallLayout
@@ -424,8 +505,8 @@ struct RequiredPDPWidgetView: View {
     private func packageSummary(fontSize: CGFloat) -> some View {
         Text(
             "\(entry.configuration.hoseSize.hose.label) • " +
-            "\(entry.configuration.flowGPM) GPM • " +
-            "NP \(entry.configuration.nozzlePressure)"
+            "\(entry.flowGPM) GPM • " +
+            "NP \(entry.nozzlePressure)"
         )
         .font(.system(size: fontSize, weight: .bold, design: .rounded))
         .foregroundStyle(.white.opacity(0.72))
@@ -433,8 +514,8 @@ struct RequiredPDPWidgetView: View {
         .minimumScaleFactor(0.65)
         .accessibilityLabel(
             "\(entry.configuration.hoseSize.hose.label) hose, " +
-            "\(entry.configuration.flowGPM) gallons per minute, " +
-            "\(entry.configuration.nozzlePressure) PSI nozzle pressure"
+            "\(entry.flowGPM) gallons per minute, " +
+            "\(entry.nozzlePressure) PSI nozzle pressure"
         )
     }
 

@@ -26,6 +26,8 @@ enum RequiredPDPWidgetTests {
         try calculationParity()
         try wholeNumberRounding()
         try customCoefficient()
+        try reportedConfiguration()
+        try malformedConfigurationNormalization()
         try coefficientPersistenceAndValidation()
         try savedConfigurationHoseChangeUsesDefaultForCalculation()
         try accentPersistenceAndIndependence()
@@ -91,6 +93,79 @@ enum RequiredPDPWidgetTests {
         try expect(result.roundedRequiredPDP == 123, "Custom coefficient PDP failed")
     }
 
+    private static func reportedConfiguration() throws {
+        let state = RequiredPDPStateStore.fixedReferenceState(
+            startingLength: 200,
+            hoseID: "2.25",
+            configuredCoefficient: 3.5,
+            accentColorID: "white"
+        )
+        let result = RequiredPDPCalculation.calculate(
+            coefficient: state.coefficient,
+            flowGPM: 265,
+            nozzlePressure: 40,
+            hoseLengthFeet: state.hoseLengthFeet
+        )
+
+        try expect(state.hoseLengthFeet == 200, "Reported length was not preserved")
+        try expect(state.accentColorID == "white", "White accent was not preserved")
+        try expectNear(result.frictionLoss, 49.1575, "Reported friction loss changed")
+        try expect(result.roundedRequiredPDP == 89, "Reported Required PDP changed")
+    }
+
+    private static func malformedConfigurationNormalization() throws {
+        let result = RequiredPDPCalculation.calculate(
+            coefficient: .greatestFiniteMagnitude,
+            flowGPM: .max,
+            nozzlePressure: .min,
+            hoseLengthFeet: .max
+        )
+
+        try expect(result.frictionLoss.isFinite, "Malformed values produced non-finite friction loss")
+        try expect(result.requiredPDP.isFinite, "Malformed values produced non-finite Required PDP")
+        try expect(result.roundedFrictionLoss == 124_000, "Malformed coefficient fallback drifted")
+        try expect(result.roundedRequiredPDP == 124_001, "Malformed value normalization drifted")
+        try expect(RequiredPDPCalculation.normalizedFlow(0) == 1, "Zero flow was not normalized")
+        try expect(RequiredPDPCalculation.normalizedFlow(.max) == 2_000, "High flow was not normalized")
+        try expect(
+            RequiredPDPCalculation.normalizedNozzlePressure(0) == 1,
+            "Zero nozzle pressure was not normalized"
+        )
+        try expect(
+            RequiredPDPCalculation.normalizedNozzlePressure(.max) == 300,
+            "High nozzle pressure was not normalized"
+        )
+        try expect(
+            RequiredPDPHoseCatalog.hose(id: "legacy-unknown") == RequiredPDPHoseCatalog.defaultHose,
+            "Unknown legacy hose did not use the established default"
+        )
+        try expect(
+            RequiredPDPCalculation.normalizedAccentColorID("legacy-unknown") == "orange",
+            "Unknown legacy accent did not use the established default"
+        )
+
+        let incompleteLegacyState = try JSONDecoder().decode(
+            RequiredPDPState.self,
+            from: Data(#"{"hoseLengthFeet":200}"#.utf8)
+        )
+        try expect(incompleteLegacyState.hoseID == "1.75", "Incomplete state lost the default hose")
+        try expect(
+            incompleteLegacyState.coefficient == 15.5,
+            "Incomplete state lost the default coefficient"
+        )
+        try expect(
+            incompleteLegacyState.accentColorID == "orange",
+            "Incomplete state lost the default accent"
+        )
+
+        for accent in ["orange", "red", "blue", "green", "yellow", "white", "gray"] {
+            try expect(
+                RequiredPDPCalculation.normalizedAccentColorID(accent) == accent,
+                "Valid \(accent) accent was altered"
+            )
+        }
+    }
+
     private static func coefficientPersistenceAndValidation() throws {
         let defaults = try makeDefaults("coefficient")
         let key = "front-crosslay"
@@ -108,7 +183,7 @@ enum RequiredPDPWidgetTests {
         )
         try expect(reloaded.coefficient == 8.25, "Normal reload replaced custom coefficient")
 
-        for invalid in [nil, 0, -1, .infinity, -.infinity, .nan] as [Double?] {
+        for invalid in [nil, 0, -1, 0.001, 1_001, .infinity, -.infinity, .nan] as [Double?] {
             let rejected = loadState(
                 key: key,
                 coefficient: invalid,

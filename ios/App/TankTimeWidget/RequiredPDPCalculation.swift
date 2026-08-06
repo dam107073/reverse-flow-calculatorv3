@@ -4,6 +4,14 @@ enum RequiredPDPWidgetConstants {
     static let kind = "ReverseFlowRequiredPDPWidget"
     static let minimumLengthFeet = 25
     static let maximumLengthFeet = 2_000
+    static let minimumFlowGPM = 1
+    static let maximumFlowGPM = 2_000
+    static let minimumNozzlePressure = 1
+    static let maximumNozzlePressure = 300
+    static let minimumCoefficient = 0.01
+    static let maximumCoefficient = 1_000.0
+    static let defaultCoefficient = 15.5
+    static let defaultAccentColorID = "orange"
 }
 
 struct RequiredPDPHose: Equatable {
@@ -25,8 +33,14 @@ enum RequiredPDPHoseCatalog {
         RequiredPDPHose(id: "2.5", label: "2.5\"", coefficient: 2)
     ]
 
+    static let defaultHose = RequiredPDPHose(
+        id: "1.75",
+        label: "1.75\"",
+        coefficient: RequiredPDPWidgetConstants.defaultCoefficient
+    )
+
     static func hose(id: String) -> RequiredPDPHose {
-        attackHoses.first(where: { $0.id == id }) ?? attackHoses[2]
+        attackHoses.first(where: { $0.id == id }) ?? defaultHose
     }
 }
 
@@ -121,10 +135,36 @@ struct RequiredPDPMediumDisplay: Equatable {
 
 enum RequiredPDPCalculation {
     static func validatedCoefficient(_ coefficient: Double?) -> Double? {
-        guard let coefficient, coefficient.isFinite, coefficient > 0 else {
+        guard
+            let coefficient,
+            coefficient.isFinite,
+            coefficient >= RequiredPDPWidgetConstants.minimumCoefficient,
+            coefficient <= RequiredPDPWidgetConstants.maximumCoefficient
+        else {
             return nil
         }
         return coefficient
+    }
+
+    static func normalizedFlow(_ flowGPM: Int) -> Int {
+        min(
+            max(flowGPM, RequiredPDPWidgetConstants.minimumFlowGPM),
+            RequiredPDPWidgetConstants.maximumFlowGPM
+        )
+    }
+
+    static func normalizedNozzlePressure(_ nozzlePressure: Int) -> Int {
+        min(
+            max(nozzlePressure, RequiredPDPWidgetConstants.minimumNozzlePressure),
+            RequiredPDPWidgetConstants.maximumNozzlePressure
+        )
+    }
+
+    static func normalizedAccentColorID(_ accentColorID: String) -> String {
+        let supported = ["orange", "red", "blue", "green", "yellow", "white", "gray"]
+        return supported.contains(accentColorID)
+            ? accentColorID
+            : RequiredPDPWidgetConstants.defaultAccentColorID
     }
 
     static func calculate(
@@ -133,13 +173,21 @@ enum RequiredPDPCalculation {
         nozzlePressure: Int,
         hoseLengthFeet: Int
     ) -> RequiredPDPResult {
-        let q = Double(flowGPM) / 100
-        let lengthHundreds = Double(hoseLengthFeet) / 100
-        let frictionLoss = coefficient * q * q * lengthHundreds
+        let safeCoefficient = validatedCoefficient(coefficient)
+            ?? RequiredPDPWidgetConstants.defaultCoefficient
+        let safeFlow = normalizedFlow(flowGPM)
+        let safeNozzlePressure = normalizedNozzlePressure(nozzlePressure)
+        let safeLength = min(
+            max(hoseLengthFeet, RequiredPDPWidgetConstants.minimumLengthFeet),
+            RequiredPDPWidgetConstants.maximumLengthFeet
+        )
+        let q = Double(safeFlow) / 100
+        let lengthHundreds = Double(safeLength) / 100
+        let frictionLoss = safeCoefficient * q * q * lengthHundreds
 
         return RequiredPDPResult(
             frictionLoss: frictionLoss,
-            requiredPDP: Double(nozzlePressure) + frictionLoss
+            requiredPDP: Double(safeNozzlePressure) + frictionLoss
         )
     }
 

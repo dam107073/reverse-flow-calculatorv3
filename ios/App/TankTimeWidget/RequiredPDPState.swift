@@ -38,7 +38,10 @@ struct RequiredPDPState: Codable, Equatable {
             Double.self,
             forKey: .configurationCoefficientSnapshot
         )
-        accentColorID = try container.decodeIfPresent(String.self, forKey: .accentColorID) ?? "orange"
+        accentColorID = RequiredPDPCalculation.normalizedAccentColorID(
+            try container.decodeIfPresent(String.self, forKey: .accentColorID)
+                ?? RequiredPDPWidgetConstants.defaultAccentColorID
+        )
     }
 }
 
@@ -85,7 +88,7 @@ enum RequiredPDPStateStore {
                 configuredCoefficient: validConfigurationCoefficient
             ),
             configurationCoefficientSnapshot: validConfigurationCoefficient,
-            accentColorID: accentColorID
+            accentColorID: RequiredPDPCalculation.normalizedAccentColorID(accentColorID)
         )
     }
 
@@ -110,21 +113,25 @@ enum RequiredPDPStateStore {
             let data = defaults.data(forKey: key),
             let saved = try? decoder.decode(RequiredPDPState.self, from: data)
         {
+            let savedCoefficient = RequiredPDPCalculation.validatedCoefficient(
+                saved.coefficient
+            ) ?? hose.coefficient
+            let savedSnapshot = RequiredPDPCalculation.validatedCoefficient(
+                saved.configurationCoefficientSnapshot
+            )
             let reconciledCoefficient: Double
             let reconciledSnapshot: Double?
 
             if saved.hoseID != hose.id {
                 reconciledCoefficient = hose.coefficient
                 reconciledSnapshot = validConfigurationCoefficient
-            } else if validConfigurationCoefficient != saved.configurationCoefficientSnapshot {
-                reconciledCoefficient = validConfigurationCoefficient ?? saved.coefficient
+            } else if validConfigurationCoefficient != savedSnapshot {
+                reconciledCoefficient = validConfigurationCoefficient ?? savedCoefficient
                 reconciledSnapshot = validConfigurationCoefficient
-                    ?? saved.configurationCoefficientSnapshot
+                    ?? savedSnapshot
             } else {
-                reconciledCoefficient = RequiredPDPCalculation.validatedCoefficient(
-                    saved.coefficient
-                ) ?? hose.coefficient
-                reconciledSnapshot = saved.configurationCoefficientSnapshot
+                reconciledCoefficient = savedCoefficient
+                reconciledSnapshot = savedSnapshot
             }
 
             let reconciled = RequiredPDPState(
@@ -135,7 +142,7 @@ enum RequiredPDPStateStore {
                 hoseID: hose.id,
                 coefficient: reconciledCoefficient,
                 configurationCoefficientSnapshot: reconciledSnapshot,
-                accentColorID: accentColorID
+                accentColorID: RequiredPDPCalculation.normalizedAccentColorID(accentColorID)
             )
             if reconciled != saved {
                 save(reconciled, configurationKey: configurationKey, defaults: defaults)
@@ -154,7 +161,7 @@ enum RequiredPDPStateStore {
                 configuredCoefficient: validConfigurationCoefficient
             ),
             configurationCoefficientSnapshot: validConfigurationCoefficient,
-            accentColorID: accentColorID
+            accentColorID: RequiredPDPCalculation.normalizedAccentColorID(accentColorID)
         )
         save(initial, configurationKey: configurationKey, defaults: defaults)
         return initial
@@ -214,7 +221,7 @@ enum RequiredPDPStateStore {
         hose: RequiredPDPHose,
         configuredCoefficient: Double?
     ) -> Double {
-        let defaultHose = RequiredPDPHoseCatalog.hose(id: "1.75")
+        let defaultHose = RequiredPDPHoseCatalog.defaultHose
         if
             hose.id != defaultHose.id,
             configuredCoefficient == defaultHose.coefficient
