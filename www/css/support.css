@@ -1690,6 +1690,13 @@
       margin: 0.65rem 0 0.35rem;
     }
 
+    .support-purchase-action {
+      min-width: 0;
+      line-height: 1.25;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
     .support-management-action {
       grid-column: 1 / -1;
       box-shadow: none;
@@ -1744,6 +1751,16 @@
     .support-funding-copy p {
       margin: 0;
       line-height: 1.5;
+    }
+
+    .support-operating-costs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.3rem 1.1rem;
+      margin: 0;
+      padding-left: 1.2rem;
+      color: var(--muted);
+      line-height: 1.4;
     }
 
     .support-identity-form {
@@ -1847,6 +1864,11 @@
 
       .support-options {
         grid-template-columns: 1fr;
+      }
+
+      .support-operating-costs {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
       }
     }
 

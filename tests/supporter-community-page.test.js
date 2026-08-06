@@ -29,7 +29,48 @@ test("Supporters page presents community, participation, then optional financial
   assert.match(html, /Financial support is optional and is not required to join the Supporter Community\./);
 });
 
-test("hero keeps Join dominant and renders Registry as a restrained text action", () => {
+test("optional support explains operating costs before localized purchase controls", () => {
+  const heading = html.indexOf('id="supportSectionTitle">Help Keep Reverse Flow Free');
+  const explanation = html.indexOf(
+    "Keeping Reverse Flow available requires ongoing costs, including:"
+  );
+  const options = html.indexOf('id="supportActions"');
+  const operatingCosts = [
+    "Website hosting",
+    "Cloud infrastructure and database services",
+    "Apple and Google developer programs",
+    "Email services",
+    "Testing devices",
+    "Development tools"
+  ];
+
+  assert.ok(heading >= 0);
+  assert.ok(heading < explanation);
+  assert.ok(explanation < options);
+  assert.match(html, /Reverse Flow has no paid features\./);
+  assert.match(html, /Every firefighter has access to every tool\./);
+  assert.match(
+    html,
+    /<strong>Financial contributions first cover these operating costs\.<\/strong>/
+  );
+  assert.match(
+    html,
+    /As the project grows, they also make it possible to dedicate more time to building new features, improving existing tools, and expanding the resources available to firefighters everywhere\./
+  );
+  for (const cost of operatingCosts) {
+    assert.match(html, new RegExp(`<li>${cost}</li>`));
+  }
+  assert.match(
+    supportCss,
+    /\.support-operating-costs\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/
+  );
+  assert.match(
+    supportCss,
+    /@media \(max-width: 520px\)[\s\S]*?\.support-operating-costs\s*\{[\s\S]*?grid-template-columns:\s*1fr;/
+  );
+});
+
+test("hero is informational with Registry as its only restrained action", () => {
   assert.match(
     supportCss,
     /\.support-page-hero h2\s*\{[\s\S]*?font-style:\s*normal;[\s\S]*?text-transform:\s*none;/
@@ -42,18 +83,26 @@ test("hero keeps Join dominant and renders Registry as a restrained text action"
     supportCss,
     /\.support-hero-actions \.support-secondary-action::after\s*\{[\s\S]*?content:\s*"›";/
   );
+  const heroStart = html.indexOf('class="support-page-hero"');
+  const heroEnd = html.indexOf("</section>", heroStart);
+  const hero = html.slice(heroStart, heroEnd);
+
+  assert.doesNotMatch(hero, /Join the Supporter Community/);
+  assert.match(hero, /View the Supporter Registry/);
 });
 
-test("hero join action targets the registration section", () => {
-  assert.match(
-    html,
-    /id="joinCommunityAction" data-join-community-link href="#communityRecognitionSection">Join the Supporter Community<\/a>/
-  );
+test("registration form contains the page's only Join button", () => {
   assert.match(
     html,
     /id="communityRecognitionSection" data-support-section="participation"/
   );
   assert.match(html, /<h2>Claim Your Supporter Number<\/h2>/);
+  assert.equal(
+    (html.match(/<button[^>]*>Join the Supporter Community<\/button>/g) || []).length,
+    1
+  );
+  assert.equal((html.match(/>Join the Supporter Community</g) || []).length, 1);
+  assert.doesNotMatch(supporter, /joinCommunityAction|data-join-community-link/);
 });
 
 test("claimed supporters get a confirmation state, optional permanent number, and registry link", () => {
@@ -66,7 +115,6 @@ test("claimed supporters get a confirmation state, optional permanent number, an
   assert.match(claimedState, /View the Supporter Registry/);
   assert.doesNotMatch(claimedState, /Join the Supporter Community/);
   assert.match(supporter, /Supporter Number #\$\{String\(number\)\.padStart\(4, "0"\)\}/);
-  assert.match(supporter, /joinCommunityAction\.hidden = presentation\.claimedSupporter/);
 });
 
 test("community membership remains separate from all store purchase completion", () => {
@@ -78,7 +126,7 @@ test("community membership remains separate from all store purchase completion",
   const purchaseCompletion = supporter.slice(purchaseStart, purchaseEnd);
 
   assert.match(html, /No purchase is required\./);
-  assert.match(html, /One-Time Support|id="supportActions"/);
+  assert.match(html, /Keep Reverse Flow Free|id="supportActions"/);
   assert.doesNotMatch(
     purchaseCompletion,
     /claimSupporter|writeConfirmed|registration/

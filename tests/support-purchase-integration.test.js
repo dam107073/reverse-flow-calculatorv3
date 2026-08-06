@@ -478,9 +478,9 @@ test("Apple products load localized pricing and exact product types", async () =
   const options = service.getOptions("apple");
 
   assert.deepEqual(options.map(option => option.label), [
-    "One-Time Support — $4.99",
-    "Monthly Support — $2.99/month",
-    "Monthly Support — $9.99/month"
+    "Keep Reverse Flow Free — $4.99",
+    "Become a Monthly Supporter — $2.99/month",
+    "Become a Monthly Supporter — $9.99/month"
   ]);
   assert.ok(options.every(option => option.state === "ready"));
   assert.deepEqual(
@@ -491,6 +491,28 @@ test("Apple products load localized pricing and exact product types", async () =
       ["support_reverse_flow_monthly_10", "paid subscription"]
     ]
   );
+});
+
+test("support labels preserve long localized store prices", async () => {
+  const fixture = createStore("ios");
+  fixture.products
+    .get(CONFIG.apple.oneTime5.productId)
+    .offers[0].pricingPhases[0].price = "4,99 €";
+  fixture.products
+    .get(CONFIG.apple.monthly3.productId)
+    .offers[0].pricingPhases[0].price = "12.345,67 €";
+  fixture.products
+    .get(CONFIG.apple.monthly10.productId)
+    .offers[0].pricingPhases[0].price = "98.765,43 €";
+  installPurchaseGlobals("ios", fixture.store);
+  const service = new SupportPurchaseService(CONFIG, { store: fixture.store });
+  await service.initialize();
+
+  assert.deepEqual(service.getOptions("apple").map(option => option.label), [
+    "Keep Reverse Flow Free — 4,99 €",
+    "Become a Monthly Supporter — 12.345,67 €/month",
+    "Become a Monthly Supporter — 98.765,43 €/month"
+  ]);
 });
 
 test("Google selects the canonical purchase option and base-plan offers", async () => {
@@ -2208,10 +2230,10 @@ test("successful replacement acknowledges the new token exactly once", async () 
 });
 
 test("Support presentation keeps all purchase actions and provider management persistent", () => {
-  assert.match(supportPageSource, /id="supportSectionTitle">Help Fund Reverse Flow/);
-  assert.match(supporterServiceSource, /oneTime\?\.label \|\| "One-Time Support"/);
-  assert.match(supporterServiceSource, /monthly3\?\.label \|\| "Monthly Support"/);
-  assert.match(supporterServiceSource, /monthly10\?\.label \|\| "Monthly Support"/);
+  assert.match(supportPageSource, /id="supportSectionTitle">Help Keep Reverse Flow Free/);
+  assert.match(supporterServiceSource, /oneTime\?\.label \|\| "Keep Reverse Flow Free"/);
+  assert.match(supporterServiceSource, /monthly3\?\.label \|\| "Become a Monthly Supporter"/);
+  assert.match(supporterServiceSource, /monthly10\?\.label \|\| "Become a Monthly Supporter"/);
   assert.match(supporterServiceSource, /"Manage Subscription"/);
   assert.match(
     supportPageSource,

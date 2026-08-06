@@ -472,15 +472,15 @@ test("simplified Manage renderer hides provider billing detail and raw exception
   assert.match(manageRenderer, /"Manage Subscription"/);
   assert.match(
     manageRenderer,
-    /appendPurchaseButton\(oneTime, oneTime\?\.label \|\| "One-Time Support"\)/
+    /appendPurchaseButton\(oneTime, oneTime\?\.label \|\| "Keep Reverse Flow Free"\)/
   );
   assert.match(
     manageRenderer,
-    /appendPurchaseButton\(monthly3, monthly3\?\.label \|\| "Monthly Support"\)/
+    /monthly3\?\.label \|\| "Become a Monthly Supporter"/
   );
   assert.match(
     manageRenderer,
-    /appendPurchaseButton\(monthly10, monthly10\?\.label \|\| "Monthly Support"\)/
+    /monthly10\?\.label \|\| "Become a Monthly Supporter"/
   );
   assert.doesNotMatch(
     manageRenderer,

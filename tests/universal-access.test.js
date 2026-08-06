@@ -47,9 +47,9 @@ test("support UI uses one compact action, live store options, and approved copy"
     read("www/index.html")
   ].join("\n");
 
-  assert.match(supporter, /oneTime\?\.label \|\| "One-Time Support"/);
-  assert.match(supporter, /monthly3\?\.label \|\| "Monthly Support"/);
-  assert.match(supporter, /monthly10\?\.label \|\| "Monthly Support"/);
+  assert.match(supporter, /oneTime\?\.label \|\| "Keep Reverse Flow Free"/);
+  assert.match(supporter, /monthly3\?\.label \|\| "Become a Monthly Supporter"/);
+  assert.match(supporter, /monthly10\?\.label \|\| "Become a Monthly Supporter"/);
   assert.match(supporter, /"Manage Subscription"/);
   assert.match(
     supporter,
@@ -70,7 +70,7 @@ test("support UI uses one compact action, live store options, and approved copy"
   assert.match(supporter, /appleStandardEulaLink\.hidden = platform !== "ios"/);
   assert.match(supporter, /Google Play subscription settings/);
   assert.match(supporter, /App Store subscription settings/);
-  assert.match(supporter, /supportTitle\.textContent = "Help Fund Reverse Flow"/);
+  assert.match(supporter, /supportTitle\.textContent = "Help Keep Reverse Flow Free"/);
   assert.doesNotMatch(supporter, /Coming Soon/);
   assert.match(supportHtml, /Join the Supporter Community/);
   assert.match(supportHtml, /Department \/ Organization/);

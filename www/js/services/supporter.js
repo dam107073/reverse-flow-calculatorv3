@@ -920,9 +920,9 @@
     getOptions(platform) {
       const ids = this.config[platform] || {};
       const definitions = [
-        { key: "oneTime5", title: "One-Time Support", type: "one-time", amount: 5 },
-        { key: "monthly3", title: "Monthly Support", type: "monthly", amount: 3 },
-        { key: "monthly10", title: "Monthly Support", type: "monthly", amount: 10 }
+        { key: "oneTime5", title: "Keep Reverse Flow Free", type: "one-time", amount: 5 },
+        { key: "monthly3", title: "Become a Monthly Supporter", type: "monthly", amount: 3 },
+        { key: "monthly10", title: "Become a Monthly Supporter", type: "monthly", amount: 10 }
       ];
       return definitions.map(definition => {
         const configured = typeof ids[definition.key] === "string"
@@ -3637,9 +3637,15 @@
       container.appendChild(button);
     };
 
-    appendPurchaseButton(oneTime, oneTime?.label || "One-Time Support");
-    appendPurchaseButton(monthly3, monthly3?.label || "Monthly Support");
-    appendPurchaseButton(monthly10, monthly10?.label || "Monthly Support");
+    appendPurchaseButton(oneTime, oneTime?.label || "Keep Reverse Flow Free");
+    appendPurchaseButton(
+      monthly3,
+      monthly3?.label || "Become a Monthly Supporter"
+    );
+    appendPurchaseButton(
+      monthly10,
+      monthly10?.label || "Become a Monthly Supporter"
+    );
     const manageButton = document.createElement("button");
     manageButton.type = "button";
     manageButton.className =
@@ -3682,7 +3688,6 @@
     const pageStatus = document.getElementById("supportPageStatus");
     const unclaimedState = document.getElementById("unclaimedSupporterState");
     const claimedState = document.getElementById("claimedSupporterState");
-    const joinCommunityAction = document.getElementById("joinCommunityAction");
     const claimedSupporterNumber = document.getElementById(
       "claimedSupporterNumber"
     );
@@ -3690,7 +3695,7 @@
     title.textContent = "The Supporter Community";
     intro.textContent = "";
     intro.hidden = true;
-    supportTitle.textContent = "Help Fund Reverse Flow";
+    supportTitle.textContent = "Help Keep Reverse Flow Free";
     const platform = getPlatform();
     if (renewalDisclosure) {
       renewalDisclosure.hidden = platform !== "ios" && platform !== "android";
@@ -3703,9 +3708,6 @@
     }
     unclaimedState.hidden = presentation.claimedSupporter;
     claimedState.hidden = !presentation.claimedSupporter;
-    if (joinCommunityAction) {
-      joinCommunityAction.hidden = presentation.claimedSupporter;
-    }
     if (claimedSupporterNumber) {
       const number = claimRecord.supporterNumber;
       claimedSupporterNumber.hidden = !Number.isInteger(number);
