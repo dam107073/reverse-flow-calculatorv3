@@ -65,6 +65,36 @@ const iosRecoveryPluginSource = fs.readFileSync(
   "utf8"
 );
 
+function xcodeTargetConfigurations(projectSource) {
+  const configurations = [];
+  const configurationPattern =
+    /[A-F0-9]{24} \/\* .*? \*\/ = \{\s*isa = XCBuildConfiguration;[\s\S]*?buildSettings = \{([\s\S]*?)\};\s*name = ([^;]+);\s*\};/g;
+
+  function setting(buildSettings, name) {
+    const match = buildSettings.match(
+      new RegExp(`(?:^|\\n)\\s*${name} = (?:"([^"]*)"|([^;]+));`)
+    );
+    return match ? (match[1] || match[2]).trim() : null;
+  }
+
+  for (const match of projectSource.matchAll(configurationPattern)) {
+    const buildSettings = match[1];
+    const bundleIdentifier = setting(buildSettings, "PRODUCT_BUNDLE_IDENTIFIER");
+    if (!bundleIdentifier) continue;
+
+    configurations.push({
+      name: match[2].trim(),
+      bundleIdentifier,
+      marketingVersion: setting(buildSettings, "MARKETING_VERSION"),
+      buildNumber: setting(buildSettings, "CURRENT_PROJECT_VERSION"),
+      isAppExtension:
+        setting(buildSettings, "APPLICATION_EXTENSION_API_ONLY") === "YES"
+    });
+  }
+
+  return configurations;
+}
+
 const CONFIG = {
   apple: {
     oneTime5: {
@@ -305,20 +335,49 @@ test("mobile supporter APIs contain only the canonical Production host", () => {
   assert.doesNotMatch(constantsSource, /vercel\.app|localhost|127\.0\.0\.1/);
 });
 
-test("native Release versions match the current app and widget targets", () => {
-  assert.equal(
-    (iosProjectSource.match(/CURRENT_PROJECT_VERSION = 2;/g) || []).length,
-    6
+test("every iOS app extension version matches its containing app target", () => {
+  const configurations = xcodeTargetConfigurations(iosProjectSource);
+  const parentConfigurations = configurations.filter(
+    ({ bundleIdentifier, isAppExtension }) =>
+      bundleIdentifier === "app.reverseflow.mobile" && !isAppExtension
   );
-  assert.equal(
-    (iosProjectSource.match(/MARKETING_VERSION = 2\.1;/g) || []).length,
-    6
+  const extensionConfigurations = configurations.filter(
+    ({ isAppExtension }) => isAppExtension
   );
-  assert.match(constantsSource, /const APP_VERSION = "2\.1"/);
-  assert.match(constantsSource, /ios:\s*"2"/);
+  const parentByConfiguration = new Map(
+    parentConfigurations.map((configuration) => [configuration.name, configuration])
+  );
+
+  assert.deepEqual(
+    [...parentByConfiguration.keys()].sort(),
+    ["Debug", "Production", "Release"]
+  );
+  assert.ok(extensionConfigurations.length > 0, "No iOS app extension was found");
+
+  for (const extension of extensionConfigurations) {
+    const parent = parentByConfiguration.get(extension.name);
+    assert.ok(parent, `Missing parent ${extension.name} configuration`);
+    assert.equal(
+      extension.marketingVersion,
+      parent.marketingVersion,
+      `${extension.bundleIdentifier} ${extension.name} marketing version differs from the app`
+    );
+    assert.equal(
+      extension.buildNumber,
+      parent.buildNumber,
+      `${extension.bundleIdentifier} ${extension.name} build number differs from the app`
+    );
+  }
+
+  const release = parentByConfiguration.get("Release");
+  assert.match(
+    constantsSource,
+    new RegExp(`const APP_VERSION = "${release.marketingVersion.replace(".", "\\.")}"`)
+  );
+  assert.match(constantsSource, new RegExp(`ios:\\s*"${release.buildNumber}"`));
   assert.match(constantsSource, /android:\s*"151"/);
   assert.match(androidBuildSource, /versionCode 151/);
-  assert.match(androidBuildSource, /versionName "2\.1"/);
+  assert.match(androidBuildSource, /versionName "2\.2"/);
 });
 
 test("every iOS build configuration packages Production", () => {
