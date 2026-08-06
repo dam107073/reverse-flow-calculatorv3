@@ -1297,8 +1297,8 @@ html[data-resolved-theme="dark"] .attack-pumper-hose-summary {
 .pump-chart-overflow summary {
   display: grid;
   place-items: center;
-  width: 36px;
-  min-height: 36px;
+  width: 44px;
+  min-height: 44px;
   border: 1px solid var(--border);
   border-radius: 9px;
   background: rgba(248, 250, 252, 0.76);
@@ -1319,6 +1319,12 @@ html[data-resolved-theme="dark"] .attack-pumper-hose-summary {
   border-color: rgba(217, 92, 19, 0.42);
   color: var(--accent);
   -webkit-text-fill-color: var(--accent);
+}
+
+.pump-chart-overflow summary:focus-visible,
+.pump-chart-advanced-details summary:focus-visible {
+  outline: 3px solid rgba(217, 92, 19, 0.42);
+  outline-offset: 2px;
 }
 
 .pump-chart-overflow-menu {
@@ -1763,7 +1769,7 @@ html[data-resolved-theme="dark"] .attack-pumper-hose-summary {
 
 .pump-chart-advanced-details summary {
   cursor: pointer;
-  min-height: 40px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   color: var(--ink);

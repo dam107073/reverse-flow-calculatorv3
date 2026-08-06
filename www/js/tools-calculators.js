@@ -123,6 +123,18 @@
 
       summary.addEventListener("click", event => {
         event.preventDefault();
+
+        if (section.classList.contains("active-tools-section") && section.open) {
+          if (parentSection) {
+            enterToolsSection(parentSection);
+          } else {
+            exitToolsSection();
+          }
+
+          summary.focus({ preventScroll: true });
+          return;
+        }
+
         enterToolsSection(section);
       });
 

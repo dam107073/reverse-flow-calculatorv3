@@ -39,9 +39,9 @@
        STYLES
   ========================================= -->
   <link rel="stylesheet" href="css/base.css?v=safe-area-1" />
-  <link rel="stylesheet" href="css/components.css?v=home-tools-order-1" />
+  <link rel="stylesheet" href="css/components.css?v=disclosure-audit-1" />
   <link rel="stylesheet" href="css/calculators.css?v=standpipe-1" />
-  <link rel="stylesheet" href="css/support.css?v=support-final-1" />
+  <link rel="stylesheet" href="css/support.css?v=disclosure-audit-1" />
   <link rel="stylesheet" href="css/responsive.css?v=appearance-2" />
 </head>
   
@@ -197,8 +197,8 @@
     <div class="field full">
       <label>Supply Layout</label>
       <div class="mode-buttons" id="splitSectionButtons">
-        <button type="button" data-sections="2">1 Section</button>
-        <button type="button" data-sections="3">2 Sections</button>
+        <button type="button" data-sections="2" aria-controls="splitSupply2Section">1 Section</button>
+        <button type="button" data-sections="3" aria-controls="splitSupply2Section">2 Sections</button>
       </div>
     </div>
 
@@ -310,8 +310,8 @@
     <div class="field full">
       <label>Attack Lines</label>
       <div class="mode-buttons" id="splitAttackLineButtons">
-        <button type="button" data-attack-lines="1">1 Attack Line</button>
-        <button type="button" data-attack-lines="2">2 Attack Lines</button>
+        <button type="button" data-attack-lines="1" aria-controls="splitAttack2Section">1 Attack Line</button>
+        <button type="button" data-attack-lines="2" aria-controls="splitAttack2Section">2 Attack Lines</button>
       </div>
     </div>
 
@@ -606,7 +606,7 @@
     </div>
 
     <div class="field full standpipe-outlet-toggle">
-      <button id="standpipeAddOutletButton" type="button" class="toggle-button">
+      <button id="standpipeAddOutletButton" type="button" class="toggle-button" aria-expanded="false" aria-controls="standpipeAttack2Section">
         Hook to 2nd outlet?
       </button>
     </div>
@@ -618,7 +618,7 @@
     >
       <div class="field full standpipe-card-title-row">
         <strong>Attack Line 2</strong>
-        <button id="standpipeRemoveOutletButton" type="button" class="reset-button">
+        <button id="standpipeRemoveOutletButton" type="button" class="reset-button" aria-controls="standpipeAttack2Section">
           Remove 2nd outlet
         </button>
       </div>
@@ -768,6 +768,8 @@
   type="button"
   class="toggle-button"
   aria-pressed="false"
+  aria-expanded="false"
+  aria-controls="reverseSupplySection"
 >
   Add Supply Section
 </button>
@@ -1634,7 +1636,8 @@
   <script src="vendor/html2canvas.min.js?v=1.4.1"></script>
   <script src="vendor/jspdf.umd.min.js?v=3.0.3"></script>
   <script src="js/pump-operator-package.js?v=25"></script>
-  <script src="js/app.js?v=home-tools-order-1"></script>
+  <script src="js/app.js?v=disclosure-audit-1"></script>
+  <script src="js/disclosures.js?v=1"></script>
 
   <script type="module" src="js/analytics.js"></script>
 

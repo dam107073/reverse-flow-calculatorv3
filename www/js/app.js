@@ -5016,7 +5016,7 @@ function renderPumpChartSetupDetail(chartId, setupId) {
 
       ${setup.notes ? `<section class="pump-chart-document-section"><h3>NOTES</h3><p>${escapeHtml(setup.notes)}</p></section>` : ""}
       <details class="pump-chart-advanced-details">
-        <summary>Show Full Calculation</summary>
+        <summary data-collapsed-label="Show Full Calculation" data-expanded-label="Hide Full Calculation">Show Full Calculation</summary>
         <div class="pump-chart-advanced-content">
           <div class="pump-chart-setup-detail-grid">
             <div>
@@ -6692,6 +6692,10 @@ function syncStandpipeUi() {
   if (els.standpipeAddOutletButton) {
     els.standpipeAddOutletButton.hidden = !!standpipe.attack2Enabled;
     els.standpipeAddOutletButton.style.display = standpipe.attack2Enabled ? "none" : "";
+    els.standpipeAddOutletButton.setAttribute(
+      "aria-expanded",
+      standpipe.attack2Enabled ? "true" : "false"
+    );
   }
 
   if (els.standpipeDualSupplyToggle) {
@@ -7634,16 +7638,14 @@ function syncSplitLayUi() {
   const attackLineButtons = document.querySelectorAll("#splitAttackLineButtons button");
 
   sectionButtons.forEach(button => {
-    button.classList.toggle(
-      "active",
-      button.dataset.sections === state.splitLay.sectionCount
-    );
+    const selected = button.dataset.sections === state.splitLay.sectionCount;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
   });
   attackLineButtons.forEach(button => {
-    button.classList.toggle(
-      "active",
-      button.dataset.attackLines === state.splitLay.attackLines
-    );
+    const selected = button.dataset.attackLines === state.splitLay.attackLines;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
   });
 
   if (supply2Section) {
@@ -7690,10 +7692,15 @@ function syncReverseSupplyUi() {
 
   const enabled = !!state.reverseSupplyEnabled;
 
-  els.reverseSupplyToggle.textContent =
-    "Add Supply Section";
+  els.reverseSupplyToggle.textContent = enabled
+    ? "Remove Supply Section"
+    : "Add Supply Section";
   els.reverseSupplyToggle.setAttribute(
     "aria-pressed",
+    enabled ? "true" : "false"
+  );
+  els.reverseSupplyToggle.setAttribute(
+    "aria-expanded",
     enabled ? "true" : "false"
   );
 

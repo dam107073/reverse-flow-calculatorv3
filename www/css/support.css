@@ -243,6 +243,7 @@
       gap: 12px;
       align-items: center;
       padding: 16px;
+      min-height: 44px;
       cursor: pointer;
       list-style: none;
     }
@@ -269,6 +270,14 @@
     .collapsible-settings-card > summary .helper {
       display: block;
       margin-top: 6px;
+    }
+
+    .collapsible-settings-card > summary:focus-visible,
+    .formula > summary:focus-visible,
+    details.about > summary:focus-visible {
+      outline: 3px solid rgba(217, 92, 19, 0.42);
+      outline-offset: -3px;
+      border-radius: 8px;
     }
 
     .collapsible-card-body {
@@ -1330,6 +1339,9 @@
 
     .formula summary {
       cursor: pointer;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
       color: var(--ink);
       font-weight: 800;
       font-size: 16px;
@@ -1357,6 +1369,9 @@
 
     details.about summary {
       cursor: pointer;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
       color: var(--ink);
       font-weight: 800;
       font-size: 16px;
