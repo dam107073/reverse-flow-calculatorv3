@@ -6,7 +6,7 @@
   <title>Supporter UI Test Fixture</title>
   <link rel="stylesheet" href="/www/css/base.css" />
   <link rel="stylesheet" href="/www/css/components.css" />
-  <link rel="stylesheet" href="/www/css/support.css?v=support-final-1" />
+  <link rel="stylesheet" href="/www/css/support.css?v=support-community-polish-2" />
   <link rel="stylesheet" href="/www/css/responsive.css?v=support-polish-1" />
 </head>
 <body>
@@ -25,20 +25,65 @@
   <a class="support-action-bar" data-support-card data-support-action href="#" hidden></a>
 
   <main id="supportPage">
-    <section class="card support-page-hero">
-      <h2 id="supportPageTitle">Support Reverse Flow</h2>
-      <p id="supportPageIntro"></p>
-      <div class="support-philosophy">
-        <p>A community project built by firefighters, with firefighters, for firefighters.</p>
-        <p>Every firefighter has access to every tool.</p>
-        <p>The community builds what comes next.</p>
+    <section class="support-page-hero" data-support-section="community">
+      <p class="support-kicker">The Reverse Flow Community</p>
+      <h2 id="supportPageTitle">The Supporter Community</h2>
+      <div class="support-hero-intro">
+        <p>Reverse Flow is completely free.</p>
+        <p>Every firefighter has access to every calculator, every tool, and every future feature.</p>
+        <p>The Supporter Community is for firefighters who want to help shape what comes next.</p>
+      </div>
+      <div class="support-community-statement">
+        <strong>Every major feature in Reverse Flow started with a firefighter.</strong>
+        <p>From new calculators and bug fixes to articles and hose library contributions, the Supporters community helps shape every release.</p>
+      </div>
+      <div class="support-hero-actions">
+        <a class="support-primary-action" id="joinCommunityAction" data-join-community-link href="#communityRecognitionSection">Join the Supporter Community</a>
+        <a class="support-secondary-action support-registry-action" href="https://reverse-flow.app/supporters/">View the Supporter Registry</a>
+      </div>
+      <p id="supportPageIntro" class="support-state-note"></p>
+    </section>
+
+    <section class="card support-recognition" id="communityRecognitionSection" data-support-section="participation">
+      <div id="unclaimedSupporterState">
+        <h2>Claim Your Supporter Number</h2>
+        <p>Claim your permanent Supporter Number and become part of the firefighter community helping guide Reverse Flow.</p>
+        <ul class="support-community-details">
+          <li>No purchase is required.</li>
+          <li>Your Supporter Number is permanent.</li>
+          <li>You may appear in the public Supporter Registry.</li>
+          <li>Your email is used only to confirm your claim and is never displayed publicly.</li>
+          <li>You may request removal at any time.</li>
+        </ul>
+        <form id="supporterClaimForm" class="support-identity-form" novalidate>
+        <label for="supporterFullName">Name</label>
+        <input id="supporterFullName" name="fullName" type="text" required />
+        <label for="supporterEmail">Email</label>
+        <input id="supporterEmail" name="email" type="email" required />
+        <label for="supporterOrganization">Department / Organization</label>
+        <input id="supporterOrganization" name="organization" />
+        <p class="helper support-public-note">By joining, your name may be added to the public Reverse Flow Supporter Registry. No purchase is required.</p>
+        <button class="support-primary-action" type="submit">Join the Supporter Community</button>
+        <p id="supporterClaimStatus" class="support-status" role="status"></p>
+        </form>
+      </div>
+      <div id="claimedSupporterState" hidden>
+        <h2>Thank You</h2>
+        <p>Thank you for being part of the Supporter Community.</p>
+        <p id="claimedSupporterNumber" class="supporter-number" hidden></p>
+        <a class="support-secondary-action support-registry-action" href="https://reverse-flow.app/supporters/">View the Supporter Registry</a>
       </div>
     </section>
 
-    <section class="card" id="supportSection">
-      <p class="support-section-kicker">Support</p>
-      <h2 id="supportSectionTitle">Become a Supporter</h2>
-      <p id="supportSectionCopy"></p>
+    <section class="support-editorial-section support-invitation" id="supportSection" data-support-section="financial">
+      <p class="support-section-kicker">Optional Support</p>
+      <h2 id="supportSectionTitle">Help Fund Reverse Flow</h2>
+      <div id="supportSectionCopy" class="support-funding-copy">
+        <p>Reverse Flow has no paid features.</p>
+        <p>Every firefighter gets every tool.</p>
+        <p>Financial supporters help cover the real costs of keeping the project available and continuing development, including hosting, developer programs, testing, infrastructure, and future improvements.</p>
+        <p><strong>Financial support is optional and is not required to join the Supporter Community.</strong></p>
+      </div>
       <div class="support-options" id="supportActions"></div>
       <p class="helper support-renewal-disclosure" id="supportRenewalDisclosure">
         Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period. Payment is charged to your Apple ID account. You can manage or cancel subscriptions in your App Store subscription settings.
@@ -48,31 +93,6 @@
         <a id="appleStandardEulaLink" href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener noreferrer external" aria-label="Open Apple Standard EULA" hidden>Terms of Use (Apple Standard EULA)</a>
       </nav>
       <p id="supportProductsUnavailable">Unavailable in this test fixture.</p>
-    </section>
-
-    <section class="card" id="communityRecognitionSection">
-      <p class="support-section-kicker">Community Recognition</p>
-      <div id="unclaimedSupporterState">
-        <h2>Join the Supporter Community</h2>
-        <p>Add your name to the public Reverse Flow Supporter Registry and become part of the community helping shape what comes next.</p>
-        <form id="supporterClaimForm" class="support-identity-form" novalidate>
-        <label for="supporterFullName">Name</label>
-        <input id="supporterFullName" name="fullName" type="text" required />
-        <label for="supporterEmail">Email</label>
-        <input id="supporterEmail" name="email" type="email" required />
-        <label for="supporterOrganization">Department / Organization</label>
-        <input id="supporterOrganization" name="organization" />
-        <p class="helper support-public-note">By joining, your name will be added to the public Reverse Flow Supporter Registry. You may request removal at any time. Your email is used to confirm your claim and is never displayed publicly.</p>
-        <button class="support-primary-action" type="submit">Join the Supporter Community</button>
-        <p id="supporterClaimStatus" class="support-status" role="status"></p>
-        </form>
-      </div>
-      <div id="claimedSupporterState" hidden>
-        <h2>Welcome to the Supporter Community</h2>
-        <p>Your name is included in the public Reverse Flow Supporter Registry.</p>
-        <span class="supporter-badge" data-supporter-badge hidden>❤️ Supporter</span>
-        <a href="https://reverse-flow.app/supporters/">View Supporter Registry</a>
-      </div>
     </section>
     <p id="supportPageStatus" class="support-status" role="status"></p>
   </main>
@@ -211,6 +231,7 @@
           version: 1,
           isSupporter: true,
           name: "Fixture Supporter",
+          supporterNumber: 42,
           supporterSince: "2021-04-08",
           isPubliclyListed: true,
           supporterEmail: "fixture@example.invalid",
@@ -238,6 +259,7 @@
           text: async () => JSON.stringify({
             isSupporter: true,
             name: "Fixture Supporter",
+            supporterNumber: 42,
             supporterSince: "2021-04-08",
             isPubliclyListed: true,
             lastVerifiedAt: "2026-07-23T18:05:00.000Z"
@@ -247,6 +269,6 @@
     })();
   </script>
   <script src="/www/js/services/entitlement.js"></script>
-  <script src="/www/js/services/supporter.js?v=ios-store-reconcile-1"></script>
+  <script src="/www/js/services/supporter.js?v=support-community-polish-1"></script>
 </body>
 </html>

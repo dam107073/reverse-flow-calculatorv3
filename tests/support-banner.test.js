@@ -48,10 +48,10 @@ const scenarios = [
 for (const [name, state] of scenarios) {
   test(`Supporters banner is state-free for ${name}`, () => {
     const { banner, attributes } = renderFor(state);
-    assert.equal(banner.textContent, "Reverse Flow Supporters");
+    assert.equal(banner.textContent, "The Supporter Community");
     assert.equal(banner.href, "support.html");
     assert.equal(banner.hidden, false);
-    assert.equal(attributes["aria-label"], "Reverse Flow Supporters. Open the Supporters screen.");
+    assert.equal(attributes["aria-label"], "The Supporter Community. Open the Supporters screen.");
     assert.deepEqual(banner.dataset, {});
   });
 }
@@ -60,11 +60,11 @@ test("initial HTML renders the same banner before supporter JavaScript runs", ()
   const html = fs.readFileSync(path.join(root, "www/index.html"), "utf8");
   const banner = html.match(/<a\s+[\s\S]*?class="support-action-bar"[\s\S]*?<\/a>/)?.[0] || "";
   assert.match(banner, /href="support\.html"/);
-  assert.match(banner, />Reverse Flow Supporters<\/a>/);
+  assert.match(banner, />The Supporter Community<\/a>/);
   assert.doesNotMatch(banner, /hidden|Manage Support|Become a Supporter/);
 });
 
-test("the public Supporters page action is unconditional and canonical", () => {
+test("the public Supporter Registry action is unconditional and canonical", () => {
   const html = fs.readFileSync(path.join(root, "www/support.html"), "utf8");
   const action = html.match(/<a\s+[\s\S]*?data-public-supporters-link[\s\S]*?<\/a>/)?.[0] || "";
   const unclaimedStart = html.indexOf('id="unclaimedSupporterState"');
@@ -74,11 +74,11 @@ test("the public Supporters page action is unconditional and canonical", () => {
   assert.match(action, /href="https:\/\/reverse-flow\.app\/supporters\/"/);
   assert.match(action, /target="_blank"/);
   assert.match(action, /rel="noopener noreferrer external"/);
-  assert.match(action, />View the Supporters Page<\/a>/);
+  assert.match(action, />View the Supporter Registry<\/a>/);
   assert.doesNotMatch(action, /\bhidden\b|disabled|data-supporter|data-entitlement|data-claim/);
   assert.ok(html.indexOf("data-public-supporters-link") < unclaimedStart);
   assert.ok(html.indexOf("data-public-supporters-link") < claimedStart);
-  assert.equal(html.match(/https:\/\/reverse-flow\.app\/supporters\//g)?.length, 1);
+  assert.ok((html.match(/https:\/\/reverse-flow\.app\/supporters\//g) || []).length >= 2);
 });
 
 test("banner renderer contains no entitlement or action-state projection", () => {

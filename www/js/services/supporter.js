@@ -52,9 +52,9 @@
   });
 
   const SUPPORT_BANNER = Object.freeze({
-    label: "Reverse Flow Supporters",
+    label: "The Supporter Community",
     href: "support.html",
-    ariaLabel: "Reverse Flow Supporters. Open the Supporters screen."
+    ariaLabel: "The Supporter Community. Open the Supporters screen."
   });
 
   function resolveSupportAction(state) {
@@ -97,6 +97,11 @@
       version: CACHE_VERSION,
       isSupporter,
       name: isSupporter ? record?.name || null : null,
+      supporterNumber:
+        isSupporter && Number.isInteger(Number(record?.supporterNumber)) &&
+        Number(record.supporterNumber) > 0
+          ? Number(record.supporterNumber)
+          : null,
       supporterSince: isSupporter ? record.supporterSince || null : null,
       isPubliclyListed: isSupporter
         ? record?.isPubliclyListed !== false
@@ -3668,7 +3673,6 @@
     const title = document.getElementById("supportPageTitle");
     const intro = document.getElementById("supportPageIntro");
     const supportTitle = document.getElementById("supportSectionTitle");
-    const supportCopy = document.getElementById("supportSectionCopy");
     const renewalDisclosure = document.getElementById(
       "supportRenewalDisclosure"
     );
@@ -3678,13 +3682,15 @@
     const pageStatus = document.getElementById("supportPageStatus");
     const unclaimedState = document.getElementById("unclaimedSupporterState");
     const claimedState = document.getElementById("claimedSupporterState");
+    const joinCommunityAction = document.getElementById("joinCommunityAction");
+    const claimedSupporterNumber = document.getElementById(
+      "claimedSupporterNumber"
+    );
 
-    title.textContent = "Support Reverse Flow";
+    title.textContent = "The Supporter Community";
     intro.textContent = "";
     intro.hidden = true;
-    supportTitle.textContent = "Support the Project";
-    supportCopy.textContent =
-      "If Reverse Flow has helped you, your support helps keep every tool available to the fire service.";
+    supportTitle.textContent = "Help Fund Reverse Flow";
     const platform = getPlatform();
     if (renewalDisclosure) {
       renewalDisclosure.hidden = platform !== "ios" && platform !== "android";
@@ -3697,6 +3703,16 @@
     }
     unclaimedState.hidden = presentation.claimedSupporter;
     claimedState.hidden = !presentation.claimedSupporter;
+    if (joinCommunityAction) {
+      joinCommunityAction.hidden = presentation.claimedSupporter;
+    }
+    if (claimedSupporterNumber) {
+      const number = claimRecord.supporterNumber;
+      claimedSupporterNumber.hidden = !Number.isInteger(number);
+      claimedSupporterNumber.textContent = Number.isInteger(number)
+        ? `Supporter Number #${String(number).padStart(4, "0")}`
+        : "";
+    }
 
     const completePurchase = async evidence => {
       pageStatus.textContent = "Completing your store purchase…";

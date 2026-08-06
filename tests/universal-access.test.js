@@ -64,26 +64,18 @@ test("support UI uses one compact action, live store options, and approved copy"
   assert.doesNotMatch(supportHtml, /type="checkbox"|name="publicRecognition"/);
   assert.match(
     supportHtml,
-    /By joining, your name will be added to the public Reverse Flow Supporter Registry\. You may request removal at any time\./
+    /By joining, your name may be added to the public Reverse Flow Supporter Registry\. No purchase is required\./
   );
   assert.match(supporter, /public:\s*true/);
   assert.match(supporter, /appleStandardEulaLink\.hidden = platform !== "ios"/);
   assert.match(supporter, /Google Play subscription settings/);
   assert.match(supporter, /App Store subscription settings/);
-  assert.match(supporter, /supportTitle\.textContent = "Support the Project"/);
-  assert.match(
-    supporter,
-    /supportCopy\.textContent =\s*"If Reverse Flow has helped you, your support helps keep every tool available to the fire service\."/
-  );
+  assert.match(supporter, /supportTitle\.textContent = "Help Fund Reverse Flow"/);
   assert.doesNotMatch(supporter, /Coming Soon/);
   assert.match(supportHtml, /Join the Supporter Community/);
   assert.match(supportHtml, /Department \/ Organization/);
-  assert.match(
-    supportHtml,
-    /A community project built by firefighters, with firefighters, for firefighters\./
-  );
-  assert.match(supportHtml, /Community Recognition/);
-  assert.match(supportHtml, /View the Supporters Page/);
+  assert.match(supportHtml, /Every major feature in Reverse Flow started with a firefighter\./);
+  assert.match(supportHtml, /View the Supporter Registry/);
   assert.doesNotMatch(
     bundledSupportSources,
     /help fund continued development|help fund what comes next|opportunities to influence development|The stores own billing/i

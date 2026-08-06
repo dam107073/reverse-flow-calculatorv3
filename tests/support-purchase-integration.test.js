@@ -1138,18 +1138,15 @@ test("failed store finish retains the pending marker for retry", async () => {
 
 test("V2 presentation keeps store billing and Supporter claims independent", () => {
   assert.match(supportPageSource, /Join the Supporter Community/);
-  assert.match(
-    supportPageSource,
-    /Community Recognition/
-  );
+  assert.match(supportPageSource, /data-support-section="participation"/);
   assert.doesNotMatch(supportPageSource, /type="checkbox"|name="publicRecognition"/);
   assert.match(supporterServiceSource, /public:\s*true/);
   assert.match(
     supportPageSource,
-    /By joining, your name will be added to the public Reverse Flow Supporter Registry\. You may request removal at any time\./
+    /By joining, your name may be added to the public Reverse Flow Supporter Registry\. No purchase is required\./
   );
   assert.match(supportPageSource, /Department \/ Organization/);
-  assert.match(supportPageSource, /View the Supporters Page/);
+  assert.match(supportPageSource, /View the Supporter Registry/);
   const purchaseCompletionStart = supporterServiceSource.indexOf(
     "const completePurchase = async evidence =>"
   );
@@ -2152,7 +2149,7 @@ test("successful replacement acknowledges the new token exactly once", async () 
 });
 
 test("Support presentation keeps all purchase actions and provider management persistent", () => {
-  assert.match(supportPageSource, /id="supportSectionTitle">Support the Project/);
+  assert.match(supportPageSource, /id="supportSectionTitle">Help Fund Reverse Flow/);
   assert.match(supporterServiceSource, /oneTime\?\.label \|\| "One-Time Support"/);
   assert.match(supporterServiceSource, /monthly3\?\.label \|\| "Monthly Support"/);
   assert.match(supporterServiceSource, /monthly10\?\.label \|\| "Monthly Support"/);

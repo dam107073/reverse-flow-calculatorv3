@@ -24,6 +24,7 @@ const constantsSource = fs.readFileSync(
 const claimed = {
   isSupporter: true,
   name: "Derek Murdock",
+  supporterNumber: 42,
   supporterSince: "2026-07-24",
   isPubliclyListed: true,
   lastVerifiedAt: "2026-07-24T12:00:00.000Z"
@@ -138,6 +139,7 @@ test("backend claim response contains no billing authority", () => {
   const normalized = normalizeApiResponse(claimed);
   assert.equal(normalized.isSupporter, true);
   assert.equal(normalized.name, "Derek Murdock");
+  assert.equal(normalized.supporterNumber, 42);
   assert.equal("contribution" in normalized, false);
   assert.equal("recurringStatus" in normalized, false);
   assert.equal("hasActiveRecurringSupport" in normalized, false);
