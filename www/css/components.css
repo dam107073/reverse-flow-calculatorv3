@@ -334,13 +334,8 @@ body.attack-pumper-active #viewPumpChartButton {
   display: none !important;
 }
 
-body.attack-pumper-active #pumpChartButtons {
-  grid-template-columns: 1fr;
-  margin-top: 0;
-}
-
-body.attack-pumper-active #pumpChartButtons button:first-child {
-  border-right: 0;
+body.attack-pumper-active #pumpChartEntryField {
+  display: none !important;
 }
 
 body.attack-pumper-active #modeHelper,
@@ -348,12 +343,6 @@ body.attack-pumper-active #operationsModuleField > .section-divider {
   display: none !important;
 }
 
-body.attack-pumper-active.attack-pumper-has-lines #pumpChartEntryField {
-  display: none !important;
-}
-
-body.attack-pumper-active.attack-pumper-has-lines #operationsModuleLabel,
-body.attack-pumper-active.attack-pumper-has-lines #operationsModuleHelper,
 body.attack-pumper-active.attack-pumper-has-lines #modeHelper {
   display: none !important;
 }

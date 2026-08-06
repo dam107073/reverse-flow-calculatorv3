@@ -276,6 +276,9 @@
 
       viewPumpChartButton:
         document.getElementById("viewPumpChartButton"),
+      pumpChartButtons: document.getElementById("pumpChartButtons"),
+      homeToolsLink: document.getElementById("homeToolsLink"),
+      homeFooterActions: document.getElementById("homeFooterActions"),
 
       pumpChartModal:
         document.getElementById("pumpChartModal"),
@@ -6708,6 +6711,26 @@ function getActiveModeId() {
   return state.mode || DEFAULT_STATE.mode;
 }
 
+function syncHomeToolsPlacement() {
+  const toolsLink = els.homeToolsLink;
+  const destination = isAttackPumperMode()
+    ? els.homeFooterActions
+    : els.pumpChartButtons;
+  if (!toolsLink || !destination) return;
+
+  const before = isAttackPumperMode()
+    ? destination.querySelector('a[href="resources.html"]')
+    : null;
+  if (
+    toolsLink.parentElement === destination &&
+    (!before || toolsLink.nextElementSibling === before)
+  ) {
+    return;
+  }
+
+  destination.insertBefore(toolsLink, before);
+}
+
 function getModeCarousel() {
   return document.querySelector(".mode-carousel");
 }
@@ -6926,6 +6949,7 @@ function getNozzleTypeHelperText() {
       els.standpipeOpsButton?.classList.toggle("active", isStandpipeOpsMode());
       syncModeCarouselActiveState();
       document.body.classList.toggle("attack-pumper-active", isAttackPumperMode());
+      syncHomeToolsPlacement();
       if (els.attackPumperWorkspace) {
         els.attackPumperWorkspace.hidden = !isAttackPumperMode();
       }
