@@ -2,10 +2,10 @@
 // APP CONFIG
 // ========================================
 
-const APP_VERSION = "2.2";
+const APP_VERSION = "2.3";
 const APP_BUILD_NUMBERS = Object.freeze({
-  ios: "5",
-  android: "153"
+  ios: "1",
+  android: "155"
 });
     const BUILD_DATE = "2026-08-06";
 
