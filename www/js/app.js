@@ -3126,6 +3126,19 @@ function normalizePumpChartSetup(setup) {
   };
 }
 
+function getResolvedPumpChartInputs(setup = {}) {
+  const inputs = setup.inputs || extractInputsFromLegacyPreset(setup);
+  const result = setup.result || {};
+  const legacyLoadedHoseLength = Object.prototype.hasOwnProperty.call(result, "hoseLength")
+    ? String(result.hoseLength || "").trim()
+    : "";
+
+  return {
+    ...inputs,
+    hoseLength: legacyLoadedHoseLength || inputs.hoseLength || setup.hoseLength || ""
+  };
+}
+
 function getStandpipeElevationPressure(floorValue) {
   const floor = numberOrNull(floorValue);
   return floor !== null && floor >= 1 ? (floor - 1) * 5 : null;
@@ -5512,7 +5525,7 @@ function getSetupModeBadgeLabel(setup) {
 }
 
 function getSetupConfigurationSummary(setup) {
-  const inputs = setup.inputs || {};
+  const inputs = getResolvedPumpChartInputs(setup);
 
   if (setup.mode === "splitLay") {
     return getSplitLayConfigurationSummary(inputs.splitLay || {}, setup.result || {});
@@ -5831,7 +5844,7 @@ function getApparatusMountedStreamSummary(setup = {}) {
 }
 
 function getApparatusMountedFlowSummary(setup = {}) {
-  const inputs = setup.inputs || {};
+  const inputs = getResolvedPumpChartInputs(setup);
   const result = setup.result || {};
 
   if (isAutomaticFogType(inputs.nozzleType) || isFixedFogType(inputs.nozzleType)) {
@@ -5964,7 +5977,7 @@ function getSetupReferenceSections(setup) {
     return getStandpipeOpsReferenceSections(setup);
   }
 
-  const inputs = setup.inputs || {};
+  const inputs = getResolvedPumpChartInputs(setup);
   const result = setup.result || {};
   const configurationRows = [];
   const operationalRows = [];
@@ -6276,7 +6289,7 @@ function buildLegacyPresetSummary(preset = {}) {
 }
 
 function getSetupInputRows(setup) {
-  const inputs = setup.inputs || {};
+  const inputs = getResolvedPumpChartInputs(setup);
   const standpipe = inputs.standpipeOps || {};
   const rows = [
     ["Mode", setup.modeLabel || getModeLabel(setup.mode)],
@@ -9571,7 +9584,7 @@ function applyPumpChartSetup(chartId, setupId) {
   if (!setup) return;
 
   const preset = {
-    ...setup.inputs,
+    ...getResolvedPumpChartInputs(setup),
     ...setup.result,
     id: setup.id,
     name: setup.name,
@@ -9903,7 +9916,7 @@ function getPumpOperatorHydraulicStructure(setup) {
     return setup.hydraulicStructure;
   }
 
-  const inputs = setup.inputs || {};
+  const inputs = getResolvedPumpChartInputs(setup);
   const result = setup.result || {};
   const nested = inputs[setup.mode] || setup[setup.mode];
   let supplySections = [];
@@ -10004,7 +10017,7 @@ function getPumpOperatorNozzleLabel(setup) {
 }
 
 function getPumpOperatorSetupRow(setup) {
-  const inputs = setup.inputs || {};
+  const inputs = getResolvedPumpChartInputs(setup);
   const result = setup.result || {};
   const structure = getPumpOperatorHydraulicStructure(setup);
   const packageApi = window.ReverseFlowPumpOperatorPackage;
