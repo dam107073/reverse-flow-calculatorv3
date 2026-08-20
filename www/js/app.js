@@ -5844,7 +5844,7 @@ function getApparatusMountedStreamSummary(setup = {}) {
 }
 
 function getApparatusMountedFlowSummary(setup = {}) {
-  const inputs = getResolvedPumpChartInputs(setup);
+  const inputs = setup.inputs || {};
   const result = setup.result || {};
 
   if (isAutomaticFogType(inputs.nozzleType) || isFixedFogType(inputs.nozzleType)) {
@@ -9916,7 +9916,7 @@ function getPumpOperatorHydraulicStructure(setup) {
     return setup.hydraulicStructure;
   }
 
-  const inputs = getResolvedPumpChartInputs(setup);
+  const inputs = setup.inputs || {};
   const result = setup.result || {};
   const nested = inputs[setup.mode] || setup[setup.mode];
   let supplySections = [];
@@ -10017,7 +10017,7 @@ function getPumpOperatorNozzleLabel(setup) {
 }
 
 function getPumpOperatorSetupRow(setup) {
-  const inputs = getResolvedPumpChartInputs(setup);
+  const inputs = setup.inputs || {};
   const result = setup.result || {};
   const structure = getPumpOperatorHydraulicStructure(setup);
   const packageApi = window.ReverseFlowPumpOperatorPackage;

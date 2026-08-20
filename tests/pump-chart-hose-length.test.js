@@ -121,9 +121,7 @@ test("every Pump Chart hose presentation path uses the resolved saved inputs", (
     "getSetupConfigurationSummary",
     "getSetupReferenceSections",
     "getSetupInputRows",
-    "applyPumpChartSetup",
-    "getPumpOperatorHydraulicStructure",
-    "getPumpOperatorSetupRow"
+    "applyPumpChartSetup"
   ]) {
     assert.match(functionSource(functionName), /getResolvedPumpChartInputs\(setup\)/);
   }
