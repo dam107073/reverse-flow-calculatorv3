@@ -29,6 +29,21 @@ test("lesson and course completion effects remain idempotent", () => {
   assert.deepEqual(events, ["h:lesson-complete", "s:lesson-complete", "c:lesson", "h:course-complete", "s:course-complete", "c:course"]);
 });
 
+test("answer and completion confetti use a viewport layer instead of the answer geometry", () => {
+  const makeNode = () => ({ children:[], className:"", style:{ setProperty(){} }, classList:{ add(){} }, append(...items){ this.children.push(...items); }, setAttribute(){}, remove(){ this.removed = true; } });
+  const body = makeNode();
+  const document = { body, createElement:() => makeNode() };
+  const globalObject = { document, matchMedia:()=>({matches:false}), setTimeout:()=>1, clearTimeout(){} };
+  const answer = { append(){ throw new Error("confetti must not attach to the answer"); }, getBoundingClientRect(){ throw new Error("answer bounds must not set the origin"); }, querySelector:()=>null };
+  const controller = F.createController({ storage:storage({[F.SOUND_KEY]:"off"}), document, globalObject, performHaptic:()=>true });
+  assert.equal(controller.fire("correct", "answer:centered", answer).confetti, true);
+  assert.equal(controller.fire("lesson-complete", "lesson:centered", answer).confetti, true);
+  assert.equal(controller.fire("course-complete", "course:centered", answer).confetti, true);
+  assert.deepEqual(body.children.map(item => item.className), ["course-confetti course-confetti-answer", "course-confetti course-confetti-lesson", "course-confetti course-confetti-course"]);
+  controller.cleanup();
+  assert.ok(body.children.every(item => item.removed));
+});
+
 test("sound preference is local, defaults on, and suppresses only sound", () => {
   const targetStorage = storage();
   assert.equal(F.soundEnabled(targetStorage), true);

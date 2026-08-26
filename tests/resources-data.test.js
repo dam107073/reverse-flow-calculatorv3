@@ -5,7 +5,7 @@ function formulaFeed() { return { schemaVersion:"reverse-flow-learning-formulas-
 function quizFeed() { return { schemaVersion:"reverse-flow-learning-quiz-v1",contentVersion:"test-1",updatedAt:"2026-08-26T16:00:00Z",items:[{id:"fl-basic",category:"friction-loss",difficulty:"basic",type:"concept",prompt:"What happens when hose length increases?",choices:["Loss increases","Loss decreases","Nothing changes","Flow stops"],correctIndex:0,explanation:"Longer hose creates more friction loss."}]}; }
 function courseFeed() {
   const lessons=Array.from({length:10},(_,index)=>({id:`lesson-${index+1}`,order:index+1,title:`Lesson ${index+1}`,minutes:"3–5 min",takeaway:"Use the pressure parts.",steps:[
-    {id:`l${index+1}-teach`,type:"teaching",title:"Learn",statement:"Pressure pushes water.",body:"Flow is water moving."},
+    {id:`l${index+1}-teach`,type:"teaching",kind:index===0?"worked-example":undefined,title:"Learn",statement:"Pressure pushes water.",body:"Flow is water moving."},
     {id:`l${index+1}-visual`,type:"visual",title:"See it",visual:{kind:"pressure-gauge",description:"A gauge shows pressure.",labels:["PSI"]}},
     {id:`l${index+1}-question`,type:"question",prompt:"What measures pressure?",choices:["PSI","GPM","Feet","Gallons"],correctIndex:0,feedback:"PSI measures pressure.",concept:"pressure-flow",kind:"concept"},
     {id:`l${index+1}-calc`,type:"calculation",prompt:"Find the loss.",operation:"frictionLoss",inputs:{coefficient:2,flowGPM:250,lengthFeet:200},choices:[13,25,50,100],unit:"PSI",explanation:"The result is 25 PSI.",concept:"friction-loss"},
@@ -53,6 +53,7 @@ test("learning feed parsers accept the shared schemas and reject malformed updat
   assert.equal(quiz.items.length,1);
   assert.equal(course.items.length,10);
   assert.equal(course.items[0].steps.length,5);
+  assert.equal(course.items[0].steps[0].kind,"worked-example");
   assert.equal(course.course.title,"Fireground Hydraulics Basics");
   assert.equal(formulas.items[0].variables.length>0,true);
   assert.equal(quiz.items.every(item=>item.choices.length===4),true);
@@ -63,6 +64,8 @@ test("learning feed parsers accept the shared schemas and reject malformed updat
   assert.throws(()=>R.normalizeCoursePayload(badCourse),/invalid answers/);
   const badCalculation=courseFeed();badCalculation.course.lessons[0].steps[3].inputs={};
   assert.throws(()=>R.normalizeCoursePayload(badCalculation),/Calculation step/);
+  const badTeachingKind=courseFeed();badTeachingKind.course.lessons[0].steps[0].kind="future-kind";
+  assert.throws(()=>R.normalizeCoursePayload(badTeachingKind),/Teaching step/);
 });
 
 test("learning resources retain last-known-good content after malformed revalidation", async () => {

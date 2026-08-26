@@ -101,9 +101,10 @@
       return notes.length > 0;
     }
 
-    function burst(target, level) {
-      if (typeof options.burst === "function") return options.burst(target, level);
-      if (!documentObject || !target || typeof target.append !== "function") return false;
+    function burst(_target, level) {
+      if (typeof options.burst === "function") return options.burst(null, level);
+      const host = documentObject && (documentObject.body || documentObject.documentElement);
+      if (!host || typeof host.append !== "function") return false;
       const count = level === "course" ? 22 : level === "lesson" ? 14 : 8;
       const layer = documentObject.createElement("span");
       layer.className = `course-confetti course-confetti-${level}`;
@@ -118,7 +119,7 @@
         particle.style.setProperty("--confetti-color", ["#f97316", "#fb923c", "#2563eb", "#eab308", "#16a34a"][index % 5]);
         layer.append(particle);
       }
-      target.append(layer);
+      host.append(layer);
       particles.add(layer);
       const timer = globalObject.setTimeout(() => { particles.delete(layer); layer.remove(); timers.delete(timer); }, level === "course" ? 1000 : 760);
       timers.add(timer);

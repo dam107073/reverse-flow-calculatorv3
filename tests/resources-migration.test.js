@@ -10,7 +10,8 @@ test("Resources preserves its website-backed browsers and adds learning destinat
   for (const label of ["Fireground Hydraulics Basics", "Training Directory", "Hose Library", "Articles", "Formula Library", "Practice Quiz"]) assert.match(page, new RegExp(label));
   assert.ok(page.indexOf("Fireground Hydraulics Basics") < page.indexOf("Practice Quiz"));
   assert.ok(page.indexOf("Practice Quiz") < page.indexOf("Formula Library"));
-  for (const purpose of ["Learn", "Practice", "Reference"]) assert.match(page, new RegExp(`resource-card-kicker[^>]*>${purpose}<`));
+  for (const purpose of ["Learn", "Practice", "Reference"]) assert.match(page, new RegExp(`resource-pathway-title[^>]*>${purpose}<`));
+  assert.doesNotMatch(page, /resource-card-kicker/);
   assert.doesNotMatch(page, /Manufacturer References|Training Resources Coming Soon/);
 });
 

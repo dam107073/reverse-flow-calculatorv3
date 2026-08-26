@@ -191,7 +191,7 @@
     shell.append(lessonProgress);
 
     const card = el("section", `course-step-card${step.type === "recap" ? " course-recap" : ""}`);
-    const labels = { teaching: "Learn", visual: "See It", question: step.kind === "application" ? "Fireground Check" : "Quick Check", calculation: "Work It Out", recap: "Lesson Recap" };
+    const labels = { teaching: step.kind === "worked-example" ? "Worked Example" : "Learn", visual: "See It", question: step.kind === "application" ? "Fireground Check" : "Quick Check", calculation: "Work It Out", recap: "Lesson Recap" };
     card.append(el("p", "course-step-kicker", labels[step.type]));
     if (step.type === "teaching") card.append(el("h3", "", step.title), el("p", "course-teaching-statement", step.statement), ...(step.body ? [el("p", "course-teaching-body", step.body)] : []));
     if (step.type === "visual") card.append(el("h3", "", step.title), renderVisual(step), el("p", "course-teaching-body", step.visual.description));

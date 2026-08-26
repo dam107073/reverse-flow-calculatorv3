@@ -234,12 +234,12 @@
         const normalized = { id: text(step.id), type: text(step.type) };
         required(normalized.id && !stepIds.has(normalized.id) && ["teaching", "visual", "question", "calculation", "recap"].includes(normalized.type), `Step ${stepIndex + 1} in lesson ${lesson.order} is malformed.`);
         stepIds.add(normalized.id);
-        if (normalized.type === "teaching") Object.assign(normalized, { title: text(step.title), statement: text(step.statement), body: text(step.body) });
+        if (normalized.type === "teaching") Object.assign(normalized, { title: text(step.title), statement: text(step.statement), body: text(step.body), kind: text(step.kind) });
         if (normalized.type === "visual") Object.assign(normalized, { title: text(step.title), visual: { kind: text(step.visual && step.visual.kind), description: text(step.visual && step.visual.description), labels: array(step.visual && step.visual.labels).map(text).filter(Boolean) } });
         if (normalized.type === "question") Object.assign(normalized, { prompt: text(step.prompt), choices: array(step.choices).map(text), correctIndex: Number(step.correctIndex), feedback: text(step.feedback), concept: text(step.concept), kind: text(step.kind) || "concept" });
         if (normalized.type === "calculation") Object.assign(normalized, { prompt: text(step.prompt), operation: text(step.operation), inputs: Object.fromEntries(Object.entries(step.inputs || {}).map(([key, value]) => [text(key), Number(value)])), choices: array(step.choices).map(Number), unit: text(step.unit), explanation: text(step.explanation), concept: text(step.concept) });
         if (normalized.type === "recap") Object.assign(normalized, { title: text(step.title), takeaway: text(step.takeaway) });
-        if (normalized.type === "teaching") required(normalized.title && normalized.statement, `Teaching step ${normalized.id} is incomplete.`);
+        if (normalized.type === "teaching") required(normalized.title && normalized.statement && (!normalized.kind || normalized.kind === "worked-example"), `Teaching step ${normalized.id} is incomplete.`);
         if (normalized.type === "visual") required(normalized.title && normalized.visual.kind && normalized.visual.description, `Visual step ${normalized.id} is incomplete.`);
         if (normalized.type === "question") required(normalized.prompt && normalized.feedback && normalized.concept && normalized.choices.length === 4 && new Set(normalized.choices).size === 4 && Number.isInteger(normalized.correctIndex) && normalized.correctIndex >= 0 && normalized.correctIndex < 4, `Question step ${normalized.id} has invalid answers.`);
         if (normalized.type === "calculation") {

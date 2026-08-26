@@ -22,6 +22,10 @@
 .resource-logo img { object-fit:contain; padding:10px; }
 .resource-featured-card { box-shadow:0 0 0 1px rgba(185,28,28,.32); }
 .resource-state-card { min-height:100px; }
+.resource-pathway { display:grid; min-width:0; gap:7px; }
+.resource-pathway-title { margin:0; padding:0 2px; color:var(--ink,#111827); font-size:1rem; font-weight:900; line-height:1.25; }
+#resourcesPage .reference-nav-card>div { min-width:0; }
+#resourcesPage .reference-nav-card strong { display:block; overflow-wrap:break-word; }
 html[data-resolved-theme="dark"] .resource-badge-verified { color:#86efac; }
 @media (max-width:560px) {
   .resource-filter-grid { grid-template-columns:1fr; }

@@ -30,6 +30,7 @@ test("course player exposes progress, sequential path, resume, reset confirmatio
   assert.match(source, /ReverseFlowCourse\.previous/);
   assert.match(source, /previousButton\.disabled = stepIndex === 0/);
   assert.match(source, /feedbackController\.fire/);
+  assert.match(source, /step\.kind === "worked-example" \? "Worked Example" : "Learn"/);
   assert.doesNotMatch(source, /answerState/);
 });
 
@@ -58,6 +59,8 @@ test("course diagrams are responsive, accessible, theme-aware, and narrow-screen
   assert.match(css, /@media \(max-width: 350px\)/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /course-confetti/);
+  assert.match(css, /\.course-confetti \{[^}]*position: fixed;[^}]*inset: 50% auto auto 50%;/);
+  assert.doesNotMatch(read("www/js/learning-feedback.js"), /getBoundingClientRect/);
   assert.match(css, /course-success-pop/);
   assert.match(css, /course-step-actions/);
 });
