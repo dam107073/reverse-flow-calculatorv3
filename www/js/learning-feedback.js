@@ -105,23 +105,23 @@
       if (typeof options.burst === "function") return options.burst(null, level);
       const host = documentObject && (documentObject.body || documentObject.documentElement);
       if (!host || typeof host.append !== "function") return false;
-      const count = level === "course" ? 22 : level === "lesson" ? 14 : 8;
+      const count = level === "course" ? 40 : level === "lesson" ? 28 : 18;
       const layer = documentObject.createElement("span");
       layer.className = `course-confetti course-confetti-${level}`;
       layer.setAttribute("aria-hidden", "true");
       for (let index = 0; index < count; index += 1) {
         const particle = documentObject.createElement("i");
         const angle = (Math.PI * 2 * index / count) + ((index % 3) * .09);
-        const distance = 34 + (index % 5) * 10 + (level === "course" ? 24 : level === "lesson" ? 12 : 0);
+        const distance = 55 + (index % 6) * 12 + (level === "course" ? 25 : level === "lesson" ? 10 : 0);
         particle.style.setProperty("--confetti-x", `${Math.cos(angle) * distance}px`);
         particle.style.setProperty("--confetti-y", `${Math.sin(angle) * distance}px`);
-        particle.style.setProperty("--confetti-delay", `${(index % 4) * 18}ms`);
-        particle.style.setProperty("--confetti-color", ["#f97316", "#fb923c", "#2563eb", "#eab308", "#16a34a"][index % 5]);
+        particle.style.setProperty("--confetti-delay", `${(index % 5) * 16}ms`);
+        particle.style.setProperty("--confetti-color", ["#f97316", "#facc15", "#2563eb", "#22c55e", "#ef4444", "#a855f7"][index % 6]);
         layer.append(particle);
       }
       host.append(layer);
       particles.add(layer);
-      const timer = globalObject.setTimeout(() => { particles.delete(layer); layer.remove(); timers.delete(timer); }, level === "course" ? 1000 : 760);
+      const timer = globalObject.setTimeout(() => { particles.delete(layer); layer.remove(); timers.delete(timer); }, level === "course" ? 1300 : level === "lesson" ? 1150 : 980);
       timers.add(timer);
       return true;
     }

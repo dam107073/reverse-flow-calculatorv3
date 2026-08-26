@@ -40,6 +40,7 @@ test("answer and completion confetti use a viewport layer instead of the answer 
   assert.equal(controller.fire("lesson-complete", "lesson:centered", answer).confetti, true);
   assert.equal(controller.fire("course-complete", "course:centered", answer).confetti, true);
   assert.deepEqual(body.children.map(item => item.className), ["course-confetti course-confetti-answer", "course-confetti course-confetti-lesson", "course-confetti course-confetti-course"]);
+  assert.deepEqual(body.children.map(item => item.children.length), [18, 28, 40]);
   controller.cleanup();
   assert.ok(body.children.every(item => item.removed));
 });
