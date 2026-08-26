@@ -15,14 +15,16 @@
     hose: "reverseFlowResourceCache:hose:v2",
     articles: "reverseFlowResourceCache:articles:v2",
     formulas: "reverseFlowResourceCache:formulas:v2",
-    quiz: "reverseFlowResourceCache:quiz:v2"
+    quiz: "reverseFlowResourceCache:quiz:v2",
+    course: "reverseFlowResourceCache:course:v2"
   });
   const ENDPOINTS = Object.freeze({
     training: `${ORIGIN}/api/training-directory/listings`,
     hose: `${ORIGIN}/api/resources/v1/libraries/hose/items?limit=100`,
     articles: `${ORIGIN}/api/resources/articles/app-summary`,
     formulas: `${ORIGIN}/api/resources/learning/formulas`,
-    quiz: `${ORIGIN}/api/resources/learning/quiz`
+    quiz: `${ORIGIN}/api/resources/learning/quiz`,
+    course: `${ORIGIN}/api/resources/learning/course`
   });
 
   function text(value) { return typeof value === "string" ? value.trim() : ""; }
@@ -216,6 +218,43 @@
     return { items, contentVersion, updatedAt };
   }
 
+  function normalizeCoursePayload(body) {
+    required(body && body.schemaVersion === "reverse-flow-learning-course-v1" && body.course && Array.isArray(body.course.lessons), "Course response version is incompatible.");
+    const contentVersion = text(body.contentVersion);
+    const updatedAt = isoDate(body.updatedAt);
+    const course = { id: text(body.course.id), title: text(body.course.title), subtitle: text(body.course.subtitle) };
+    required(contentVersion && updatedAt && course.id && course.title && course.subtitle && body.course.lessons.length === 10, "Course response metadata is invalid.");
+    const stepIds = new Set();
+    const items = body.course.lessons.map((item, lessonIndex) => {
+      required(item && typeof item === "object", `Course lesson ${lessonIndex + 1} is invalid.`);
+      const lesson = { id: text(item.id), order: Number(item.order), title: text(item.title), minutes: text(item.minutes), takeaway: text(item.takeaway), steps: [] };
+      required(lesson.id && lesson.order === lessonIndex + 1 && lesson.title && lesson.minutes && lesson.takeaway && Array.isArray(item.steps) && item.steps.length >= 5, `Course lesson ${lessonIndex + 1} is malformed.`);
+      lesson.steps = item.steps.map((step, stepIndex) => {
+        required(step && typeof step === "object", `Step ${stepIndex + 1} in lesson ${lesson.order} is invalid.`);
+        const normalized = { id: text(step.id), type: text(step.type) };
+        required(normalized.id && !stepIds.has(normalized.id) && ["teaching", "visual", "question", "calculation", "recap"].includes(normalized.type), `Step ${stepIndex + 1} in lesson ${lesson.order} is malformed.`);
+        stepIds.add(normalized.id);
+        if (normalized.type === "teaching") Object.assign(normalized, { title: text(step.title), statement: text(step.statement), body: text(step.body) });
+        if (normalized.type === "visual") Object.assign(normalized, { title: text(step.title), visual: { kind: text(step.visual && step.visual.kind), description: text(step.visual && step.visual.description), labels: array(step.visual && step.visual.labels).map(text).filter(Boolean) } });
+        if (normalized.type === "question") Object.assign(normalized, { prompt: text(step.prompt), choices: array(step.choices).map(text), correctIndex: Number(step.correctIndex), feedback: text(step.feedback), concept: text(step.concept), kind: text(step.kind) || "concept" });
+        if (normalized.type === "calculation") Object.assign(normalized, { prompt: text(step.prompt), operation: text(step.operation), inputs: Object.fromEntries(Object.entries(step.inputs || {}).map(([key, value]) => [text(key), Number(value)])), choices: array(step.choices).map(Number), unit: text(step.unit), explanation: text(step.explanation), concept: text(step.concept) });
+        if (normalized.type === "recap") Object.assign(normalized, { title: text(step.title), takeaway: text(step.takeaway) });
+        if (normalized.type === "teaching") required(normalized.title && normalized.statement, `Teaching step ${normalized.id} is incomplete.`);
+        if (normalized.type === "visual") required(normalized.title && normalized.visual.kind && normalized.visual.description, `Visual step ${normalized.id} is incomplete.`);
+        if (normalized.type === "question") required(normalized.prompt && normalized.feedback && normalized.concept && normalized.choices.length === 4 && new Set(normalized.choices).size === 4 && Number.isInteger(normalized.correctIndex) && normalized.correctIndex >= 0 && normalized.correctIndex < 4, `Question step ${normalized.id} has invalid answers.`);
+        if (normalized.type === "calculation") {
+          const requiredInputs = normalized.operation === "frictionLoss" ? ["coefficient", "flowGPM", "lengthFeet"] : normalized.operation === "elevationPressure" ? ["heightFeet"] : normalized.operation === "requiredPDP" ? ["nozzlePressure"] : [];
+          required(normalized.prompt && normalized.explanation && normalized.concept && requiredInputs.length && requiredInputs.every(key => Number.isFinite(normalized.inputs[key])) && Object.values(normalized.inputs).every(Number.isFinite) && normalized.choices.length === 4 && new Set(normalized.choices).size === 4 && normalized.choices.every(Number.isFinite) && normalized.unit, `Calculation step ${normalized.id} is invalid.`);
+        }
+        if (normalized.type === "recap") required(normalized.takeaway, `Recap step ${normalized.id} is incomplete.`);
+        return normalized;
+      });
+      return lesson;
+    });
+    required(new Set(items.map(item => item.id)).size === items.length, "Course contains duplicate lesson IDs.");
+    return { items, course, contentVersion, updatedAt };
+  }
+
   function responseHeader(headers, name) {
     if (!headers) return "";
     if (typeof headers.get === "function") return text(headers.get(name));
@@ -278,6 +317,7 @@
     if (type === "articles") data = normalizeArticlesPayload(first.data);
     if (type === "formulas") data = normalizeFormulasPayload(first.data);
     if (type === "quiz") data = normalizeQuizPayload(first.data);
+    if (type === "course") data = normalizeCoursePayload(first.data);
     if (type === "hose") {
       const initial = normalizeHosePage(first.data);
       const byId = new Map(initial.items.map(item => [item.id, item]));
@@ -317,9 +357,10 @@
     if (type === "hose" && (!Number.isInteger(data.total) || data.total !== data.items.length)) return false;
     return data.items.every(item => {
       if (!item || !text(item.id)) return false;
-      if (["formulas", "quiz"].includes(type)) {
+      if (["formulas", "quiz", "course"].includes(type)) {
         if (type === "formulas") return !!(text(item.title) && text(item.formula) && text(item.quizCategory));
-        return !!(text(item.prompt) && item.type === "concept" && Array.isArray(item.choices) && item.choices.length === 4 && Number.isInteger(item.correctIndex));
+        if (type === "quiz") return !!(text(item.prompt) && item.type === "concept" && Array.isArray(item.choices) && item.choices.length === 4 && Number.isInteger(item.correctIndex));
+        return !!(text(item.title) && Number.isInteger(item.order) && Array.isArray(item.steps) && item.steps.length >= 5);
       }
       if (!canonicalResourceUrl(item.canonicalUrl, type)) return false;
       if (type === "training") return !!text(item.title);
@@ -403,5 +444,5 @@
       && (!filters.featured || item.featured));
   }
 
-  return { CACHE_KEYS, CACHE_VERSION, ENDPOINTS, MIN_REVALIDATE_MS, STALE_AFTER_MS, ResourceRepository, canonicalResourceUrl, fetchCompleteResource, filterArticles, filterHose, filterTraining, normalizeArticlesPayload, normalizeFormulasPayload, normalizeHosePage, normalizeQuizPayload, normalizeTrainingPayload, openCanonicalResourceUrl, readCache, requestJson, safeImageUrl, writeCache };
+  return { CACHE_KEYS, CACHE_VERSION, ENDPOINTS, MIN_REVALIDATE_MS, STALE_AFTER_MS, ResourceRepository, canonicalResourceUrl, fetchCompleteResource, filterArticles, filterHose, filterTraining, normalizeArticlesPayload, normalizeCoursePayload, normalizeFormulasPayload, normalizeHosePage, normalizeQuizPayload, normalizeTrainingPayload, openCanonicalResourceUrl, readCache, requestJson, safeImageUrl, writeCache };
 });

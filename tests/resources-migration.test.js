@@ -7,7 +7,10 @@ const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 test("Resources preserves its website-backed browsers and adds learning destinations", () => {
   const page = read("www/resources.html");
-  for (const label of ["Training Directory", "Hose Library", "Articles", "Formula Library", "Practice Quiz"]) assert.match(page, new RegExp(label));
+  for (const label of ["Fireground Hydraulics Basics", "Training Directory", "Hose Library", "Articles", "Formula Library", "Practice Quiz"]) assert.match(page, new RegExp(label));
+  assert.ok(page.indexOf("Fireground Hydraulics Basics") < page.indexOf("Practice Quiz"));
+  assert.ok(page.indexOf("Practice Quiz") < page.indexOf("Formula Library"));
+  for (const purpose of ["Learn", "Practice", "Reference"]) assert.match(page, new RegExp(`resource-card-kicker[^>]*>${purpose}<`));
   assert.doesNotMatch(page, /Manufacturer References|Training Resources Coming Soon/);
 });
 
