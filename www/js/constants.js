@@ -4,10 +4,10 @@
 
 const APP_VERSION = "2.3";
 const APP_BUILD_NUMBERS = Object.freeze({
-  ios: "1",
-  android: "155"
+  ios: "2",
+  android: "156"
 });
-    const BUILD_DATE = "2026-08-06";
+    const BUILD_DATE = "2026-08-26";
 
     const REVERSE_FLOW_PRO_PRODUCT_ID =
 	  "reverse_flow_pro_lifetime";
