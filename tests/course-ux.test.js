@@ -32,6 +32,8 @@ test("course player exposes progress, sequential path, resume, reset confirmatio
   assert.match(source, /setAttribute\("aria-pressed", String\(selectedIndex === index\)\)/);
   assert.match(source, /"✓ Selected"/);
   assert.match(source, /check\.disabled = !ReverseFlowCourse\.pendingAnswerFor/);
+  assert.match(source, /\["Enter", " "\]\.includes\(event\.key\)/);
+  assert.match(source, /event\.preventDefault\(\);\s*choiceButton\.click\(\);/);
   assert.ok(source.indexOf("ReverseFlowCourse.selectPendingAnswer") < source.indexOf("ReverseFlowCourse.recordAnswer"), "Selection must be stored before the separate grading action.");
   assert.match(source, /ReverseFlowCourse\.previous/);
   assert.match(source, /previousButton\.disabled = stepIndex === 0/);

@@ -233,6 +233,11 @@
         feedbackController.fire("selection", `selection:${step.id}:${index}`);
         renderStep(lesson);
       }, "course-choice");
+      choiceButton.addEventListener("keydown", event => {
+        if (checked || !["Enter", " "].includes(event.key)) return;
+        event.preventDefault();
+        choiceButton.click();
+      });
       choiceButton.append(el("span", "", label));
       choiceButton.setAttribute("aria-pressed", String(selectedIndex === index));
       if (!checked && selectedIndex === index) choiceButton.append(el("span", "course-choice-status course-choice-selected", "✓ Selected"));
