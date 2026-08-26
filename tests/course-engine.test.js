@@ -30,7 +30,7 @@ test("current step persists on resume and malformed future completion is removed
   const resumed = C.normalizeProgress(course, { version: 1, courseId: course.id, completedLessonIds: ["lesson-1"], currentLessonId: "lesson-2", currentStepId: "l2-s3" });
   assert.equal(resumed.currentLessonId, "lesson-2");
   assert.equal(resumed.currentStepId, "l2-s3");
-  assert.equal(resumed.version, 2);
+  assert.equal(resumed.version, 3);
   assert.deepEqual(resumed.completedStepIds.slice(-2), ["l2-s1", "l2-s2"]);
   const sanitized = C.normalizeProgress(course, { version: 1, courseId: course.id, completedLessonIds: ["lesson-1", "lesson-3"], currentLessonId: "lesson-4", currentStepId: "bad" });
   assert.deepEqual(sanitized.completedLessonIds, ["lesson-1"]);
@@ -103,6 +103,41 @@ test("submitted answers persist across backward and forward navigation without b
   assert.equal(duplicate.isNew, false);
   assert.equal(duplicate.progress, returned);
   assert.deepEqual(C.answerFor(duplicate.progress, "l1-s3"), { selectedIndex: 1 });
+});
+
+test("ungraded selections persist through Previous, forward navigation, and progress migration", () => {
+  const course = fixtureCourse();
+  course.lessons[0].steps[2] = { id: "l1-s3", type: "question", choices: ["PSI", "GPM", "Feet", "Gallons"], correctIndex: 0, feedback: "PSI measures pressure." };
+  let progress = C.defaultProgress(course);
+  progress = C.advance(course, progress, "lesson-1", "l1-s1").progress;
+  progress = C.advance(course, progress, "lesson-1", "l1-s2").progress;
+  progress = C.selectPendingAnswer(course, progress, "lesson-1", "l1-s3", 1);
+  assert.deepEqual(C.pendingAnswerFor(progress, "l1-s3"), { selectedIndex: 1 });
+  assert.equal(C.answerFor(progress, "l1-s3"), null);
+  assert.equal(progress.completedStepIds.includes("l1-s3"), false);
+  const backward = C.previous(course, progress, "lesson-1", "l1-s3");
+  const returned = C.advance(course, backward, "lesson-1", "l1-s2").progress;
+  assert.deepEqual(C.pendingAnswerFor(returned, "l1-s3"), { selectedIndex: 1 });
+  const migrated = C.normalizeProgress(course, { ...returned, version: 2 });
+  assert.deepEqual(C.pendingAnswerFor(migrated, "l1-s3"), { selectedIndex: 1 });
+  const changed = C.selectPendingAnswer(course, migrated, "lesson-1", "l1-s3", 0);
+  assert.deepEqual(C.pendingAnswerFor(changed, "l1-s3"), { selectedIndex: 0 });
+  const recorded = C.recordAnswer(course, changed, "lesson-1", "l1-s3", 0);
+  assert.equal(recorded.result.correct, true);
+  assert.equal(C.pendingAnswerFor(recorded.progress, "l1-s3"), null);
+  assert.deepEqual(C.answerFor(recorded.progress, "l1-s3"), { selectedIndex: 0 });
+});
+
+test("guided practice uses the answer flow without becoming a scored question type", () => {
+  const course = fixtureCourse();
+  const step = { id: "l1-s3", type: "teaching", kind: "guided-practice", title: "Convert Q", statement: "200 GPM", body: "Divide by 100.", prompt: "What is Q?", choices: ["0.2", "2", "20", "200"], correctIndex: 1, feedback: "Q = 2." };
+  course.lessons[0].steps[2] = step;
+  assert.equal(C.isAnswerableStep(step), true);
+  assert.deepEqual(C.answerStep(step, 1), { correct: true, correctIndex: 1, explanation: "Q = 2." });
+  let progress = C.selectPendingAnswer(course, C.defaultProgress(course), "lesson-1", "l1-s3", 1);
+  const recorded = C.recordAnswer(course, progress, "lesson-1", "l1-s3", C.pendingAnswerFor(progress, "l1-s3").selectedIndex);
+  assert.equal(recorded.isNew, true);
+  assert.equal(recorded.result.correct, true);
 });
 
 test("course calculations use canonical hydraulics and match one displayed answer", () => {

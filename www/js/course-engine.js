@@ -6,7 +6,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function (H) {
   "use strict";
 
-  const PROGRESS_VERSION = 2;
+  const PROGRESS_VERSION = 3;
   const STORAGE_KEY = "reverse-flow-fireground-hydraulics-course-v1";
   const allSteps = course => course.lessons.flatMap(lesson => lesson.steps);
   const stepMap = course => new Map(allSteps(course).map(step => [step.id, step]));
@@ -14,7 +14,7 @@
 
   function defaultProgress(course) {
     const first = course.lessons[0];
-    return { version: PROGRESS_VERSION, courseId: course.id, completedLessonIds: [], completedStepIds: [], answers: {}, currentLessonId: first.id, currentStepId: first.steps[0].id, finalQuizCompleted: false };
+    return { version: PROGRESS_VERSION, courseId: course.id, completedLessonIds: [], completedStepIds: [], answers: {}, pendingAnswers: {}, currentLessonId: first.id, currentStepId: first.steps[0].id, finalQuizCompleted: false };
   }
 
   function normalizedCompleted(course, values) {
@@ -33,6 +33,10 @@
     return index === 0 || progress.completedLessonIds.includes(course.lessons[index - 1].id) || progress.completedLessonIds.includes(lessonId);
   }
 
+  function isAnswerableStep(step) {
+    return Boolean(step && (["question", "calculation"].includes(step.type) || (step.type === "teaching" && step.kind === "guided-practice")));
+  }
+
   function normalizeAnswers(course, rawAnswers) {
     const steps = stepMap(course);
     const answers = {};
@@ -40,14 +44,14 @@
     Object.entries(rawAnswers).forEach(([stepId, answer]) => {
       const step = steps.get(stepId);
       const selectedIndex = Number(answer && answer.selectedIndex);
-      if (step && ["question", "calculation"].includes(step.type) && Number.isInteger(selectedIndex) && selectedIndex >= 0 && selectedIndex < step.choices.length) answers[stepId] = { selectedIndex };
+      if (isAnswerableStep(step) && Number.isInteger(selectedIndex) && selectedIndex >= 0 && selectedIndex < step.choices.length) answers[stepId] = { selectedIndex };
     });
     return answers;
   }
 
   function normalizeProgress(course, raw) {
     const fallback = defaultProgress(course);
-    if (!raw || ![1, PROGRESS_VERSION].includes(raw.version) || raw.courseId !== course.id) return fallback;
+    if (!raw || ![1, 2, PROGRESS_VERSION].includes(raw.version) || raw.courseId !== course.id) return fallback;
     const completedLessonIds = normalizedCompleted(course, raw.completedLessonIds);
     const candidate = course.lessons.find(lesson => lesson.id === raw.currentLessonId);
     const currentLesson = candidate && isLessonUnlocked(course, { completedLessonIds }, candidate.id)
@@ -59,8 +63,10 @@
       ? [...course.lessons.filter(lesson => completedLessonIds.includes(lesson.id)).flatMap(lesson => lesson.steps.map(item => item.id)), ...currentLesson.steps.slice(0, Math.max(0, currentLesson.steps.findIndex(item => item.id === step.id))).map(item => item.id)]
       : [];
     const answers = normalizeAnswers(course, raw.answers);
+    const pendingAnswers = normalizeAnswers(course, raw.pendingAnswers);
+    Object.keys(answers).forEach(stepId => delete pendingAnswers[stepId]);
     const completedStepIds = uniqueValid([...(raw.completedStepIds || []), ...inferredLegacySteps, ...Object.keys(answers)], validStepIds);
-    return { version: PROGRESS_VERSION, courseId: course.id, completedLessonIds, completedStepIds, answers, currentLessonId: currentLesson.id, currentStepId: step.id, finalQuizCompleted: completedLessonIds.includes(course.lessons[course.lessons.length - 1].id) };
+    return { version: PROGRESS_VERSION, courseId: course.id, completedLessonIds, completedStepIds, answers, pendingAnswers, currentLessonId: currentLesson.id, currentStepId: step.id, finalQuizCompleted: completedLessonIds.includes(course.lessons[course.lessons.length - 1].id) };
   }
 
   function stats(course, progress) {
@@ -90,7 +96,7 @@
   }
 
   function answerStep(step, choiceIndex) {
-    if (!step || !["question", "calculation"].includes(step.type)) throw new TypeError("An answerable step is required.");
+    if (!isAnswerableStep(step)) throw new TypeError("An answerable step is required.");
     const correctIndex = step.type === "calculation" ? calculateStep(step).correctIndex : step.correctIndex;
     return { correct: Number(choiceIndex) === correctIndex, correctIndex, explanation: step.type === "calculation" ? step.explanation : step.feedback };
   }
@@ -100,15 +106,29 @@
     return answer && Number.isInteger(answer.selectedIndex) ? { selectedIndex: answer.selectedIndex } : null;
   }
 
+  function pendingAnswerFor(progress, stepId) {
+    const answer = progress.pendingAnswers && progress.pendingAnswers[stepId];
+    return answer && Number.isInteger(answer.selectedIndex) ? { selectedIndex: answer.selectedIndex } : null;
+  }
+
+  function selectPendingAnswer(course, progress, lessonId, stepId, choiceIndex) {
+    const lesson = course.lessons.find(item => item.id === lessonId);
+    const step = lesson && lesson.steps.find(item => item.id === stepId);
+    if (!lesson || !isAnswerableStep(step) || answerFor(progress, stepId) || !Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex >= step.choices.length) throw new TypeError("A valid pending course answer is required.");
+    return { ...progress, pendingAnswers: { ...(progress.pendingAnswers || {}), [stepId]: { selectedIndex: choiceIndex } } };
+  }
+
   function recordAnswer(course, progress, lessonId, stepId, choiceIndex) {
     const lesson = course.lessons.find(item => item.id === lessonId);
     const step = lesson && lesson.steps.find(item => item.id === stepId);
-    if (!lesson || !step || !["question", "calculation"].includes(step.type) || !Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex >= step.choices.length) throw new TypeError("A valid course answer is required.");
+    if (!lesson || !isAnswerableStep(step) || !Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex >= step.choices.length) throw new TypeError("A valid course answer is required.");
     const existing = answerFor(progress, stepId);
     if (existing) return { progress, result: answerStep(step, existing.selectedIndex), isNew: false };
     const answers = { ...(progress.answers || {}), [stepId]: { selectedIndex: choiceIndex } };
+    const pendingAnswers = { ...(progress.pendingAnswers || {}) };
+    delete pendingAnswers[stepId];
     const completedStepIds = [...new Set([...(progress.completedStepIds || []), stepId])];
-    return { progress: { ...progress, answers, completedStepIds }, result: answerStep(step, choiceIndex), isNew: true };
+    return { progress: { ...progress, answers, pendingAnswers, completedStepIds }, result: answerStep(step, choiceIndex), isNew: true };
   }
 
   function previous(course, progress, lessonId, stepId) {
@@ -139,5 +159,5 @@
     return { progress: { ...progress, completedLessonIds, completedStepIds, currentLessonId: nextLesson ? nextLesson.id : lesson.id, currentStepId: nextLesson ? nextLesson.steps[0].id : stepId, finalQuizCompleted: courseCompleted }, lessonCompleted: true, courseCompleted };
   }
 
-  return { PROGRESS_VERSION, STORAGE_KEY, advance, answerFor, answerStep, calculateStep, completedStepsForLesson, defaultProgress, isLessonUnlocked, normalizeProgress, previous, recordAnswer, startLesson, stats };
+  return { PROGRESS_VERSION, STORAGE_KEY, advance, answerFor, answerStep, calculateStep, completedStepsForLesson, defaultProgress, isAnswerableStep, isLessonUnlocked, normalizeProgress, pendingAnswerFor, previous, recordAnswer, selectPendingAnswer, startLesson, stats };
 });

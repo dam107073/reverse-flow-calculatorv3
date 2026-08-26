@@ -27,10 +27,16 @@ test("course player exposes progress, sequential path, resume, reset confirmatio
   assert.match(source, /reviewState\?\.lessonId === lesson\.id/);
   assert.match(source, /stats\.completed === stats\.total \? firstLesson\.id : progress\.currentLessonId/);
   assert.match(source, /ReverseFlowCourse\.recordAnswer/);
+  assert.match(source, /ReverseFlowCourse\.selectPendingAnswer/);
+  assert.match(source, /ReverseFlowCourse\.pendingAnswerFor/);
+  assert.match(source, /setAttribute\("aria-pressed", String\(selectedIndex === index\)\)/);
+  assert.match(source, /"✓ Selected"/);
+  assert.match(source, /check\.disabled = !ReverseFlowCourse\.pendingAnswerFor/);
+  assert.ok(source.indexOf("ReverseFlowCourse.selectPendingAnswer") < source.indexOf("ReverseFlowCourse.recordAnswer"), "Selection must be stored before the separate grading action.");
   assert.match(source, /ReverseFlowCourse\.previous/);
   assert.match(source, /previousButton\.disabled = stepIndex === 0/);
   assert.match(source, /feedbackController\.fire/);
-  assert.match(source, /step\.kind === "worked-example" \? "Worked Example" : "Learn"/);
+  assert.match(source, /step\.kind === "guided-practice" \? "Guided Practice" : "Learn"/);
   assert.doesNotMatch(source, /answerState/);
 });
 
@@ -65,6 +71,8 @@ test("course diagrams are responsive, accessible, theme-aware, and narrow-screen
   assert.doesNotMatch(read("www/js/learning-feedback.js"), /getBoundingClientRect/);
   assert.match(css, /course-success-pop/);
   assert.match(css, /course-step-actions/);
+  assert.match(css, /course-choice-selected/);
+  assert.match(css, /background: rgba\(37,99,235/);
 });
 
 test("Settings exposes a local Learning Sounds preference without changing appearance controls", () => {

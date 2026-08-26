@@ -12,7 +12,6 @@
   let course = null;
   let progress = null;
   let reviewState = null;
-  const draftSelections = new Map();
 
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
@@ -115,7 +114,6 @@
   function resetCourse() {
     if (!confirm("Reset all Fireground Hydraulics Basics progress? This cannot be undone.")) return;
     progress = ReverseFlowCourse.defaultProgress(course);
-    draftSelections.clear();
     feedbackController.resetEvents();
     saveProgress();
     showOverview(true);
@@ -191,12 +189,12 @@
     shell.append(lessonProgress);
 
     const card = el("section", `course-step-card${step.type === "recap" ? " course-recap" : ""}`);
-    const labels = { teaching: step.kind === "worked-example" ? "Worked Example" : "Learn", visual: "See It", question: step.kind === "application" ? "Fireground Check" : "Quick Check", calculation: "Work It Out", recap: "Lesson Recap" };
+    const labels = { teaching: step.kind === "worked-example" ? "Worked Example" : step.kind === "guided-practice" ? "Guided Practice" : "Learn", visual: "See It", question: step.kind === "application" ? "Fireground Check" : "Quick Check", calculation: "Work It Out", recap: "Lesson Recap" };
     card.append(el("p", "course-step-kicker", labels[step.type]));
     if (step.type === "teaching") card.append(el("h3", "", step.title), el("p", "course-teaching-statement", step.statement), ...(step.body ? [el("p", "course-teaching-body", step.body)] : []));
     if (step.type === "visual") card.append(el("h3", "", step.title), renderVisual(step), el("p", "course-teaching-body", step.visual.description));
     if (step.type === "recap") card.append(el("h3", "", step.title || "Main Takeaway"), el("p", "course-teaching-statement", step.takeaway));
-    if (["question", "calculation"].includes(step.type)) renderAnswerable(card, step, lesson);
+    if (ReverseFlowCourse.isAnswerableStep(step)) renderAnswerable(card, step, lesson);
     shell.append(card);
     shell.append(renderStepActions(lesson, step, stepIndex));
     content.replaceChildren(shell);
@@ -208,12 +206,12 @@
     previousButton.disabled = stepIndex === 0;
     actions.append(previousButton);
     const storedAnswer = ReverseFlowCourse.answerFor(progress, step.id);
-    if (["question", "calculation"].includes(step.type) && !storedAnswer) {
+    if (ReverseFlowCourse.isAnswerableStep(step) && !storedAnswer) {
       const check = button("Check Answer", () => submitAnswer(lesson, step), "learning-action");
-      check.disabled = !Number.isInteger(draftSelections.get(step.id));
+      check.disabled = !ReverseFlowCourse.pendingAnswerFor(progress, step.id);
       actions.append(check);
     } else {
-      const label = step.type === "recap" ? "Finish Lesson" : ["question", "calculation"].includes(step.type) ? "Next" : "Continue";
+      const label = step.type === "recap" ? "Finish Lesson" : ReverseFlowCourse.isAnswerableStep(step) ? "Next" : "Continue";
       actions.append(button(label, () => continueStep(lesson, step), "learning-action"));
     }
     return actions;
@@ -222,19 +220,22 @@
   function renderAnswerable(card, step, lesson) {
     card.append(el("h3", "", step.prompt));
     const storedAnswer = ReverseFlowCourse.answerFor(progress, step.id);
-    const selectedIndex = storedAnswer ? storedAnswer.selectedIndex : draftSelections.get(step.id);
+    const pendingAnswer = ReverseFlowCourse.pendingAnswerFor(progress, step.id);
+    const selectedIndex = storedAnswer ? storedAnswer.selectedIndex : pendingAnswer?.selectedIndex;
     const checked = Boolean(storedAnswer);
     const choices = el("div", "course-choice-list");
     step.choices.forEach((choice, index) => {
       const label = step.type === "calculation" ? `${choice} ${step.unit}` : choice;
       const choiceButton = button("", () => {
         if (checked) return;
-        draftSelections.set(step.id, index);
+        progress = ReverseFlowCourse.selectPendingAnswer(course, progress, lesson.id, step.id, index);
+        saveProgress();
         feedbackController.fire("selection", `selection:${step.id}:${index}`);
         renderStep(lesson);
       }, "course-choice");
       choiceButton.append(el("span", "", label));
       choiceButton.setAttribute("aria-pressed", String(selectedIndex === index));
+      if (!checked && selectedIndex === index) choiceButton.append(el("span", "course-choice-status course-choice-selected", "✓ Selected"));
       choiceButton.disabled = checked;
       if (checked) {
         const result = ReverseFlowCourse.answerStep(step, selectedIndex);
@@ -256,8 +257,9 @@
   }
 
   function submitAnswer(lesson, step) {
-    const selectedIndex = draftSelections.get(step.id);
-    if (!Number.isInteger(selectedIndex)) return;
+    const pendingAnswer = ReverseFlowCourse.pendingAnswerFor(progress, step.id);
+    if (!pendingAnswer) return;
+    const selectedIndex = pendingAnswer.selectedIndex;
     const recorded = ReverseFlowCourse.recordAnswer(course, progress, lesson.id, step.id, selectedIndex);
     progress = recorded.progress;
     saveProgress();
