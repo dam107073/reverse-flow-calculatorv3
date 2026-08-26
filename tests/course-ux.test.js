@@ -60,6 +60,8 @@ test("course diagrams are responsive, accessible, theme-aware, and narrow-screen
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /course-confetti/);
   assert.match(css, /\.course-confetti \{[^}]*position: fixed;[^}]*inset: 50% auto auto 50%;/);
+  assert.match(css, /\.course-confetti \{[^}]*overflow: visible;/);
+  assert.doesNotMatch(css, /\.course-confetti \{[^}]*contain:\s*[^;}]*paint/);
   assert.doesNotMatch(read("www/js/learning-feedback.js"), /getBoundingClientRect/);
   assert.match(css, /course-success-pop/);
   assert.match(css, /course-step-actions/);
