@@ -1,6 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const R = require("../www/js/resources-data.js");
+function formulaFeed() { return { schemaVersion:"reverse-flow-learning-formulas-v1",contentVersion:"test-1",updatedAt:"2026-08-26T16:00:00Z",items:[{id:"friction-loss",title:"Friction Loss",category:"Friction Loss",summary:"Pressure used moving water through hose.",formula:"FL = C × Q² × L",tellsYou:"Pressure lost in hose.",variables:[{symbol:"FL",meaning:"friction loss",units:"PSI"}],explanation:"More hose and flow add loss.",example:{scenario:"Flow water through hose.",steps:["Insert the values."],answer:"FL = 10 PSI"},takeaway:"Account for hose loss.",quizCategory:"friction-loss",updatedAt:"2026-08-26T16:00:00Z"}]}; }
+function quizFeed() { return { schemaVersion:"reverse-flow-learning-quiz-v1",contentVersion:"test-1",updatedAt:"2026-08-26T16:00:00Z",items:[{id:"fl-basic",category:"friction-loss",difficulty:"basic",type:"concept",prompt:"What happens when hose length increases?",choices:["Loss increases","Loss decreases","Nothing changes","Flow stops"],correctIndex:0,explanation:"Longer hose creates more friction loss."}]}; }
 
 function storage(seed = {}) {
   const values = new Map(Object.entries(seed));
@@ -31,6 +33,28 @@ test("typed normalizers accept optional fields and reject malformed structures",
   assert.throws(() => R.normalizeTrainingPayload({ listings: [{ id: "x" }] }), /required field/);
   assert.throws(() => R.normalizeHosePage({ items: [] }), /version|structurally/);
   assert.throws(() => R.normalizeArticlesPayload({ items: [{ title: "Draft" }] }), /required field/);
+});
+
+test("learning feed parsers accept the shared schemas and reject malformed updates", () => {
+  const formulas=R.normalizeFormulasPayload(formulaFeed());
+  const quiz=R.normalizeQuizPayload(quizFeed());
+  assert.equal(formulas.items.length,1);
+  assert.equal(quiz.items.length,1);
+  assert.equal(formulas.items[0].variables.length>0,true);
+  assert.equal(quiz.items.every(item=>item.choices.length===4),true);
+  assert.throws(()=>R.normalizeFormulasPayload({...formulaFeed(),schemaVersion:"future"}),/version/);
+  const malformed=quizFeed();malformed.items=[{...malformed.items[0],choices:["one"]}];
+  assert.throws(()=>R.normalizeQuizPayload(malformed),/invalid answers/);
+});
+
+test("learning resources retain last-known-good content after malformed revalidation", async () => {
+  const target=storage();
+  R.writeCache("formulas",{data:R.normalizeFormulasPayload(formulaFeed())},target);
+  const repository=new R.ResourceRepository("formulas",{storage:target,fetch:async()=>response({schemaVersion:"broken",items:[]})});
+  assert.equal(repository.state.items.length,1);
+  await repository.refresh({force:true});
+  assert.equal(repository.state.status,"cached");
+  assert.equal(repository.state.items.length,1);
 });
 
 test("canonical URLs and images are first-party HTTPS only", () => {

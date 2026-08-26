@@ -1,0 +1,43 @@
+.learning-page { padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
+.learning-shell { display: grid; gap: 16px; }
+.learning-heading { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.learning-heading h2, .learning-heading h3, .formula-detail h2, .formula-detail h3 { margin: 0; }
+.learning-status { min-height: 1.5em; margin: 0; color: var(--muted, #526273); }
+.learning-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.learning-toolbar label, .quiz-setup label { display: grid; gap: 6px; font-weight: 700; }
+.learning-toolbar input, .quiz-setup select { width: 100%; min-height: 44px; border: 1px solid #a7b4c3; border-radius: 8px; padding: 9px 11px; font: inherit; color: inherit; background: var(--card-bg, #fff); }
+.formula-list { display: grid; gap: 12px; }
+.formula-card { display: grid; gap: 8px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; background: var(--card-bg, #fff); }
+.formula-card h3, .formula-card p { margin: 0; }
+.formula-expression { padding: 12px; border-radius: 8px; background: #edf2f7; color: #101827; font: 700 1.05rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.formula-detail { display: grid; gap: 18px; }
+.formula-section { display: grid; gap: 8px; }
+.formula-section p, .formula-section ol { margin: 0; }
+.formula-variables { width: 100%; border-collapse: collapse; }
+.formula-variables th, .formula-variables td { padding: 9px; text-align: left; border-bottom: 1px solid #d7e0e8; vertical-align: top; }
+.learning-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.quiz-setup { display: grid; gap: 14px; }
+.quiz-setup-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.quiz-progress { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; }
+.quiz-choice-list { display: grid; gap: 10px; }
+.quiz-choice { width: 100%; min-height: 48px; padding: 11px 13px; border: 2px solid #a7b4c3; border-radius: 10px; text-align: left; font: inherit; font-weight: 700; color: inherit; background: var(--card-bg, #fff); }
+.quiz-choice:not(:disabled) { cursor: pointer; }
+.quiz-choice:focus-visible, .learning-actions a:focus-visible, .learning-toolbar a:focus-visible, .learning-toolbar input:focus-visible, .quiz-setup select:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.quiz-choice[aria-pressed="true"] { border-color: #1d4ed8; }
+.quiz-choice.is-correct { border-color: #15803d; box-shadow: inset 5px 0 #15803d; }
+.quiz-choice.is-incorrect { border-color: #b91c1c; box-shadow: inset 5px 0 #b91c1c; }
+.quiz-feedback { padding: 14px; border-radius: 10px; background: #edf2f7; color: #101827; }
+.quiz-feedback strong { display: block; margin-bottom: 6px; }
+.quiz-result-score { font-size: clamp(2.3rem, 12vw, 4.5rem); line-height: 1; font-weight: 900; margin: 8px 0; }
+.quiz-review { display: grid; gap: 12px; }
+.quiz-review-item { padding: 14px; border: 1px solid #cbd5e1; border-radius: 10px; }
+.quiz-review-item p { margin: 6px 0 0; }
+.learning-empty { padding: 18px; text-align: center; border: 1px dashed #8da0b4; border-radius: 10px; }
+html[data-resolved-theme="dark"] .formula-expression,
+html[data-resolved-theme="dark"] .quiz-feedback { background: #172033; color: #f8fafc; }
+html[data-resolved-theme="dark"] .formula-card,
+html[data-resolved-theme="dark"] .quiz-choice,
+html[data-resolved-theme="dark"] .learning-toolbar input,
+html[data-resolved-theme="dark"] .quiz-setup select { background: #0f172a; border-color: #475569; }
+html[data-resolved-theme="dark"] .learning-status { color: #cbd5e1; }
+@media (max-width: 680px) { .quiz-setup-grid { grid-template-columns: 1fr; } .learning-toolbar { grid-template-columns: 1fr; } }

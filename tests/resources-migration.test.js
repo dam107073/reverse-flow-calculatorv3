@@ -5,9 +5,9 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Resources offers exactly the three website-backed browsers", () => {
+test("Resources preserves its website-backed browsers and adds learning destinations", () => {
   const page = read("www/resources.html");
-  for (const label of ["Training Directory", "Hose Library", "Articles"]) assert.match(page, new RegExp(label));
+  for (const label of ["Training Directory", "Hose Library", "Articles", "Formula Library", "Practice Quiz"]) assert.match(page, new RegExp(label));
   assert.doesNotMatch(page, /Manufacturer References|Training Resources Coming Soon/);
 });
 

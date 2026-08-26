@@ -13,12 +13,16 @@
   const CACHE_KEYS = Object.freeze({
     training: "reverseFlowResourceCache:training:v2",
     hose: "reverseFlowResourceCache:hose:v2",
-    articles: "reverseFlowResourceCache:articles:v2"
+    articles: "reverseFlowResourceCache:articles:v2",
+    formulas: "reverseFlowResourceCache:formulas:v2",
+    quiz: "reverseFlowResourceCache:quiz:v2"
   });
   const ENDPOINTS = Object.freeze({
     training: `${ORIGIN}/api/training-directory/listings`,
     hose: `${ORIGIN}/api/resources/v1/libraries/hose/items?limit=100`,
-    articles: `${ORIGIN}/api/resources/articles/app-summary`
+    articles: `${ORIGIN}/api/resources/articles/app-summary`,
+    formulas: `${ORIGIN}/api/resources/learning/formulas`,
+    quiz: `${ORIGIN}/api/resources/learning/quiz`
   });
 
   function text(value) { return typeof value === "string" ? value.trim() : ""; }
@@ -171,6 +175,47 @@
     };
   }
 
+  function normalizeFormulasPayload(body) {
+    required(body && body.schemaVersion === "reverse-flow-learning-formulas-v1" && Array.isArray(body.items), "Formula Library response version is incompatible.");
+    const contentVersion = text(body.contentVersion);
+    const updatedAt = isoDate(body.updatedAt);
+    required(contentVersion && updatedAt, "Formula Library response metadata is invalid.");
+    const items = body.items.map((item, index) => {
+      required(item && typeof item === "object", `Formula ${index + 1} is invalid.`);
+      const normalized = {
+        id: text(item.id), title: text(item.title), category: text(item.category), summary: text(item.summary),
+        formula: text(item.formula), tellsYou: text(item.tellsYou), explanation: text(item.explanation),
+        takeaway: text(item.takeaway), quizCategory: text(item.quizCategory), updatedAt: isoDate(item.updatedAt),
+        variables: array(item.variables).map(variable => ({ symbol: text(variable && variable.symbol), meaning: text(variable && variable.meaning), units: text(variable && variable.units) })),
+        example: { scenario: text(item.example && item.example.scenario), steps: array(item.example && item.example.steps).map(text).filter(Boolean), answer: text(item.example && item.example.answer) }
+      };
+      required(normalized.id && normalized.title && normalized.category && normalized.summary && normalized.formula && normalized.tellsYou && normalized.explanation && normalized.takeaway && normalized.quizCategory && normalized.updatedAt, `Formula ${index + 1} is missing a required field.`);
+      required(normalized.variables.length && normalized.variables.every(variable => variable.symbol && variable.meaning && variable.units), `Formula ${index + 1} has invalid variables.`);
+      required(normalized.example.scenario && normalized.example.steps.length && normalized.example.answer, `Formula ${index + 1} has an invalid worked example.`);
+      return normalized;
+    });
+    required(new Set(items.map(item => item.id)).size === items.length, "Formula Library contains duplicate IDs.");
+    return { items, contentVersion, updatedAt };
+  }
+
+  function normalizeQuizPayload(body) {
+    required(body && body.schemaVersion === "reverse-flow-learning-quiz-v1" && Array.isArray(body.items), "Practice Quiz response version is incompatible.");
+    const contentVersion = text(body.contentVersion);
+    const updatedAt = isoDate(body.updatedAt);
+    required(contentVersion && updatedAt, "Practice Quiz response metadata is invalid.");
+    const items = body.items.map((item, index) => {
+      required(item && typeof item === "object", `Quiz question ${index + 1} is invalid.`);
+      const choices = array(item.choices).map(text);
+      const correctIndex = Number(item.correctIndex);
+      const normalized = { id: text(item.id), category: text(item.category), difficulty: text(item.difficulty), type: text(item.type), prompt: text(item.prompt), choices, correctIndex, explanation: text(item.explanation) };
+      required(normalized.id && normalized.category && ["basic", "intermediate", "advanced"].includes(normalized.difficulty) && normalized.type === "concept" && normalized.prompt && normalized.explanation, `Quiz question ${index + 1} is missing a required field.`);
+      required(choices.length === 4 && new Set(choices).size === 4 && Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < 4, `Quiz question ${index + 1} has invalid answers.`);
+      return normalized;
+    });
+    required(new Set(items.map(item => item.id)).size === items.length, "Practice Quiz contains duplicate IDs.");
+    return { items, contentVersion, updatedAt };
+  }
+
   function responseHeader(headers, name) {
     if (!headers) return "";
     if (typeof headers.get === "function") return text(headers.get(name));
@@ -231,6 +276,8 @@
     let data;
     if (type === "training") data = normalizeTrainingPayload(first.data);
     if (type === "articles") data = normalizeArticlesPayload(first.data);
+    if (type === "formulas") data = normalizeFormulasPayload(first.data);
+    if (type === "quiz") data = normalizeQuizPayload(first.data);
     if (type === "hose") {
       const initial = normalizeHosePage(first.data);
       const byId = new Map(initial.items.map(item => [item.id, item]));
@@ -269,7 +316,12 @@
     if (!data || !Array.isArray(data.items)) return false;
     if (type === "hose" && (!Number.isInteger(data.total) || data.total !== data.items.length)) return false;
     return data.items.every(item => {
-      if (!item || !text(item.id) || !canonicalResourceUrl(item.canonicalUrl, type)) return false;
+      if (!item || !text(item.id)) return false;
+      if (["formulas", "quiz"].includes(type)) {
+        if (type === "formulas") return !!(text(item.title) && text(item.formula) && text(item.quizCategory));
+        return !!(text(item.prompt) && item.type === "concept" && Array.isArray(item.choices) && item.choices.length === 4 && Number.isInteger(item.correctIndex));
+      }
+      if (!canonicalResourceUrl(item.canonicalUrl, type)) return false;
       if (type === "training") return !!text(item.title);
       if (type === "hose") return !!(text(item.name) && text(item.manufacturer));
       return !!(text(item.title) && text(item.summary) && ["article", "field_note"].includes(item.contentType));
@@ -351,5 +403,5 @@
       && (!filters.featured || item.featured));
   }
 
-  return { CACHE_KEYS, CACHE_VERSION, ENDPOINTS, MIN_REVALIDATE_MS, STALE_AFTER_MS, ResourceRepository, canonicalResourceUrl, fetchCompleteResource, filterArticles, filterHose, filterTraining, normalizeArticlesPayload, normalizeHosePage, normalizeTrainingPayload, openCanonicalResourceUrl, readCache, requestJson, safeImageUrl, writeCache };
+  return { CACHE_KEYS, CACHE_VERSION, ENDPOINTS, MIN_REVALIDATE_MS, STALE_AFTER_MS, ResourceRepository, canonicalResourceUrl, fetchCompleteResource, filterArticles, filterHose, filterTraining, normalizeArticlesPayload, normalizeFormulasPayload, normalizeHosePage, normalizeQuizPayload, normalizeTrainingPayload, openCanonicalResourceUrl, readCache, requestJson, safeImageUrl, writeCache };
 });

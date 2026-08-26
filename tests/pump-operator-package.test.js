@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const packageApi = require("../www/js/pump-operator-package.js");
+const hydraulics = require("../www/js/hydraulics-core.js");
 
 const appSource = fs.readFileSync(path.join(__dirname, "../www/js/app.js"), "utf8");
 const componentsCss = fs.readFileSync(path.join(__dirname, "../www/css/components.css"), "utf8");
@@ -191,6 +192,7 @@ test("Standpipe export maps saved supply and attack hose FL without using system
 
 test("Standpipe elevation uses the live floor convention and survives saved-result normalization", () => {
   const context = {
+    ReverseFlowHydraulics: hydraulics,
     numberOrNull: value => value === "" || value === null || value === undefined
       ? null
       : Number.isFinite(Number(value)) ? Number(value) : null
@@ -277,6 +279,7 @@ test("Standpipe package row exposes saved elevation pressure and exact authorita
 
 test("apparatus-mounted elevation exports calculated pressure while other setups stay unchanged", () => {
   const context = {
+    ReverseFlowHydraulics: hydraulics,
     numberOrNull: value => value === "" || value === null || value === undefined
       ? null
       : Number.isFinite(Number(value)) ? Number(value) : null

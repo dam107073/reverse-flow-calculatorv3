@@ -1,4 +1,5 @@
 (function () {
+  const H = window.ReverseFlowHydraulics;
   if (
     typeof guardToolsAccess === "function" &&
     !guardToolsAccess({
@@ -415,8 +416,8 @@
       results.hidden = !isValid;
       if (!isValid) return;
 
-      const gpm = 29.7 * diameter * diameter * Math.sqrt(psi);
-      const velocity = 0.408 * gpm / (diameter * diameter);
+      const gpm = H.smoothboreFlow(diameter, psi);
+      const velocity = H.waterVelocity(gpm, diameter);
       results.innerHTML = createResultRows([
         ["Flow", `${formatWhole(gpm)} GPM`],
         ["Stream Velocity", `${formatNumber(velocity, 1)} ft/sec`]
@@ -514,7 +515,7 @@
       if (isSmoothbore) {
         const diameter = getSelectedTipDiameter(tip, customTip);
         if (diameter > 0 && psi > 0) {
-          reaction = 1.57 * diameter * diameter * psi;
+          reaction = H.smoothboreReaction(diameter, psi);
           rows.push(["Tip Size", getSelectedTipLabel(tip, customTip)]);
           rows.push(["Nozzle Pressure", `${formatNumber(psi, 0)} PSI`]);
         }
@@ -528,7 +529,7 @@
           );
         }
         if (gpm > 0 && psi > 0) {
-          reaction = 0.0505 * gpm * Math.sqrt(psi);
+          reaction = H.fogReaction(gpm, psi);
           rows.push(["Flow", `${formatNumber(gpm, 0)} GPM`]);
           rows.push(["Nozzle Pressure", `${formatNumber(psi, 0)} PSI`]);
           if (isFixedFog) {
@@ -600,8 +601,8 @@
       results.hidden = !isValid;
       if (!isValid) return;
 
-      const minutes = gallons / gpm;
-      const totalSeconds = Math.round(minutes * 60);
+      const totalSeconds = H.tankTimeSeconds(gallons, gpm);
+      const minutes = totalSeconds / 60;
       const wholeMinutes = Math.floor(totalSeconds / 60);
       const seconds = totalSeconds % 60;
 
@@ -924,8 +925,7 @@
       if (!isValid) return;
 
       const frictionLoss = pressureOne - pressureTwo;
-      const q = gpm / 100;
-      const coefficient = frictionLoss / (q * q);
+      const coefficient = H.hoseCoefficient(frictionLoss, gpm);
 
       results.innerHTML = createResultRows([
         ["Measured Friction Loss (100')", `${formatNumber(frictionLoss, 1)} PSI`],
@@ -1007,7 +1007,7 @@
       results.hidden = !isValid;
       if (!isValid) return;
 
-      const frictionLoss = coefficientValue * Math.pow(gpm / 100, 2);
+      const frictionLoss = H.frictionLoss(coefficientValue, gpm, 100);
 
       results.innerHTML = createResultRows([
         ["Friction Loss / 100'", `${formatNumber(frictionLoss, 1)} PSI`],
@@ -1075,7 +1075,7 @@
       results.hidden = !isValid;
       if (!isValid) return;
 
-      const velocity = 0.408 * gpm / (id * id);
+      const velocity = H.waterVelocity(gpm, id);
       results.innerHTML = createResultRows([
         ["Water Velocity", `${formatNumber(velocity, 1)} ft/sec`]
       ]);
@@ -1239,8 +1239,8 @@
         renderWarning(caution, "Small Pressure Drop", "This estimate is less reliable when the static-to-residual pressure drop is about 5 psi or less.");
       }
 
-      const projectedFlow = flowGpm * Math.pow((staticPsi - targetPsi) / pressureDrop, 0.54);
-      const remainingSupply = projectedFlow - flowGpm;
+      const supplyEstimate = H.estimatedSupply({ staticPressure: staticPsi, residualPressure: residualPsi, currentFlow: flowGpm, targetResidual: targetPsi });
+      const remainingSupply = supplyEstimate.remainingFlow;
 
       if (!(remainingSupply >= 0)) {
         renderWarning(validation, "No Additional Supply", "The selected target residual does not support additional flow based on the entered data.");

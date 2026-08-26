@@ -3141,12 +3141,12 @@ function getResolvedPumpChartInputs(setup = {}) {
 
 function getStandpipeElevationPressure(floorValue) {
   const floor = numberOrNull(floorValue);
-  return floor !== null && floor >= 1 ? (floor - 1) * 5 : null;
+  return floor !== null && floor >= 1 ? ReverseFlowHydraulics.standpipeElevationPressure(floor) : null;
 }
 
 function getApparatusElevationPressure(feetValue) {
   const feet = numberOrNull(feetValue);
-  return feet !== null && feet >= 0 ? feet * 0.434 : null;
+  return feet !== null && feet >= 0 ? ReverseFlowHydraulics.elevationPressure(feet) : null;
 }
 
 function normalizePumpChartResult(mode, inputs = {}, result = {}) {
@@ -11066,7 +11066,7 @@ function getTableFontForColumnCount(columnCount, isHeader) {
 }
 
 function calculateFrictionLossPerHundred(coefficient, gpm) {
-  return coefficient * Math.pow(gpm / 100, 2);
+  return ReverseFlowHydraulics.frictionLoss(coefficient, gpm, 100);
 }
 
 function formatFrictionLossCell(value) {
@@ -11877,11 +11877,11 @@ function calculateAndRenderWyeOps() {
 function calculateWyeFrictionLoss(hose, length, flow) {
   const coefficient = getWyeHoseCoefficientValue(hose);
   if (!(coefficient > 0) || !(length > 0) || !(flow >= 0)) return null;
-  return coefficient * Math.pow(flow / 100, 2) * (length / 100);
+  return ReverseFlowHydraulics.frictionLoss(coefficient, flow, length);
 }
 
 function calculateWyeSmoothboreFlow(diameter, pressure) {
-  return 29.7 * diameter * diameter * Math.sqrt(pressure);
+  return ReverseFlowHydraulics.smoothboreFlow(diameter, pressure);
 }
 
 function calculateWyeFogFlow(targetFlow, targetPressure, actualPressure) {
@@ -11889,11 +11889,11 @@ function calculateWyeFogFlow(targetFlow, targetPressure, actualPressure) {
 }
 
 function calculateWyeSmoothboreReaction(diameter, pressure) {
-  return 1.57 * diameter * diameter * pressure;
+  return ReverseFlowHydraulics.smoothboreReaction(diameter, pressure);
 }
 
 function calculateWyeFogReaction(flow, pressure) {
-  return 0.0505 * flow * Math.sqrt(pressure);
+  return ReverseFlowHydraulics.fogReaction(flow, pressure);
 }
 
 function getSelectedWyeTipDiameter(select, customInput) {
@@ -13710,9 +13710,7 @@ function getStandpipeHydraulicSmoothboreModel(lineNumber) {
 function calculateStandpipeFogReaction(flow, nozzlePressure) {
   if (!flow || !nozzlePressure) return "—";
 
-  return `${Math.round(
-    0.0505 * flow * Math.sqrt(nozzlePressure)
-  )} lb`;
+  return `${Math.round(ReverseFlowHydraulics.fogReaction(flow, nozzlePressure))} lb`;
 }
 
 function calculateStandpipeSmoothboreReaction(lineNumber, nozzlePressure) {
@@ -13721,12 +13719,7 @@ function calculateStandpipeSmoothboreReaction(lineNumber, nozzlePressure) {
 
   if (!tip || !nozzlePressure) return "—";
 
-  const reaction = Math.round(
-    1.57 *
-    tip.diameter *
-    tip.diameter *
-    nozzlePressure
-  );
+  const reaction = Math.round(ReverseFlowHydraulics.smoothboreReaction(tip.diameter, nozzlePressure));
 
   return nozzleType === "blade"
     ? `${reaction} lb (solid stream)`
@@ -14279,7 +14272,7 @@ function calcHoseFL(gpm, coeff, feet) {
 
   if (!gpm || !c || !hundreds) return 0;
 
-  return c * Math.pow(gpm / 100, 2) * hundreds;
+  return ReverseFlowHydraulics.frictionLoss(c, gpm, hundreds * 100);
 }
 
 function calcSmoothboreFlow(tipSize, nozzlePressure) {
@@ -14288,7 +14281,7 @@ function calcSmoothboreFlow(tipSize, nozzlePressure) {
 
   if (!diameter || !np) return 0;
 
-  return 29.7 * Math.pow(diameter, 2) * Math.sqrt(np);
+  return ReverseFlowHydraulics.smoothboreFlow(diameter, np);
 }
 
 function roundToNearest5(value) {
@@ -14559,9 +14552,7 @@ function calculateSplitAttackLine(lineNumber, warnings) {
     function calculateSplitFogReaction(flow, nozzlePressure) {
   if (!flow || !nozzlePressure) return "—";
 
-  return `${Math.round(
-    0.0505 * flow * Math.sqrt(nozzlePressure)
-  )} lb`;
+  return `${Math.round(ReverseFlowHydraulics.fogReaction(flow, nozzlePressure))} lb`;
 }
 
 function calculateSplitSmoothboreReaction(line, nozzlePressure) {
@@ -14570,12 +14561,7 @@ function calculateSplitSmoothboreReaction(line, nozzlePressure) {
 
   if (!tip || !nozzlePressure) return "—";
 
-  const reaction = Math.round(
-    1.57 *
-    tip.diameter *
-    tip.diameter *
-    nozzlePressure
-  );
+  const reaction = Math.round(ReverseFlowHydraulics.smoothboreReaction(tip.diameter, nozzlePressure));
 
   return line.nozzleType === "blade"
     ? `${reaction} lb (solid stream)`
@@ -15069,7 +15055,7 @@ return `Automatic Fog • ${displayPressure} psi`;
     }
 
     function smoothboreGpm(diameter, nozzlePressure) {
-      return 29.7 * diameter * diameter * Math.sqrt(nozzlePressure);
+      return ReverseFlowHydraulics.smoothboreFlow(diameter, nozzlePressure);
     }
 
     function calculateNozzleReaction(calculatedGpm, nozzlePressure) {
@@ -15077,7 +15063,7 @@ return `Automatic Fog • ${displayPressure} psi`;
         const tip = getSelectedHydraulicSmoothboreModel();
         if (!tip || nozzlePressure === null) return "—";
 
-        const reaction = 1.57 * tip.diameter * tip.diameter * nozzlePressure;
+        const reaction = ReverseFlowHydraulics.smoothboreReaction(tip.diameter, nozzlePressure);
         return isBlade()
           ? `${Math.round(reaction)} lb (solid stream)`
           : `${Math.round(reaction)} lb`;
@@ -15086,7 +15072,7 @@ return `Automatic Fog • ${displayPressure} psi`;
       if (isFogHydraulicType(getMainNozzleType())) {
         if (!calculatedGpm || nozzlePressure === null) return "—";
 
-        const reaction = 0.0505 * calculatedGpm * Math.sqrt(nozzlePressure);
+        const reaction = ReverseFlowHydraulics.fogReaction(calculatedGpm, nozzlePressure);
         return `${Math.round(reaction)} lb`;
       }
 
