@@ -11,12 +11,13 @@ test("course screen uses app navigation and contains no website footer or primar
   assert.match(page, /href="resources\.html" aria-label="Back to Resources"/);
   assert.match(page, /hydraulics-core\.js/);
   assert.match(page, /course-engine\.js/);
+  assert.match(page, /learning-feedback\.js/);
   assert.doesNotMatch(page, /class="page-nav"|class="version-footer"/);
 });
 
 test("course player exposes progress, sequential path, resume, reset confirmation, and answer semantics", () => {
   const source = read("www/js/course.js");
-  for (const contract of ["Course Path", "Course progress", "Lesson progress", "Continue Course", "Check Answer", "Lesson Complete", "Course Complete", "Reset Course Progress"]) assert.match(source, new RegExp(contract));
+  for (const contract of ["Course Path", "Course progress", "Lesson progress", "Continue Course", "Previous", "Check Answer", "Finish Lesson", "Lesson Complete", "Course Complete", "Reset Course Progress"]) assert.match(source, new RegExp(contract));
   assert.match(source, /confirm\("Reset all Fireground Hydraulics Basics progress/);
   assert.match(source, /✓ Correct answer/);
   assert.match(source, /✕ Your answer/);
@@ -25,6 +26,21 @@ test("course player exposes progress, sequential path, resume, reset confirmatio
   assert.match(source, /reviewState = \{ lessonId, stepId: lesson\.steps\[0\]\.id \}/);
   assert.match(source, /reviewState\?\.lessonId === lesson\.id/);
   assert.match(source, /stats\.completed === stats\.total \? firstLesson\.id : progress\.currentLessonId/);
+  assert.match(source, /ReverseFlowCourse\.recordAnswer/);
+  assert.match(source, /ReverseFlowCourse\.previous/);
+  assert.match(source, /previousButton\.disabled = stepIndex === 0/);
+  assert.match(source, /feedbackController\.fire/);
+  assert.doesNotMatch(source, /answerState/);
+});
+
+test("answered steps and review navigation use persisted state without replaying effects", () => {
+  const source = read("www/js/course.js");
+  assert.match(source, /ReverseFlowCourse\.answerFor\(progress, step\.id\)/);
+  assert.match(source, /if \(recorded\.isNew\) feedbackController\.fire/);
+  assert.match(source, /renderCompletion\(lesson, ReverseFlowCourse\.stats\(course, progress\)\.completed === course\.lessons\.length, false\)/);
+  assert.match(source, /reviewState\.stepId = lesson\.steps\[stepIndex - 1\]\.id/);
+  assert.match(source, /pagehide/);
+  assert.match(source, /visibilitychange/);
 });
 
 test("course diagrams are responsive, accessible, theme-aware, and narrow-screen safe", () => {
@@ -41,6 +57,22 @@ test("course diagrams are responsive, accessible, theme-aware, and narrow-screen
   assert.match(css, /data-resolved-theme="dark"/);
   assert.match(css, /@media \(max-width: 350px\)/);
   assert.match(css, /prefers-reduced-motion/);
+  assert.match(css, /course-confetti/);
+  assert.match(css, /course-success-pop/);
+  assert.match(css, /course-step-actions/);
+});
+
+test("Settings exposes a local Learning Sounds preference without changing appearance controls", () => {
+  const settings = read("www/settings.html");
+  const feedback = read("www/js/learning-feedback.js");
+  const packageJson = JSON.parse(read("package.json"));
+  assert.match(settings, /Learning Sounds/);
+  assert.match(settings, /data-learning-sounds/);
+  assert.match(settings, /learning-feedback\.js/);
+  assert.match(feedback, /reverse-flow-learning-sounds-v1/);
+  assert.match(feedback, /prefers-reduced-motion: reduce/);
+  assert.match(feedback, /registerPlugin\("Haptics"\)/);
+  assert.equal(packageJson.dependencies["@capacitor/haptics"], "^8.0.2");
 });
 
 test("Resources presents the learning hierarchy without adding course to the calculator carousel", () => {

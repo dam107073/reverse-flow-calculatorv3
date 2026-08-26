@@ -7,11 +7,12 @@
   const intro = document.getElementById("courseIntro");
   const back = document.getElementById("courseBack");
   const repository = new ReverseFlowResources.ResourceRepository("course");
+  const feedbackController = ReverseFlowLearningFeedback.createController();
   const NS = "http://www.w3.org/2000/svg";
   let course = null;
   let progress = null;
-  let answerState = null;
   let reviewState = null;
+  const draftSelections = new Map();
 
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
@@ -77,6 +78,7 @@
   }
 
   function showOverview(push = false) {
+    feedbackController.cleanup();
     if (push) updateUrl("");
     resetHeader();
     const stats = ReverseFlowCourse.stats(course, progress);
@@ -113,6 +115,8 @@
   function resetCourse() {
     if (!confirm("Reset all Fireground Hydraulics Basics progress? This cannot be undone.")) return;
     progress = ReverseFlowCourse.defaultProgress(course);
+    draftSelections.clear();
+    feedbackController.resetEvents();
     saveProgress();
     showOverview(true);
   }
@@ -159,6 +163,7 @@
   }
 
   function showLesson(lessonId, push = false) {
+    feedbackController.cleanup();
     const lesson = course.lessons.find(item => item.id === lessonId);
     if (!lesson || !ReverseFlowCourse.isLessonUnlocked(course, progress, lessonId)) return showOverview(push);
     if (push) updateUrl(lessonId);
@@ -169,7 +174,6 @@
       progress = ReverseFlowCourse.startLesson(course, progress, lessonId);
       saveProgress();
     }
-    answerState = null;
     renderStep(lesson);
   }
 
@@ -178,10 +182,11 @@
     const activeStepId = reviewState?.lessonId === lesson.id ? reviewState.stepId : progress.currentStepId;
     const stepIndex = Math.max(0, lesson.steps.findIndex(item => item.id === activeStepId));
     const step = lesson.steps[stepIndex];
+    const completedCount = ReverseFlowCourse.completedStepsForLesson(lesson, progress);
     const shell = el("div", "course-step");
     const lessonProgress = el("div", "course-lesson-progress");
     const copy = el("div", "course-lesson-progress-copy");
-    copy.append(el("span", "", `Lesson ${lesson.order} of ${course.lessons.length} · ${lesson.title}`), el("span", "", `Step ${stepIndex + 1} of ${lesson.steps.length}`));
+    copy.append(el("span", "", `Lesson ${lesson.order} of ${course.lessons.length} · ${lesson.title}`), el("span", "", `Step ${stepIndex + 1} of ${lesson.steps.length} · ${completedCount} completed`));
     lessonProgress.append(copy, progressBar(stepIndex + 1, lesson.steps.length, "Lesson progress"));
     shell.append(lessonProgress);
 
@@ -193,63 +198,106 @@
     if (step.type === "recap") card.append(el("h3", "", step.title || "Main Takeaway"), el("p", "course-teaching-statement", step.takeaway));
     if (["question", "calculation"].includes(step.type)) renderAnswerable(card, step, lesson);
     shell.append(card);
-
-    if (!["question", "calculation"].includes(step.type)) shell.append(button(step.type === "recap" ? "Complete Lesson" : "Continue", () => continueStep(lesson, step)));
+    shell.append(renderStepActions(lesson, step, stepIndex));
     content.replaceChildren(shell);
+  }
+
+  function renderStepActions(lesson, step, stepIndex) {
+    const actions = el("div", "course-step-actions");
+    const previousButton = button("Previous", () => previousStep(lesson, step), "learning-action learning-action-secondary");
+    previousButton.disabled = stepIndex === 0;
+    actions.append(previousButton);
+    const storedAnswer = ReverseFlowCourse.answerFor(progress, step.id);
+    if (["question", "calculation"].includes(step.type) && !storedAnswer) {
+      const check = button("Check Answer", () => submitAnswer(lesson, step), "learning-action");
+      check.disabled = !Number.isInteger(draftSelections.get(step.id));
+      actions.append(check);
+    } else {
+      const label = step.type === "recap" ? "Finish Lesson" : ["question", "calculation"].includes(step.type) ? "Next" : "Continue";
+      actions.append(button(label, () => continueStep(lesson, step), "learning-action"));
+    }
+    return actions;
   }
 
   function renderAnswerable(card, step, lesson) {
     card.append(el("h3", "", step.prompt));
+    const storedAnswer = ReverseFlowCourse.answerFor(progress, step.id);
+    const selectedIndex = storedAnswer ? storedAnswer.selectedIndex : draftSelections.get(step.id);
+    const checked = Boolean(storedAnswer);
     const choices = el("div", "course-choice-list");
     step.choices.forEach((choice, index) => {
       const label = step.type === "calculation" ? `${choice} ${step.unit}` : choice;
-      const choiceButton = button("", () => { if (!answerState?.checked) { answerState = { selectedIndex: index, checked: false }; renderStep(lesson); } }, "course-choice");
+      const choiceButton = button("", () => {
+        if (checked) return;
+        draftSelections.set(step.id, index);
+        feedbackController.fire("selection", `selection:${step.id}:${index}`);
+        renderStep(lesson);
+      }, "course-choice");
       choiceButton.append(el("span", "", label));
-      choiceButton.setAttribute("aria-pressed", String(answerState?.selectedIndex === index));
-      choiceButton.disabled = Boolean(answerState?.checked);
-      if (answerState?.checked) {
-        const result = ReverseFlowCourse.answerStep(step, answerState.selectedIndex);
+      choiceButton.setAttribute("aria-pressed", String(selectedIndex === index));
+      choiceButton.disabled = checked;
+      if (checked) {
+        const result = ReverseFlowCourse.answerStep(step, selectedIndex);
         if (index === result.correctIndex) { choiceButton.classList.add("is-correct"); choiceButton.append(el("span", "course-choice-status", "✓ Correct answer")); }
-        else if (index === answerState.selectedIndex) { choiceButton.classList.add("is-incorrect"); choiceButton.append(el("span", "course-choice-status", "✕ Your answer")); }
+        else if (index === selectedIndex) { choiceButton.classList.add("is-incorrect"); choiceButton.append(el("span", "course-choice-status", "✕ Your answer")); }
       }
       choices.append(choiceButton);
     });
     card.append(choices);
-    if (!answerState?.checked) {
-      const check = button("Check Answer", () => { answerState.checked = true; renderStep(lesson); });
-      check.disabled = !Number.isInteger(answerState?.selectedIndex);
-      card.append(check);
-      return;
-    }
-    const result = ReverseFlowCourse.answerStep(step, answerState.selectedIndex);
+    if (!checked) return;
+    const result = ReverseFlowCourse.answerStep(step, selectedIndex);
     const feedback = el("div", "course-feedback");
     feedback.setAttribute("role", "status");
-    feedback.append(el("strong", "", result.correct ? "Correct" : "Not quite"), el("p", "", result.explanation));
-    card.append(feedback, button("Continue", () => continueStep(lesson, step)));
+    if (result.correct) feedback.append(el("span", "course-feedback-mark", "✓"));
+    const feedbackCopy = el("div", "course-feedback-copy");
+    feedbackCopy.append(el("strong", "", result.correct ? "Correct" : "Not quite"), el("p", "", result.explanation));
+    feedback.append(feedbackCopy);
+    card.append(feedback);
+  }
+
+  function submitAnswer(lesson, step) {
+    const selectedIndex = draftSelections.get(step.id);
+    if (!Number.isInteger(selectedIndex)) return;
+    const recorded = ReverseFlowCourse.recordAnswer(course, progress, lesson.id, step.id, selectedIndex);
+    progress = recorded.progress;
+    saveProgress();
+    renderStep(lesson);
+    if (recorded.isNew) feedbackController.fire(recorded.result.correct ? "correct" : "incorrect", `answer:${step.id}`, content.querySelector(".course-feedback"));
+  }
+
+  function previousStep(lesson, step) {
+    feedbackController.cleanup();
+    const stepIndex = lesson.steps.findIndex(item => item.id === step.id);
+    if (stepIndex <= 0) return;
+    if (reviewState?.lessonId === lesson.id) reviewState.stepId = lesson.steps[stepIndex - 1].id;
+    else {
+      progress = ReverseFlowCourse.previous(course, progress, lesson.id, step.id);
+      saveProgress();
+    }
+    renderStep(lesson);
   }
 
   function continueStep(lesson, step) {
     if (reviewState?.lessonId === lesson.id) {
       const stepIndex = lesson.steps.findIndex(item => item.id === step.id);
-      answerState = null;
       if (stepIndex < lesson.steps.length - 1) {
         reviewState.stepId = lesson.steps[stepIndex + 1].id;
         renderStep(lesson);
       } else {
         reviewState = null;
-        renderCompletion(lesson, ReverseFlowCourse.stats(course, progress).completed === course.lessons.length);
+        renderCompletion(lesson, ReverseFlowCourse.stats(course, progress).completed === course.lessons.length, false);
       }
       return;
     }
     const result = ReverseFlowCourse.advance(course, progress, lesson.id, step.id);
     progress = result.progress;
     saveProgress();
-    answerState = null;
-    if (result.lessonCompleted) renderCompletion(lesson, result.courseCompleted);
+    if (result.lessonCompleted) renderCompletion(lesson, result.courseCompleted, true);
     else renderStep(lesson);
   }
 
-  function renderCompletion(lesson, courseCompleted) {
+  function renderCompletion(lesson, courseCompleted, celebrate = false) {
+    feedbackController.cleanup();
     lessonHeader(lesson);
     const stats = ReverseFlowCourse.stats(course, progress);
     const complete = el("section", "course-step-card course-complete");
@@ -260,6 +308,7 @@
     actions.append(button(courseCompleted ? "Review Course Path" : "Back to Course Path", () => showOverview(true), "learning-action learning-action-secondary learning-action-full"));
     complete.append(actions);
     content.replaceChildren(complete);
+    if (celebrate) feedbackController.fire(courseCompleted ? "course-complete" : "lesson-complete", courseCompleted ? `course:${course.id}` : `lesson:${lesson.id}`, complete);
   }
 
   function renderRepository(state) {
@@ -279,10 +328,13 @@
   }
 
   window.addEventListener("popstate", () => {
+    feedbackController.cleanup();
     if (!course) return;
     const requested = new URLSearchParams(location.search).get("lesson");
     if (requested) showLesson(requested, false); else showOverview(false);
   });
+  window.addEventListener("pagehide", () => feedbackController.cleanup());
+  document.addEventListener("visibilitychange", () => { if (document.hidden) feedbackController.cleanup(); });
   repository.subscribe(renderRepository);
   repository.refresh();
 })();

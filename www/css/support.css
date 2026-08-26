@@ -286,6 +286,23 @@
       padding: 16px;
     }
 
+    .learning-sound-setting {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 54px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    .learning-sound-setting > span { display: grid; min-width: 0; gap: 3px; }
+    .learning-sound-setting .helper { margin: 0; overflow-wrap: break-word; }
+    .learning-sound-setting input { flex: 0 0 auto; width: 24px; height: 24px; margin: 0; accent-color: var(--accent); }
+
     .muted-card {
       background: var(--surface);
       border-style: dashed;

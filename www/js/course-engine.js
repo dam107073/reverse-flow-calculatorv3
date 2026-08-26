@@ -6,12 +6,15 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function (H) {
   "use strict";
 
-  const PROGRESS_VERSION = 1;
+  const PROGRESS_VERSION = 2;
   const STORAGE_KEY = "reverse-flow-fireground-hydraulics-course-v1";
+  const allSteps = course => course.lessons.flatMap(lesson => lesson.steps);
+  const stepMap = course => new Map(allSteps(course).map(step => [step.id, step]));
+  const uniqueValid = (values, validIds) => [...new Set(Array.isArray(values) ? values.map(String) : [])].filter(id => validIds.has(id));
 
   function defaultProgress(course) {
     const first = course.lessons[0];
-    return { version: PROGRESS_VERSION, courseId: course.id, completedLessonIds: [], currentLessonId: first.id, currentStepId: first.steps[0].id, finalQuizCompleted: false };
+    return { version: PROGRESS_VERSION, courseId: course.id, completedLessonIds: [], completedStepIds: [], answers: {}, currentLessonId: first.id, currentStepId: first.steps[0].id, finalQuizCompleted: false };
   }
 
   function normalizedCompleted(course, values) {
@@ -30,23 +33,34 @@
     return index === 0 || progress.completedLessonIds.includes(course.lessons[index - 1].id) || progress.completedLessonIds.includes(lessonId);
   }
 
+  function normalizeAnswers(course, rawAnswers) {
+    const steps = stepMap(course);
+    const answers = {};
+    if (!rawAnswers || typeof rawAnswers !== "object" || Array.isArray(rawAnswers)) return answers;
+    Object.entries(rawAnswers).forEach(([stepId, answer]) => {
+      const step = steps.get(stepId);
+      const selectedIndex = Number(answer && answer.selectedIndex);
+      if (step && ["question", "calculation"].includes(step.type) && Number.isInteger(selectedIndex) && selectedIndex >= 0 && selectedIndex < step.choices.length) answers[stepId] = { selectedIndex };
+    });
+    return answers;
+  }
+
   function normalizeProgress(course, raw) {
     const fallback = defaultProgress(course);
-    if (!raw || raw.version !== PROGRESS_VERSION || raw.courseId !== course.id) return fallback;
+    if (!raw || ![1, PROGRESS_VERSION].includes(raw.version) || raw.courseId !== course.id) return fallback;
     const completedLessonIds = normalizedCompleted(course, raw.completedLessonIds);
     const candidate = course.lessons.find(lesson => lesson.id === raw.currentLessonId);
     const currentLesson = candidate && isLessonUnlocked(course, { completedLessonIds }, candidate.id)
       ? candidate
       : course.lessons.find(lesson => !completedLessonIds.includes(lesson.id)) || course.lessons[course.lessons.length - 1];
     const step = currentLesson.steps.find(item => item.id === raw.currentStepId) || currentLesson.steps[0];
-    return {
-      version: PROGRESS_VERSION,
-      courseId: course.id,
-      completedLessonIds,
-      currentLessonId: currentLesson.id,
-      currentStepId: step.id,
-      finalQuizCompleted: completedLessonIds.includes(course.lessons[course.lessons.length - 1].id)
-    };
+    const validStepIds = new Set(allSteps(course).map(item => item.id));
+    const inferredLegacySteps = raw.version === 1
+      ? [...course.lessons.filter(lesson => completedLessonIds.includes(lesson.id)).flatMap(lesson => lesson.steps.map(item => item.id)), ...currentLesson.steps.slice(0, Math.max(0, currentLesson.steps.findIndex(item => item.id === step.id))).map(item => item.id)]
+      : [];
+    const answers = normalizeAnswers(course, raw.answers);
+    const completedStepIds = uniqueValid([...(raw.completedStepIds || []), ...inferredLegacySteps, ...Object.keys(answers)], validStepIds);
+    return { version: PROGRESS_VERSION, courseId: course.id, completedLessonIds, completedStepIds, answers, currentLessonId: currentLesson.id, currentStepId: step.id, finalQuizCompleted: completedLessonIds.includes(course.lessons[course.lessons.length - 1].id) };
   }
 
   function stats(course, progress) {
@@ -78,11 +92,36 @@
   function answerStep(step, choiceIndex) {
     if (!step || !["question", "calculation"].includes(step.type)) throw new TypeError("An answerable step is required.");
     const correctIndex = step.type === "calculation" ? calculateStep(step).correctIndex : step.correctIndex;
-    return {
-      correct: Number(choiceIndex) === correctIndex,
-      correctIndex,
-      explanation: step.type === "calculation" ? step.explanation : step.feedback
-    };
+    return { correct: Number(choiceIndex) === correctIndex, correctIndex, explanation: step.type === "calculation" ? step.explanation : step.feedback };
+  }
+
+  function answerFor(progress, stepId) {
+    const answer = progress.answers && progress.answers[stepId];
+    return answer && Number.isInteger(answer.selectedIndex) ? { selectedIndex: answer.selectedIndex } : null;
+  }
+
+  function recordAnswer(course, progress, lessonId, stepId, choiceIndex) {
+    const lesson = course.lessons.find(item => item.id === lessonId);
+    const step = lesson && lesson.steps.find(item => item.id === stepId);
+    if (!lesson || !step || !["question", "calculation"].includes(step.type) || !Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex >= step.choices.length) throw new TypeError("A valid course answer is required.");
+    const existing = answerFor(progress, stepId);
+    if (existing) return { progress, result: answerStep(step, existing.selectedIndex), isNew: false };
+    const answers = { ...(progress.answers || {}), [stepId]: { selectedIndex: choiceIndex } };
+    const completedStepIds = [...new Set([...(progress.completedStepIds || []), stepId])];
+    return { progress: { ...progress, answers, completedStepIds }, result: answerStep(step, choiceIndex), isNew: true };
+  }
+
+  function previous(course, progress, lessonId, stepId) {
+    const lesson = course.lessons.find(item => item.id === lessonId);
+    if (!lesson || !isLessonUnlocked(course, progress, lessonId)) return progress;
+    const stepIndex = lesson.steps.findIndex(item => item.id === stepId);
+    if (stepIndex <= 0) return progress;
+    return { ...progress, currentLessonId: lesson.id, currentStepId: lesson.steps[stepIndex - 1].id };
+  }
+
+  function completedStepsForLesson(lesson, progress) {
+    const completed = new Set(progress.completedStepIds || []);
+    return lesson.steps.filter(step => completed.has(step.id)).length;
   }
 
   function advance(course, progress, lessonId, stepId) {
@@ -91,24 +130,14 @@
     if (!lesson || !isLessonUnlocked(course, progress, lessonId)) return { progress, lessonCompleted: false, courseCompleted: false };
     const stepIndex = lesson.steps.findIndex(item => item.id === stepId);
     if (stepIndex < 0) return { progress, lessonCompleted: false, courseCompleted: false };
-    if (stepIndex < lesson.steps.length - 1) {
-      return { progress: { ...progress, currentLessonId: lesson.id, currentStepId: lesson.steps[stepIndex + 1].id }, lessonCompleted: false, courseCompleted: false };
-    }
+    const completedStepIds = [...new Set([...(progress.completedStepIds || []), stepId])];
+    if (stepIndex < lesson.steps.length - 1) return { progress: { ...progress, completedStepIds, currentLessonId: lesson.id, currentStepId: lesson.steps[stepIndex + 1].id }, lessonCompleted: false, courseCompleted: false };
+    if (progress.completedLessonIds.includes(lesson.id)) return { progress: { ...progress, completedStepIds }, lessonCompleted: false, courseCompleted: false };
     const completedLessonIds = normalizedCompleted(course, [...progress.completedLessonIds, lesson.id]);
     const nextLesson = course.lessons[lessonIndex + 1];
     const courseCompleted = completedLessonIds.length === course.lessons.length;
-    return {
-      progress: {
-        ...progress,
-        completedLessonIds,
-        currentLessonId: nextLesson ? nextLesson.id : lesson.id,
-        currentStepId: nextLesson ? nextLesson.steps[0].id : stepId,
-        finalQuizCompleted: courseCompleted
-      },
-      lessonCompleted: true,
-      courseCompleted
-    };
+    return { progress: { ...progress, completedLessonIds, completedStepIds, currentLessonId: nextLesson ? nextLesson.id : lesson.id, currentStepId: nextLesson ? nextLesson.steps[0].id : stepId, finalQuizCompleted: courseCompleted }, lessonCompleted: true, courseCompleted };
   }
 
-  return { PROGRESS_VERSION, STORAGE_KEY, advance, answerStep, calculateStep, defaultProgress, isLessonUnlocked, normalizeProgress, startLesson, stats };
+  return { PROGRESS_VERSION, STORAGE_KEY, advance, answerFor, answerStep, calculateStep, completedStepsForLesson, defaultProgress, isLessonUnlocked, normalizeProgress, previous, recordAnswer, startLesson, stats };
 });
