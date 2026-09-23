@@ -1816,6 +1816,17 @@ html[data-resolved-theme="dark"] .attack-pumper-hose-summary {
   max-height: calc(100vh - 28px);
   overflow-y: auto;
 }
+dialog.settings-reset-dialog {
+  position: fixed;
+  margin: auto;
+  color: var(--ink);
+}
+
+.settings-reset-dialog::backdrop {
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(6px);
+}
+
 .app-modal-header {
   display: flex;
   justify-content: space-between;
@@ -2044,6 +2055,7 @@ html[data-resolved-theme="dark"] .attack-pumper-hose-summary {
 
 
 
+  html[data-resolved-theme="dark"] .settings-reset-dialog,
   html[data-resolved-theme="dark"] #proModal .app-modal-content {
     background:
       linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.96)),
@@ -2056,6 +2068,7 @@ html[data-resolved-theme="dark"] .attack-pumper-hose-summary {
       0 0 28px rgba(251, 146, 60, 0.12);
   }
 
+  html[data-resolved-theme="dark"] .settings-reset-dialog h2,
   html[data-resolved-theme="dark"] #proModal .app-modal-header h2,
   html[data-resolved-theme="dark"] #proModal .legacy-summary-item h3 {
     color: #f8fafc;

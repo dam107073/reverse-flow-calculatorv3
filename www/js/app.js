@@ -4166,6 +4166,60 @@ function refreshCoefficientDisplays() {
   renderDefaultHoseCoefficients();
 }
 
+// Native dialog supplies modal focus containment and platform dismissal.
+// Only the explicit destructive action may invoke the reset callback.
+function confirmSettingsReset(message, onConfirm) {
+  if (document.getElementById("settingsResetDialog")) return;
+
+  const dialog = document.createElement("dialog");
+  // Retain the app's native confirmation path on older WebViews.
+  if (typeof dialog.showModal !== "function") {
+    if (confirm(`Reset to Defaults?\n\n${message}`)) onConfirm();
+    return;
+  }
+  dialog.id = "settingsResetDialog";
+  dialog.className = "app-modal-content settings-reset-dialog";
+  dialog.setAttribute("aria-labelledby", "settingsResetTitle");
+  dialog.setAttribute("aria-describedby", "settingsResetDescription");
+  dialog.innerHTML = `
+    <div class="app-modal-header">
+      <h2 id="settingsResetTitle">Reset to Defaults?</h2>
+    </div>
+    <p id="settingsResetDescription" class="helper"></p>
+    <div class="default-hose-coefficient-actions">
+      <button type="button" class="reset-button" data-reset-cancel autofocus>Cancel</button>
+      <button type="button" class="reset-button" data-reset-confirm>Reset to Defaults</button>
+    </div>
+  `;
+  dialog.querySelector("#settingsResetDescription").textContent = message;
+
+  let settled = false;
+  const finish = confirmed => {
+    if (settled) return;
+    settled = true;
+    dialog.close();
+    dialog.remove();
+    if (confirmed) onConfirm();
+  };
+  dialog.querySelector("[data-reset-cancel]").addEventListener("click", () => finish(false));
+  dialog.querySelector("[data-reset-confirm]").addEventListener("click", () => finish(true));
+  dialog.addEventListener("cancel", event => {
+    event.preventDefault();
+    finish(false);
+  });
+  dialog.addEventListener("close", () => finish(false));
+  dialog.addEventListener("click", event => {
+    const bounds = dialog.getBoundingClientRect();
+    if (event.target === dialog &&
+        (event.clientX < bounds.left || event.clientX > bounds.right ||
+         event.clientY < bounds.top || event.clientY > bounds.bottom)) {
+      finish(false);
+    }
+  });
+  document.body.appendChild(dialog);
+  dialog.showModal();
+}
+
 function bindDefaultHoseCoefficientEvents() {
   if (!els.defaultHoseCoefficientsList) return;
 
@@ -4196,8 +4250,14 @@ function bindDefaultHoseCoefficientEvents() {
       button.addEventListener("click", () => {
         const hoseId = button.dataset.coefficientReset;
 
-        clearSavedHoseCoefficient(hoseId);
-        refreshCoefficientDisplays();
+        const hose = getCoefficientSettingsHoseOptions().find(option => option.id === hoseId);
+        confirmSettingsReset(
+          `This will restore the calculation coefficient for ${hose?.label || hoseId} hose to the original Reverse Flow default. Other hose coefficients and equipment settings will not change.`,
+          () => {
+            clearSavedHoseCoefficient(hoseId);
+            refreshCoefficientDisplays();
+          }
+        );
       });
     });
 }
@@ -8211,20 +8271,7 @@ function openProModal() {
       els.createCustomHoseButton?.addEventListener("click", createCustomHoseProfile);
       els.toolsProUpgradeButton?.addEventListener("click", openProModal);
 
-	      els.resetHoseCoefficientsButton?.addEventListener("click", () => {
-        const confirmed = confirm(
-          "Reset all hose coefficients back to app defaults?"
-        );
-
-        if (!confirmed) return;
-
-        resetSavedHoseCoefficients();
-        renderHoseLibrary();
-        renderDefaultHoseSelections();
-        renderDefaultHoseCoefficients();
-
-        alert("Hose coefficients reset to app defaults.");
-      });
+      els.resetHoseCoefficientsButton?.addEventListener("click", requestHoseCoefficientsReset);
 
       els.closeProModal?.addEventListener("click", () => {
         els.proModal.hidden = true;
@@ -8301,7 +8348,7 @@ function openProModal() {
       ["input", "change"].forEach(eventName => {
         els.calculatorView?.addEventListener(eventName, scheduleLoadedSetupUpdateSync);
       });
-      els.resetButton.addEventListener("click", resetCalculator);
+      els.resetButton.addEventListener("click", requestCalculatorReset);
       els.settingsViewButton?.addEventListener("click", () => showAppView("settings"));
       els.toolsViewButton?.addEventListener("click", () => showAppView("tools"));
       els.settingsBackButton?.addEventListener("click", () => showAppView("calculator"));
@@ -8310,27 +8357,7 @@ function openProModal() {
       els.hoseLibrarySizeFilter?.addEventListener("change", renderHoseLibrary);
       els.hoseLibraryUseFilter?.addEventListener("change", renderHoseLibrary);
       els.createCustomHoseButton?.addEventListener("click", createCustomHoseProfile);
-      els.resetHoseCoefficientsButton?.addEventListener("click", () => {
-
-  const confirmed = confirm(
-    "Reset all hose coefficients back to app defaults?"
-  );
-
-  if (!confirmed) return;
-
-  resetSavedHoseCoefficients();
-
-  state.useCustomCoefficient = false;
-  state.customCoefficient = "";
-  if (els.customCoefficient) {
-    els.customCoefficient.value = "";
-  }
-
-  refreshCoefficientDisplays();
-  renderHoseLibrary();
-
-  alert("Hose coefficients reset to app defaults.");
-});
+      els.resetHoseCoefficientsButton?.addEventListener("click", requestHoseCoefficientsReset);
 
       els.reverseModeButton.addEventListener("click", event => {
   activateCarouselMode("reverse", { targetButton: event.currentTarget });
@@ -9263,6 +9290,34 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
   if (leavingSplitLay) {
     resetSplitLayResultCard();
   }
+}
+
+function requestHoseCoefficientsReset() {
+  confirmSettingsReset(
+    "This will restore all hose calculation coefficients to the original Reverse Flow defaults. Your hose profiles, default hose selections, visible equipment, and other settings will not change.",
+    () => {
+      resetSavedHoseCoefficients();
+      if (els.calculatorView) {
+        state.useCustomCoefficient = false;
+        state.customCoefficient = "";
+        if (els.customCoefficient) els.customCoefficient.value = "";
+        refreshCoefficientDisplays();
+        renderHoseLibrary();
+      } else {
+        renderHoseLibrary();
+        renderDefaultHoseSelections();
+        renderDefaultHoseCoefficients();
+      }
+      alert("Hose coefficients reset to app defaults.");
+    }
+  );
+}
+
+function requestCalculatorReset() {
+  confirmSettingsReset(
+    "This will restore your current calculator inputs to the Reverse Flow defaults. Your saved hose coefficients, visible equipment, hose profiles, and Pump Charts will not change.",
+    resetCalculator
+  );
 }
 
 function resetCalculator() {
