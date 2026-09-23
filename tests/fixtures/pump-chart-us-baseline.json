@@ -1,0 +1,2708 @@
+{
+  "setups": [
+    {
+      "id": "setup-0",
+      "name": "Fixture 0 requiredPdp",
+      "accentColorID": "blue",
+      "mode": "requiredPdp",
+      "modeLabel": "Required PDP",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "requiredPdp",
+        "pdp": "",
+        "targetGpm": "185",
+        "relayResidualPressure": "",
+        "hoseLength": "200",
+        "hoseSize": "1.75",
+        "nozzleType": "automaticFog",
+        "nozzlePressure": "50",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "primaryResult": "156 PSI",
+        "primaryResultLabel": "Required PDP",
+        "flowSummary": "185 GPM",
+        "pdpSummary": "156 PSI",
+        "calculatedPdp": "156",
+        "calculatedFlow": "185 GPM",
+        "totalFl": "106.1 psi",
+        "flPer100": "53.0 psi",
+        "nozzleDisplay": "Automatic Fog • 50 psi",
+        "setupDisplay": "200' of 1.75\"",
+        "nozzleReaction": "66 lb",
+        "turboLossDisplay": "—",
+        "canonicalRequiredPdp": {
+          "version": 1,
+          "requiredPdpPsi": 156.09750000000003,
+          "roundedPdpPsi": 156,
+          "flowGpm": 185,
+          "flowPerLineGpm": 185,
+          "nozzlePressurePsi": 50,
+          "hoseLengthFeet": 200,
+          "frictionLossPsi": 106.09750000000001,
+          "frictionLossPer100FeetPsi": 53.048750000000005,
+          "applianceLossPsi": 0,
+          "masterStreamLossPsi": 0,
+          "turboLossPsi": 0,
+          "turboEnabled": false,
+          "reactionLbf": 66.06145103235322
+        },
+        "summary": "185 GPM | 200' 1.75 | Automatic Fog @ 50 psi"
+      },
+      "warnings": []
+    },
+    {
+      "id": "setup-1",
+      "name": "Fixture 1 requiredPdp",
+      "accentColorID": "blue",
+      "mode": "requiredPdp",
+      "modeLabel": "Required PDP",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "requiredPdp",
+        "pdp": "",
+        "targetGpm": "266",
+        "relayResidualPressure": "",
+        "hoseLength": "150",
+        "hoseSize": "2.5",
+        "nozzleType": "smoothbore",
+        "nozzlePressure": "50",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "1-1/8",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": true,
+        "customCoefficient": "1.875",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "primaryResult": "70 PSI",
+        "primaryResultLabel": "Required PDP",
+        "flowSummary": "266 GPM",
+        "pdpSummary": "70 PSI",
+        "calculatedPdp": "70",
+        "calculatedFlow": "266 GPM",
+        "totalFl": "19.9 psi",
+        "flPer100": "13.3 psi",
+        "nozzleDisplay": "1 1/8\" SB @ 50 psi",
+        "setupDisplay": "150' of 2.5\" • Custom C 1.875",
+        "nozzleReaction": "Dual lines: NO",
+        "turboLossDisplay": "—",
+        "canonicalRequiredPdp": {
+          "version": 1,
+          "requiredPdpPsi": 69.900125,
+          "roundedPdpPsi": 70,
+          "flowGpm": 266,
+          "flowPerLineGpm": 266,
+          "nozzlePressurePsi": 50,
+          "hoseLengthFeet": 150,
+          "frictionLossPsi": 19.900125000000003,
+          "frictionLossPer100FeetPsi": 13.266750000000002,
+          "applianceLossPsi": 0,
+          "masterStreamLossPsi": 0,
+          "turboLossPsi": 0,
+          "turboEnabled": false,
+          "reactionLbf": 99.3515625
+        },
+        "summary": "266 GPM | 150' 2.5 | 1-1/8"
+      },
+      "warnings": []
+    },
+    {
+      "id": "setup-2",
+      "name": "Fixture 2 reverse",
+      "accentColorID": "blue",
+      "mode": "reverse",
+      "modeLabel": "Reverse Flow",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "reverse",
+        "pdp": "150",
+        "targetGpm": "",
+        "relayResidualPressure": "",
+        "hoseLength": "200",
+        "hoseSize": "1.75",
+        "nozzleType": "automaticFog",
+        "nozzlePressure": "50",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": true,
+        "reverseSupplyLength": "350",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "canonicalOperational": {
+          "version": 1,
+          "mode": "reverse",
+          "pdpPsi": 150,
+          "flowGpm": 172.00522903844538,
+          "roundedFlowGpm": 170,
+          "nozzlePressurePsi": 50,
+          "hoseLengthFeet": 200,
+          "supplyLengthFeet": 350,
+          "frictionLossPsi": 100,
+          "frictionLossPer100FeetPsi": 50,
+          "attackFrictionLossPsi": 91.71597633136096,
+          "supplyFrictionLossPsi": 8.284023668639055,
+          "applianceLossPsi": 0,
+          "deviceLossPsi": 0,
+          "supplyApplianceLossPsi": 0,
+          "turboLossPsi": 0,
+          "turboEnabled": false,
+          "reactionLbf": 61.421162245578145
+        },
+        "primaryResult": "170 GPM",
+        "primaryResultLabel": "Rounded Flow",
+        "flowSummary": "170 GPM",
+        "pdpSummary": "150 PSI",
+        "calculatedPdp": "150",
+        "calculatedFlow": "170 GPM",
+        "totalFl": "100.0 psi",
+        "flPer100": "A 91.7 / S 8.3",
+        "nozzleDisplay": "Automatic Fog • 50 psi",
+        "setupDisplay": "200' of 1.75\"",
+        "nozzleReaction": "61 lb",
+        "turboLossDisplay": "—",
+        "apparatusElevationLoss": "",
+        "summary": "170 GPM | 200' 1.75 | Automatic Fog @ 50 psi"
+      },
+      "warnings": []
+    },
+    {
+      "id": "setup-3",
+      "name": "Fixture 3 apparatusMounted",
+      "accentColorID": "blue",
+      "mode": "apparatusMounted",
+      "modeLabel": "Apparatus Mounted",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "apparatusMounted",
+        "pdp": "",
+        "targetGpm": "",
+        "relayResidualPressure": "",
+        "hoseLength": "",
+        "hoseSize": "1.88",
+        "nozzleType": "smoothbore",
+        "nozzlePressure": "50",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "1-1/8",
+        "bladeModel": "blade160",
+        "masterStreamType": "smoothbore",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "20",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "canonicalOperational": {
+          "version": 1,
+          "mode": "apparatusMounted",
+          "requiredPdpPsi": 83.68,
+          "roundedPdpPsi": 84,
+          "flowGpm": 265.7948099219496,
+          "nozzlePressurePsi": 50,
+          "elevationFeet": 20,
+          "elevationLossPsi": 8.68,
+          "deviceLossPsi": 25,
+          "reactionLbf": 99.3515625
+        },
+        "primaryResult": "84 PSI",
+        "primaryResultLabel": "Required PDP",
+        "flowSummary": "266 GPM",
+        "pdpSummary": "84 PSI",
+        "calculatedPdp": "",
+        "calculatedFlow": "266 GPM",
+        "totalFl": "50 psi",
+        "flPer100": "8.7 psi",
+        "nozzleDisplay": "25 psi",
+        "setupDisplay": "1 1/8\" SB @ 50 psi",
+        "nozzleReaction": "99 lb",
+        "turboLossDisplay": "—",
+        "apparatusElevationLoss": "8.7 psi",
+        "summary": "266 GPM | 1-1/8"
+      },
+      "warnings": []
+    },
+    {
+      "id": "setup-4",
+      "name": "Fixture 4 relay",
+      "accentColorID": "blue",
+      "mode": "relay",
+      "modeLabel": "Relay Pumping",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "relay",
+        "pdp": "",
+        "targetGpm": "500",
+        "relayResidualPressure": "20",
+        "hoseLength": "500",
+        "hoseSize": "3",
+        "nozzleType": "smoothbore",
+        "nozzlePressure": "55",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "canonicalOperational": {
+          "version": 1,
+          "mode": "relay",
+          "requiredPdpPsi": 120,
+          "roundedPdpPsi": 120,
+          "flowGpm": 500,
+          "hoseLengthFeet": 500,
+          "residualPressurePsi": 20,
+          "applianceLossPsi": 0,
+          "frictionLossPsi": 100,
+          "frictionLossPer100FeetPsi": 20
+        },
+        "primaryResult": "120 PSI",
+        "primaryResultLabel": "Relay PDP",
+        "flowSummary": "500 GPM",
+        "pdpSummary": "120 PSI",
+        "calculatedPdp": "120",
+        "calculatedFlow": "500 GPM",
+        "totalFl": "100.0 psi",
+        "flPer100": "20.0 psi",
+        "nozzleDisplay": "20 psi residual",
+        "setupDisplay": "500' Relay Distance",
+        "nozzleReaction": "—",
+        "turboLossDisplay": "—",
+        "apparatusElevationLoss": "",
+        "summary": "500 GPM | 500' 3 | Smoothbore"
+      },
+      "warnings": []
+    },
+    {
+      "id": "setup-5",
+      "name": "Fixture 5 splitLay",
+      "accentColorID": "blue",
+      "mode": "splitLay",
+      "modeLabel": "Split Lay",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "splitLay",
+        "pdp": "",
+        "targetGpm": "",
+        "relayResidualPressure": "20",
+        "hoseLength": "",
+        "hoseSize": "1.88",
+        "nozzleType": "smoothbore",
+        "nozzlePressure": "55",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "500",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "2",
+          "appliance2": "gateValve",
+          "attackLines": "2",
+          "attack1Length": "200",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "automaticFog",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "185",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "150",
+          "attack2HoseSize": "2.5",
+          "attack2NozzleType": "automaticFog",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "250",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "splitPrimaryPdp": "409 PSI",
+        "splitSupplyLayoutResult": "Single Supply",
+        "splitSupplyFlow": "780 GPM",
+        "splitSupplyLoss": "243.2 psi",
+        "splitApplianceLoss": "10 psi",
+        "splitSupply2Flow": "780 GPM",
+        "splitSupply2Loss": "0.0 psi",
+        "splitAppliance2Loss": "0 psi",
+        "splitAttack1FlowResult": "185 GPM",
+        "splitAttack1NpResult": "50 psi",
+        "splitAttack1FlResult": "106.1 psi",
+        "splitAttack1ReactionResult": "66 lb",
+        "splitAttack2FlowResult": "595 GPM",
+        "splitAttack2NpResult": "50 psi",
+        "splitAttack2FlResult": "106.1 psi",
+        "splitAttack2ReactionResult": "212 lb",
+        "canonicalMultiLine": {
+          "version": 1,
+          "mode": "splitLay",
+          "totalPdp": 409.26521927866247,
+          "totalAttackFlow": 779.691796927899,
+          "supply1TotalFl": 243.16771927866245,
+          "supply2TotalFl": 0,
+          "appliance1Loss": 10,
+          "appliance2Loss": 0,
+          "actualAttack1": {
+            "lineNumber": "1",
+            "hose": {
+              "id": "1.75",
+              "label": "1.75\"",
+              "coefficient": 15.5,
+              "maxReferenceFlow": 250,
+              "chartName": "1 3/4\" / 1.75\""
+            },
+            "length": 200,
+            "nozzleType": "automaticFog",
+            "nozzlePressure": 50,
+            "ratedFlow": null,
+            "ratedPressure": null,
+            "flow": 185,
+            "flPer100": 53.048750000000005,
+            "totalFl": 106.09750000000001,
+            "requiredPdp": 156.09750000000003,
+            "reaction": "66 lb",
+            "actualNozzlePressure": 50,
+            "actualFlow": 185.00000000000003,
+            "actualFlPer100": 53.04875000000002,
+            "actualTotalFl": 106.09750000000004,
+            "actualReaction": "66 lb",
+            "reactionLbf": 66.06145103235322
+          },
+          "actualAttack2": {
+            "lineNumber": "2",
+            "hose": {
+              "id": "2.5",
+              "label": "2.5\"",
+              "coefficient": 2,
+              "maxReferenceFlow": 550,
+              "chartName": "2 1/2\""
+            },
+            "length": 150,
+            "nozzleType": "automaticFog",
+            "nozzlePressure": 50,
+            "ratedFlow": null,
+            "ratedPressure": null,
+            "flow": 250,
+            "flPer100": 12.5,
+            "totalFl": 18.75,
+            "requiredPdp": 68.75,
+            "reaction": "89 lb",
+            "actualNozzlePressure": 50,
+            "actualFlow": 594.691796927899,
+            "actualFlPer100": 70.73166666666668,
+            "actualTotalFl": 106.09750000000003,
+            "actualReaction": "212 lb",
+            "reactionLbf": 212.357854173484
+          }
+        },
+        "primaryResult": "409 PSI",
+        "primaryResultLabel": "Split Lay PDP",
+        "flowSummary": "",
+        "pdpSummary": "409 PSI",
+        "calculatedPdp": "409",
+        "calculatedFlow": "Split Lay",
+        "totalFl": "455 psi total",
+        "flPer100": "S 243 / L1 106 / L2 106",
+        "nozzleDisplay": "L1 Automatic Fog 185 GPM @ 50 psi\nL2 Automatic Fog 595 GPM @ 50 psi",
+        "setupDisplay": "500' 3\" Supply",
+        "nozzleReaction": "66 lb / 212 lb",
+        "turboLossDisplay": "—",
+        "summary": "Split Lay setup"
+      },
+      "warnings": [
+        "Calculated PDP exceeds 300 psi. Confirm hose/apparatus limits and department operating guidelines before using this setup.",
+        "Estimated Appliance 1 loss applied: 10 psi at flows ≥350 GPM.",
+        "One attack line has a lower hydraulic demand than the PDP-driving line, resulting in increased nozzle pressure and flow on that line."
+      ]
+    },
+    {
+      "id": "setup-6",
+      "name": "Fixture 6 standpipeOps",
+      "accentColorID": "blue",
+      "mode": "standpipeOps",
+      "modeLabel": "Standpipe Ops",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "standpipeOps",
+        "pdp": "",
+        "targetGpm": "",
+        "relayResidualPressure": "20",
+        "hoseLength": "",
+        "hoseSize": "1.88",
+        "nozzleType": "smoothbore",
+        "nozzlePressure": "55",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": true,
+          "attack1Floor": "5",
+          "attack1Length": "200",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "automaticFog",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "185",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "3",
+          "attack2Length": "150",
+          "attack2HoseSize": "2.5",
+          "attack2NozzleType": "automaticFog",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "250",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "100",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "standpipePrimaryPdp": "253 PSI",
+        "standpipeTotalFlow": "807 GPM",
+        "standpipeSupplyLoss": "52.1 psi",
+        "standpipeLossResult": "25 psi",
+        "standpipeDrivingLine": "Attack Line 1",
+        "standpipeAttack1FlowResult": "185 GPM",
+        "standpipeAttack1NpResult": "50 psi",
+        "standpipeAttack1FlResult": "106.1 psi",
+        "standpipeAttack1ElevationResult": "20 psi",
+        "standpipeAttack1ReactionResult": "66 lb",
+        "standpipeAttack2FlowResult": "622 GPM",
+        "standpipeAttack2NpResult": "50 psi",
+        "standpipeAttack2FlResult": "116.1 psi",
+        "standpipeAttack2ElevationResult": "10 psi",
+        "standpipeAttack2ReactionResult": "222 lb",
+        "canonicalMultiLine": {
+          "version": 1,
+          "mode": "standpipeOps",
+          "requiredPdp": 253.20859499863866,
+          "totalFlow": 807.0865427468004,
+          "supplyTotalFl": 52.11109499863863,
+          "supplyFlowPerLine": 807.0865427468004,
+          "standpipeLoss": 25,
+          "drivingLine": {
+            "lineNumber": "1",
+            "hose": {
+              "id": "1.75",
+              "label": "1.75\"",
+              "coefficient": 15.5,
+              "maxReferenceFlow": 250,
+              "chartName": "1 3/4\" / 1.75\""
+            },
+            "floor": 5,
+            "length": 200,
+            "nozzleType": "automaticFog",
+            "nozzlePressure": 50,
+            "ratedFlow": null,
+            "ratedPressure": null,
+            "flow": 185.00000000000003,
+            "flPer100": 53.04875000000002,
+            "totalFl": 106.09750000000004,
+            "elevationLoss": 20,
+            "requiredPdp": 176.09750000000003,
+            "reaction": "66 lb",
+            "warnings": [],
+            "designFlow": 185,
+            "designNozzlePressure": 50,
+            "isRecalculated": false
+          },
+          "line1": {
+            "lineNumber": "1",
+            "hose": {
+              "id": "1.75",
+              "label": "1.75\"",
+              "coefficient": 15.5,
+              "maxReferenceFlow": 250,
+              "chartName": "1 3/4\" / 1.75\""
+            },
+            "floor": 5,
+            "length": 200,
+            "nozzleType": "automaticFog",
+            "nozzlePressure": 50,
+            "ratedFlow": null,
+            "ratedPressure": null,
+            "flow": 185.00000000000003,
+            "flPer100": 53.04875000000002,
+            "totalFl": 106.09750000000004,
+            "elevationLoss": 20,
+            "requiredPdp": 176.09750000000003,
+            "reaction": "66 lb",
+            "warnings": [],
+            "designFlow": 185,
+            "designNozzlePressure": 50,
+            "isRecalculated": false,
+            "reactionLbf": 66.06145103235322
+          },
+          "line2": {
+            "lineNumber": "2",
+            "hose": {
+              "id": "2.5",
+              "label": "2.5\"",
+              "coefficient": 2,
+              "maxReferenceFlow": 550,
+              "chartName": "2 1/2\""
+            },
+            "floor": 3,
+            "length": 150,
+            "nozzleType": "automaticFog",
+            "nozzlePressure": 50,
+            "ratedFlow": null,
+            "ratedPressure": null,
+            "flow": 622.0865427468004,
+            "flPer100": 77.39833333333334,
+            "totalFl": 116.09750000000001,
+            "elevationLoss": 10,
+            "requiredPdp": 176.09750000000003,
+            "reaction": "222 lb",
+            "warnings": [
+              "Flow exceeds 250 GPM from a single standpipe outlet. Verify outlet capability, system condition, and local SOP."
+            ],
+            "designFlow": 250,
+            "designNozzlePressure": 50,
+            "isRecalculated": true,
+            "reactionLbf": 222.14021449488465
+          },
+          "systemWarnings": [
+            "Total standpipe flow exceeds 500 GPM. Verify riser/system capacity, preplan information, and local procedures.",
+            "High required discharge pressure. Confirm hose, FDC, standpipe system, pressure zones, and department operating limits before pumping this pressure."
+          ]
+        },
+        "primaryResult": "253 PSI",
+        "primaryResultLabel": "Standpipe Ops PDP",
+        "flowSummary": "807 GPM",
+        "pdpSummary": "253 PSI",
+        "calculatedPdp": "253",
+        "calculatedFlow": "807 GPM",
+        "totalFl": "52.1 psi supply",
+        "flPer100": "807 GPM supply",
+        "nozzleDisplay": "Standpipe loss 25 psi",
+        "setupDisplay": "Attack Line 1 drives PDP",
+        "nozzleReaction": "66 lb",
+        "turboLossDisplay": "—",
+        "summary": "807 GPM | Smoothbore"
+      },
+      "warnings": []
+    },
+    {
+      "id": "fixed-fog",
+      "name": "Fixed Fog",
+      "accentColorID": "orange",
+      "mode": "requiredPdp",
+      "modeLabel": "Required PDP",
+      "notes": "Literal 100 PSI note",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "requiredPdp",
+        "pdp": "",
+        "targetGpm": "200",
+        "relayResidualPressure": "",
+        "hoseLength": "200",
+        "hoseSize": "1.75",
+        "nozzleType": "fixedFog",
+        "nozzlePressure": "50",
+        "customNozzlePressure": "",
+        "ratedFlow": "185",
+        "ratedPressure": "50",
+        "smoothboreTip": "",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "primaryResult": "182 PSI",
+        "primaryResultLabel": "Required PDP",
+        "flowSummary": "200 GPM",
+        "pdpSummary": "182 PSI",
+        "calculatedPdp": "182",
+        "calculatedFlow": "200 GPM",
+        "totalFl": "124.0 psi",
+        "flPer100": "62.0 psi",
+        "nozzleDisplay": "Fixed Fog • 185 GPM @ 50 PSI • NP 58 psi",
+        "setupDisplay": "200' of 1.75\"",
+        "nozzleReaction": "77 lb",
+        "turboLossDisplay": "—",
+        "canonicalRequiredPdp": {
+          "version": 1,
+          "requiredPdpPsi": 182.43681519357196,
+          "roundedPdpPsi": 182,
+          "flowGpm": 200,
+          "flowPerLineGpm": 200,
+          "nozzlePressurePsi": 58.43681519357196,
+          "hoseLengthFeet": 200,
+          "frictionLossPsi": 124,
+          "frictionLossPer100FeetPsi": 62,
+          "applianceLossPsi": 0,
+          "masterStreamLossPsi": 0,
+          "turboLossPsi": 0,
+          "turboEnabled": false,
+          "reactionLbf": 77.20841610793656
+        },
+        "summary": "200 GPM | 200' 1.75 | Automatic Fog @ 50 psi"
+      },
+      "warnings": []
+    },
+    {
+      "id": "legacy",
+      "name": "Legacy",
+      "accentColorID": "blue",
+      "mode": "requiredPdp",
+      "modeLabel": "Required PDP",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "requiredPdp",
+        "pdp": "",
+        "targetGpm": "185",
+        "relayResidualPressure": "",
+        "hoseLength": "200",
+        "hoseSize": "1.75",
+        "nozzleType": "automaticFog",
+        "nozzlePressure": "50",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "primaryResult": "156 PSI",
+        "primaryResultLabel": "Required PDP",
+        "flowSummary": "185 GPM",
+        "pdpSummary": "156 PSI",
+        "calculatedPdp": "156",
+        "calculatedFlow": "185 GPM",
+        "totalFl": "106.1 psi",
+        "flPer100": "53.0 psi",
+        "nozzleDisplay": "Historical 1⅛ in at 50 PSI",
+        "setupDisplay": "200' of 1.75\"",
+        "nozzleReaction": "66 lb",
+        "turboLossDisplay": "—",
+        "summary": "185 GPM | 200' 1.75 | Automatic Fog @ 50 psi"
+      },
+      "warnings": [
+        "Saved 500 GPM / 250 PSI warning"
+      ]
+    },
+    {
+      "id": "unknown",
+      "name": "Unknown equipment",
+      "accentColorID": "blue",
+      "mode": "requiredPdp",
+      "modeLabel": "Required PDP",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "requiredPdp",
+        "pdp": "",
+        "targetGpm": "185",
+        "relayResidualPressure": "",
+        "hoseLength": "200",
+        "hoseSize": "Custom 45 mm",
+        "nozzleType": "smoothbore",
+        "nozzlePressure": "50",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "Unknown tip 7",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "primaryResult": "156 PSI",
+        "primaryResultLabel": "Required PDP",
+        "flowSummary": "185 GPM",
+        "pdpSummary": "156 PSI",
+        "calculatedPdp": "156",
+        "calculatedFlow": "185 GPM",
+        "totalFl": "106.1 psi",
+        "flPer100": "53.0 psi",
+        "nozzleDisplay": "Historical 1⅛ in at 50 PSI",
+        "setupDisplay": "200' of 1.75\"",
+        "nozzleReaction": "66 lb",
+        "turboLossDisplay": "—",
+        "summary": "185 GPM | 200' 1.75 | Automatic Fog @ 50 psi"
+      },
+      "warnings": [
+        "Saved 500 GPM / 250 PSI warning"
+      ]
+    },
+    {
+      "id": "old-preset",
+      "name": "Imported",
+      "accentColorID": "orange",
+      "mode": "requiredPdp",
+      "modeLabel": "Required PDP",
+      "notes": "",
+      "createdAt": "2026-09-23T12:00:00.000Z",
+      "updatedAt": "2026-09-23T12:00:00.000Z",
+      "inputs": {
+        "mode": "requiredPdp",
+        "pdp": "",
+        "targetGpm": "185",
+        "relayResidualPressure": "",
+        "hoseLength": "200",
+        "hoseSize": "1.75",
+        "nozzleType": "automaticFog",
+        "nozzlePressure": "50",
+        "customNozzlePressure": "",
+        "ratedFlow": "",
+        "ratedPressure": "",
+        "smoothboreTip": "",
+        "bladeModel": "blade160",
+        "masterStreamType": "automaticFog",
+        "masterStreamLoss": "25",
+        "dualLineSupply": false,
+        "apparatusFogFlow": "1000",
+        "apparatusCustomFogFlow": "",
+        "apparatusElevation": "",
+        "applianceLoss": "0",
+        "henTurboEnabled": false,
+        "reverseSupplyEnabled": false,
+        "reverseSupplyLength": "",
+        "reverseSupplyHoseSize": "3",
+        "reverseSupplyAppliance": "gateValve",
+        "useCustomCoefficient": false,
+        "customCoefficient": "",
+        "splitLay": {
+          "dualSupply": false,
+          "sectionCount": "2",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "appliance1": "gatedWye",
+          "supply2Length": "",
+          "supply2HoseSize": "1.88",
+          "appliance2": "gateValve",
+          "attackLines": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160"
+        },
+        "standpipeOps": {
+          "attack2Enabled": false,
+          "attack1Floor": "1",
+          "attack1Length": "",
+          "attack1HoseSize": "1.75",
+          "attack1NozzleType": "smoothbore",
+          "attack1NozzlePressure": "50",
+          "attack1Flow": "",
+          "attack1RatedFlow": "",
+          "attack1RatedPressure": "",
+          "attack1SmoothboreTip": "",
+          "attack1BladeModel": "blade160",
+          "attack2Floor": "1",
+          "attack2Length": "",
+          "attack2HoseSize": "1.75",
+          "attack2NozzleType": "smoothbore",
+          "attack2NozzlePressure": "50",
+          "attack2Flow": "",
+          "attack2RatedFlow": "",
+          "attack2RatedPressure": "",
+          "attack2SmoothboreTip": "",
+          "attack2BladeModel": "blade160",
+          "supplyLength": "",
+          "supplyHoseSize": "3",
+          "standpipeLoss": "25",
+          "dualSupply": false
+        }
+      },
+      "result": {
+        "primaryResult": "156 PSI",
+        "primaryResultLabel": "Required PDP",
+        "calculatedPdp": "156",
+        "calculatedFlow": "185 GPM",
+        "summary": "185 GPM | 200' 1.75 | Automatic Fog @ 50 psi"
+      },
+      "warnings": []
+    }
+  ],
+  "views": [
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Fixture 0 requiredPdp</strong>\n        <p class=\"pump-chart-config-summary\">200&#039; 1.75&quot; Automatic Fog • 185 GPM @ 50 PSI</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"requiredPdp\">REQUIRED PDP</span>\n        <div class=\"pump-chart-row-result\">185 GPM • PDP 156 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-0')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-0', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-0', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'setup-0'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'setup-0'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-0')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Fixture 0 requiredPdp</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Required PDP</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">185 GPM • PDP 156 PSI</strong>\n        <p class=\"pump-chart-reference-config\">200' 1.75\" Automatic Fog • 185 GPM @ 50 PSI</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Line</span>\n          <strong>200' 1.75\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle</span>\n          <strong>Automatic Fog • 185 GPM @ 50 PSI</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>50 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Reaction</span>\n          <strong>66 lb</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Required PDP</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Required PDP</strong>\n          </div>\n        \n          <div>\n            <span>Hose Length</span>\n            <strong>200 ft</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>1.75</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Automatic Fog • 185 GPM @ 50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Target Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Required PDP</span>\n            <strong>156 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>156 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>106.1 psi</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>53.0 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>Automatic Fog • 50 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>66 lb</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>200' of 1.75\"</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "200' 1.75\" Automatic Fog • 185 GPM @ 50 PSI",
+        "hydraulic": "185 GPM • PDP 156 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Line",
+                "value": "200' 1.75\""
+              },
+              {
+                "label": "Nozzle",
+                "value": "Automatic Fog • 185 GPM @ 50 PSI"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "50 PSI"
+              },
+              {
+                "label": "Nozzle Reaction",
+                "value": "66 lb"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Required PDP"
+          ],
+          [
+            "Hose Length",
+            "200 ft"
+          ],
+          [
+            "Hose Size",
+            "1.75"
+          ],
+          [
+            "Nozzle Type",
+            "Automatic Fog • 185 GPM @ 50 PSI"
+          ],
+          [
+            "Nozzle Pressure",
+            "50 PSI"
+          ],
+          [
+            "Target Flow",
+            "185 GPM"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Required PDP",
+            "156 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "156 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "185 GPM"
+          ],
+          [
+            "Total FL",
+            "106.1 psi"
+          ],
+          [
+            "FL / 100 ft",
+            "53.0 psi"
+          ],
+          [
+            "Nozzle",
+            "Automatic Fog • 50 psi"
+          ],
+          [
+            "Nozzle Reaction",
+            "66 lb"
+          ],
+          [
+            "Setup",
+            "200' of 1.75\""
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Fixture 1 requiredPdp</strong>\n        <p class=\"pump-chart-config-summary\">150&#039; 2.5&quot; Smoothbore • 1 1/8&quot;</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"requiredPdp\">REQUIRED PDP</span>\n        <div class=\"pump-chart-row-result\">266 GPM • PDP 70 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-1')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-1', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-1', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'setup-1'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'setup-1'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-1')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Fixture 1 requiredPdp</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Required PDP</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">266 GPM • PDP 70 PSI</strong>\n        <p class=\"pump-chart-reference-config\">150' 2.5\" Smoothbore • 1 1/8\"</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Line</span>\n          <strong>150' 2.5\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle</span>\n          <strong>Smoothbore • 1 1/8\"</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>50 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Reaction</span>\n          <strong>Dual lines: NO</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Required PDP</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Required PDP</strong>\n          </div>\n        \n          <div>\n            <span>Hose Length</span>\n            <strong>150 ft</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>2.5</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Smoothbore • 1 1/8\"</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Target Flow</span>\n            <strong>266 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Required PDP</span>\n            <strong>70 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>70 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>266 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>19.9 psi</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>13.3 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>1 1/8\" SB @ 50 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>Dual lines: NO</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>150' of 2.5\" • Custom C 1.875</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "150' 2.5\" Smoothbore • 1 1/8\"",
+        "hydraulic": "266 GPM • PDP 70 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Line",
+                "value": "150' 2.5\""
+              },
+              {
+                "label": "Nozzle",
+                "value": "Smoothbore • 1 1/8\""
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "50 PSI"
+              },
+              {
+                "label": "Nozzle Reaction",
+                "value": "Dual lines: NO"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Required PDP"
+          ],
+          [
+            "Hose Length",
+            "150 ft"
+          ],
+          [
+            "Hose Size",
+            "2.5"
+          ],
+          [
+            "Nozzle Type",
+            "Smoothbore • 1 1/8\""
+          ],
+          [
+            "Nozzle Pressure",
+            "50 PSI"
+          ],
+          [
+            "Target Flow",
+            "266 GPM"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Required PDP",
+            "70 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "70 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "266 GPM"
+          ],
+          [
+            "Total FL",
+            "19.9 psi"
+          ],
+          [
+            "FL / 100 ft",
+            "13.3 psi"
+          ],
+          [
+            "Nozzle",
+            "1 1/8\" SB @ 50 psi"
+          ],
+          [
+            "Nozzle Reaction",
+            "Dual lines: NO"
+          ],
+          [
+            "Setup",
+            "150' of 2.5\" • Custom C 1.875"
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Fixture 2 reverse</strong>\n        <p class=\"pump-chart-config-summary\">200&#039; 1.75&quot; Automatic Fog • 1000 GPM @ 50 PSI</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"reverse\">REVERSE FLOW</span>\n        <div class=\"pump-chart-row-result\">170 GPM • PDP 150 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-2')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-2', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-2', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'setup-2'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'setup-2'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-2')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Fixture 2 reverse</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Reverse Flow</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">170 GPM • PDP 150 PSI</strong>\n        <p class=\"pump-chart-reference-config\">200' 1.75\" Automatic Fog • 1000 GPM @ 50 PSI</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Line</span>\n          <strong>200' 1.75\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle</span>\n          <strong>Automatic Fog • 1000 GPM @ 50 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Supply</span>\n          <strong>350' 3\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Appliance</span>\n          <strong>Gate Valve</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>50 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Reaction</span>\n          <strong>61 lb</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Reverse Flow</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Reverse Flow</strong>\n          </div>\n        \n          <div>\n            <span>Hose Length</span>\n            <strong>200 ft</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>1.75</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Automatic Fog • 1000 GPM @ 50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Pump Discharge Pressure</span>\n            <strong>150 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Rounded Flow</span>\n            <strong>170 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>150 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>170 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>100.0 psi</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>A 91.7 / S 8.3</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>Automatic Fog • 50 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>61 lb</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>200' of 1.75\"</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "200' 1.75\" Automatic Fog • 1000 GPM @ 50 PSI",
+        "hydraulic": "170 GPM • PDP 150 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Line",
+                "value": "200' 1.75\""
+              },
+              {
+                "label": "Nozzle",
+                "value": "Automatic Fog • 1000 GPM @ 50 PSI"
+              },
+              {
+                "label": "Supply",
+                "value": "350' 3\""
+              },
+              {
+                "label": "Appliance",
+                "value": "Gate Valve"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "50 PSI"
+              },
+              {
+                "label": "Nozzle Reaction",
+                "value": "61 lb"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Reverse Flow"
+          ],
+          [
+            "Hose Length",
+            "200 ft"
+          ],
+          [
+            "Hose Size",
+            "1.75"
+          ],
+          [
+            "Nozzle Type",
+            "Automatic Fog • 1000 GPM @ 50 PSI"
+          ],
+          [
+            "Nozzle Pressure",
+            "50 PSI"
+          ],
+          [
+            "Pump Discharge Pressure",
+            "150 PSI"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Rounded Flow",
+            "170 GPM"
+          ],
+          [
+            "Calculated PDP",
+            "150 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "170 GPM"
+          ],
+          [
+            "Total FL",
+            "100.0 psi"
+          ],
+          [
+            "FL / 100 ft",
+            "A 91.7 / S 8.3"
+          ],
+          [
+            "Nozzle",
+            "Automatic Fog • 50 psi"
+          ],
+          [
+            "Nozzle Reaction",
+            "61 lb"
+          ],
+          [
+            "Setup",
+            "200' of 1.75\""
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Fixture 3 apparatusMounted</strong>\n        <p class=\"pump-chart-config-summary\">Deck Gun Smoothbore</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"apparatusMounted\">APPARATUS</span>\n        <div class=\"pump-chart-row-result\">266 GPM • PDP 84 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-3')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-3', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-3', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'setup-3'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'setup-3'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-3')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Fixture 3 apparatusMounted</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Apparatus Mounted</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">266 GPM • PDP 84 PSI</strong>\n        <p class=\"pump-chart-reference-config\">Deck Gun Smoothbore</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Stream</span>\n          <strong>Smoothbore</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Flow</span>\n          <strong>266 GPM</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Device Loss</span>\n          <strong>25 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Elevation</span>\n          <strong>20 ft</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>50 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Reaction</span>\n          <strong>99 lb</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Apparatus Mounted</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Apparatus Mounted</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>1.88</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Smoothbore • 1 1/8\"</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Required PDP</span>\n            <strong>84 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>266 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>50 psi</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>8.7 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>25 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>99 lb</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>1 1/8\" SB @ 50 psi</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "Deck Gun Smoothbore",
+        "hydraulic": "266 GPM • PDP 84 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Stream",
+                "value": "Smoothbore"
+              },
+              {
+                "label": "Flow",
+                "value": "266 GPM"
+              },
+              {
+                "label": "Device Loss",
+                "value": "25 PSI"
+              },
+              {
+                "label": "Elevation",
+                "value": "20 ft"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "50 PSI"
+              },
+              {
+                "label": "Nozzle Reaction",
+                "value": "99 lb"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Apparatus Mounted"
+          ],
+          [
+            "Hose Size",
+            "1.88"
+          ],
+          [
+            "Nozzle Type",
+            "Smoothbore • 1 1/8\""
+          ],
+          [
+            "Nozzle Pressure",
+            "50 PSI"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Required PDP",
+            "84 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "266 GPM"
+          ],
+          [
+            "Total FL",
+            "50 psi"
+          ],
+          [
+            "FL / 100 ft",
+            "8.7 psi"
+          ],
+          [
+            "Nozzle",
+            "25 psi"
+          ],
+          [
+            "Nozzle Reaction",
+            "99 lb"
+          ],
+          [
+            "Setup",
+            "1 1/8\" SB @ 50 psi"
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Fixture 4 relay</strong>\n        <p class=\"pump-chart-config-summary\">Relay 500&#039; 3&quot;\n500 GPM</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"relay\">RELAY</span>\n        <div class=\"pump-chart-row-result\">PDP 120 PSI\nResidual 20 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-4')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-4', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-4', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'setup-4'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'setup-4'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-4')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Fixture 4 relay</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Relay Pumping</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">PDP 120 PSI\nResidual 20 PSI</strong>\n        <p class=\"pump-chart-reference-config\">Relay 500' 3\"\n500 GPM</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Relay Lay</span>\n          <strong>500' 3\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Target Flow</span>\n          <strong>500 GPM</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>55 PSI</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Relay Pumping</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Relay Pumping</strong>\n          </div>\n        \n          <div>\n            <span>Hose Length</span>\n            <strong>500 ft</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>3</strong>\n          </div>\n        \n          <div>\n            <span>Target Flow</span>\n            <strong>500 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Receiving Residual</span>\n            <strong>20 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Relay PDP</span>\n            <strong>120 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>120 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>500 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>100.0 psi</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>20.0 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>20 psi residual</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>500' Relay Distance</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "Relay 500' 3\"\n500 GPM",
+        "hydraulic": "PDP 120 PSI\nResidual 20 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Relay Lay",
+                "value": "500' 3\""
+              },
+              {
+                "label": "Target Flow",
+                "value": "500 GPM"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "55 PSI"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Relay Pumping"
+          ],
+          [
+            "Hose Length",
+            "500 ft"
+          ],
+          [
+            "Hose Size",
+            "3"
+          ],
+          [
+            "Target Flow",
+            "500 GPM"
+          ],
+          [
+            "Receiving Residual",
+            "20 PSI"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Relay PDP",
+            "120 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "120 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "500 GPM"
+          ],
+          [
+            "Total FL",
+            "100.0 psi"
+          ],
+          [
+            "FL / 100 ft",
+            "20.0 psi"
+          ],
+          [
+            "Nozzle",
+            "20 psi residual"
+          ],
+          [
+            "Setup",
+            "500' Relay Distance"
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Fixture 5 splitLay</strong>\n        <p class=\"pump-chart-config-summary\">500&#039; 3&quot; Supply\n200&#039; 1.75&quot; Automatic Fog + 150&#039; 2.5&quot; Automatic Fog\n2 Attack Lines</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"splitLay\">SPLIT LAY</span>\n        <div class=\"pump-chart-row-result\">780 GPM • PDP 409 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-5')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-5', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-5', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'setup-5'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'setup-5'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-5')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Fixture 5 splitLay</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Split Lay</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">780 GPM • PDP 409 PSI</strong>\n        <p class=\"pump-chart-reference-config\">500' 3\" Supply\n200' 1.75\" Automatic Fog + 150' 2.5\" Automatic Fog\n2 Attack Lines</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Supply</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Supply</span>\n          <strong>500' 3\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Appliance</span>\n          <strong>Gated Wye</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Attack</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Attack 1</span>\n          <strong>200' 1.75\" Automatic Fog</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Attack 2</span>\n          <strong>150' 2.5\" Automatic Fog</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Attack 1 Flow</span>\n          <strong>185 GPM</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Attack 1 NP</span>\n          <strong>50 psi</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Attack 2 Flow</span>\n          <strong>595 GPM</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Attack 2 NP</span>\n          <strong>50 psi</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Split Lay</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Split Lay</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>1.88</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Smoothbore</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>55 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Supply 1</span>\n            <strong>500 ft 3</strong>\n          </div>\n        \n          <div>\n            <span>Attack 1</span>\n            <strong>200 ft 1.75</strong>\n          </div>\n        \n          <div>\n            <span>Attack Lines</span>\n            <strong>2</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Split Lay PDP</span>\n            <strong>409 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>409 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>Split Lay</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>455 psi total</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>S 243 / L1 106 / L2 106</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>L1 Automatic Fog 185 GPM @ 50 psi\nL2 Automatic Fog 595 GPM @ 50 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>66 lb / 212 lb</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>500' 3\" Supply</strong>\n          </div>\n        \n          <div>\n            <span>Supply Layout</span>\n            <strong>Single Supply</strong>\n          </div>\n        \n          <div>\n            <span>Supply Flow</span>\n            <strong>780 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Supply Loss</span>\n            <strong>243.2 psi</strong>\n          </div>\n        \n          <div>\n            <span>Attack 1 Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Attack 1 NP</span>\n            <strong>50 psi</strong>\n          </div>\n        \n          <div>\n            <span>Attack 1 FL</span>\n            <strong>106.1 psi</strong>\n          </div>\n        \n          <div>\n            <span>Attack 2 Flow</span>\n            <strong>595 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Attack 2 NP</span>\n            <strong>50 psi</strong>\n          </div>\n        \n          <div>\n            <span>Attack 2 FL</span>\n            <strong>106.1 psi</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>WARNINGS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Warning</span>\n            <strong>Calculated PDP exceeds 300 psi. Confirm hose/apparatus limits and department operating guidelines before using this setup.</strong>\n          </div>\n        \n          <div>\n            <span>Warning</span>\n            <strong>Estimated Appliance 1 loss applied: 10 psi at flows ≥350 GPM.</strong>\n          </div>\n        \n          <div>\n            <span>Warning</span>\n            <strong>One attack line has a lower hydraulic demand than the PDP-driving line, resulting in increased nozzle pressure and flow on that line.</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "500' 3\" Supply\n200' 1.75\" Automatic Fog + 150' 2.5\" Automatic Fog\n2 Attack Lines",
+        "hydraulic": "780 GPM • PDP 409 PSI",
+        "referenceSections": [
+          {
+            "title": "Supply",
+            "rows": [
+              {
+                "label": "Supply",
+                "value": "500' 3\""
+              },
+              {
+                "label": "Appliance",
+                "value": "Gated Wye"
+              }
+            ]
+          },
+          {
+            "title": "Attack",
+            "rows": [
+              {
+                "label": "Attack 1",
+                "value": "200' 1.75\" Automatic Fog"
+              },
+              {
+                "label": "Attack 2",
+                "value": "150' 2.5\" Automatic Fog"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Attack 1 Flow",
+                "value": "185 GPM"
+              },
+              {
+                "label": "Attack 1 NP",
+                "value": "50 psi"
+              },
+              {
+                "label": "Attack 2 Flow",
+                "value": "595 GPM"
+              },
+              {
+                "label": "Attack 2 NP",
+                "value": "50 psi"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Split Lay"
+          ],
+          [
+            "Hose Size",
+            "1.88"
+          ],
+          [
+            "Nozzle Type",
+            "Smoothbore"
+          ],
+          [
+            "Nozzle Pressure",
+            "55 PSI"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ],
+          [
+            "Supply 1",
+            "500 ft 3"
+          ],
+          [
+            "Attack 1",
+            "200 ft 1.75"
+          ],
+          [
+            "Attack Lines",
+            "2"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Split Lay PDP",
+            "409 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "409 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "Split Lay"
+          ],
+          [
+            "Total FL",
+            "455 psi total"
+          ],
+          [
+            "FL / 100 ft",
+            "S 243 / L1 106 / L2 106"
+          ],
+          [
+            "Nozzle",
+            "L1 Automatic Fog 185 GPM @ 50 psi\nL2 Automatic Fog 595 GPM @ 50 psi"
+          ],
+          [
+            "Nozzle Reaction",
+            "66 lb / 212 lb"
+          ],
+          [
+            "Setup",
+            "500' 3\" Supply"
+          ],
+          [
+            "Supply Layout",
+            "Single Supply"
+          ],
+          [
+            "Supply Flow",
+            "780 GPM"
+          ],
+          [
+            "Supply Loss",
+            "243.2 psi"
+          ],
+          [
+            "Attack 1 Flow",
+            "185 GPM"
+          ],
+          [
+            "Attack 1 NP",
+            "50 psi"
+          ],
+          [
+            "Attack 1 FL",
+            "106.1 psi"
+          ],
+          [
+            "Attack 2 Flow",
+            "595 GPM"
+          ],
+          [
+            "Attack 2 NP",
+            "50 psi"
+          ],
+          [
+            "Attack 2 FL",
+            "106.1 psi"
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Fixture 6 standpipeOps</strong>\n        <p class=\"pump-chart-config-summary\">2 Outlets\nL1: Floor 5 • 200&#039; 1.75&quot; Automatic Fog 185 GPM\nL2: Floor 3 • 150&#039; 2.5&quot; Automatic Fog 250 GPM\nFDC: 100&#039; 3&quot; Supply\nStandpipe Loss 25 PSI</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"standpipeOps\">STANDPIPE OPS</span>\n        <div class=\"pump-chart-row-result\">807 GPM • PDP 253 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-6')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-6', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'setup-6', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'setup-6'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'setup-6'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'setup-6')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Fixture 6 standpipeOps</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Standpipe Ops</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">807 GPM • PDP 253 PSI</strong>\n        <p class=\"pump-chart-reference-config\">2 Outlets\nL1: Floor 5 • 200' 1.75\" Automatic Fog 185 GPM\nL2: Floor 3 • 150' 2.5\" Automatic Fog 250 GPM\nFDC: 100' 3\" Supply\nStandpipe Loss 25 PSI</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Attack</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Attack 1</span>\n          <strong>Floor 5 • 200' 1.75\" Automatic Fog 185 GPM</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Attack 2</span>\n          <strong>Floor 3 • 150' 2.5\" Automatic Fog 250 GPM</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Supply</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>FDC</span>\n          <strong>100' 3\" Supply</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Standpipe Loss</span>\n          <strong>25 PSI</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Total Flow</span>\n          <strong>807 GPM</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Required PDP</span>\n          <strong>253 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Driving Line</span>\n          <strong>Attack Line 1</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Supply Loss</span>\n          <strong>52.1 psi</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Standpipe Ops</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Standpipe Ops</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>1.88</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Smoothbore</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>55 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Attack 1</span>\n            <strong>Floor 5 • 200' 1.75\" Automatic Fog 185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Attack 2</span>\n            <strong>Floor 3 • 150' 2.5\" Automatic Fog 250 GPM</strong>\n          </div>\n        \n          <div>\n            <span>FDC</span>\n            <strong>100' 3\" Supply</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Loss</span>\n            <strong>25 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Standpipe Ops PDP</span>\n            <strong>253 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>253 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>807 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>52.1 psi supply</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>807 GPM supply</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>Standpipe loss 25 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>66 lb</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>Attack Line 1 drives PDP</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Total Flow</span>\n            <strong>807 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Supply Loss</span>\n            <strong>52.1 psi</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Loss</span>\n            <strong>25 psi</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Driving Line</span>\n            <strong>Attack Line 1</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Attack 1 Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Attack 1 NP</span>\n            <strong>50 psi</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Attack 1 FL</span>\n            <strong>106.1 psi</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Attack 2 Flow</span>\n            <strong>622 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Attack 2 NP</span>\n            <strong>50 psi</strong>\n          </div>\n        \n          <div>\n            <span>Standpipe Attack 2 FL</span>\n            <strong>116.1 psi</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "2 Outlets\nL1: Floor 5 • 200' 1.75\" Automatic Fog 185 GPM\nL2: Floor 3 • 150' 2.5\" Automatic Fog 250 GPM\nFDC: 100' 3\" Supply\nStandpipe Loss 25 PSI",
+        "hydraulic": "807 GPM • PDP 253 PSI",
+        "referenceSections": [
+          {
+            "title": "Attack",
+            "rows": [
+              {
+                "label": "Attack 1",
+                "value": "Floor 5 • 200' 1.75\" Automatic Fog 185 GPM"
+              },
+              {
+                "label": "Attack 2",
+                "value": "Floor 3 • 150' 2.5\" Automatic Fog 250 GPM"
+              }
+            ]
+          },
+          {
+            "title": "Supply",
+            "rows": [
+              {
+                "label": "FDC",
+                "value": "100' 3\" Supply"
+              },
+              {
+                "label": "Standpipe Loss",
+                "value": "25 PSI"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Total Flow",
+                "value": "807 GPM"
+              },
+              {
+                "label": "Required PDP",
+                "value": "253 PSI"
+              },
+              {
+                "label": "Driving Line",
+                "value": "Attack Line 1"
+              },
+              {
+                "label": "Supply Loss",
+                "value": "52.1 psi"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Standpipe Ops"
+          ],
+          [
+            "Hose Size",
+            "1.88"
+          ],
+          [
+            "Nozzle Type",
+            "Smoothbore"
+          ],
+          [
+            "Nozzle Pressure",
+            "55 PSI"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ],
+          [
+            "Attack 1",
+            "Floor 5 • 200' 1.75\" Automatic Fog 185 GPM"
+          ],
+          [
+            "Attack 2",
+            "Floor 3 • 150' 2.5\" Automatic Fog 250 GPM"
+          ],
+          [
+            "FDC",
+            "100' 3\" Supply"
+          ],
+          [
+            "Standpipe Loss",
+            "25 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Standpipe Ops PDP",
+            "253 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "253 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "807 GPM"
+          ],
+          [
+            "Total FL",
+            "52.1 psi supply"
+          ],
+          [
+            "FL / 100 ft",
+            "807 GPM supply"
+          ],
+          [
+            "Nozzle",
+            "Standpipe loss 25 psi"
+          ],
+          [
+            "Nozzle Reaction",
+            "66 lb"
+          ],
+          [
+            "Setup",
+            "Attack Line 1 drives PDP"
+          ],
+          [
+            "Standpipe Total Flow",
+            "807 GPM"
+          ],
+          [
+            "Standpipe Supply Loss",
+            "52.1 psi"
+          ],
+          [
+            "Standpipe Loss",
+            "25 psi"
+          ],
+          [
+            "Standpipe Driving Line",
+            "Attack Line 1"
+          ],
+          [
+            "Standpipe Attack 1 Flow",
+            "185 GPM"
+          ],
+          [
+            "Standpipe Attack 1 NP",
+            "50 psi"
+          ],
+          [
+            "Standpipe Attack 1 FL",
+            "106.1 psi"
+          ],
+          [
+            "Standpipe Attack 2 Flow",
+            "622 GPM"
+          ],
+          [
+            "Standpipe Attack 2 NP",
+            "50 psi"
+          ],
+          [
+            "Standpipe Attack 2 FL",
+            "116.1 psi"
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Fixed Fog</strong>\n        <p class=\"pump-chart-config-summary\">200&#039; 1.75&quot; Fixed Fog • 185 GPM @ 50 PSI</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"requiredPdp\">REQUIRED PDP</span>\n        <div class=\"pump-chart-row-result\">200 GPM • PDP 182 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'fixed-fog')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'fixed-fog', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'fixed-fog', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'fixed-fog'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'fixed-fog'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'fixed-fog')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Fixed Fog</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Required PDP</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">200 GPM • PDP 182 PSI</strong>\n        <p class=\"pump-chart-reference-config\">200' 1.75\" Fixed Fog • 185 GPM @ 50 PSI</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Line</span>\n          <strong>200' 1.75\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle</span>\n          <strong>Fixed Fog • 185 GPM @ 50 PSI</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>58.43681519357196 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Reaction</span>\n          <strong>77 lb</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      <section class=\"pump-chart-document-section\"><h3>NOTES</h3><p>Literal 100 PSI note</p></section>\n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Required PDP</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Required PDP</strong>\n          </div>\n        \n          <div>\n            <span>Hose Length</span>\n            <strong>200 ft</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>1.75</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Fixed Fog • 185 GPM @ 50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>58.43681519357196 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Target Flow</span>\n            <strong>200 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Required PDP</span>\n            <strong>182 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>182 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>200 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>124.0 psi</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>62.0 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>Fixed Fog • 185 GPM @ 50 PSI • NP 58 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>77 lb</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>200' of 1.75\"</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "200' 1.75\" Fixed Fog • 185 GPM @ 50 PSI",
+        "hydraulic": "200 GPM • PDP 182 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Line",
+                "value": "200' 1.75\""
+              },
+              {
+                "label": "Nozzle",
+                "value": "Fixed Fog • 185 GPM @ 50 PSI"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "58.43681519357196 PSI"
+              },
+              {
+                "label": "Nozzle Reaction",
+                "value": "77 lb"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Required PDP"
+          ],
+          [
+            "Hose Length",
+            "200 ft"
+          ],
+          [
+            "Hose Size",
+            "1.75"
+          ],
+          [
+            "Nozzle Type",
+            "Fixed Fog • 185 GPM @ 50 PSI"
+          ],
+          [
+            "Nozzle Pressure",
+            "58.43681519357196 PSI"
+          ],
+          [
+            "Target Flow",
+            "200 GPM"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Required PDP",
+            "182 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "182 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "200 GPM"
+          ],
+          [
+            "Total FL",
+            "124.0 psi"
+          ],
+          [
+            "FL / 100 ft",
+            "62.0 psi"
+          ],
+          [
+            "Nozzle",
+            "Fixed Fog • 185 GPM @ 50 PSI • NP 58 psi"
+          ],
+          [
+            "Nozzle Reaction",
+            "77 lb"
+          ],
+          [
+            "Setup",
+            "200' of 1.75\""
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Legacy</strong>\n        <p class=\"pump-chart-config-summary\">200&#039; 1.75&quot; Automatic Fog • 185 GPM @ 50 PSI</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"requiredPdp\">REQUIRED PDP</span>\n        <div class=\"pump-chart-row-result\">185 GPM • PDP 156 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'legacy')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'legacy', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'legacy', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'legacy'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'legacy'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'legacy')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Legacy</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Required PDP</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">185 GPM • PDP 156 PSI</strong>\n        <p class=\"pump-chart-reference-config\">200' 1.75\" Automatic Fog • 185 GPM @ 50 PSI</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Line</span>\n          <strong>200' 1.75\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle</span>\n          <strong>Automatic Fog • 185 GPM @ 50 PSI</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>50 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Reaction</span>\n          <strong>66 lb</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Required PDP</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Required PDP</strong>\n          </div>\n        \n          <div>\n            <span>Hose Length</span>\n            <strong>200 ft</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>1.75</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Automatic Fog • 185 GPM @ 50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Target Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Required PDP</span>\n            <strong>156 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>156 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>106.1 psi</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>53.0 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>Historical 1⅛ in at 50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>66 lb</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>200' of 1.75\"</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>WARNINGS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Warning</span>\n            <strong>Saved 500 GPM / 250 PSI warning</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "200' 1.75\" Automatic Fog • 185 GPM @ 50 PSI",
+        "hydraulic": "185 GPM • PDP 156 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Line",
+                "value": "200' 1.75\""
+              },
+              {
+                "label": "Nozzle",
+                "value": "Automatic Fog • 185 GPM @ 50 PSI"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "50 PSI"
+              },
+              {
+                "label": "Nozzle Reaction",
+                "value": "66 lb"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Required PDP"
+          ],
+          [
+            "Hose Length",
+            "200 ft"
+          ],
+          [
+            "Hose Size",
+            "1.75"
+          ],
+          [
+            "Nozzle Type",
+            "Automatic Fog • 185 GPM @ 50 PSI"
+          ],
+          [
+            "Nozzle Pressure",
+            "50 PSI"
+          ],
+          [
+            "Target Flow",
+            "185 GPM"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Required PDP",
+            "156 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "156 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "185 GPM"
+          ],
+          [
+            "Total FL",
+            "106.1 psi"
+          ],
+          [
+            "FL / 100 ft",
+            "53.0 psi"
+          ],
+          [
+            "Nozzle",
+            "Historical 1⅛ in at 50 PSI"
+          ],
+          [
+            "Nozzle Reaction",
+            "66 lb"
+          ],
+          [
+            "Setup",
+            "200' of 1.75\""
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Unknown equipment</strong>\n        <p class=\"pump-chart-config-summary\">200&#039; Custom 45 mm&quot; Smoothbore • Unknown tip 7&quot;</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"requiredPdp\">REQUIRED PDP</span>\n        <div class=\"pump-chart-row-result\">185 GPM • PDP 156 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'unknown')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'unknown', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'unknown', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'unknown'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'unknown'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'unknown')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Unknown equipment</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Required PDP</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">185 GPM • PDP 156 PSI</strong>\n        <p class=\"pump-chart-reference-config\">200' Custom 45 mm\" Smoothbore • Unknown tip 7\"</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Line</span>\n          <strong>200' Custom 45 mm\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle</span>\n          <strong>Smoothbore • Unknown tip 7\"</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>50 PSI</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Reaction</span>\n          <strong>66 lb</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Required PDP</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Required PDP</strong>\n          </div>\n        \n          <div>\n            <span>Hose Length</span>\n            <strong>200 ft</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>Custom 45 mm</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Smoothbore • Unknown tip 7\"</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Target Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Required PDP</span>\n            <strong>156 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>156 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Total FL</span>\n            <strong>106.1 psi</strong>\n          </div>\n        \n          <div>\n            <span>FL / 100 ft</span>\n            <strong>53.0 psi</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle</span>\n            <strong>Historical 1⅛ in at 50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Reaction</span>\n            <strong>66 lb</strong>\n          </div>\n        \n          <div>\n            <span>Setup</span>\n            <strong>200' of 1.75\"</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>WARNINGS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Warning</span>\n            <strong>Saved 500 GPM / 250 PSI warning</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "200' Custom 45 mm\" Smoothbore • Unknown tip 7\"",
+        "hydraulic": "185 GPM • PDP 156 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Line",
+                "value": "200' Custom 45 mm\""
+              },
+              {
+                "label": "Nozzle",
+                "value": "Smoothbore • Unknown tip 7\""
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "50 PSI"
+              },
+              {
+                "label": "Nozzle Reaction",
+                "value": "66 lb"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Required PDP"
+          ],
+          [
+            "Hose Length",
+            "200 ft"
+          ],
+          [
+            "Hose Size",
+            "Custom 45 mm"
+          ],
+          [
+            "Nozzle Type",
+            "Smoothbore • Unknown tip 7\""
+          ],
+          [
+            "Nozzle Pressure",
+            "50 PSI"
+          ],
+          [
+            "Target Flow",
+            "185 GPM"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Required PDP",
+            "156 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "156 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "185 GPM"
+          ],
+          [
+            "Total FL",
+            "106.1 psi"
+          ],
+          [
+            "FL / 100 ft",
+            "53.0 psi"
+          ],
+          [
+            "Nozzle",
+            "Historical 1⅛ in at 50 PSI"
+          ],
+          [
+            "Nozzle Reaction",
+            "66 lb"
+          ],
+          [
+            "Setup",
+            "200' of 1.75\""
+          ]
+        ]
+      }
+    },
+    {
+      "row": "\n    <div class=\"pump-chart-setup-row\">\n      <div class=\"pump-chart-setup-primary\">\n        <strong class=\"pump-chart-setup-name\">Imported</strong>\n        <p class=\"pump-chart-config-summary\">200&#039; 1.75&quot; Automatic Fog • 185 GPM @ 50 PSI</p>\n      </div>\n      <div class=\"pump-chart-setup-aside\">\n        <span class=\"pump-chart-mode-badge\" data-mode=\"requiredPdp\">REQUIRED PDP</span>\n        <div class=\"pump-chart-row-result\">185 GPM • PDP 156 PSI</div>\n      </div>\n      <div class=\"pump-chart-row-actions\">\n        <button class=\"small-button pump-chart-load-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'old-preset')\">Load</button>\n        <details class=\"pump-chart-overflow\">\n          <summary aria-label=\"Setup actions\" title=\"Setup actions\">⋮</summary>\n          <div class=\"pump-chart-overflow-menu\">\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'old-preset', 'up'); closePumpChartActionMenus();\" disabled>Move Up</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"movePumpChartSetup('chart', 'old-preset', 'down'); closePumpChartActionMenus();\" disabled>Move Down</button>\n            <button class=\"pump-chart-menu-action\" type=\"button\" onclick=\"renamePumpChartSetup('chart', 'old-preset'); closePumpChartActionMenus();\">Rename</button>\n            <button class=\"pump-chart-menu-action danger-button\" type=\"button\" onclick=\"deletePumpChartSetup('chart', 'old-preset'); closePumpChartActionMenus();\">Delete</button>\n          </div>\n        </details>\n      </div>\n    </div>\n  ",
+      "detail": "\n    <div class=\"pump-chart-toolbar\">\n      <button class=\"small-button\" type=\"button\" onclick=\"openPumpChartDetail('chart')\">Back</button>\n      <button class=\"small-button\" type=\"button\" onclick=\"loadPumpChartSetup('chart', 'old-preset')\">Load Into Calculator</button>\n    </div>\n    <article class=\"pump-chart-document\">\n      <header class=\"pump-chart-document-header\">\n        <p>SETUP REFERENCE CARD</p>\n        <h2>Imported</h2>\n        <strong>Baseline chart</strong>\n        <div class=\"pump-chart-document-meta\">\n          <span>Required PDP</span>\n        </div>\n      </header>\n\n      <section class=\"pump-chart-reference-card\">\n        <h3>Operational Summary</h3>\n        <strong class=\"pump-chart-reference-result\">185 GPM • PDP 156 PSI</strong>\n        <p class=\"pump-chart-reference-config\">200' 1.75\" Automatic Fog • 185 GPM @ 50 PSI</p>\n        \n    <div class=\"pump-chart-reference-section\">\n      <h3>Configuration</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Line</span>\n          <strong>200' 1.75\"</strong>\n        </div>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle</span>\n          <strong>Automatic Fog • 185 GPM @ 50 PSI</strong>\n        </div>\n      \n    </div>\n  \n    <div class=\"pump-chart-reference-section\">\n      <h3>Operational</h3>\n      \n        <div class=\"pump-chart-reference-row\">\n          <span>Nozzle Pressure</span>\n          <strong>50 PSI</strong>\n        </div>\n      \n    </div>\n  \n      </section>\n\n      \n      <details class=\"pump-chart-advanced-details\">\n        <summary data-collapsed-label=\"Show Full Calculation\" data-expanded-label=\"Hide Full Calculation\">Show Full Calculation</summary>\n        <div class=\"pump-chart-advanced-content\">\n          <div class=\"pump-chart-setup-detail-grid\">\n            <div>\n              <p>Mode</p>\n              <strong>Required PDP</strong>\n            </div>\n            <div>\n              <p>Created</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n            <div>\n              <p>Updated</p>\n              <strong>Sep 23, 2026</strong>\n            </div>\n          </div>\n          \n    <section class=\"pump-chart-document-section\">\n      <h3>KEY INPUTS</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Mode</span>\n            <strong>Required PDP</strong>\n          </div>\n        \n          <div>\n            <span>Hose Length</span>\n            <strong>200 ft</strong>\n          </div>\n        \n          <div>\n            <span>Hose Size</span>\n            <strong>1.75</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Type</span>\n            <strong>Automatic Fog • 185 GPM @ 50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Nozzle Pressure</span>\n            <strong>50 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Target Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n          <div>\n            <span>Appliance / Elevation Loss</span>\n            <strong>0 PSI</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n    <section class=\"pump-chart-document-section\">\n      <h3>CALCULATION BREAKDOWN</h3>\n      <div class=\"pump-chart-detail-table\">\n        \n          <div>\n            <span>Required PDP</span>\n            <strong>156 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated PDP</span>\n            <strong>156 PSI</strong>\n          </div>\n        \n          <div>\n            <span>Calculated Flow</span>\n            <strong>185 GPM</strong>\n          </div>\n        \n      </div>\n    </section>\n  \n          \n        </div>\n      </details>\n    </article>\n  ",
+      "projection": {
+        "configuration": "200' 1.75\" Automatic Fog • 185 GPM @ 50 PSI",
+        "hydraulic": "185 GPM • PDP 156 PSI",
+        "referenceSections": [
+          {
+            "title": "Configuration",
+            "rows": [
+              {
+                "label": "Line",
+                "value": "200' 1.75\""
+              },
+              {
+                "label": "Nozzle",
+                "value": "Automatic Fog • 185 GPM @ 50 PSI"
+              }
+            ]
+          },
+          {
+            "title": "Operational",
+            "rows": [
+              {
+                "label": "Nozzle Pressure",
+                "value": "50 PSI"
+              }
+            ]
+          }
+        ],
+        "inputRows": [
+          [
+            "Mode",
+            "Required PDP"
+          ],
+          [
+            "Hose Length",
+            "200 ft"
+          ],
+          [
+            "Hose Size",
+            "1.75"
+          ],
+          [
+            "Nozzle Type",
+            "Automatic Fog • 185 GPM @ 50 PSI"
+          ],
+          [
+            "Nozzle Pressure",
+            "50 PSI"
+          ],
+          [
+            "Target Flow",
+            "185 GPM"
+          ],
+          [
+            "Appliance / Elevation Loss",
+            "0 PSI"
+          ]
+        ],
+        "breakdownRows": [
+          [
+            "Required PDP",
+            "156 PSI"
+          ],
+          [
+            "Calculated PDP",
+            "156 PSI"
+          ],
+          [
+            "Calculated Flow",
+            "185 GPM"
+          ]
+        ]
+      }
+    }
+  ]
+}

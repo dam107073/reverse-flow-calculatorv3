@@ -188,19 +188,44 @@
           </div>
         </details>
 
-        <details class="settings-tool-card collapsible-settings-card muted-card">
+        <details class="settings-tool-card collapsible-settings-card" id="unitPreferences">
           <summary>
             <span>
               <strong>Units</strong>
               <span class="helper">
-                Future app unit preferences.
+                Choose your preferred unit system.
               </span>
             </span>
           </summary>
           <div class="collapsible-card-body">
-            <p class="helper">
-              Unit preferences will live here.
-            </p>
+            <p class="helper">All seven primary calculators and all nine interactive Tools use these unit preferences, including Friction Loss Chart PNGs. Pump Panel also uses these preferences; historical saved details remain labeled U.S. when needed. Saved Pump Chart screens also use these preferences where saved data supports conversion; historical details and warnings remain U.S. Pump Operator Packages use the preferences selected when generated; historical details and static U.S. references remain identified. Widgets continue to use U.S. Customary units.</p>
+            <div class="field">
+              <strong id="unitSystemLabel">Unit System</strong>
+              <div class="appearance-options" role="radiogroup" aria-labelledby="unitSystemLabel">
+                <label class="appearance-option"><input type="radio" name="unitSystem" value="us" data-unit-preference /><span>U.S. Customary</span></label>
+                <label class="appearance-option"><input type="radio" name="unitSystem" value="metric" data-unit-preference /><span>Metric</span></label>
+              </div>
+            </div>
+            <div id="metricUnitPreferences" hidden>
+              <div class="form-grid">
+              <div class="field full">
+                <strong id="metricPressureLabel">Pressure</strong>
+                <div class="appearance-options" role="radiogroup" aria-labelledby="metricPressureLabel">
+                  <label class="appearance-option"><input type="radio" name="metricPressureUnit" value="bar" data-unit-preference /><span>bar</span></label>
+                  <label class="appearance-option"><input type="radio" name="metricPressureUnit" value="kpa" data-unit-preference /><span>kPa</span></label>
+                </div>
+              </div>
+              <div class="field full">
+                <strong id="metricReactionLabel">Nozzle Reaction</strong>
+                <div class="appearance-options" role="radiogroup" aria-labelledby="metricReactionLabel">
+                  <label class="appearance-option"><input type="radio" name="metricReactionUnit" value="n" data-unit-preference /><span>N (newtons)</span></label>
+                  <label class="appearance-option"><input type="radio" name="metricReactionUnit" value="kgf" data-unit-preference /><span>kgf (kilogram-force)</span></label>
+                </div>
+              </div>
+              <div class="field full"><p class="helper">Flow: L/min · Length/elevation: m · Diameter: mm · Tank volume: L · Velocity: m/s</p></div>
+              </div>
+            </div>
+            <p class="helper" id="unitPreferenceStatus" role="status" aria-live="polite"></p>
           </div>
         </details>
       </div>
@@ -218,9 +243,15 @@
   <script src="js/services/supporter.js?v=ios-store-reconcile-1"></script>
   <script src="js/data/hydraulics.js?v=build-8"></script>
   <script src="js/hydraulics-core.js?v=1"></script>
-  <script src="js/pump-operator-package.js?v=25"></script>
   <script src="js/learning-feedback.js?v=3"></script>
-  <script src="js/app.js?v=pump-chart-hose-1"></script>
+  <script src="js/units.js?v=2"></script>
+  <script src="js/package-units.js?v=1"></script>
+  <script src="js/pump-operator-package.js?v=4c-1"></script>
+  <script src="js/required-pdp-units.js?v=5"></script>
+  <script src="js/tools-units.js?v=3"></script>
+  <script src="js/settings-session.js?v=2"></script>
+  <script src="js/app.js?v=package-units-4c-1"></script>
+  <script src="js/units-settings.js?v=2"></script>
   <script src="js/disclosures.js?v=1"></script>
   <script type="module" src="js/analytics.js"></script>
 </body>

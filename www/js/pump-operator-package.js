@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const api = factory();
+  const api = factory(typeof module === 'object' && module.exports ? require('./package-units') : root.ReverseFlowPackageUnits);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.ReverseFlowPumpOperatorPackage = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (M) {
   "use strict";
 
   const SETUP_NAME_MAX_LENGTH = 28;
@@ -285,6 +285,7 @@
     }];
 
     return {
+      ...(data.preference ? { preference: data.preference, metricReference: data.metricReference } : {}),
       chartName: cleanText(data.chartName),
       generatedAt: data.generatedAt || new Date().toISOString(),
       pages,
@@ -417,7 +418,35 @@
     return `<section class="rf-pop-section rf-pop-smoothbore rf-pop-tip-count-${tips.length}"><h2>Smoothbore References</h2><div>${table("Handline Smoothbore (50 PSI)", 50, handlineTips)}${table("Masterstream Smoothbore (80 PSI)", 80, masterStreamTips)}</div></section>`;
   }
 
+  function renderMetricWorksheet(p) {
+    const unit = M.pressureUnit(p);
+    // Appliance remains an identity/unspecified entry, as in the existing form.
+    const columns = ["L/min /<br>Tip mm", `NP (${unit})`, "Hose<br>(mm × m)", `FL (${unit})`, "Appliance", `Elevation<br>(${unit})`, `PDP (${unit})`];
+    return `<section class="rf-pop-section rf-pop-worksheet"><h2>Operator Worksheet</h2><table><thead><tr>${columns.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${Array.from({length:4},()=>`<tr>${columns.map(()=>"<td></td>").join("")}</tr>`).join("")}</tbody></table></section>`;
+  }
+  function renderMetricSetups(rows) {
+    const legacy = rows.some(r=>r.legacyFields?.length);
+    return `<section class="rf-pop-section rf-pop-setups"><h2>Saved Setups <span>Historical snapshots</span></h2><table><thead><tr>${SETUP_COLUMNS.map(([key,label])=>`<th>${key==='gpm'?'Flow':label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${SETUP_COLUMNS.map(([key])=>`<td class="rf-pop-cell-${key}">${escapeHtml(row[key]||EMPTY_VALUE).replace(/\n/g,'<br>')}${row.legacyFields?.includes(key)?'<sup class="rf-pop-us-mark">US</sup>':''}</td>`).join('')}</tr>`).join('')}</tbody></table>${legacy?'<p class="rf-pop-context">US: Saved details · U.S.</p>':''}</section>`;
+  }
+  function metricModules(title,modules,className) {
+    return renderModules(title,modules.map(m=>({...m,title:m.id==='hydrant-water'?m.title:`${m.title} · U.S. reference`})),className);
+  }
+  function renderMetricReferences(model) {
+    const p=model.preference,ref=model.metricReference,unit=M.pressureUnit(p);
+    return `<section class="rf-pop-section rf-pop-friction"><h2>Friction Loss Chart <span>${unit} / 30 m</span></h2><table class="rf-pop-hose-count-${ref.hoses.length}"><thead><tr><th>L/min</th>${ref.hoses.map(h=>`<th>${escapeHtml(h.label)}</th>`).join('')}</tr></thead><tbody>${ref.rows.map(r=>`<tr><th>${r.flow}</th>${r.lossesPsi.map(psi=>`<td>${M.referencePressure(psi,p)}</td>`).join('')}</tr>`).join('')}</tbody></table><p class="rf-pop-coefficients">${ref.hoses.map(h=>`${escapeHtml(h.label)}: C ${Number(h.coefficient)<1?Number(h.coefficient).toFixed(2):Number(h.coefficient).toFixed(1)}`).join(' &nbsp; ')} · C retains the U.S. convention.</p></section>`;
+  }
+  function renderMetricSmoothbore(model) {
+    if(!model.pages[1].tips.length)return '';
+    const p=model.preference;
+    return `<section class="rf-pop-section rf-pop-smoothbore rf-pop-tip-count-${model.pages[1].tips.length}"><h2>Smoothbore References</h2><div>${model.metricReference.smoothbore.map(t=>`<table><thead><tr><th colspan="2">${t.title} (≈ ${M.format(t.psi,'pressure',p)})</th></tr><tr><th>Tip mm</th><th>L/min</th></tr></thead><tbody>${t.rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td>${M.format(r.flowGpm,'flow',p).replace(' L/min','')}</td></tr>`).join('')}</tbody></table>`).join('')}</div><p class="rf-pop-context">Calculated at exactly 50 PSI / 80 PSI; pressure headings are converted equivalents.</p></section>`;
+  }
   function renderPageContent(model, page) {
+    if(model.preference?.unitSystem === 'metric') {
+      const legend=`<p class="rf-pop-context">Metric · Flow L/min · Pressure ${M.pressureUnit(model.preference)} · Hose mm × m${page.kind==='hydraulic'?' · Current equipment reference':''}</p>`;
+      return legend+(page.kind==='operational'
+        ? renderMetricWorksheet(model.preference)+renderMetricSetups(page.setupRows)+metricModules('Operational Reference',page.referenceModules,'rf-pop-support')
+        : renderMetricReferences(model)+renderMetricSmoothbore(model)+metricModules('Quick Reference',page.referenceModules,'rf-pop-page-two-reference'));
+    }
     if (page.kind === "operational") {
       return `${renderWorksheet()}${renderSetupTable(page.setupRows)}${renderModules("Operational Reference", page.referenceModules, "rf-pop-support")}`;
     }
@@ -428,7 +457,7 @@
   }
 
   function renderPageHtml(model, page, pageNumber) {
-    const pageClass = page.kind === "operational" && !page.referenceModules.length ? " rf-pop-page-operational-expanded" : "";
+    const pageClass = (page.kind === "operational" && !page.referenceModules.length ? " rf-pop-page-operational-expanded" : "") + (model.preference?.unitSystem === "metric" ? " rf-pop-metric" : "");
     return `<article class="rf-pop-page${pageClass}" data-package-page="${pageNumber}" data-page-kind="${escapeHtml(page.kind)}" aria-label="Pump Operator Package page ${pageNumber}">
       ${renderHeader(page)}<main>${renderPageContent(model, page)}</main>${renderFooter(model, pageNumber)}
     </article>`;
@@ -457,6 +486,16 @@
     .rf-pop-friction table{font-variant-numeric:tabular-nums}.rf-pop-friction th,.rf-pop-friction td{height:18px;padding:2px 8px;border-bottom:1px solid #dfe3e8;font-size:8px;text-align:right}.rf-pop-friction thead th{height:29px;background:#313a47;color:#fff;border-top:4px solid #d71920;border-bottom:0;font-size:8.5px;text-align:right;font-weight:900}.rf-pop-friction tbody tr:nth-child(even){background:#f3f5f7}.rf-pop-friction tbody th{font-weight:900;width:48px;color:#a3141a}.rf-pop-friction table[class*="rf-pop-hose-count-9"] th,.rf-pop-friction table[class*="rf-pop-hose-count-9"] td,.rf-pop-friction .rf-pop-hose-count-10 th,.rf-pop-friction .rf-pop-hose-count-10 td,.rf-pop-friction .rf-pop-hose-count-11 th,.rf-pop-friction .rf-pop-hose-count-11 td{font-size:7px;padding:2px 3px}.rf-pop-coefficients{margin:6px 0 0;padding-left:6px;border-left:3px solid #d71920;font-size:8px;line-height:1.35;color:#303a48;font-weight:700}
     .rf-pop-smoothbore>div{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rf-pop-smoothbore th,.rf-pop-smoothbore td{height:18px;padding:2px 7px;border-bottom:1px solid #dfe3e8;font-size:8.5px}.rf-pop-smoothbore thead tr:first-child th{height:26px;background:#313a47;color:#fff;border-top:4px solid #d71920;font-size:9.5px;font-weight:900}.rf-pop-smoothbore thead tr:nth-child(2) th{color:#525c6b;font-size:7.5px;text-transform:uppercase;letter-spacing:.04em}.rf-pop-smoothbore th:first-child,.rf-pop-smoothbore td:first-child{text-align:left}.rf-pop-smoothbore th:last-child,.rf-pop-smoothbore td:last-child{text-align:right}.rf-pop-smoothbore tbody tr:nth-child(even){background:#f3f5f7}
     .rf-pop-tip-count-11 th,.rf-pop-tip-count-11 td,.rf-pop-tip-count-12 th,.rf-pop-tip-count-12 td,.rf-pop-tip-count-13 th,.rf-pop-tip-count-13 td,.rf-pop-tip-count-14 th,.rf-pop-tip-count-14 td,.rf-pop-tip-count-15 th,.rf-pop-tip-count-15 td,.rf-pop-tip-count-16 th,.rf-pop-tip-count-16 td,.rf-pop-tip-count-17 th,.rf-pop-tip-count-17 td,.rf-pop-tip-count-18 th,.rf-pop-tip-count-18 td,.rf-pop-tip-count-19 th,.rf-pop-tip-count-19 td{height:17px;font-size:8px}
+    .rf-pop-metric .rf-pop-section{margin-bottom:9px}
+    .rf-pop-metric .rf-pop-friction td,.rf-pop-metric .rf-pop-friction tbody th{height:17px}
+    .rf-pop-metric .rf-pop-smoothbore td{height:16px;font-size:8px}
+    .rf-pop-metric .rf-pop-context{font-size:8px;line-height:1.2;margin:0 0 6px;color:#525c6b}
+    .rf-pop-metric .rf-pop-us-mark{font-size:6px;color:#525c6b;margin-left:2px}
+    .rf-pop-metric .rf-pop-setups td{font-size:8px;overflow-wrap:anywhere;padding:5px 3px}
+    .rf-pop-metric .rf-pop-setups td:nth-child(2),.rf-pop-metric .rf-pop-setups td:last-child{font-size:10px}
+    .rf-pop-metric .rf-pop-setups td:first-child{font-size:9px}
+    .rf-pop-metric .rf-pop-worksheet th{font-size:9px}
+    .rf-pop-metric .rf-pop-friction td{padding-left:2px;padding-right:2px}
     .rf-pop-footer{border-top:1px solid #aeb7c2;padding-top:7px;display:flex;justify-content:space-between;color:${PRINT_PALETTE.subtleText};font-size:7.5px}.rf-pop-footer span:last-child{color:#a3141a;font-weight:800}
   `;
 

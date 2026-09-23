@@ -1,0 +1,624 @@
+[
+  [
+    {
+      "id": "tankTimeResults",
+      "hidden": false,
+      "text": "Available Water Time\n3 min 20 sec\nTank Size\n500 gal\nFlow\n150 GPM"
+    }
+  ],
+  [
+    {
+      "id": "tankTimeResults",
+      "hidden": false,
+      "text": "Available Water Time\n6 min 0 sec\nTank Size\n3,000 gal\nFlow\n500 GPM"
+    }
+  ],
+  [
+    {
+      "id": "tankTimeResults",
+      "hidden": false,
+      "text": "Available Water Time\n3 min 55 sec\nTank Size\n725 gal\nFlow\n185 GPM"
+    }
+  ],
+  [
+    {
+      "id": "waterShuttleValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "waterShuttleResults",
+      "hidden": false,
+      "text": "Water Shuttle Estimate\nTarget Flow\n500 GPM\nTenders\n2\nSustained Shuttle Flow\n514 GPM\nSurplus\n14 GPM\nStatus\nMeets Target"
+    },
+    {
+      "id": "waterShuttleBreakdown",
+      "hidden": false,
+      "text": "Tender Breakdown\nTender 1\n3,000 gal / 10.0 min = 300 GPM\nTender 2\n3,000 gal / 14.0 min = 214 GPM"
+    }
+  ],
+  [
+    {
+      "id": "waterShuttleValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "waterShuttleResults",
+      "hidden": false,
+      "text": "Water Shuttle Estimate\nTarget Flow\n200 GPM\nTenders\n2\nSustained Shuttle Flow\n373 GPM\nSurplus\n173 GPM\nStatus\nMeets Target"
+    },
+    {
+      "id": "waterShuttleBreakdown",
+      "hidden": false,
+      "text": "Tender Breakdown\nTender 1\n1,800 gal / 11.3 min = 160 GPM\nTender 2\n3,250 gal / 15.3 min = 213 GPM"
+    }
+  ],
+  [
+    {
+      "id": "waterShuttleValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "waterShuttleResults",
+      "hidden": false,
+      "text": "Water Shuttle Estimate\nTarget Flow\n1,000 GPM\nTenders\n2\nSustained Shuttle Flow\n353 GPM\nDeficit\n647 GPM\nStatus\nBelow Target"
+    },
+    {
+      "id": "waterShuttleBreakdown",
+      "hidden": false,
+      "text": "Tender Breakdown\nTender 1\n1,800 gal / 12.0 min = 150 GPM\nTender 2\n3,250 gal / 16.0 min = 203 GPM"
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n1,000 GPM\nTarget Residual\n20 psi\nEstimated Remaining Supply\n454 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n1,000 GPM\nTarget Residual\n10 psi\nEstimated Remaining Supply\n580 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": false,
+      "text": "!\nAggressive Estimate\nResidual targets below 20 psi are not standard available fire-flow reference points. This estimate may be useful for fireground decision-making, but should not be treated as a rated available fire flow. Use department policy, water-system guidance, and pump operator judgment."
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n1,000 GPM\nTarget Residual\n0 psi\nEstimated Remaining Supply\n698 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": false,
+      "text": "!\nTheoretical Estimate\nA 0 psi residual target represents a theoretical projection to complete pressure depletion. This is not a standard available fire-flow rating and should only be used as an aggressive fireground estimate."
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n1,000 GPM\nTarget Residual\n20 psi\nEstimated Remaining Supply\n454 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": false,
+      "text": "!\nAggressive Estimate\nResidual targets below 20 psi are not standard available fire-flow reference points. This estimate may be useful for fireground decision-making, but should not be treated as a rated available fire flow. Use department policy, water-system guidance, and pump operator judgment."
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n1,000 GPM\nTarget Residual\n20 psi\nEstimated Remaining Supply\n454 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nCheck Target Residual\nTarget Residual must be greater than or equal to 0 psi."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n1,000 GPM\nTarget Residual\n0 psi\nEstimated Remaining Supply\n698 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": false,
+      "text": "!\nAggressive Estimate\nResidual targets below 20 psi are not standard available fire-flow reference points. This estimate may be useful for fireground decision-making, but should not be treated as a rated available fire flow. Use department policy, water-system guidance, and pump operator judgment."
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n1,000 GPM\nTarget Residual\n50 psi\nEstimated Remaining Supply\n0 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n1,000 GPM\nTarget Residual\n50 psi\nEstimated Remaining Supply\n0 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nNo Additional Supply\nThe selected target residual does not support additional flow based on the entered data."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nNo Additional Supply\nThe selected target residual does not support additional flow based on the entered data."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nCheck Target Residual\nStatic Pressure must be greater than Target Residual."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nCheck Target Residual\nStatic Pressure must be greater than Target Residual."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": false,
+      "text": "!\nSmall Pressure Drop\nThis estimate is less reliable when the static-to-residual pressure drop is about 5 psi or less."
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n750 GPM\nTarget Residual\n20 psi\nEstimated Remaining Supply\n2,120 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": false,
+      "text": "!\nSmall Pressure Drop\nThis estimate is less reliable when the static-to-residual pressure drop is about 5 psi or less."
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n750 GPM\nTarget Residual\n20 psi\nEstimated Remaining Supply\n2,120 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n750 GPM\nTarget Residual\n20 psi\nEstimated Remaining Supply\n2,119 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nCheck Pressure Drop\nStatic Pressure must be greater than Residual Pressure."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nCheck Pressure Drop\nStatic Pressure must be greater than Residual Pressure."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": false,
+      "text": "!\nSmall Pressure Drop\nThis estimate is less reliable when the static-to-residual pressure drop is about 5 psi or less."
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n750 GPM\nTarget Residual\n20 psi\nEstimated Remaining Supply\n284,524 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nCheck Static Pressure\nStatic Pressure must be greater than 0 psi."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nCheck Residual Pressure\nResidual Pressure must be greater than or equal to 0 psi."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": false,
+      "text": "!\nCheck Static Pressure\nStatic Pressure must be greater than 0 psi."
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": true,
+      "text": ""
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n100 GPM\nTarget Residual\n0 psi\nEstimated Remaining Supply\n0 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": false,
+      "text": "!\nTheoretical Estimate\nA 0 psi residual target represents a theoretical projection to complete pressure depletion. This is not a standard available fire-flow rating and should only be used as an aggressive fireground estimate."
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": false,
+      "text": "!\nSmall Pressure Drop\nThis estimate is less reliable when the static-to-residual pressure drop is about 5 psi or less."
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n100 GPM\nTarget Residual\n0 psi\nEstimated Remaining Supply\n0 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": false,
+      "text": "!\nTheoretical Estimate\nA 0 psi residual target represents a theoretical projection to complete pressure depletion. This is not a standard available fire-flow rating and should only be used as an aggressive fireground estimate."
+    }
+  ],
+  [
+    {
+      "id": "remainingSupplyValidation",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyCaution",
+      "hidden": true,
+      "text": ""
+    },
+    {
+      "id": "remainingSupplyResults",
+      "hidden": false,
+      "text": "Estimated Remaining Supply\nCurrent Flow\n100 GPM\nTarget Residual\n0 psi\nEstimated Remaining Supply\n0 GPM"
+    },
+    {
+      "id": "remainingSupplyTargetWarning",
+      "hidden": false,
+      "text": "!\nTheoretical Estimate\nA 0 psi residual target represents a theoretical projection to complete pressure depletion. This is not a standard available fire-flow rating and should only be used as an aggressive fireground estimate."
+    }
+  ]
+]

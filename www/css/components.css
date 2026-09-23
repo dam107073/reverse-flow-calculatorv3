@@ -598,6 +598,59 @@ body.attack-pumper-has-lines .attack-pumper-workspace {
   text-align: center;
 }
 
+.attack-pumper-legacy-note {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.pump-chart-legacy-note {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.attack-pumper-metric .attack-pumper-gate-to > strong {
+  font-size: clamp(32px, 10vw, 44px);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.attack-pumper-metric .attack-pumper-header {
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 6px;
+  padding-inline: 10px;
+}
+
+.attack-pumper-metric .attack-pumper-header h2 {
+  font-size: 20px;
+  white-space: normal;
+}
+
+.attack-pumper-metric .attack-pumper-header-metric strong {
+  font-size: 14px;
+}
+
+.attack-pumper-metric .attack-pumper-line-flow strong {
+  font-size: clamp(20px, 6vw, 24px);
+}
+
+.attack-pumper-metric .attack-pumper-line-friction strong {
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.attack-pumper-metric .attack-pumper-hose-summary {
+  overflow-wrap: anywhere;
+}
+
 html[data-resolved-theme="dark"] .attack-pumper-header {
   background: #0e131b;
   border-bottom-color: rgba(255, 255, 255, 0.09);

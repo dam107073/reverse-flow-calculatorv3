@@ -102,6 +102,8 @@ test("other-calculator setups add and replace while incomplete normalized record
   ].join("\n");
   let generatedId = 0;
   const context = {
+    window: { ReverseFlowPumpPanelUnits: require("../www/js/pump-panel-units") },
+    SMOOTHBORE_TIPS: [],
     getPumpOperatorHydraulicStructure: setup => setup.normalizedStructure,
     getPumpOperatorSetupRow: setup => setup.normalizedRow,
     getPumpOperatorNumericValue: value => String(value || "").match(/-?\d+(?:\.\d+)?/)?.[0] || "",
@@ -209,8 +211,8 @@ test("Pump Chart selection override is scoped to Pump Panel and preserves ordina
 test("line cards expose the required hierarchy without card action buttons", () => {
   const renderSource = functionSource("renderAttackPumperIncident");
 
-  assert.match(renderSource, />Gate To</);
-  assert.match(renderSource, />GPM</);
+  assert.match(renderSource, />Gate To/);
+  assert.match(renderSource, /metric \? "L\/min" : "GPM"/);
   assert.match(renderSource, />FL</);
   assert.match(renderSource, /attack-pumper-hose-summary/);
   assert.match(renderSource, /attack-pumper-line-flow/);

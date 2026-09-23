@@ -1,0 +1,77 @@
+{
+  "reverse-fog": {
+    "result": "ROUNDED FLOW\n\n250\nGPM\n\nCALCULATED\n\n250 GPM\n\nTOTAL FL\n\n100.0 psi\n\nFL / 100'\n\n50.0 psi\n\nNOZZLE\n\nAutomatic Fog • 50 psi\n\nREACTION\n\n89 lb\n\nSETUP\n\n200' of 1.88\"\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": ""
+  },
+  "reverse-custom-supply": {
+    "result": "ROUNDED FLOW\n\n495\nGPM\n\nCALCULATED\n\n496 GPM\n\nTOTAL FL\n\n150.0 psi\n\nFL BREAKDOWN\n\nA 51.6 / S 98.4\n\nNOZZLE\n\nAutomatic Fog • 50 psi\n\nREACTION\n\n177 lb\n\nSETUP\n\n100' of 2.5\" • Custom C 2.1\nSave to Pump Chart",
+    "warnings": "⚠️\nEstimated supply appliance loss applied: 10 psi at flows >350 GPM.",
+    "calculatedPressure": ""
+  },
+  "reverse-smoothbore": {
+    "result": "ROUNDED FLOW\n\n205\nGPM\n\nCALCULATED\n\n206 GPM\n\nTOTAL FL\n\n68.0 psi\n\nFL / 100'\n\n34.0 psi\n\nNOZZLE\n\n7/8\" SB @ 82 psi\n\nREACTION\n\n99 lb\n\nSETUP\n\n200' of 1.88\"\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": "82 psi"
+  },
+  "reverse-fixed": {
+    "result": "ROUNDED FLOW\n\n170\nGPM\n\nCALCULATED\n\n169 GPM\n\nTOTAL FL\n\n133.2 psi\n\nFL / 100'\n\n44.4 psi\n\nNOZZLE\n\nFixed Fog • 185 GPM @ 50 PSI • NP 42 psi\n\nREACTION\n\n55 lb\n\nSETUP\n\n300' of 1.75\"\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": ""
+  },
+  "reverse-blade": {
+    "result": "ROUNDED FLOW\n\n200\nGPM\n\nCALCULATED\n\n200 GPM\n\nTOTAL FL\n\n48.0 psi\n\nFL / 100'\n\n32.0 psi\n\nNOZZLE\n\nBlade 160 @ 77 psi\n\nREACTION\n\n93 lb (solid stream)\n\nSETUP\n\n150' of 1.88\"\n\nFlow and reaction shown for solid-stream operation.\n\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": "77 psi"
+  },
+  "reverse-hen": {
+    "result": "ROUNDED FLOW\n\n170\nGPM\n\nCALCULATED\n\n172 GPM\n\nTOTAL FL\n\n47.4 psi\n\nFL / 100'\n\n23.7 psi\n\nNOZZLE\n\nAutomatic Fog • 50 psi\n\nREACTION\n\n61 lb\n\nSETUP\n\n200' of 1.88\" • HEN Turbo\n\nTURBO LOSS\n\n28.6 psi @ 172 GPM\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": ""
+  },
+  "reverse-master": {
+    "result": "ROUNDED FLOW\n\n1090\nGPM\n\nCALCULATED\n\n1090 GPM\n\nTOTAL FL\n\n95.0 psi\n\nFL / 100'\n\n95.0 psi\n\nNOZZLE\n\nAutomatic Fog • 80 psi\n\nREACTION\n\n492 lb\n\nSETUP\n\n100' of 3\"\nSave to Pump Chart",
+    "warnings": "⚠️\nRounded flow is above the normal reference range for 3\" hose. Confirm with department-approved flow testing or local operating guidance.",
+    "calculatedPressure": ""
+  },
+  "apparatus-fog": {
+    "result": "REQUIRED PDP\n\n116\nPSI\n\nFLOW\n\n1000 GPM\n\nNOZZLE PRESSURE\n\n80 psi\n\nELEVATION LOSS\n\n10.8 psi\n\nAPPLIANCE LOSS\n\n25 psi\n\nREACTION\n\n452 lb\n\nNOZZLE\n\nAutomatic Fog • 80 psi\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": ""
+  },
+  "apparatus-smooth": {
+    "result": "REQUIRED PDP\n\n148\nPSI\n\nFLOW\n\n415 GPM\n\nNOZZLE PRESSURE\n\n80 psi\n\nELEVATION LOSS\n\n43.4 psi\n\nAPPLIANCE LOSS\n\n25 psi\n\nREACTION\n\n196 lb\n\nNOZZLE\n\n1 1/4\" SB @ 80 psi\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": ""
+  },
+  "apparatus-fixed": {
+    "result": "REQUIRED PDP\n\n117\nPSI\n\nFLOW\n\n1000 GPM\n\nNOZZLE PRESSURE\n\n80 psi\n\nELEVATION LOSS\n\n21.7 psi\n\nAPPLIANCE LOSS\n\n15 psi\n\nREACTION\n\n452 lb\n\nNOZZLE\n\nFixed Fog • 1000 GPM @ 80 PSI • NP 80 psi\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": ""
+  },
+  "relay-dual": {
+    "result": "RELAY PDP\n\n120\nPSI\n\nTARGET FLOW\n\n1000 GPM\n\nRELAY FL\n\n100.0 psi\n\nFL / 100'\n\n20.0 psi\n\nRESIDUAL\n\n30 psi residual\n\nRELAY DISTANCE\n\n500' Relay Distance\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": ""
+  },
+  "relay-threshold-270": {
+    "result": "RELAY PDP\n\n300\nPSI\n\nTARGET FLOW\n\n1000 GPM\n\nRELAY FL\n\n270.0 psi\n\nFL / 100'\n\n100.0 psi\n\nRESIDUAL\n\n30 psi residual\n\nRELAY DISTANCE\n\n270' Relay Distance\nSave to Pump Chart",
+    "warnings": "",
+    "calculatedPressure": ""
+  },
+  "relay-threshold-270.01": {
+    "result": "RELAY PDP\n\n300\nPSI\n\nTARGET FLOW\n\n1000 GPM\n\nRELAY FL\n\n270.0 psi\n\nFL / 100'\n\n100.0 psi\n\nRESIDUAL\n\n30 psi residual\n\nRELAY DISTANCE\n\n270.01' Relay Distance\nSave to Pump Chart",
+    "warnings": "⚠️\nCalculated relay PDP exceeds 300 psi. Confirm apparatus, hose, and department operating limits before using this setup.",
+    "calculatedPressure": ""
+  },
+  "relay-threshold-370": {
+    "result": "RELAY PDP\n\n400\nPSI\n\nTARGET FLOW\n\n1000 GPM\n\nRELAY FL\n\n370.0 psi\n\nFL / 100'\n\n100.0 psi\n\nRESIDUAL\n\n30 psi residual\n\nRELAY DISTANCE\n\n370' Relay Distance\nSave to Pump Chart",
+    "warnings": "⚠️\nCalculated relay PDP exceeds 300 psi. Confirm apparatus, hose, and department operating limits before using this setup.",
+    "calculatedPressure": ""
+  },
+  "relay-threshold-370.01": {
+    "result": "RELAY PDP\n\n400\nPSI\n\nTARGET FLOW\n\n1000 GPM\n\nRELAY FL\n\n370.0 psi\n\nFL / 100'\n\n100.0 psi\n\nRESIDUAL\n\n30 psi residual\n\nRELAY DISTANCE\n\n370.01' Relay Distance\nSave to Pump Chart",
+    "warnings": "⚠️\nCalculated relay PDP exceeds 400 psi. This is beyond normal apparatus operating limits. Reduce flow, shorten the lay, add relay pumpers, or increase hose diameter.",
+    "calculatedPressure": ""
+  }
+}

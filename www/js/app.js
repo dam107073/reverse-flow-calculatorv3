@@ -215,7 +215,23 @@
       return numberOrNull(section?.[`attack${lineNumber}RatedPressure`]);
     }
 
-    let state = getFreshLaunchState();
+    const settingsReturnSession = document.getElementById("calculatorView")
+      ? window.ReverseFlowSettingsSession.take(sessionStorage, VALID_CALCULATOR_MODES)
+      : null;
+    // Settings/Tools must not initialize or overwrite the calculator's saved data.
+    // Only an explicit same-tab Settings visit resumes state; normal launches stay fresh.
+    let state = settingsReturnSession?.state || (document.getElementById("calculatorView")
+      ? getFreshLaunchState()
+      : JSON.parse(JSON.stringify(DEFAULT_STATE)));
+    let requiredPdpResult = null;
+    let requiredPdpSnapshot = null;
+    let multiLineResult = null;
+    let multiLineSnapshot = null;
+    let wyeClosedLine = settingsReturnSession?.presentation?.wyeClosedLine || null;
+    let operationalResult = null;
+    let operationalSnapshot = null;
+    let operationalPreference = window.ReverseFlowUnits.createPreferenceStore(localStorage).get();
+    const operationalUiOriginals = new Map();
     let hoseLibraryRows = [];
     let modeCarouselInitialized = false;
     let modeCarouselSuppressAutoCenter = false;
@@ -2135,6 +2151,327 @@ logStoreEvent("initialize-start", {
       });
     }
 
+    function isUnitAwareMode() {
+      return ["requiredPdp", "reverse", "apparatusMounted", "relay", "splitLay", "standpipeOps", "wyeOps"].includes(state.mode);
+    }
+    function isMultiLineMode() {
+      return ["splitLay", "standpipeOps", "wyeOps"].includes(state.mode);
+    }
+    function isPhase2bMode() {
+      return ["reverse", "apparatusMounted", "relay"].includes(state.mode);
+    }
+    function isOperationalMetric() {
+      return isUnitAwareMode() && operationalPreference.unitSystem === "metric";
+    }
+
+    function restoreOperationalUnitUi() {
+      for (const [element, attributes] of operationalUiOriginals) {
+        for (const [key, value] of Object.entries(attributes)) {
+          if (key === "textContent") element.textContent = value;
+          else if (value === null) element.removeAttribute(key);
+          else element.setAttribute(key, value);
+        }
+      }
+      operationalUiOriginals.clear();
+    }
+
+    function setOperationalPresentation(element, key, value) {
+      if (!element) return;
+      if (!operationalUiOriginals.has(element)) operationalUiOriginals.set(element, {});
+      const original = operationalUiOriginals.get(element);
+      if (!(key in original)) original[key] = key === "textContent" ? element.textContent : element.getAttribute(key);
+      if (key === "textContent") element.textContent = value;
+      else element.setAttribute(key, value);
+    }
+
+    function syncMultiLineUnitUi() {
+      if (!isOperationalMetric() || !isMultiLineMode()) return;
+      const B = window.ReverseFlowOperationalUnits, U = window.ReverseFlowUnits;
+      const p = operationalPreference, set = setOperationalPresentation;
+      const root = document.getElementById(`${state.mode}Fields`);
+      for (const [id, spec] of Object.entries(B.fieldsForMode(state.mode))) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const unit = U.displayUnit(spec.quantity, p);
+        if (spec.selection) {
+          for (const option of el.options) if (option.value !== "custom") set(option, "textContent", B.format(option.value, spec.quantity, p));
+        } else {
+          set(el, "placeholder", unit);
+          set(el, "inputmode", spec.quantity === "diameter" || (spec.quantity === "pressure" && p.metricPressureUnit === "bar") ? "decimal" : "numeric");
+          if (id === "applianceLoss") { set(el, "type", "text"); set(el, "pattern", ".*"); }
+          if (document.activeElement !== el) {
+            el.value = B.number((spec.section ? state[spec.section] : state)[spec.key], spec.quantity, p);
+            el.setCustomValidity("");
+          }
+        }
+        const label = document.querySelector(`label[for="${id}"]`) || el.closest(".field")?.querySelector("label");
+        if (label) {
+          const original = operationalUiOriginals.get(label)?.textContent ?? label.textContent;
+          const rating = /RatedFlow|RatedPressure/.test(id);
+          set(label, "textContent", rating ? `${original.trim()} (L/min @ ${U.displayUnit("pressure", p)})` : `${original.trim()} (${unit})`);
+        }
+        if (spec.quantity === "length") set(el.parentElement.querySelector("button"), "textContent", "+15 m");
+      }
+      for (const select of root?.querySelectorAll("select") || []) {
+        if (/Hose$/.test(select.id)) for (const option of select.options) {
+          const hose = HOSE_OPTIONS.find(h => h.id === option.value);
+          if (hose) {
+            const original = operationalUiOriginals.get(option)?.textContent ?? option.textContent;
+            set(option, "textContent", original.replace(hose.label, U.factoryHoseLabel(hose, p)));
+          }
+        }
+        if (/SmoothboreTip$|Tip$/.test(select.id)) for (const option of select.options) {
+          const tip = SMOOTHBORE_TIPS.find(t => t.id === option.value);
+          if (tip) set(option, "textContent", U.physicalDiameterLabel(tip.diameter, p));
+        }
+      }
+      if (isSplitLayMode()) {
+        set(els.applianceLoss.closest(".field").querySelector(".helper"), "textContent", `Manual ${U.displayUnit("pressure", p)} value. Use negative values for elevation gain/downhill pumping.`);
+      }
+      // Only active operational helper text, never Formula / educational content.
+      for (const helper of root?.querySelectorAll(".helper") || []) {
+        const original = operationalUiOriginals.get(helper)?.textContent ?? helper.textContent;
+        if (/\bGPM\b|\bPSI\b|\bpsi\b|\bfeet\b/.test(original)) set(helper, "textContent", metricOperationalWarning(original));
+      }
+    }
+
+    function metricOperationalWarning(text) {
+      return window.ReverseFlowOperationalUnits.metricWarning(text, getSelectedHose(), operationalPreference);
+    }
+
+    function hasInvalidMultiLineInput() {
+      if (!isOperationalMetric()) return false;
+      return Object.entries(window.ReverseFlowOperationalUnits.fieldsForMode(state.mode)).some(([id, spec]) => {
+        const el = document.getElementById(id);
+        return !spec.selection && el && el.getClientRects().length > 0 && !el.validity.valid;
+      });
+    }
+
+    function calculateMultiLineMode(calculate) {
+      if (hasInvalidMultiLineInput()) renderWarnings(["Enter a valid value in the displayed units."]);
+      else calculate();
+      if (isOperationalMetric()) {
+        const values = multiLineResult ? multiLineResultStrings(multiLineResult, operationalPreference) : {
+          [isSplitLayMode() ? "splitPrimaryPdp" : "standpipePrimaryPdp"]: `— ${window.ReverseFlowUnits.displayUnit("pressure", operationalPreference)}`
+        };
+        for (const [id, text] of Object.entries(values)) if (els[id]) els[id].textContent = text;
+      }
+      syncOperationalUnitUi();
+    }
+
+    function canonicalWyeControls(controls) {
+      // Adapter for Wye's existing direct-control reader. Never parse rounded UI values.
+      const specs = window.ReverseFlowOperationalUnits.fieldsForMode("wyeOps");
+      const adapt = element => {
+        if (!element?.id) return element;
+        const spec = specs[element.id];
+        if (spec) return { value: state.wyeOps[spec.key] };
+        if (/Tip$/.test(element.id)) {
+          const tip = SMOOTHBORE_TIPS.find(t => t.id === element.value);
+          return { value: element.value, selectedOptions: tip ? [{ dataset: { diameter: String(tip.diameter) }, textContent: tip.label }] : [] };
+        }
+        return element;
+      };
+      const line = l => Object.fromEntries(Object.entries(l).map(([key, value]) => [key, adapt(value)]));
+      return { ...controls, supplyLength: adapt(controls.supplyLength), attack1: line(controls.attack1), attack2: line(controls.attack2) };
+    }
+
+    function multiLineReaction(line, split) {
+      if (!line) return null;
+      const flow = split ? line.actualFlow : line.flow;
+      const pressure = split ? line.actualNozzlePressure : line.nozzlePressure;
+      const solid = line.nozzleType === "smoothbore" || line.nozzleType === "blade";
+      const tip = solid ? (split ? getSplitHydraulicSmoothboreModel(line.lineNumber) : getStandpipeHydraulicSmoothboreModel(line.lineNumber)) : null;
+      return tip ? ReverseFlowHydraulics.smoothboreReaction(tip.diameter, pressure) : ReverseFlowHydraulics.fogReaction(flow, pressure);
+    }
+
+    function captureMultiLineResult(result) {
+      const split = isSplitLayMode();
+      const enrich = line => line ? { ...line, reactionLbf: multiLineReaction(line, split) } : null;
+      multiLineResult = split ? { mode: state.mode, ...result, actualAttack1: enrich(result.actualAttack1), actualAttack2: enrich(result.actualAttack2) }
+        : { mode: state.mode, ...result, line1: enrich(result.line1), line2: enrich(result.line2) };
+    }
+
+    function multiLineResultStrings(r, preference = window.ReverseFlowUnits.DEFAULTS) {
+      const metric = preference.unitSystem === "metric", B = window.ReverseFlowOperationalUnits;
+      const p = (value, digits = 0, unit = "psi") => metric ? B.format(value, "pressure", preference) : `${Number(value).toFixed(digits)} ${unit}`;
+      const f = value => metric ? B.format(value, "flow", preference) : `${Math.round(value)} GPM`;
+      const reaction = (line, split) => metric ? `${B.format(line.reactionLbf, "force", preference)}${line.nozzleType === "blade" ? " (solid stream)" : ""}` : split ? line.actualReaction : line.reaction;
+      if (r.mode === "splitLay") {
+        const values = {
+          splitPrimaryPdp: p(Math.round(r.totalPdp), 0, "PSI"),
+          splitSupplyLayoutResult: state.splitLay.dualSupply ? "Dual Matching Supply" : "Single Supply",
+          splitSupplyFlow: f(r.totalAttackFlow), splitSupplyLoss: p(r.supply1TotalFl, 1), splitApplianceLoss: p(r.appliance1Loss),
+          splitSupply2Flow: f(r.totalAttackFlow), splitSupply2Loss: p(r.supply2TotalFl, 1), splitAppliance2Loss: p(r.appliance2Loss)
+        };
+        for (const [i, line] of [[1, r.actualAttack1], [2, r.actualAttack2]]) {
+          values[`splitAttack${i}FlowResult`] = line ? f(line.actualFlow) : "—";
+          values[`splitAttack${i}NpResult`] = line ? p(line.actualNozzlePressure) : "—";
+          values[`splitAttack${i}FlResult`] = line ? p(line.actualTotalFl, 1) : "—";
+          values[`splitAttack${i}ReactionResult`] = line ? reaction(line, true) : "—";
+        }
+        return values;
+      }
+      const values = {
+        standpipePrimaryPdp: p(Math.round(r.requiredPdp), 0, "PSI"), standpipeTotalFlow: f(r.totalFlow),
+        standpipeSupplyLoss: state.standpipeOps.dualSupply ? `${p(r.supplyTotalFl, 1)} per line @ ${f(r.supplyFlowPerLine)}` : p(r.supplyTotalFl, 1),
+        standpipeLossResult: p(r.standpipeLoss), standpipeDrivingLine: `Attack Line ${r.drivingLine.lineNumber}`
+      };
+      for (const [i, line] of [[1, r.line1], [2, r.line2]]) {
+        values[`standpipeAttack${i}FlowResult`] = line ? f(line.flow) : "—";
+        values[`standpipeAttack${i}NpResult`] = line ? p(line.nozzlePressure) : "—";
+        values[`standpipeAttack${i}FlResult`] = line ? p(line.totalFl, 1) : "—";
+        values[`standpipeAttack${i}ElevationResult`] = line ? p(line.elevationLoss) : "—";
+        values[`standpipeAttack${i}ReactionResult`] = line ? reaction(line, false) : "—";
+      }
+      return values;
+    }
+
+    function syncOperationalUnitUi() {
+      if (!isOperationalMetric()) return;
+      if (isMultiLineMode()) { syncMultiLineUnitUi(); return; }
+      const U = window.ReverseFlowUnits;
+      const B = window.ReverseFlowOperationalUnits;
+      const p = operationalPreference;
+      const pressure = U.displayUnit("pressure", p);
+      const set = setOperationalPresentation;
+      for (const [id, spec] of Object.entries(B.fieldsForMode(state.mode))) {
+        const element = els[id];
+        set(element, "placeholder", U.displayUnit(spec.quantity, p));
+        set(element, "inputmode", spec.quantity === "pressure" && p.metricPressureUnit === "bar" ? "decimal" : "numeric");
+        if (id === "applianceLoss") { set(element, "type", "text"); set(element, "pattern", ".*"); }
+        if (document.activeElement !== element) {
+          element.value = B.number(state[spec.key], spec.quantity, p);
+          element.setCustomValidity("");
+        }
+      }
+      set(els.fixedFogRatingField?.querySelector("label"), "textContent", `Nozzle Rating (L/min @ ${pressure})`);
+      set(els.pdpLabel, "textContent", isReverseMode() ? `Pump Discharge Pressure (${pressure})` : "Target Flow (L/min)");
+      set(document.querySelector('label[for="hoseLength"]'), "textContent", isRelayMode() ? "Relay Distance (m)" : "Hose Length (m)");
+      set(document.querySelector('label[for="applianceLoss"]'), "textContent", `Appliance / Elevation Loss (${pressure})`);
+      set(document.querySelector('label[for="masterStreamLoss"]'), "textContent", `Master Stream Device Loss (${pressure})`);
+      set(document.querySelector('label[for="customNozzlePressure"]'), "textContent", `Custom Nozzle Pressure (${pressure})`);
+      set(els.nozzlePressureLabel, "textContent", `Nozzle Pressure (${pressure})`);
+      set(els.primaryResultUnit, "textContent", isReverseMode() ? "L/min" : pressure);
+      // Preserve the existing reference length exactly, not a new per-100-m formula.
+      if (!isApparatusMountedMode()) set(els.flPer100Label, "textContent", isReverseMode() && state.reverseSupplyEnabled ? "FL Breakdown" : "FL / 30.48 m");
+      set(els.hoseLength.parentElement.querySelector("button"), "textContent", "+15 m");
+      set(els.masterStreamLoss.closest(".field").querySelector(".helper"), "textContent", `Default is ${B.format(25, "pressure", p)}. Change only if your device has been flow tested.`);
+      set(els.applianceLoss.closest(".field").querySelector(".helper"), "textContent", `Manual ${pressure} value. Use negative values for elevation gain/downhill pumping.`);
+      if (isRequiredPdpMode()) set(els.modeHelper, "textContent", usesSmoothboreHydraulics()
+        ? `Required PDP: ${isBlade() ? "Blade" : "Smoothbore"} target flow is calculated from selected model and nozzle pressure.`
+        : "Required PDP: Enter target L/min to calculate the needed pump pressure.");
+      if (isFixedFogType(getMainNozzleType())) set(els.nozzleTypeHelper, "textContent", isRequiredPdpMode()
+        ? `Fixed Fog uses the published L/min @ ${pressure} rating to calculate required nozzle pressure.`
+        : getNozzleTypeHelperText().replaceAll("GPM", "L/min").replaceAll("PSI", pressure));
+      for (const option of els.hoseSize.options) {
+        const hose = (isRelayMode() ? RELAY_HOSE_OPTIONS : HOSE_OPTIONS).find(h => h.id === option.value);
+        if (hose) set(option, "textContent", hoseOptionLabel(hose).replace(hose.label, U.factoryHoseLabel(hose, p)));
+      }
+      for (const option of els.smoothboreTip.options) {
+        const tip = SMOOTHBORE_TIPS.find(t => t.id === option.value);
+        if (tip) set(option, "textContent", U.physicalDiameterLabel(tip.diameter, p));
+      }
+      if (isReverseMode()) {
+        set(els.modeHelper, "textContent", `Reverse Flow: enter ${pressure} to estimate L/min.`);
+        set(els.reverseSupplyLength.closest(".field").querySelector("label"), "textContent", "Supply Length (m)");
+        set(els.reverseSupplyLength.parentElement.querySelector("button"), "textContent", "+15 m");
+        for (const option of els.reverseSupplyHose.options) {
+          const hose = HOSE_OPTIONS.find(h => h.id === option.value);
+          if (hose) set(option, "textContent", hoseOptionLabel(hose).replace(hose.label, U.factoryHoseLabel(hose, p)));
+        }
+        if (isReverseSmoothbore()) {
+          set(els.nozzlePressureLabel, "textContent", `Calculated Nozzle Pressure (${pressure})`);
+          set(els.calculatedNozzlePressureValue, "textContent", B.format(calculateAchievableSmoothborePressure(), "pressure", p));
+        }
+      }
+      if (isApparatusMountedMode()) {
+        set(document.querySelector('label[for="apparatusElevation"]'), "textContent", "Elevation Above Pump (m)");
+        set(document.querySelector('label[for="apparatusCustomFogFlow"]'), "textContent", "Custom Rated Flow (L/min)");
+        set(document.querySelector('label[for="apparatusFogFlow"]'), "textContent", "Rated Flow (L/min)");
+        for (const option of els.apparatusFogFlow.options) {
+          if (option.value !== "custom") set(option, "textContent", B.format(option.value, "flow", p));
+        }
+      }
+      if (isRelayMode()) {
+        set(document.querySelector('label[for="relayResidualPressure"]'), "textContent", `Receiving Engine Residual (${pressure})`);
+        for (const option of els.relayResidualPressure.options) set(option, "textContent", B.format(option.value, "pressure", p));
+      }
+      for (const button of els.pressureButtons.querySelectorAll("button[data-pressure]")) {
+        if (button.dataset.pressure !== "custom") button.textContent = B.format(Number(button.dataset.pressure), "pressure", p);
+      }
+    }
+
+    function handleOperationalMetricInput(id, element, eventType = "input") {
+      if (!isOperationalMetric()) return false;
+      const B = window.ReverseFlowOperationalUnits;
+      const spec = B.fieldsForMode(state.mode)[id];
+      if (!spec || spec.selection) return false;
+      const edit = B.parseEdit(element.value, id, operationalPreference, state.mode);
+      element.setCustomValidity(edit.valid ? "" : "Enter a valid value in the displayed units.");
+      // A blur change following an already-applied input must not rebuild action buttons.
+      if (eventType === "change" && edit.valid && (spec.section ? state[spec.section] : state)[spec.key] === edit.canonical) return true;
+      if (edit.valid) {
+        (spec.section ? state[spec.section] : state)[spec.key] = edit.canonical;
+        syncCalculatedSmoothboreTargetFlow();
+      }
+      if (isMultiLineMode()) {
+        wyeClosedLine = null;
+        saveState();
+        if (isSplitLayMode()) syncSplitLayUi();
+        if (isStandpipeOpsMode()) syncStandpipeUi();
+        if (isWyeOpsMode()) syncWyeOpsUi();
+        calculateAndRender();
+      } else updateCalculator();
+      // Preserve an in-progress explicit edit (including 7.0 / trailing decimal).
+      element.value = edit.text;
+      return true;
+    }
+
+    function refreshOperationalPreference() {
+      const next = window.ReverseFlowUnits.createPreferenceStore(localStorage).get();
+      if (JSON.stringify(next) === JSON.stringify(operationalPreference)) return;
+      operationalPreference = next;
+      refreshPumpChartScreenPresentation();
+      if (!els.calculatorView) return;
+      if (isAttackPumperMode()) {
+        renderAttackPumperIncident();
+        if (attackPumperSelection) renderAttackPumperSetupPicker();
+        return;
+      }
+      if (!isUnitAwareMode()) return;
+      document.activeElement?.blur();
+      syncInputsFromState();
+      renderPressureButtons();
+      calculateAndRender();
+    }
+
+    function bindSettingsReturnSession() {
+      if (!els.calculatorView) return;
+      document.querySelectorAll('a[href="settings.html"]').forEach(link => {
+        link.addEventListener("click", event => {
+          if (event.defaultPrevented || event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          try {
+            window.ReverseFlowSettingsSession.capture(sessionStorage, state, activePumpChartEdit, { wyeClosedLine });
+          } catch {
+            event.preventDefault();
+            alert("Unable to preserve this calculator setup for Settings. Please try again.");
+          }
+        });
+      });
+      // Browser Back may restore the live page instead of initializing it again.
+      window.addEventListener("pageshow", event => {
+        if (event.persisted) {
+          window.ReverseFlowSettingsSession.clear(sessionStorage);
+          refreshOperationalPreference();
+        }
+      });
+    }
+
+    window.addEventListener("storage", event => {
+      if (event.key === window.ReverseFlowUnits.STORAGE_KEY) refreshOperationalPreference();
+    });
+
     async function init() {
 
   if (els.versionFooter) {
@@ -2160,6 +2497,7 @@ logStoreEvent("initialize-start", {
 
   updateWebProBannerVisibility();
   bindAppearanceSettings();
+  bindSettingsReturnSession();
   updateAccessBadge();
   await loadHoseLibraryData();
 
@@ -2180,7 +2518,7 @@ logStoreEvent("initialize-start", {
   renderDefaultHoseCoefficients();
   renderVisibleHoseSizes();
   renderVisibleSmoothboreTips();
-  populateSmoothboreTips();
+  populateSmoothboreTips(Boolean(settingsReturnSession));
   renderPresetOptions();
   syncInputsFromState();
   setupModeCarousel();
@@ -2390,7 +2728,7 @@ let pumpChartView = {
   setupId: null
 };
 
-let activePumpChartEdit = null;
+let activePumpChartEdit = settingsReturnSession?.activePumpChartEdit || null;
 let activePumpOperatorPackage = null;
 let shouldScrollToTopAfterPumpChartSaveClose = false;
 let attackPumperSelection = null;
@@ -2540,7 +2878,7 @@ function getAttackPumperSnapshot(setup) {
     return null;
   }
 
-  return {
+  const snapshot = {
     id: generatePumpChartId("attack-line"),
     sourceSetupId: setup.id,
     sourceMode: setup.mode,
@@ -2552,6 +2890,9 @@ function getAttackPumperSnapshot(setup) {
     frictionLoss,
     hoseSummary
   };
+  const displayCanonical = window.ReverseFlowPumpPanelUnits.capture(setup, snapshot, structure, row, SMOOTHBORE_TIPS);
+  if (displayCanonical) snapshot.displayCanonical = displayCanonical;
+  return snapshot;
 }
 
 function isAttackPumperCompatibleSetup(setup) {
@@ -2594,20 +2935,25 @@ function renderAttackPumperIncident() {
   const incident = loadAttackPumperIncident();
   const hasLines = incident.lines.length > 0;
   const totals = getAttackPumperTotals(incident.lines);
+  const P = window.ReverseFlowPumpPanelUnits, preference = operationalPreference;
+  const metric = preference.unitSystem === "metric";
+  els.attackPumperWorkspace.classList.toggle("attack-pumper-metric", metric);
   document.body.classList.toggle("attack-pumper-has-lines", hasLines);
 
   animateAttackPumperMetric(
     els.attackPumperPressure,
-    `${formatAttackPumperNumber(totals.pumpPressure)} PSI`
+    P.format(totals.pumpPressure, "pressure", preference)
   );
   animateAttackPumperMetric(
     els.attackPumperTotalFlow,
-    `${formatAttackPumperNumber(totals.totalFlow)} GPM`
+    P.format(totals.totalFlow, "flow", preference)
   );
   els.attackPumperExplanation.hidden = hasLines;
   els.attackPumperEmptyAdd.hidden = hasLines;
   els.attackPumperIncidentActions.hidden = !hasLines;
-  els.attackPumperLines.innerHTML = incident.lines.map(line => `
+  els.attackPumperLines.innerHTML = incident.lines.map(line => {
+    const detail = P.details(line, preference);
+    return `
     <article
       class="attack-pumper-line${line.id === attackPumperPendingAnimationId ? " attack-pumper-line-enter" : ""}"
       data-attack-pumper-line-id="${escapeHtml(line.id)}"
@@ -2620,23 +2966,25 @@ function renderAttackPumperIncident() {
         <strong class="attack-pumper-line-name">${escapeHtml(line.name)}</strong>
         <div class="attack-pumper-line-metrics">
           <div class="attack-pumper-line-metric attack-pumper-line-flow">
-            <span>GPM</span>
-            <strong>${escapeHtml(formatAttackPumperNumber(line.gpm))}</strong>
+            <span>${metric ? "L/min" : "GPM"}</span>
+            <strong>${escapeHtml(P.number(line.gpm, "flow", preference))}</strong>
           </div>
           <div class="attack-pumper-gate-to">
-            <span>Gate To</span>
-            <strong>${escapeHtml(formatAttackPumperNumber(line.pdp))}</strong>
+            <span>Gate To${metric ? ` · ${window.ReverseFlowUnits.displayUnit("pressure", preference)}` : ""}</span>
+            <strong>${escapeHtml(P.number(line.pdp, "pressure", preference))}</strong>
           </div>
           <div class="attack-pumper-line-metric attack-pumper-line-friction">
             <span>FL</span>
-            <strong>${escapeHtml(line.frictionLoss)}</strong>
+            <strong>${escapeHtml(detail.frictionLoss)}</strong>
+            ${detail.legacyLoss && !detail.legacySummary ? '<small class="attack-pumper-legacy-note">Saved details · U.S.</small>' : ""}
           </div>
         </div>
-        <p class="attack-pumper-hose-summary">${escapeHtml(line.hoseSummary)}</p>
+        ${detail.legacySummary ? '<small class="attack-pumper-legacy-note">Saved details · U.S.</small>' : ""}
+        <p class="attack-pumper-hose-summary">${escapeHtml(detail.hoseSummary)}</p>
       </div>
       <div class="attack-pumper-swipe-delete" aria-hidden="true">Delete</div>
     </article>
-  `).join("");
+  `; }).join("");
 
   if (attackPumperPendingAnimationId) {
     window.setTimeout(() => {
@@ -2674,6 +3022,8 @@ function renderAttackPumperSetupPicker() {
       <h3>${escapeHtml(chart.name)}</h3>
       ${setups.map(setup => {
         const snapshot = getAttackPumperSnapshot(setup);
+        const P = window.ReverseFlowPumpPanelUnits;
+        const detail = P.details(snapshot, operationalPreference);
         return `
           <button
             class="attack-pumper-setup-choice"
@@ -2682,10 +3032,11 @@ function renderAttackPumperSetupPicker() {
           >
             <span>
               <strong>${escapeHtml(snapshot.name)}</strong>
-              <small>${escapeHtml(snapshot.hoseSummary)}</small>
+              <small>${escapeHtml(detail.hoseSummary)}</small>
+              ${detail.legacySummary ? '<small class="attack-pumper-legacy-note">Saved details · U.S.</small>' : ""}
             </span>
             <span class="attack-pumper-setup-choice-result">
-              ${escapeHtml(formatAttackPumperNumber(snapshot.gpm))} GPM • Gate To ${escapeHtml(formatAttackPumperNumber(snapshot.pdp))} PSI
+              ${escapeHtml(P.format(snapshot.gpm, "flow", operationalPreference))} • Gate To ${escapeHtml(P.format(snapshot.pdp, "pressure", operationalPreference))}
             </span>
           </button>
         `;
@@ -4816,7 +5167,7 @@ function applyHoseLibraryDefault(libraryId) {
   alert(`${libraryHose.manufacturer} ${libraryHose.model} is now your default ${appHose.label} hose reference. Calculation coefficient unchanged: ${getActiveHoseCoefficient(libraryHose.appHoseId)}`);
 }
 
-    function populateSmoothboreTips() {
+    function populateSmoothboreTips(preserveSelection = false) {
   const compatibleTips = isMasterStream() || isApparatusMountedMode()
     ? SMOOTHBORE_TIPS.filter(tip =>
         tip.diameter >= 1.25 &&
@@ -4835,7 +5186,7 @@ function applyHoseLibraryDefault(libraryId) {
     `<option value="${escapeHtml(tip.id)}">${escapeHtml(tip.label)}</option>`
   )).join("");
 
-  if (!tips.some(tip => tip.id === state.smoothboreTip)) {
+  if (!preserveSelection && !tips.some(tip => tip.id === state.smoothboreTip)) {
     state.smoothboreTip = tips[0]?.id || "";
     els.smoothboreTip.value = state.smoothboreTip;
   }
@@ -4935,6 +5286,48 @@ function setPumpChartSubtitle(text) {
   }
 }
 
+// A browsing snapshot only, never a persistence or calculator input model.
+let pumpChartScreenCache = null;
+function getPumpChartLegacyPresentation(setup) {
+  return {
+    configuration: getSetupConfigurationSummary(setup),
+    hydraulic: getSetupHydraulicSummary(setup),
+    referenceSections: getSetupReferenceSections(setup),
+    inputRows: getSetupInputRows(setup),
+    breakdownRows: getSetupBreakdownRows(setup)
+  };
+}
+
+function capturePumpChartScreen(chart) {
+  pumpChartScreenCache = { chart, projections: new Map(chart.setups.map(setup => [setup, getPumpChartLegacyPresentation(setup)])) };
+}
+
+function getPumpChartScreenPresentation(setup) {
+  if (operationalPreference.unitSystem !== "metric") return null;
+  return window.ReverseFlowPumpChartUnits.present(setup, operationalPreference,
+    pumpChartScreenCache?.projections.get(setup) || getPumpChartLegacyPresentation(setup),
+    { tips: SMOOTHBORE_TIPS, blades: BLADE_MODELS });
+}
+
+function renderPumpChartScreenValue(value) {
+  if (!value || typeof value !== "object") return escapeHtml(value || "");
+  return escapeHtml(value.text) + (value.legacy ? '<small class="pump-chart-legacy-note">Saved details · U.S.</small>' : "");
+}
+
+function refreshPumpChartScreenPresentation() {
+  if (!pumpChartScreenCache || els.pumpChartModal?.hidden || attackPumperSelection) return;
+  const { screen, chartId, setupId } = pumpChartView;
+  if (chartId !== pumpChartScreenCache.chart.id) return;
+  const options = { chart: pumpChartScreenCache.chart, persist: false };
+  const expanded = els.pumpChartList.querySelector(".pump-chart-advanced-details")?.open;
+  if (screen === "detail") renderPumpChartDetail(chartId, options);
+  else if (screen === "setup") renderPumpChartSetupDetail(chartId, setupId, options);
+  if (expanded) {
+    const disclosure = els.pumpChartList.querySelector(".pump-chart-advanced-details");
+    if (disclosure) disclosure.open = true;
+  }
+}
+
 function renderPumpChartList() {
   const data = loadPumpCharts();
   pumpChartView = { screen: "list", chartId: null, setupId: null };
@@ -4974,12 +5367,13 @@ function renderPumpChartList() {
 }
 
 function renderPumpChartDetail(chartId, options = {}) {
-  const chart = findPumpChart(chartId);
+  const chart = options.chart || findPumpChart(chartId);
   if (!chart) {
     renderPumpChartList();
     return;
   }
 
+  if (!options.chart) capturePumpChartScreen(chart);
   if (options.persist !== false) {
     setLastViewedPumpChartId(chartId);
   }
@@ -5021,7 +5415,8 @@ function renderPumpChartDetail(chartId, options = {}) {
 }
 
 function renderPumpChartSetupRow(chartId, setup, options = {}) {
-  const configSummary = getSetupConfigurationSummary(setup);
+  const screen = getPumpChartScreenPresentation(setup);
+  const configSummary = screen?.configuration || getSetupConfigurationSummary(setup);
   const modeBadge = getSetupModeBadgeLabel(setup);
   const moveUpDisabled = options.canMoveUp ? "" : "disabled";
   const moveDownDisabled = options.canMoveDown ? "" : "disabled";
@@ -5032,11 +5427,11 @@ function renderPumpChartSetupRow(chartId, setup, options = {}) {
     <div class="pump-chart-setup-row">
       <div class="pump-chart-setup-primary">
         <strong class="pump-chart-setup-name">${escapeHtml(setup.name)}</strong>
-        <p class="pump-chart-config-summary">${escapeHtml(configSummary)}</p>
+        <p class="pump-chart-config-summary">${renderPumpChartScreenValue(configSummary)}</p>
       </div>
       <div class="pump-chart-setup-aside">
         <span class="pump-chart-mode-badge" data-mode="${escapeHtml(setup.mode || "")}">${escapeHtml(modeBadge)}</span>
-        <div class="pump-chart-row-result">${escapeHtml(getSetupHydraulicSummary(setup))}</div>
+        <div class="pump-chart-row-result">${renderPumpChartScreenValue(screen?.hydraulic || getSetupHydraulicSummary(setup))}</div>
       </div>
       <div class="pump-chart-row-actions">
         <button class="small-button pump-chart-load-button" type="button" onclick="loadPumpChartSetup('${escapedChartId}', '${escapedSetupId}')">Load</button>
@@ -5054,16 +5449,20 @@ function renderPumpChartSetupRow(chartId, setup, options = {}) {
   `;
 }
 
-function renderPumpChartSetupDetail(chartId, setupId) {
-  const { chart, setup } = findPumpChartSetup(chartId, setupId);
+function renderPumpChartSetupDetail(chartId, setupId, options = {}) {
+  const { chart, setup } = options.chart
+    ? { chart: options.chart, setup: options.chart.setups.find(item => item.id === setupId) }
+    : findPumpChartSetup(chartId, setupId);
   if (!chart || !setup) {
     renderPumpChartDetail(chartId);
     return;
   }
 
+  if (!options.chart) capturePumpChartScreen(chart);
+  const screen = getPumpChartScreenPresentation(setup);
   pumpChartView = { screen: "setup", chartId, setupId };
   setPumpChartSubtitle("Saved hydraulic reference snapshot.");
-  const referenceSections = getSetupReferenceSections(setup);
+  const referenceSections = screen?.referenceSections || getSetupReferenceSections(setup);
 
   els.pumpChartList.innerHTML = `
     <div class="pump-chart-toolbar">
@@ -5082,8 +5481,8 @@ function renderPumpChartSetupDetail(chartId, setupId) {
 
       <section class="pump-chart-reference-card">
         <h3>Operational Summary</h3>
-        <strong class="pump-chart-reference-result">${escapeHtml(getSetupHydraulicSummary(setup))}</strong>
-        <p class="pump-chart-reference-config">${escapeHtml(getSetupConfigurationSummary(setup))}</p>
+        <strong class="pump-chart-reference-result">${renderPumpChartScreenValue(screen?.hydraulic || getSetupHydraulicSummary(setup))}</strong>
+        <p class="pump-chart-reference-config">${renderPumpChartScreenValue(screen?.configuration || getSetupConfigurationSummary(setup))}</p>
         ${referenceSections.map(section => renderReferenceCardSection(section)).join("")}
       </section>
 
@@ -5105,9 +5504,9 @@ function renderPumpChartSetupDetail(chartId, setupId) {
               <strong>${escapeHtml(formatPumpChartDate(setup.updatedAt))}</strong>
             </div>
           </div>
-          ${renderSetupDetailSection("Key Inputs", getSetupInputRows(setup))}
-          ${renderSetupDetailSection("Calculation Breakdown", getSetupBreakdownRows(setup))}
-          ${setup.warnings?.length ? renderSetupDetailSection("Warnings", setup.warnings.map(warning => ["Warning", warning])) : ""}
+          ${renderSetupDetailSection("Key Inputs", screen?.inputRows || getSetupInputRows(setup))}
+          ${renderSetupDetailSection("Calculation Breakdown", screen?.breakdownRows || getSetupBreakdownRows(setup))}
+          ${setup.warnings?.length ? renderSetupDetailSection("Warnings", setup.warnings.map(warning => ["Warning", warning]), Boolean(screen)) : ""}
         </div>
       </details>
     </article>
@@ -5123,24 +5522,24 @@ function renderReferenceCardSection(section) {
       ${section.rows.map(row => `
         <div class="pump-chart-reference-row">
           <span>${escapeHtml(row.label)}</span>
-          <strong>${escapeHtml(row.value)}</strong>
+          <strong>${renderPumpChartScreenValue(row.value)}</strong>
         </div>
       `).join("")}
     </div>
   `;
 }
 
-function renderSetupDetailSection(title, rows) {
+function renderSetupDetailSection(title, rows, savedUs = false) {
   if (!rows.length) return "";
 
   return `
     <section class="pump-chart-document-section">
-      <h3>${escapeHtml(title.toUpperCase())}</h3>
+      <h3>${escapeHtml(title.toUpperCase())}</h3>${savedUs ? '<small class="pump-chart-legacy-note">Saved details · U.S.</small>' : ""}
       <div class="pump-chart-detail-table">
         ${rows.map(([label, value]) => `
           <div>
             <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(value || "-")}</strong>
+            <strong>${renderPumpChartScreenValue(value || "-")}</strong>
           </div>
         `).join("")}
       </div>
@@ -5452,6 +5851,21 @@ function buildCurrentPumpChartSetup({ name, notes, accentColorID, timestamp, id,
 }
 
 function captureCurrentResultSnapshot(presetData) {
+  if (isSplitLayMode() || isStandpipeOpsMode()) {
+    if (!multiLineSnapshot) return {};
+    const { warnings, ...snapshot } = multiLineSnapshot;
+    return { ...snapshot, summary: buildLegacyPresetSummary(presetData) };
+  }
+  if (isPhase2bMode()) {
+    if (!operationalSnapshot) return {};
+    const { warnings, ...snapshot } = operationalSnapshot;
+    return { ...snapshot, summary: buildLegacyPresetSummary(presetData) };
+  }
+  if (isRequiredPdpMode()) {
+    if (!requiredPdpSnapshot) return {};
+    const { warnings, ...snapshot } = requiredPdpSnapshot;
+    return { ...snapshot, summary: buildLegacyPresetSummary(presetData) };
+  }
   return {
     primaryResult: getCurrentPrimaryResult(),
     primaryResultLabel: els.primaryResultLabel?.textContent || "Primary Result",
@@ -5543,6 +5957,9 @@ function getCurrentPdpSummary(presetData = {}) {
 }
 
 function hasValidRenderedCalculation() {
+  if (isSplitLayMode() || isStandpipeOpsMode()) return Boolean(multiLineResult);
+  if (isPhase2bMode()) return Boolean(operationalResult);
+  if (isRequiredPdpMode()) return Boolean(requiredPdpResult);
   const value = isSplitLayMode()
     ? els.splitPrimaryPdp?.textContent || ""
     : isStandpipeOpsMode()
@@ -5558,6 +5975,9 @@ function hasValidRenderedCalculation() {
 }
 
 function getCurrentWarnings() {
+  if (isSplitLayMode() || isStandpipeOpsMode()) return multiLineSnapshot?.warnings || [];
+  if (isPhase2bMode()) return operationalSnapshot?.warnings || [];
+  if (isRequiredPdpMode()) return requiredPdpSnapshot?.warnings || [];
   if (!els.warningsCard || els.warningsCard.hidden) return [];
 
   return [...els.warningsCard.querySelectorAll(".warning-item")]
@@ -6419,6 +6839,11 @@ function getSetupBreakdownRows(setup) {
 }
 
     function renderPressureButtons() {
+      try { renderCanonicalPressureButtons(); }
+      finally { syncOperationalUnitUi(); }
+    }
+
+    function renderCanonicalPressureButtons() {
   const hideCustomNozzlePressureField = () => {
     state.customNozzlePressure = "";
     els.customNozzlePressureField.hidden = true;
@@ -6556,6 +6981,9 @@ if (usingCustomPressure) {
     }
 
     function renderWarnings(warnings) {
+      if (multiLineSnapshot) multiLineSnapshot.warnings = [...warnings];
+      if (isOperationalMetric()) warnings = warnings.map(w =>
+        window.ReverseFlowOperationalUnits.metricWarning(w, getSelectedHose(), operationalPreference));
       if (!warnings.length) {
         els.warningsCard.hidden = true;
         els.warningsCard.innerHTML = "";
@@ -6644,6 +7072,8 @@ if (usingCustomPressure) {
   syncStandpipeInputsFromState();
   syncCoefficientUi();
   syncSmoothboreUi();
+  // Restore nested controls before their visibility/pressure eligibility is evaluated.
+  if (isSplitLayMode()) syncSplitLayInputsFromState();
   syncModeUi();
 }
 
@@ -7014,6 +7444,7 @@ function getNozzleTypeHelperText() {
 }
 
     function syncModeUi() {
+      restoreOperationalUnitUi();
       const smoothboreRequiredPdp = isRequiredPdpMode() && usesSmoothboreHydraulics();
 
       els.attackPumperModeButton?.classList.toggle("active", isAttackPumperMode());
@@ -7339,6 +7770,7 @@ syncHenTurboUi();
 if (!modeCarouselSuppressAutoCenter) {
   setTimeout(centerActiveModeCard, 0);
 }
+syncOperationalUnitUi();
 
 }
 
@@ -8326,6 +8758,12 @@ function openProModal() {
 });
   });
       els.invertApplianceLossButton?.addEventListener("click", () => {
+  if (isOperationalMetric()) {
+    state.applianceLoss = String(-(Number(state.applianceLoss) || 0));
+    els.applianceLoss.setCustomValidity("");
+    updateCalculator();
+    return;
+  }
 
   const current =
     parseFloat(els.applianceLoss.value) || 0;
@@ -8821,6 +9259,7 @@ els.henTurboToggle?.addEventListener("click", () => {
 });
 
 els.masterStreamLoss.addEventListener("input", e => {
+  if (handleOperationalMetricInput("masterStreamLoss", e.target)) return;
   state.masterStreamLoss = e.target.value || "25";
   updateCalculator();
 });
@@ -8925,6 +9364,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   if (!element) return;
 
   element.addEventListener("input", e => {
+    if (handleOperationalMetricInput(elementId, e.target, e.type)) return;
     state.splitLay[stateKey] = e.target.tagName === "INPUT"
       ? wholeNumber(e.target.value)
       : e.target.value;
@@ -8941,6 +9381,7 @@ document.querySelectorAll("#splitAttackLineButtons button").forEach(button => {
   });
 
   element.addEventListener("change", e => {
+    if (handleOperationalMetricInput(elementId, e.target, e.type)) return;
     state.splitLay[stateKey] = normalizeNozzleType(e.target.value);
 
     saveState();
@@ -9012,6 +9453,7 @@ els.standpipeRemoveOutletButton?.addEventListener("click", () => {
   if (!element) return;
 
   element.addEventListener("input", e => {
+    if (handleOperationalMetricInput(elementId, e.target, e.type)) return;
     state.standpipeOps[stateKey] = e.target.tagName === "INPUT"
       ? wholeNumber(e.target.value)
       : e.target.value;
@@ -9028,6 +9470,7 @@ els.standpipeRemoveOutletButton?.addEventListener("click", () => {
   });
 
   element.addEventListener("change", e => {
+    if (handleOperationalMetricInput(elementId, e.target, e.type)) return;
     state.standpipeOps[stateKey] = normalizeNozzleType(e.target.value);
 
     saveState();
@@ -9045,6 +9488,7 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
   calculateAndRender();
 });
       els.customNozzlePressure.addEventListener("input", e => {
+  if (handleOperationalMetricInput("customNozzlePressure", e.target)) return;
 
   state.customNozzlePressure =
     wholeNumber(e.target.value);
@@ -9076,6 +9520,7 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
     }
 
     function handleWholeNumberInput(id, inputElement) {
+  if (handleOperationalMetricInput(id, inputElement)) return;
   if (id === "pdp" && (isRequiredPdpMode() || isRelayMode())) {
     state.targetGpm = wholeNumber(inputElement.value);
     inputElement.value = state.targetGpm;
@@ -9106,6 +9551,7 @@ els.standpipeDualSupplyToggle?.addEventListener("change", () => {
   syncCoefficientUi();
 }
     function setMode(mode) {
+  if (state.mode !== mode) wyeClosedLine = null;
   if (state.mode !== mode) {
     clearPumpChartEditState();
   }
@@ -9451,24 +9897,28 @@ function resetCalculator() {
       state.customCoefficient || "",
 
     calculatedPdp:
-  isSplit
+  (isSplit || isStandpipe) ? multiLineSnapshot?.calculatedPdp || "" : isPhase2bMode() ? operationalSnapshot?.calculatedPdp || (isReverseMode() ? state.pdp : "") || "" : isSplit
     ? els.splitPrimaryPdp.textContent.replace(" PSI", "")
     : isStandpipe
       ? els.standpipePrimaryPdp.textContent.replace(" PSI", "")
     : isReverseMode()
       ? state.pdp || ""
-      : isRequiredPdpMode() || isRelayMode()
+      : isRequiredPdpMode()
+        ? requiredPdpSnapshot?.calculatedPdp || ""
+      : isRelayMode()
         ? els.roundedGpm.textContent
         : "",
 
     calculatedFlow:
-      isSplit
+      (isSplit || isStandpipe) ? multiLineSnapshot?.calculatedFlow || "" : isPhase2bMode() ? operationalSnapshot?.calculatedFlow || "" : isSplit
         ? "Split Lay"
         : isStandpipe
           ? els.standpipeTotalFlow.textContent
         : isReverseMode()
           ? `${els.roundedGpm.textContent} GPM`
-          : els.calculatedGpm.textContent,
+          : isRequiredPdpMode()
+            ? requiredPdpSnapshot?.calculatedFlow || ""
+            : els.calculatedGpm.textContent,
 
     splitLay: JSON.parse(JSON.stringify(state.splitLay)),
     standpipeOps: JSON.parse(JSON.stringify(state.standpipeOps))
@@ -10108,7 +10558,7 @@ function getPumpOperatorSetupRow(setup) {
   };
 }
 
-function getPumpOperatorPackageData(chart, selectedSetups) {
+function getPumpOperatorPackageData(chart, selectedSetups, preference) {
   const visibleHoseIds = new Set(loadVisibleHoseSizeIds().map(String));
   const hoses = getSupportedHoseOptions()
     .filter(hose => visibleHoseIds.has(String(hose.id)))
@@ -10123,13 +10573,20 @@ function getPumpOperatorPackageData(chart, selectedSetups) {
     .filter(tip => visibleTipIds.has(String(tip.id)))
     .map(tip => ({ id: tip.id, label: tip.label, diameter: tip.diameter }));
 
-  return {
+  const base = {
     chartName: chart.name,
     generatedAt: nowIsoString(),
     setups: selectedSetups.map(getPumpOperatorSetupRow),
     hoses,
     tips
   };
+  return preference ? window.ReverseFlowPackageUnits.data(base, selectedSetups, preference, SMOOTHBORE_TIPS) : base;
+}
+
+function getPumpOperatorSelectionSummary(setup) {
+  if (operationalPreference.unitSystem !== "metric") return getSetupConfigurationSummary(setup).replace(/\n+/g, " / ");
+  const row = window.ReverseFlowPackageUnits.row(setup, getPumpOperatorSetupRow(setup), operationalPreference, SMOOTHBORE_TIPS);
+  return ["hose", "nozzle", "gpm", "pdp"].filter(key => row[key]).map(key => `${row[key]}${row.legacyFields.includes(key) ? " [U.S.]" : ""}`).join(" / ");
 }
 
 function renderPumpOperatorPackageSelection(chartId) {
@@ -10158,7 +10615,7 @@ function renderPumpOperatorPackageSelection(chartId) {
           return `
           <label class="pump-operator-setup-choice${isComplex ? " is-complex" : ""}">
             <input type="checkbox" name="pumpOperatorSetup" value="${escapeHtml(setup.id)}" ${selectedByDefault.has(String(setup.id)) ? "checked" : ""} ${isComplex ? "disabled" : ""} />
-            <span><strong>${escapeHtml(setup.name)}</strong><small>${escapeHtml(getSetupConfigurationSummary(setup).replace(/\n+/g, " / "))}</small>${isComplex ? `<small class="pump-operator-unavailable-reason"><b>Complex setup</b> — Saved and reloadable, but not supported in Pump Chart export.</small>` : `<small class="pump-operator-unavailable-reason" hidden></small>`}</span>
+            <span><strong>${escapeHtml(setup.name)}</strong><small>${escapeHtml(getPumpOperatorSelectionSummary(setup))}</small>${isComplex ? `<small class="pump-operator-unavailable-reason"><b>Complex setup</b> — Saved and reloadable, but not supported in Pump Chart export.</small>` : `<small class="pump-operator-unavailable-reason" hidden></small>`}</span>
           </label>
         `;}).join("") || `<p class="disabled-note">No saved setups are available.</p>`}
       </div>
@@ -10213,8 +10670,10 @@ function renderPumpOperatorPackageSelection(chartId) {
       return;
     }
 
-    const packageData = getPumpOperatorPackageData(chart, validation.selected);
+    const preference = window.ReverseFlowPackageUnits.freezePreference(operationalPreference);
+    const packageData = getPumpOperatorPackageData(chart, validation.selected, preference);
     const model = packageApi.createLayoutModel(packageData);
+    model.preference = preference;
     activePumpOperatorPackage = { chartId: chart.id, model, pngFiles: null, pdfFile: null, preparing: false };
     pumpChartView = { screen: "package-preview", chartId: chart.id, setupId: null };
     renderPumpChart();
@@ -10768,12 +11227,12 @@ const GENERATED_PNG_STYLE = {
   }
 };
 
-window.exportFrictionLossChart = async function(selectedHoseIds = []) {
-  const pngExport = await createFrictionLossChartPngFile(selectedHoseIds);
+window.exportFrictionLossChart = async function(selectedHoseIds = [], preference = { unitSystem: "us" }) {
+  const pngExport = await createFrictionLossChartPngFile(selectedHoseIds, preference);
   return await shareGeneratedPngFile({
     pngExport,
     shareTitle: "Friction Loss Chart",
-    fallbackText: "Reverse Flow Friction Loss Chart generated as a PNG.",
+    fallbackText: buildFrictionLossChartShareText(selectedHoseIds, preference),
     nativeFolder: "friction-loss-charts",
     nativeDialogTitle: "Share Friction Loss Chart",
     fallbackMessage: "Friction Loss Chart sharing is unavailable on this device.",
@@ -10781,7 +11240,7 @@ window.exportFrictionLossChart = async function(selectedHoseIds = []) {
   });
 };
 
-async function createFrictionLossChartPngFile(selectedHoseIds = []) {
+async function createFrictionLossChartPngFile(selectedHoseIds = [], preference = { unitSystem: "us" }) {
   if (typeof Blob === "undefined" || typeof File === "undefined") {
     logPumpChartShareFallback("Blob or File constructor is unavailable.");
     return {
@@ -10791,7 +11250,7 @@ async function createFrictionLossChartPngFile(selectedHoseIds = []) {
   }
 
   try {
-    const hoses = getFrictionLossChartHoses(selectedHoseIds);
+    const hoses = getFrictionLossChartHoses(selectedHoseIds, preference);
     if (!hoses.length) {
       return {
         file: null,
@@ -10799,7 +11258,7 @@ async function createFrictionLossChartPngFile(selectedHoseIds = []) {
       };
     }
 
-    const canvas = await renderFrictionLossChartCanvas(hoses);
+    const canvas = await renderFrictionLossChartCanvas(hoses, preference);
     const blob = await exportCanvasToPngBlob(canvas, "friction-loss-chart");
     if (!blob) {
       return {
@@ -10833,7 +11292,7 @@ async function createFrictionLossChartPngFile(selectedHoseIds = []) {
   }
 }
 
-function getFrictionLossChartHoses(selectedHoseIds = []) {
+function getFrictionLossChartHoses(selectedHoseIds = [], preference = { unitSystem: "us" }) {
   const selected = new Set(selectedHoseIds.map(id => String(id)));
   const optionsById = new Map();
 
@@ -10844,7 +11303,7 @@ function getFrictionLossChartHoses(selectedHoseIds = []) {
       if (!(coefficient > 0)) return;
       optionsById.set(hose.id, {
         id: hose.id,
-        label: formatFrictionLossChartHoseLabel(hose),
+        label: preference.unitSystem === "metric" ? ReverseFlowUnits.factoryHoseLabel(hose, preference) : formatFrictionLossChartHoseLabel(hose),
         coefficient
       });
     });
@@ -10852,12 +11311,24 @@ function getFrictionLossChartHoses(selectedHoseIds = []) {
   return [...optionsById.values()].filter(hose => selected.has(hose.id));
 }
 
-async function renderFrictionLossChartCanvas(hoses) {
+function buildFrictionLossChartShareText(selectedHoseIds, preference) {
+  if (preference.unitSystem !== "metric") return "Reverse Flow Friction Loss Chart generated as a PNG.";
+  const data = ReverseFlowToolUnits.chartData(getFrictionLossChartHoses(selectedHoseIds, preference), preference, ReverseFlowHydraulics);
+  return [
+    `Reverse Flow Friction Loss Chart — FL / 30 m (${ReverseFlowUnits.displayUnit("pressure", preference)})`,
+    ["L/min", ...data.hoses.map(hose => `${hose.label} (C ${formatCoefficientForChart(hose.coefficient)})`)].join(" | "),
+    ...data.rows.map(row => [row.displayFlow, ...row.lossesPsi.map(psi => ReverseFlowToolUnits.referencePressure(psi, preference, false))].join(" | "))
+  ].join("\n");
+}
+
+async function renderFrictionLossChartCanvas(hoses, preference = { unitSystem: "us" }) {
   const width = 1100;
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   const margin = 52;
   const contentWidth = width - margin * 2;
-  const flows = Array.from({ length: 21 }, (_, index) => index * 50);
+  const metric = preference.unitSystem === "metric";
+  const data = metric ? ReverseFlowToolUnits.chartData(hoses, preference, ReverseFlowHydraulics) : null;
+  const flows = metric ? data.rows.map(row => row.displayFlow) : Array.from({ length: 21 }, (_, index) => index * 50);
   const headerTop = 52;
   const headerHeight = GENERATED_PNG_STYLE.header.minHeight;
   const tableTop = headerTop + headerHeight + 32;
@@ -10884,7 +11355,7 @@ async function renderFrictionLossChartCanvas(hoses) {
     width: contentWidth,
     label: "FRICTION LOSS CHART",
     title: "Friction Loss Chart",
-    subtitle: "Per 100 Feet of Hose",
+    subtitle: metric ? `FL / 30 m (${ReverseFlowUnits.displayUnit("pressure", preference)})` : "Per 100 Feet of Hose",
     metadata: getGeneratedPngMetadataLine([
       getGeneratedPngProfileName(),
       `Generated ${formatPumpChartDate(new Date().toISOString())}`
@@ -10898,7 +11369,9 @@ async function renderFrictionLossChartCanvas(hoses) {
     headerHeight: tableHeaderHeight,
     rowHeight,
     hoses,
-    flows
+    flows,
+    preference,
+    data
   });
 
   drawFrictionLossCoefficientBox(context, {
@@ -10944,7 +11417,7 @@ async function drawGeneratedPngCanvasHeader(canvas, context, options) {
 
   context.fillStyle = headerStyle.detailColor;
   context.font = headerStyle.detailFont;
-  const detailLines = wrapCanvasMetadataLine(context, options.metadata || "", layout.textWidth)
+  const detailLines = wrapCanvasText(context, options.metadata || "", layout.textWidth)
     .slice(0, 4);
 
   detailLines.forEach((line, index) => {
@@ -11033,7 +11506,7 @@ function drawFrictionLossTable(context, options) {
   context.textBaseline = "middle";
   context.font = "900 22px Arial, sans-serif";
   context.fillText("FLOW", options.x + firstColumnWidth / 2, options.y + 31, firstColumnWidth - 18);
-  context.fillText("(GPM)", options.x + firstColumnWidth / 2, options.y + 60, firstColumnWidth - 18);
+  context.fillText(options.preference?.unitSystem === "metric" ? "(L/min)" : "(GPM)", options.x + firstColumnWidth / 2, options.y + 60, firstColumnWidth - 18);
 
   context.font = "900 23px Arial, sans-serif";
   context.fillText("HOSE SIZE", options.x + firstColumnWidth + (options.width - firstColumnWidth) / 2, options.y + 29, options.width - firstColumnWidth);
@@ -11053,9 +11526,10 @@ function drawFrictionLossTable(context, options) {
     context.fillStyle = "#0f172a";
     context.font = getTableFontForColumnCount(options.hoses.length, false);
     options.hoses.forEach((hose, colIndex) => {
-      const loss = calculateFrictionLossPerHundred(hose.coefficient, flow);
+      const metric = options.preference?.unitSystem === "metric";
+      const loss = metric ? options.data.rows[rowIndex].lossesPsi[colIndex] : calculateFrictionLossPerHundred(hose.coefficient, flow);
       const centerX = options.x + firstColumnWidth + colIndex * hoseColumnWidth + hoseColumnWidth / 2;
-      context.fillText(formatFrictionLossCell(loss), centerX, centerY, hoseColumnWidth - 10);
+      context.fillText(metric ? ReverseFlowToolUnits.referencePressure(loss, options.preference, false) : formatFrictionLossCell(loss), centerX, centerY, hoseColumnWidth - 10);
     });
     context.font = "900 22px Arial, sans-serif";
   });
@@ -11879,8 +12353,9 @@ function bindWyeOpsEvents() {
   bindings.forEach(([element, key, type]) => {
     if (!element) return;
     const handler = event => {
+      if (handleOperationalMetricInput(element.id, event.target, event.type)) return;
       const rawValue = event.target.value;
-      state.wyeOps[key] =
+      const nextValue =
         type === "whole"
           ? wholeNumber(rawValue)
           : type === "decimal"
@@ -11888,6 +12363,9 @@ function bindWyeOpsEvents() {
             : type === "nozzle"
               ? normalizeNozzleType(rawValue)
               : rawValue;
+      if (event.type === "change" && state.wyeOps[key] === nextValue) return;
+      wyeClosedLine = null;
+      state.wyeOps[key] = nextValue;
       event.target.value = state.wyeOps[key];
       saveState();
       syncWyeOpsUi();
@@ -11909,7 +12387,10 @@ function calculateAndRenderWyeOps() {
   const controls = getWyeControls();
   syncWyeOpsUi();
 
-  const result = calculateWyeOperation(controls);
+  const invalid = hasInvalidMultiLineInput();
+  const result = invalid ? { ok: false, message: "Enter a valid value in the displayed units." }
+    : calculateWyeOperation(isOperationalMetric() ? canonicalWyeControls(controls) : controls);
+  multiLineResult = result.ok ? { mode: "wyeOps", ...result } : null;
 
   controls.currentResults.hidden = !result.ok;
   controls.closureResults.hidden = true;
@@ -11919,6 +12400,7 @@ function calculateAndRenderWyeOps() {
   if (!result.ok) {
     controls.validation.innerHTML = `<div class="warning-item"><span>&#9888;&#65039;</span><span>${escapeHtml(result.message)}</span></div>`;
     renderWarnings([]);
+    syncOperationalUnitUi();
     return;
   }
 
@@ -11926,6 +12408,8 @@ function calculateAndRenderWyeOps() {
   renderWyeOperationWarnings(result.warnings, controls.operationWarnings);
   controls.currentResults.innerHTML = createWyeCurrentResults(result);
   bindWyeClosureButtons(result, controls);
+  if (wyeClosedLine) renderWyeClosureScenario(result, controls, wyeClosedLine);
+  syncOperationalUnitUi();
   renderWarnings([]);
 }
 
@@ -12183,6 +12667,7 @@ function findWyeHoseById(options, id) {
 }
 
 function renderWyeOperationWarnings(warnings, container) {
+  if (isWyeOpsMode() && isOperationalMetric()) warnings = warnings.map(metricOperationalWarning);
   if (!container) return;
 
   container.hidden = !warnings.length;
@@ -12191,12 +12676,17 @@ function renderWyeOperationWarnings(warnings, container) {
   `).join("");
 }
 
+function formatWyeQuantity(value, quantity, digits = 0, unit = quantity === "flow" ? "GPM" : quantity === "force" ? "lb" : "PSI") {
+  if (isWyeOpsMode() && isOperationalMetric()) return window.ReverseFlowOperationalUnits.format(value, quantity, operationalPreference);
+  return `${digits ? formatNumber(value, digits) : formatWhole(value)} ${unit}`;
+}
+
 function createWyeCurrentResults(result) {
   return `
     <section class="card split-results-card wye-results-card">
       <div class="split-results-header">
         <p>Wye Ops PDP</p>
-        <strong>${formatWhole(result.fixedPdp)} PSI</strong>
+        <strong>${formatWyeQuantity(result.fixedPdp, "pressure")}</strong>
       </div>
 
       <div class="split-results-grid">
@@ -12204,9 +12694,9 @@ function createWyeCurrentResults(result) {
           <div class="split-section-divider">CURRENT OPERATION</div>
           <div class="split-result-title supply-1-title">Supply Section</div>
           <div class="split-result-details">
-            ${createWyeResultItem("Total Flow", `${formatWhole(result.totalFlow)} GPM`)}
-            ${createWyeResultItem("Supply FL", `${formatNumber(result.supplyLoss, 1)} PSI`)}
-            ${createWyeResultItem("Appliance Loss", result.applianceLoss > 0 ? `${formatWhole(result.applianceLoss)} PSI` : "—")}
+            ${createWyeResultItem("Total Flow", formatWyeQuantity(result.totalFlow, "flow"))}
+            ${createWyeResultItem("Supply FL", formatWyeQuantity(result.supplyLoss, "pressure", 1))}
+            ${createWyeResultItem("Appliance Loss", result.applianceLoss > 0 ? `${formatWyeQuantity(result.applianceLoss, "pressure")}` : "—")}
             ${createWyeResultItem("Driving Line", result.drivingLine)}
           </div>
         </div>
@@ -12238,10 +12728,10 @@ function createWyeLineResultSection(line) {
         <span class="pressure-path-tag ${escapeHtml(tag.className)}">${escapeHtml(tag.label)}</span>
       </div>
       <div class="split-result-details">
-        ${createWyeResultItem("Delivered Flow", `${formatWhole(line.flow)} GPM`, line.isRecalculated ? "flow-increase" : "")}
-        ${createWyeResultItem("Nozzle Pressure", `${formatWhole(line.nozzlePressure)} PSI`, line.isRecalculated ? "overpressure" : "normal-pressure")}
-        ${createWyeResultItem("Attack Line FL", `${formatNumber(line.frictionLoss, 1)} PSI`)}
-        ${createWyeResultItem("Nozzle Reaction", `${formatWhole(line.reaction)} lb`)}
+        ${createWyeResultItem("Delivered Flow", formatWyeQuantity(line.flow, "flow"), line.isRecalculated ? "flow-increase" : "")}
+        ${createWyeResultItem("Nozzle Pressure", `${formatWyeQuantity(line.nozzlePressure, "pressure")}`, line.isRecalculated ? "overpressure" : "normal-pressure")}
+        ${createWyeResultItem("Attack Line FL", formatWyeQuantity(line.frictionLoss, "pressure", 1))}
+        ${createWyeResultItem("Nozzle Reaction", formatWyeQuantity(line.reaction, "force"))}
       </div>
       <div class="field-calculator-actions wye-result-actions wye-line-actions">
         <button id="wyeAttack${line.lineNumber}ClosesButton" class="reset-button" type="button">Close Attack ${line.lineNumber}</button>
@@ -12271,12 +12761,19 @@ function bindWyeClosureButtons(result, controls) {
 }
 
 function createWyeValueChange(previous, next, unit) {
+  if (isOperationalMetric()) {
+    const quantity = unit === "GPM" ? "flow" : unit === "lb" ? "force" : "pressure";
+    const B = window.ReverseFlowOperationalUnits, p = operationalPreference;
+    const delta = next - previous;
+    return `${B.number(previous, quantity, p)} → ${B.format(next, quantity, p)}${Math.abs(delta) >= 0.5 ? ` (${delta > 0 ? "+" : ""}${B.number(delta, quantity, p)})` : ""}`;
+  }
   const delta = next - previous;
   const direction = delta > 0 ? "+" : "";
   return `${formatWhole(previous)} → ${formatWhole(next)} ${unit}${Math.abs(delta) >= 0.5 ? ` (${direction}${formatWhole(delta)})` : ""}`;
 }
 
 function renderWyeClosureScenario(result, controls, closedLineNumber) {
+  wyeClosedLine = closedLineNumber;
   const remainingLine = closedLineNumber === 1 ? result.attack2 : result.attack1;
   const closure = calculateWyeClosureLine(result, remainingLine);
   controls.currentResults.hidden = true;
@@ -12288,7 +12785,7 @@ function renderWyeClosureScenario(result, controls, closedLineNumber) {
       <section class="card split-results-card wye-results-card">
         <div class="split-results-header">
           <p>PDP Remains</p>
-          <strong>${formatWhole(result.fixedPdp)} PSI</strong>
+          <strong>${formatWyeQuantity(result.fixedPdp, "pressure")}</strong>
         </div>
         <div class="split-results-grid">
           <div class="warnings field-calculator-warning">
@@ -12305,7 +12802,7 @@ function renderWyeClosureScenario(result, controls, closedLineNumber) {
       <section class="card split-results-card wye-results-card">
         <div class="split-results-header">
           <p>PDP Remains</p>
-          <strong>${formatWhole(result.fixedPdp)} PSI</strong>
+          <strong>${formatWyeQuantity(result.fixedPdp, "pressure")}</strong>
         </div>
         <div class="split-results-grid">
           <div class="split-result-section">
@@ -12329,6 +12826,7 @@ function renderWyeClosureScenario(result, controls, closedLineNumber) {
   }
 
   document.getElementById("wyeBackToCurrentButton")?.addEventListener("click", () => {
+    wyeClosedLine = null;
     controls.closureResults.hidden = true;
     controls.currentResults.hidden = false;
     renderWyeOperationWarnings(result.warnings, controls.operationWarnings);
@@ -12506,6 +13004,12 @@ function getWyeScenarioWarnings(scenario) {
 	    // CALCULATION ORCHESTRATION
     // ========================================
     function calculateAndRender() {
+      requiredPdpResult = null;
+      requiredPdpSnapshot = null;
+      operationalResult = null;
+      operationalSnapshot = null;
+      multiLineResult = null;
+      multiLineSnapshot = null;
       if (isAttackPumperMode()) {
         renderAttackPumperIncident();
         return;
@@ -12527,40 +13031,76 @@ function getWyeScenarioWarnings(scenario) {
 	}
 
 	      if (isSplitLayMode()) {
-	  calculateSplitLay(warnings);
+  calculateMultiLineMode(() => calculateSplitLay(warnings));
   syncLoadedSetupUpdateUi();
   return;
 }
 
 if (isStandpipeOpsMode()) {
-  calculateStandpipeOps(warnings);
+  calculateMultiLineMode(() => calculateStandpipeOps(warnings));
+  syncLoadedSetupUpdateUi();
+  return;
+}
+
+if (isPhase2bMode() && isOperationalMetric() && Object.keys(window.ReverseFlowOperationalUnits.fieldsForMode(state.mode)).some(id => !els[id].validity.valid)) {
+  renderWarnings(["Enter a valid value in the displayed units."]);
+  renderOperationalMetricResult();
+  syncOperationalUnitUi();
   syncLoadedSetupUpdateUi();
   return;
 }
 
 if (isRelayMode()) {
   calculateRelayPdp({ ...inputs, warnings });
+  renderOperationalMetricResult();
+  syncOperationalUnitUi();
   syncLoadedSetupUpdateUi();
   return;
 }
 
 if (isApparatusMountedMode()) {
   calculateApparatusMounted({ ...inputs, warnings });
+  renderOperationalMetricResult();
+  syncOperationalUnitUi();
   syncLoadedSetupUpdateUi();
   return;
 }
 
 if (isRequiredPdpMode()) {
+  if (isOperationalMetric() && Object.keys(window.ReverseFlowOperationalUnits.fieldsForMode(state.mode)).some(id => !els[id].validity.valid)) {
+    renderWarnings(["Enter a valid value in the displayed units."]);
+    renderRequiredPdpMetricResult();
+    syncOperationalUnitUi();
+    syncLoadedSetupUpdateUi();
+    return;
+  }
   calculateRequiredPdp({ ...inputs, warnings });
+  renderRequiredPdpMetricResult();
+  syncOperationalUnitUi();
   syncLoadedSetupUpdateUi();
   return;
 }
 
 calculateReverseFlow({ ...inputs, warnings });
+  renderOperationalMetricResult();
+  syncOperationalUnitUi();
 syncLoadedSetupUpdateUi();
     }
 
     function addFiftyFeet(inputId) {
+  const spec = window.ReverseFlowOperationalUnits.fieldsForMode(state.mode)[inputId];
+  if (isOperationalMetric() && spec?.section && spec.quantity === "length") {
+    state[spec.section][spec.key] = String(window.ReverseFlowOperationalUnits.incrementFeet(state[spec.section][spec.key], operationalPreference));
+    document.getElementById(inputId).setCustomValidity("");
+    wyeClosedLine = null;
+    saveState(); calculateAndRender(); return;
+  }
+  if (isOperationalMetric() && ["hoseLength", "reverseSupplyLength"].includes(inputId)) {
+    state[inputId] = String(window.ReverseFlowOperationalUnits.incrementFeet(state[inputId], operationalPreference));
+    els[inputId].setCustomValidity("");
+    updateCalculator();
+    return;
+  }
   const input = document.getElementById(inputId);
   if (!input) return;
 
@@ -13391,7 +13931,16 @@ const frictionDisplay =
     ? `A ${attackFrictionLoss.toFixed(1)} / S ${supplyFrictionLoss.toFixed(1)}`
     : `${frictionLossPer100.toFixed(1)} psi`;
 
-setResult(
+setOperationalResult({
+  pdpPsi: pdp, flowGpm: calculatedGpm, roundedFlowGpm: roundedGpm,
+  nozzlePressurePsi: isFixedFogType(nozzleType) ? reverseSolve.nozzlePressure : nozzlePressure,
+  hoseLengthFeet: hoseLength, supplyLengthFeet: supplyLength,
+  frictionLossPsi: totalFrictionLoss, frictionLossPer100FeetPsi: frictionLossPer100,
+  attackFrictionLossPsi: attackFrictionLoss, supplyFrictionLossPsi: supplyFrictionLoss,
+  applianceLossPsi: applianceLoss, deviceLossPsi: masterStreamLoss, supplyApplianceLossPsi: supplyApplianceLoss,
+  turboLossPsi: reverseSolve.turboLoss, turboEnabled: !!getActiveHenTurboCurve(),
+  reactionLbf: canonicalReaction(calculatedGpm, isFixedFogType(nozzleType) ? reverseSolve.nozzlePressure : nozzlePressure)
+}, warnings,
   roundedGpm,
   `${Math.round(calculatedGpm)} GPM`,
   `${totalFrictionLoss.toFixed(1)} psi`,
@@ -13502,6 +14051,83 @@ function calculateAchievableFixedFogPressure() {
     // ========================================
     // REQUIRED PDP CALCULATIONS
     // ========================================
+    function canonicalReaction(flow, pressure) {
+      const tip = getSelectedHydraulicSmoothboreModel();
+      return usesSmoothboreHydraulics() && tip
+        ? ReverseFlowHydraulics.smoothboreReaction(tip.diameter, pressure)
+        : ReverseFlowHydraulics.fogReaction(flow, pressure);
+    }
+
+    function setOperationalResult(result, warnings, rounded, calculated, total, per100, nozzle, setup, reaction = "—", turboLoss = null, turboFlow = null) {
+      // Capture canonical numbers and compatible U.S. strings before any metric rendering.
+      operationalResult = Object.freeze({ mode: state.mode, ...result });
+      const reverse = isReverseMode();
+      const flow = reverse ? `${rounded} GPM` : calculated;
+      const pdp = reverse ? String(state.pdp) : String(rounded);
+      operationalSnapshot = {
+        canonicalOperational: { version: 1, ...operationalResult },
+        primaryResult: `${rounded} ${reverse ? "GPM" : "PSI"}`,
+        primaryResultLabel: reverse ? "Rounded Flow" : isRelayMode() ? "Relay PDP" : "Required PDP",
+        flowSummary: flow, pdpSummary: formatPsiValue(pdp),
+        calculatedPdp: isApparatusMountedMode() ? "" : pdp,
+        calculatedFlow: flow, totalFl: total, flPer100: per100,
+        nozzleDisplay: nozzle, setupDisplay: setup, nozzleReaction: reaction,
+        turboLossDisplay: state.henTurboEnabled && turboLoss !== null && turboFlow !== null
+          ? `${turboLoss.toFixed(1)} psi @ ${Math.round(turboFlow)} GPM` : "—",
+        apparatusElevationLoss: isApparatusMountedMode() ? per100 : "",
+        warnings: [...warnings]
+      };
+      setResult(rounded, calculated, total, per100, nozzle, setup, reaction, turboLoss, turboFlow);
+    }
+
+    function renderOperationalMetricResult() {
+      if (!isPhase2bMode() || !isOperationalMetric()) return;
+      const B = window.ReverseFlowOperationalUnits;
+      const p = operationalPreference;
+      const r = operationalResult;
+      const format = (value, quantity = "pressure") => B.format(value, quantity, p);
+      const nozzle = B.metricNozzle(state, r, getSelectedSmoothboreTip(), getSelectedBladeModel(), p);
+      els.nozzleDisplay.textContent = isRelayMode() ? `${format(state.relayResidualPressure || 30)} residual`
+        : isApparatusMountedMode() ? "—" : nozzle;
+      els.setupDisplay.textContent = isRelayMode() ? `${format(state.hoseLength, "length")} Relay Distance`
+        : isApparatusMountedMode() ? nozzle : B.metricSetup(state, getSelectedHose(), p);
+      if (!r) {
+        // An unavailable result must not retain a partial U.S. pressure from the solver.
+        els.totalFl.textContent = "—";
+        els.flPer100.textContent = "—";
+        return;
+      }
+      els.roundedGpm.textContent = B.number(isReverseMode() ? r.roundedFlowGpm : r.roundedPdpPsi, isReverseMode() ? "flow" : "pressure", p);
+      els.calculatedGpm.textContent = format(r.flowGpm, "flow");
+      els.totalFl.textContent = format(isApparatusMountedMode() ? r.nozzlePressurePsi : r.frictionLossPsi);
+      els.flPer100.textContent = isApparatusMountedMode() ? format(r.elevationLossPsi)
+        : isReverseMode() && state.reverseSupplyEnabled ? `A ${format(r.attackFrictionLossPsi)} / S ${format(r.supplyFrictionLossPsi)}`
+        : format(r.frictionLossPer100FeetPsi);
+      if (isApparatusMountedMode()) els.nozzleDisplay.textContent = format(r.deviceLossPsi);
+      if (!isRelayMode()) els.nozzleReaction.textContent = `${format(r.reactionLbf, "force")}${isBlade() ? " (solid stream)" : ""}`;
+      if (r.turboEnabled) els.turboLossDisplay.textContent = `${format(r.turboLossPsi)} @ ${format(r.flowGpm, "flow")}`;
+    }
+
+    function renderRequiredPdpMetricResult() {
+      if (!isRequiredPdpMode() || !isOperationalMetric()) return;
+      const B = window.ReverseFlowOperationalUnits;
+      const p = operationalPreference;
+      const result = requiredPdpResult;
+      els.nozzleDisplay.textContent = B.metricNozzle(state, result, getSelectedSmoothboreTip(), getSelectedBladeModel(), p);
+      els.setupDisplay.textContent = B.metricSetup(state, getSelectedHose(), p);
+      if (!result) return;
+      els.roundedGpm.textContent = B.number(result.roundedPdpPsi, "pressure", p);
+      els.calculatedGpm.textContent = B.format(result.flowGpm, "flow", p);
+      els.totalFl.textContent = B.format(result.frictionLossPsi, "pressure", p);
+      els.flPer100.textContent = B.format(result.frictionLossPer100FeetPsi, "pressure", p);
+      els.nozzleReaction.textContent = isBlade() || isFogHydraulicType(getMainNozzleType())
+        ? `${B.format(result.reactionLbf, "force", p)}${isBlade() ? " (solid stream)" : ""}`
+        : state.dualLineSupply && isMasterStream()
+          ? `Dual lines: YES\nPer line: ${B.format(result.flowPerLineGpm, "flow", p)}`
+          : "Dual lines: NO";
+      if (result.turboEnabled) els.turboLossDisplay.textContent = `${B.format(result.turboLossPsi, "pressure", p)} @ ${B.format(result.flowGpm, "flow", p)}`;
+    }
+
     function calculateRequiredPdp({ targetGpm, hoseLength, nozzlePressure, nozzleType, ratedFlow, ratedPressure, applianceLoss, masterStreamLoss, coefficient, selectedHose, warnings }) {
       if (targetGpm === null || hoseLength === null || (!isFixedFogType(nozzleType) && nozzlePressure === null) || coefficient === null) {
         renderWarnings(warnings);
@@ -13570,6 +14196,30 @@ if (warningFlow > selectedHose.maxReferenceFlow) {
       : `Target flow is above the normal reference range for ${selectedHose.chartName} hose. Confirm with department-approved flow testing or local operating guidance.`
   );
 }
+
+      const tip = getSelectedHydraulicSmoothboreModel();
+      requiredPdpResult = Object.freeze({
+        requiredPdpPsi: requiredPdp, roundedPdpPsi: roundedRequiredPdp,
+        flowGpm: targetGpm, flowPerLineGpm: flowForFriction,
+        nozzlePressurePsi: requiredNozzlePressure, hoseLengthFeet: hoseLength,
+        frictionLossPsi: totalFrictionLoss, frictionLossPer100FeetPsi: frictionLossPer100,
+        applianceLossPsi: applianceLoss, masterStreamLossPsi: masterStreamLoss,
+        turboLossPsi: henTurboLoss, turboEnabled: !!turboCurve,
+        reactionLbf: usesSmoothboreHydraulics() && tip
+          ? ReverseFlowHydraulics.smoothboreReaction(tip.diameter, requiredNozzlePressure)
+          : ReverseFlowHydraulics.fogReaction(targetGpm, requiredNozzlePressure)
+      });
+      const reactionDisplay = isBlade() || isFogHydraulicType(getMainNozzleType())
+        ? nozzleReaction
+        : state.dualLineSupply && isMasterStream()
+          ? `Dual lines: YES\nPer line: ${Math.round(flowForFriction)} GPM`
+          : "Dual lines: NO";
+      requiredPdpSnapshot = {
+        ...window.ReverseFlowOperationalUnits.legacySnapshot(requiredPdpResult, {
+          nozzle: getNozzleDisplay(), setup: getSetupDisplay(), reaction: reactionDisplay
+        }),
+        warnings: [...warnings]
+      };
 
       setResult(
   roundedRequiredPdp,
@@ -13655,7 +14305,11 @@ function calculateApparatusMounted({ nozzlePressure, nozzleType, ratedPressure, 
   const nozzleReaction =
     calculateNozzleReaction(flow, effectiveNozzlePressure);
 
-  setResult(
+  setOperationalResult({
+    requiredPdpPsi: requiredPdp, roundedPdpPsi: Math.round(requiredPdp), flowGpm: flow,
+    nozzlePressurePsi: effectiveNozzlePressure, elevationFeet, elevationLossPsi: elevationLoss,
+    deviceLossPsi: applianceLoss, reactionLbf: canonicalReaction(flow, effectiveNozzlePressure)
+  }, warnings,
     Math.round(requiredPdp),
     `${Math.round(flow)} GPM`,
     `${Math.round(effectiveNozzlePressure)} psi`,
@@ -13732,7 +14386,11 @@ function calculateRelayPdp({
   );
 }
 
-  setResult(
+  setOperationalResult({
+    requiredPdpPsi: requiredRelayPdp, roundedPdpPsi: Math.round(requiredRelayPdp), flowGpm: targetGpm,
+    hoseLengthFeet: hoseLength, residualPressurePsi: residualPressure, applianceLossPsi: applianceLoss,
+    frictionLossPsi: totalFrictionLoss, frictionLossPer100FeetPsi: frictionLossPer100
+  }, warnings,
   Math.round(requiredRelayPdp),
   `${Math.round(targetGpm)} GPM`,
   `${totalFrictionLoss.toFixed(1)} psi`,
@@ -14704,6 +15362,7 @@ function getSplitNozzleDisplay(line) {
 }
 
 function renderStandpipeLineWarnings(container, warnings) {
+  if (isStandpipeOpsMode() && isOperationalMetric()) warnings = warnings.map(metricOperationalWarning);
   if (!container) return;
 
   container.hidden = !warnings.length;
@@ -14718,7 +15377,7 @@ function renderStandpipeAdvisories(warnings) {
   const advisoryText =
     "Standpipe outlet pressure is estimated. PRVs, pressure-restricting devices, valve position, system condition, and building piping can affect actual pressure at the outlet. Confirm with an inline gauge whenever possible.";
 
-  const advisoryItems = [advisoryText, ...warnings];
+  const advisoryItems = [advisoryText, ...(isStandpipeOpsMode() && isOperationalMetric() ? warnings.map(metricOperationalWarning) : warnings)];
 
   els.standpipeAdvisories.innerHTML = advisoryItems.map(item => (
     `<div class="warning-item"><span>⚠️</span><span>${escapeHtml(item)}</span></div>`
@@ -14747,6 +15406,7 @@ function setStandpipeResults({
   line2,
   systemWarnings
 }) {
+  captureMultiLineResult({ requiredPdp, totalFlow, supplyTotalFl, supplyFlowPerLine, standpipeLoss, drivingLine, line1, line2, systemWarnings });
   if (!els.standpipeResultsCard) return;
 
   els.standpipePrimaryPdp.textContent =
@@ -14841,6 +15501,7 @@ function setStandpipeResults({
   actualAttack1,
   actualAttack2 = null
 }) {
+  captureMultiLineResult({ totalPdp, totalAttackFlow, supply1TotalFl, supply2TotalFl, appliance1Loss, appliance2Loss, actualAttack1, actualAttack2 });
   if (!els.splitResultsCard) return;
 
   els.splitPrimaryPdp.textContent =
@@ -14990,6 +15651,17 @@ els.splitAttack2PressureTag.className =
   }
 }
     function setResult(rounded, calculated, total, per100, nozzle, setup, reaction = "-", turboLoss = null, turboFlow = null) {
+      if (multiLineResult && (isSplitLayMode() || isStandpipeOpsMode())) {
+        const split = isSplitLayMode();
+        multiLineSnapshot = {
+          ...multiLineResultStrings(multiLineResult), canonicalMultiLine: { version: 1, ...multiLineResult },
+          primaryResult: `${rounded} PSI`, primaryResultLabel: split ? "Split Lay PDP" : "Standpipe Ops PDP",
+          flowSummary: split ? "" : calculated, pdpSummary: `${rounded} PSI`,
+          calculatedPdp: String(rounded), calculatedFlow: split ? "Split Lay" : calculated,
+          totalFl: total, flPer100: per100, nozzleDisplay: nozzle, setupDisplay: setup, nozzleReaction: reaction,
+          turboLossDisplay: "—", warnings: []
+        };
+      }
       els.roundedGpm.textContent = rounded;
       els.calculatedGpm.textContent = calculated;
       els.totalFl.textContent = total;

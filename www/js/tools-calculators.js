@@ -59,7 +59,7 @@
     },
     coefficient: {
       title: "Coefficient Calculator",
-      description: "Calculate hose friction loss coefficient from a 100' field test.",
+      description: "Calculate hose friction loss coefficient from a measured field test.",
       render: renderCoefficientCalculator
     },
     "friction-loss-per-100": {
@@ -76,6 +76,21 @@
   };
 
   const selectedCalculator = calculators[calculatorId];
+
+  function syncReferenceToolLink() {
+    let storage;
+    try { storage = window.localStorage; } catch {}
+    const metric = window.ReverseFlowUnits.createPreferenceStore(storage).get().unitSystem === "metric";
+    const link = document.querySelector('a[href="tools.html?calculator=friction-loss-per-100"]');
+    if (!link) return;
+    link.querySelector("strong").textContent = metric ? "Friction Loss / 30 m" : "Friction Loss / 100'";
+    link.querySelector(".helper").textContent = metric
+      ? "Calculate hose friction loss per 30 m at a known flow."
+      : "Calculate hose friction loss per 100' at a known flow.";
+  }
+  syncReferenceToolLink();
+  window.addEventListener("storage", syncReferenceToolLink);
+  window.addEventListener("pageshow", syncReferenceToolLink);
 
   if (!selectedCalculator) {
     document.body.classList.remove("tools-calculator-screen");
@@ -407,10 +422,12 @@
     const pressure = document.getElementById("smoothboreFlowPressure");
     const results = document.getElementById("smoothboreFlowResults");
 
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, { [customTip.id]: "diameter", [pressure.id]: "pressure" }, getHoseOptions());
     const update = () => {
+      boundary.result(null);
       syncCustomTipField(tip, customTipField);
-      const diameter = getSelectedTipDiameter(tip, customTip);
-      const psi = numberOrNull(pressure.value);
+      const diameter = (tip.value === "custom" ? boundary.read(customTip) : numberOrNull(tip.selectedOptions[0]?.dataset.diameter));
+      const psi = boundary.read(pressure);
       const isValid = diameter > 0 && psi > 0;
 
       results.hidden = !isValid;
@@ -418,15 +435,13 @@
 
       const gpm = H.smoothboreFlow(diameter, psi);
       const velocity = H.waterVelocity(gpm, diameter);
+      boundary.result({ diameterInches: diameter, pressurePsi: psi, flowGpm: gpm, velocityFeetPerSecond: velocity });
       results.innerHTML = createResultRows([
-        ["Flow", `${formatWhole(gpm)} GPM`],
-        ["Stream Velocity", `${formatNumber(velocity, 1)} ft/sec`]
+        ["Flow", boundary.display(gpm, "flow", `${formatWhole(gpm)} GPM`)],
+        ["Stream Velocity", boundary.display(velocity, "velocity", `${formatNumber(velocity, 1)} ft/sec`)]
       ]);
     };
-
-    [tip, customTip, pressure].forEach(input => input.addEventListener("input", update));
-    tip.addEventListener("change", update);
-    update();
+    boundary.start(update);
   }
 
   function renderNozzleReaction() {
@@ -491,7 +506,9 @@
     const pressure = document.getElementById("nozzleReactionPressure");
     const results = document.getElementById("nozzleReactionResults");
 
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, { [customTip.id]: "diameter", [flow.id]: "flow", [pressure.id]: "pressure", [ratedFlow.id]: "flow", [ratedPressure.id]: "pressure" }, getHoseOptions());
     const update = () => {
+      boundary.result(null);
       const isSmoothbore = type.value === "smoothbore";
       const isFixedFog = isFixedFogType(type.value);
       tipField.hidden = !isSmoothbore;
@@ -501,57 +518,42 @@
       syncCustomTipField(tip, customTipField);
       customTipField.hidden = !isSmoothbore || tip.value !== "custom";
 
-      let psi = numberOrNull(pressure.value);
-      let reaction = null;
-      const rows = [[
-        "Nozzle Type",
-        isSmoothbore
-          ? "Smoothbore"
-          : isFixedFog
-            ? "Fixed Fog"
-            : "Automatic Fog"
-      ]];
-
-      if (isSmoothbore) {
-        const diameter = getSelectedTipDiameter(tip, customTip);
-        if (diameter > 0 && psi > 0) {
-          reaction = H.smoothboreReaction(diameter, psi);
-          rows.push(["Tip Size", getSelectedTipLabel(tip, customTip)]);
-          rows.push(["Nozzle Pressure", `${formatNumber(psi, 0)} PSI`]);
-        }
-      } else {
-        const gpm = numberOrNull(flow.value);
-        if (isFixedFog) {
-          psi = fixedFogPressureForFlow(
-            numberOrNull(ratedFlow.value),
-            numberOrNull(ratedPressure.value),
-            gpm
-          );
-        }
-        if (gpm > 0 && psi > 0) {
-          reaction = H.fogReaction(gpm, psi);
-          rows.push(["Flow", `${formatNumber(gpm, 0)} GPM`]);
-          rows.push(["Nozzle Pressure", `${formatNumber(psi, 0)} PSI`]);
-          if (isFixedFog) {
-            rows.push(["Nozzle Rating", `${formatNumber(numberOrNull(ratedFlow.value), 0)} GPM @ ${formatNumber(numberOrNull(ratedPressure.value), 0)} PSI`]);
-          }
-        }
-      }
-
+      const diameter = isSmoothbore
+        ? (tip.value === "custom" ? boundary.read(customTip) : numberOrNull(tip.selectedOptions[0]?.dataset.diameter))
+        : null;
+      const gpm = isSmoothbore ? null : boundary.read(flow);
+      const ratingFlow = isFixedFog ? boundary.read(ratedFlow) : null;
+      const ratingPressure = isFixedFog ? boundary.read(ratedPressure) : null;
+      const psi = isFixedFog
+        ? fixedFogPressureForFlow(ratingFlow, ratingPressure, gpm)
+        : boundary.read(pressure);
+      const reaction = psi > 0 && (isSmoothbore ? diameter > 0 : gpm > 0)
+        ? (isSmoothbore ? H.smoothboreReaction(diameter, psi) : H.fogReaction(gpm, psi))
+        : null;
       results.hidden = reaction === null;
       if (reaction === null) return;
 
+      // Capture every physical quantity before constructing presentation strings.
+      boundary.result({ reactionLbf: reaction, pressurePsi: psi, diameterInches: diameter,
+        flowGpm: gpm, ratedFlowGpm: ratingFlow, ratedPressurePsi: ratingPressure });
+      const rows = [["Nozzle Type", isSmoothbore ? "Smoothbore" : isFixedFog ? "Fixed Fog" : "Automatic Fog"]];
+      if (isSmoothbore) {
+        rows.push(["Tip Size", boundary.metric() ? boundary.format(diameter, "diameter") : getSelectedTipLabel(tip, customTip)]);
+      } else {
+        rows.push(["Flow", boundary.display(gpm, "flow", `${formatNumber(gpm, 0)} GPM`)]);
+      }
+      rows.push(["Nozzle Pressure", boundary.display(psi, "pressure", `${formatNumber(psi, 0)} PSI`)]);
+      if (isFixedFog) {
+        const flowLabel = boundary.display(ratingFlow, "flow", `${formatNumber(ratingFlow, 0)} GPM`);
+        const pressureLabel = boundary.display(ratingPressure, "pressure", `${formatNumber(ratingPressure, 0)} PSI`);
+        rows.push(["Nozzle Rating", `${flowLabel} @ ${pressureLabel}`]);
+      }
       results.innerHTML = createResultRows([
-        ["Nozzle Reaction", `${formatWhole(reaction)} lb`],
+        ["Nozzle Reaction", boundary.display(reaction, "force", `${formatWhole(reaction)} lb`)],
         ...rows
       ]);
     };
-
-    [type, tip, customTip, flow, pressure, ratedFlow, ratedPressure].forEach(input => {
-      input.addEventListener("input", update);
-      input.addEventListener("change", update);
-    });
-    update();
+    boundary.start(update);
   }
 
   function renderTankTime() {
@@ -560,14 +562,14 @@
         <div class="field">
           <label for="tankTimeSize">Tank Size</label>
           <select id="tankTimeSize">
-            <option value="500">500 gal</option>
-            <option value="750">750 gal</option>
-            <option value="1000">1000 gal</option>
-            <option value="1250">1250 gal</option>
-            <option value="1500">1500 gal</option>
-            <option value="1800">1800 gal</option>
-            <option value="2000">2000 gal</option>
-            <option value="3000">3000 gal</option>
+            <option value="500" data-unit-quantity="volume">500 gal</option>
+            <option value="750" data-unit-quantity="volume">750 gal</option>
+            <option value="1000" data-unit-quantity="volume">1000 gal</option>
+            <option value="1250" data-unit-quantity="volume">1250 gal</option>
+            <option value="1500" data-unit-quantity="volume">1500 gal</option>
+            <option value="1800" data-unit-quantity="volume">1800 gal</option>
+            <option value="2000" data-unit-quantity="volume">2000 gal</option>
+            <option value="3000" data-unit-quantity="volume">3000 gal</option>
             <option value="custom">Custom</option>
           </select>
         </div>
@@ -592,32 +594,30 @@
     const flow = document.getElementById("tankTimeFlow");
     const results = document.getElementById("tankTimeResults");
 
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, { [customSize.id]: "volume", [flow.id]: "flow" });
     const update = () => {
+      boundary.result(null);
       customSizeField.hidden = tankSize.value !== "custom";
-      const gallons = tankSize.value === "custom" ? numberOrNull(customSize.value) : numberOrNull(tankSize.value);
-      const gpm = numberOrNull(flow.value);
+      const gallons = tankSize.value === "custom" ? boundary.read(customSize) : numberOrNull(tankSize.value);
+      const gpm = boundary.read(flow);
       const isValid = gallons > 0 && gpm > 0;
 
       results.hidden = !isValid;
       if (!isValid) return;
 
       const totalSeconds = H.tankTimeSeconds(gallons, gpm);
-      const minutes = totalSeconds / 60;
       const wholeMinutes = Math.floor(totalSeconds / 60);
       const seconds = totalSeconds % 60;
 
+      boundary.result({ gallons, flowGpm: gpm, durationSeconds: totalSeconds });
       results.innerHTML = createResultRows([
         ["Available Water Time", `${wholeMinutes} min ${seconds} sec`],
-        ["Tank Size", `${formatNumber(gallons, 0)} gal`],
-        ["Flow", `${formatNumber(gpm, 0)} GPM`]
+        ["Tank Size", boundary.display(gallons, "volume", `${formatNumber(gallons, 0)} gal`)],
+        ["Flow", boundary.display(gpm, "flow", `${formatNumber(gpm, 0)} GPM`)]
       ]);
     };
 
-    [tankSize, customSize, flow].forEach(input => {
-      input.addEventListener("input", update);
-      input.addEventListener("change", update);
-    });
-    update();
+    boundary.start(update);
   }
 
   function renderWaterShuttle() {
@@ -702,7 +702,7 @@
       validation.innerHTML = `
         <div class="warning-item">
           <span>!</span>
-          <span><strong>${escapeHtml(title)}</strong><br>${escapeHtml(copy)}</span>
+          <span><strong>${escapeHtml(title)}</strong><br>${escapeHtml(boundary.warning(copy))}</span>
         </div>
       `;
     };
@@ -723,13 +723,13 @@
           <div class="field-calculator-form">
             ${tenderFields.map(([key, label, placeholder, inputMode]) => `
               <div class="field">
-                <label for="waterShuttleTender${index}${key}">${escapeHtml(label)}</label>
+                <label for="waterShuttleTender${index}${key}">${escapeHtml(boundary.metric() ? label + (key === "tankSize" ? " (L)" : " (min)") : label)}</label>
                 <input
                   id="waterShuttleTender${index}${key}"
                   type="text"
                   inputmode="${escapeHtml(inputMode)}"
-                  placeholder="${escapeHtml(placeholder)}"
-                  value="${escapeHtml(tender[key])}"
+                  placeholder="${escapeHtml(key === "tankSize" && boundary.metric() ? "L" : placeholder)}"
+                  value="${escapeHtml(key === "tankSize" ? boundary.number(tender[key], "volume") : tender[key])}"
                   data-water-shuttle-index="${index}"
                   data-water-shuttle-field="${escapeHtml(key)}"
                 />
@@ -787,9 +787,10 @@
     };
 
     const update = () => {
+      boundary.result(null);
       clearOutput();
 
-      const targetGpm = numberOrNull(targetFlow.value);
+      const targetGpm = boundary.read(targetFlow);
       if (targetGpm === null && tenders.every(tender => (
         tender.tankSize === "3000" &&
         tender.dumpSceneTime === "" &&
@@ -819,12 +820,16 @@
       const surplusDeficit = totalSustainedFlow - targetGpm;
       const isMeetingTarget = surplusDeficit >= 0;
 
+      boundary.result({ targetFlowGpm: targetGpm, totalSustainedFlowGpm: totalSustainedFlow,
+        surplusDeficitGpm: surplusDeficit, tenders: tenderResults.map(tender => ({
+          gallons: tender.tankSize, cycleMinutes: tender.cycleTime, sustainedFlowGpm: tender.sustainedFlow
+        })) });
       results.hidden = false;
       results.innerHTML = createCompactResultCard("Water Shuttle Estimate", [
-        ["Target Flow", `${formatWhole(targetGpm)} GPM`],
+        ["Target Flow", boundary.display(targetGpm, "flow", `${formatWhole(targetGpm)} GPM`)],
         ["Tenders", String(tenderResults.length)],
-        ["Sustained Shuttle Flow", `${formatWhole(totalSustainedFlow)} GPM`],
-        [isMeetingTarget ? "Surplus" : "Deficit", `${formatWhole(Math.abs(surplusDeficit))} GPM`],
+        ["Sustained Shuttle Flow", boundary.display(totalSustainedFlow, "flow", `${formatWhole(totalSustainedFlow)} GPM`)],
+        [isMeetingTarget ? "Surplus" : "Deficit", boundary.display(Math.abs(surplusDeficit), "flow", `${formatWhole(Math.abs(surplusDeficit))} GPM`)],
         ["Status", isMeetingTarget ? "Meets Target" : "Below Target"]
       ]);
 
@@ -835,7 +840,7 @@
           ${tenderResults.map((tender, index) => `
             <div>
               <span>Tender ${index + 1}</span>
-              <strong>${formatWhole(tender.tankSize)} gal / ${formatNumber(tender.cycleTime, 1)} min = ${formatWhole(tender.sustainedFlow)} GPM</strong>
+              <strong>${boundary.display(tender.tankSize, "volume", `${formatWhole(tender.tankSize)} gal`)} / ${formatNumber(tender.cycleTime, 1)} min = ${boundary.display(tender.sustainedFlow, "flow", `${formatWhole(tender.sustainedFlow)} GPM`)}</strong>
             </div>
           `).join("")}
         </div>
@@ -846,7 +851,10 @@
       const index = Number(event.target?.dataset?.waterShuttleIndex);
       const field = event.target?.dataset?.waterShuttleField;
       if (!Number.isInteger(index) || !field || !tenders[index]) return;
-      tenders[index][field] = event.target.value;
+      if (field === "tankSize") {
+        const parsed = boundary.edit(event.target.value, "volume");
+        tenders[index][field] = parsed.valid || !boundary.metric() ? parsed.canonical : "invalid";
+      } else tenders[index][field] = event.target.value;
       update();
     });
 
@@ -868,9 +876,16 @@
       update();
     });
 
-    targetFlow.addEventListener("input", update);
-    renderTenderList();
-    update();
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, { [targetFlow.id]: "flow" }, [], {
+      snapshot: () => tenders,
+      restore: saved => {
+        if (Array.isArray(saved) && saved.length && saved.every(tender => tender && tenderFields.every(([key]) => typeof tender[key] === "string"))) {
+          tenders.splice(0, tenders.length, ...saved);
+        }
+      },
+      render: renderTenderList
+    });
+    boundary.start(update);
   }
 
   function renderCoefficientCalculator() {
@@ -882,7 +897,7 @@
       .join("");
 
     calculatorBody.innerHTML = `
-      <p class="helper field-calculator-note">Test setup: Gauge &rarr; 50' hose &rarr; 50' hose &rarr; Gauge</p>
+      <p class="helper field-calculator-note">Test a known total length of hose and enter the test length below. Using multiple hose lengths can improve the usefulness of the test. Place a gauge at each end, use matching/calibrated gauges, and measure pressures at a known flow.</p>
 
       <div class="field-calculator-form">
         <div class="field">
@@ -906,6 +921,10 @@
         </div>
       </div>
 
+      <div class="field">
+        <label for="coefficientTestLength">Test Hose Length</label>
+        <input id="coefficientTestLength" type="text" inputmode="decimal" placeholder="ft" value="100" />
+      </div>
       <div id="coefficientResults" hidden></div>
     `;
 
@@ -915,31 +934,43 @@
     const gaugeTwo = document.getElementById("coefficientGaugeTwo");
     const results = document.getElementById("coefficientResults");
 
+    const testLength = document.getElementById("coefficientTestLength");
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, {
+      [flow.id]: "flow", [gaugeOne.id]: "pressure", [gaugeTwo.id]: "pressure", [testLength.id]: "length"
+    }, coefficientHoseOptions, {
+      decimalFields: [testLength.id],
+      defaults: preference => ({ [testLength.id]: String(window.ReverseFlowToolUnits.referenceFeet(preference)) })
+    });
     const update = () => {
-      const gpm = numberOrNull(flow.value);
-      const pressureOne = numberOrNull(gaugeOne.value);
-      const pressureTwo = numberOrNull(gaugeTwo.value);
-      const isValid = gpm > 0 && pressureOne > 0 && pressureTwo > 0 && pressureOne > pressureTwo;
+      boundary.result(null);
+      const lengthFeet = boundary.read(testLength);
+      const gpm = boundary.read(flow);
+      const pressureOne = boundary.read(gaugeOne);
+      const pressureTwo = boundary.read(gaugeTwo);
+      const isValid = lengthFeet > 0 && gpm > 0 && pressureOne > 0 && pressureTwo > 0 && pressureOne > pressureTwo;
 
       results.hidden = !isValid;
       if (!isValid) return;
 
       const frictionLoss = pressureOne - pressureTwo;
-      const coefficient = H.hoseCoefficient(frictionLoss, gpm);
+      const coefficient = H.hoseCoefficient(frictionLoss, gpm, lengthFeet);
 
+      const referenceLossPsi = H.frictionLoss(coefficient, gpm, boundary.referenceFeet());
+      boundary.result({ gaugeOnePsi: pressureOne, gaugeTwoPsi: pressureTwo, flowGpm: gpm, lengthFeet,
+        frictionLossPsi: frictionLoss, coefficient });
       results.innerHTML = createResultRows([
-        ["Measured Friction Loss (100')", `${formatNumber(frictionLoss, 1)} PSI`],
+        [!boundary.metric() && lengthFeet === 100 ? "Measured Friction Loss (100')" : "Measured Friction Loss", boundary.metric() ? boundary.referencePressure(frictionLoss) : `${formatNumber(frictionLoss, 1)} PSI`],
         ["Calculated Coefficient", formatNumber(coefficient, 2)],
         ["Hose Size", hoseSize.selectedOptions[0]?.textContent || "Selected hose"],
-        ["Flow", `${formatNumber(gpm, 0)} GPM`]
+        ["Flow", boundary.display(gpm, "flow", `${formatNumber(gpm, 0)} GPM`)],
+        ...(boundary.metric() || lengthFeet !== 100 ? [
+          ["Test Hose Length", boundary.metric() ? `${window.ReverseFlowUnits.formatNumber(window.ReverseFlowUnits.fromCanonical(lengthFeet, "length", boundary.preference()), 12)} m` : `${lengthFeet} ft`],
+          [boundary.metric() ? "FL / 30 m" : "FL / 100 ft", boundary.metric() ? boundary.referencePressure(referenceLossPsi) : `${formatNumber(referenceLossPsi, 1)} PSI`]
+        ] : [])
       ]);
     };
 
-    [hoseSize, flow, gaugeOne, gaugeTwo].forEach(input => {
-      input.addEventListener("input", update);
-      input.addEventListener("change", update);
-    });
-    update();
+    boundary.start(update);
   }
 
   function renderFrictionLossPerHundredCalculator() {
@@ -989,7 +1020,9 @@
     const getSelectedHose = () =>
       hoseOptions.find(hose => hose.id === hoseSize.value) || null;
 
+    let calculated = null;
     const syncCoefficient = () => {
+      calculated = null;
       const selectedHose = getSelectedHose();
       const selectedCoefficient = getHoseCoefficientValue(selectedHose);
       coefficient.value = selectedCoefficient > 0
@@ -998,28 +1031,45 @@
       results.hidden = true;
     };
 
+    syncCoefficient();
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, { [flow.id]: "flow" }, hoseOptions, {
+      manual: true,
+      snapshot: () => ({ coefficient: coefficient.value, calculated }),
+      restore: saved => { coefficient.value = saved.coefficient; calculated = saved.calculated; }
+    });
+    const render = () => {
+      const metric = boundary.metric();
+      calculatorTitle.textContent = metric ? "Friction Loss / 30 m" : "Friction Loss / 100'";
+      calculatorDescription.textContent = metric ? "Calculate friction loss over exactly 30 m of hose." : calculators[calculatorId].description;
+      calculatorPath.textContent = `Tools / Field Calculators / ${calculatorTitle.textContent}`;
+      calculatorBody.querySelector(`label[for="${flow.id}"]`).textContent = metric ? "Flow (L/min)" : "GPM";
+      boundary.result(null);
+      results.hidden = !calculated;
+      if (!calculated) return;
+      const selectedHose = hoseOptions.find(hose => hose.id === calculated.hoseId);
+      const { coefficientValue, gpm } = calculated;
+      const lengthFeet = boundary.referenceFeet();
+      const frictionLoss = H.frictionLoss(coefficientValue, gpm, lengthFeet);
+      boundary.result({ hoseId: selectedHose.id, coefficient: coefficientValue, flowGpm: Number(gpm), lengthFeet, frictionLossPsi: frictionLoss });
+      results.innerHTML = createResultRows([
+        [metric ? "FL / 30 m" : "Friction Loss / 100'", metric ? boundary.referencePressure(frictionLoss) : `${formatNumber(frictionLoss, 1)} PSI`],
+        ["Hose Size", metric ? window.ReverseFlowUnits.factoryHoseLabel(selectedHose, boundary.preference()) : selectedHose.label],
+        ["Coefficient Used", formatNumber(coefficientValue, coefficientValue < 1 ? 2 : 1)],
+        [metric ? "Flow Used" : "GPM Used", boundary.display(gpm, "flow", `${formatNumber(gpm, 0)} GPM`)]
+      ]);
+    };
     const calculate = () => {
       const selectedHose = getSelectedHose();
       const coefficientValue = numberOrNull(coefficient.value);
-      const gpm = numberOrNull(flow.value);
-      const isValid = selectedHose && coefficientValue > 0 && gpm >= 0;
-
-      results.hidden = !isValid;
-      if (!isValid) return;
-
-      const frictionLoss = H.frictionLoss(coefficientValue, gpm, 100);
-
-      results.innerHTML = createResultRows([
-        ["Friction Loss / 100'", `${formatNumber(frictionLoss, 1)} PSI`],
-        ["Hose Size", selectedHose.label],
-        ["Coefficient Used", formatNumber(coefficientValue, coefficientValue < 1 ? 2 : 1)],
-        ["GPM Used", `${formatNumber(gpm, 0)} GPM`]
-      ]);
+      const gpm = boundary.read(flow);
+      // Preserve the original blank-flow zero behavior and explicit Calculate action.
+      calculated = selectedHose && coefficientValue > 0 && gpm >= 0
+        ? { hoseId: selectedHose.id, coefficientValue, gpm } : null;
+      render();
     };
-
-    hoseSize.addEventListener("change", syncCoefficient);
+    hoseSize.addEventListener("change", () => { syncCoefficient(); render(); });
     calculateButton.addEventListener("click", calculate);
-    syncCoefficient();
+    boundary.start(render);
   }
 
   function renderWaterVelocity() {
@@ -1064,28 +1114,26 @@
     const flow = document.getElementById("waterVelocityFlow");
     const results = document.getElementById("waterVelocityResults");
 
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, { [customId.id]: "diameter", [flow.id]: "flow" }, getHoseOptions());
     const update = () => {
+      boundary.result(null);
       const isCustom = hoseId.value === "custom";
       customIdField.hidden = !isCustom;
 
-      const id = isCustom ? numberOrNull(customId.value) : numberOrNull(hoseId.value);
-      const gpm = numberOrNull(flow.value);
+      const id = isCustom ? boundary.read(customId) : numberOrNull(hoseId.value);
+      const gpm = boundary.read(flow);
       const isValid = id !== null && gpm !== null && id > 0 && gpm >= 0;
 
       results.hidden = !isValid;
       if (!isValid) return;
 
       const velocity = H.waterVelocity(gpm, id);
+      boundary.result({ diameterInches: id, flowGpm: gpm, velocityFeetPerSecond: velocity });
       results.innerHTML = createResultRows([
-        ["Water Velocity", `${formatNumber(velocity, 1)} ft/sec`]
+        ["Water Velocity", boundary.display(velocity, "velocity", `${formatNumber(velocity, 1)} ft/sec`)]
       ]);
     };
-
-    [hoseId, customId, flow].forEach(input => {
-      input.addEventListener("input", update);
-      input.addEventListener("change", update);
-    });
-    update();
+    boundary.start(update);
   }
 
   function renderEstimatedRemainingSupply() {
@@ -1109,9 +1157,9 @@
         <div class="field">
           <label for="remainingSupplyTargetResidual">Target Residual</label>
           <select id="remainingSupplyTargetResidual">
-            <option value="20" selected>20 psi — Standard Reference</option>
-            <option value="10">10 psi — Aggressive Estimate</option>
-            <option value="0">0 psi — Theoretical Estimate</option>
+            <option value="20" data-unit-quantity="pressure" selected>20 psi — Standard Reference</option>
+            <option value="10" data-unit-quantity="pressure">10 psi — Aggressive Estimate</option>
+            <option value="0" data-unit-quantity="pressure">0 psi — Theoretical Estimate</option>
             <option value="custom">Custom</option>
           </select>
         </div>
@@ -1166,12 +1214,16 @@
     const results = document.getElementById("remainingSupplyResults");
     const targetWarning = document.getElementById("remainingSupplyTargetWarning");
 
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, {
+      [staticPressure.id]: "pressure", [residualPressure.id]: "pressure",
+      [currentFlow.id]: "flow", [customTarget.id]: "pressure"
+    });
     const renderWarning = (element, title, copy) => {
       element.hidden = false;
       element.innerHTML = `
         <div class="warning-item">
           <span>!</span>
-          <span><strong>${escapeHtml(title)}</strong><br>${escapeHtml(copy)}</span>
+          <span><strong>${escapeHtml(title)}</strong><br>${escapeHtml(boundary.warning(copy))}</span>
         </div>
       `;
     };
@@ -1183,11 +1235,12 @@
 
     const getTargetResidual = () => {
       return targetResidual.value === "custom"
-        ? numberOrNull(customTarget.value)
+        ? boundary.read(customTarget)
         : numberOrNull(targetResidual.value);
     };
 
     const update = () => {
+      boundary.result(null);
       customTargetField.hidden = targetResidual.value !== "custom";
       clearWarning(validation);
       clearWarning(caution);
@@ -1195,9 +1248,9 @@
       results.hidden = true;
       results.innerHTML = "";
 
-      const staticPsi = numberOrNull(staticPressure.value);
-      const residualPsi = numberOrNull(residualPressure.value);
-      const flowGpm = numberOrNull(currentFlow.value);
+      const staticPsi = boundary.read(staticPressure);
+      const residualPsi = boundary.read(residualPressure);
+      const flowGpm = boundary.read(currentFlow);
       const targetPsi = getTargetResidual();
 
       if (staticPsi === null && residualPsi === null && flowGpm === null && targetResidual.value !== "custom") {
@@ -1247,11 +1300,13 @@
         return;
       }
 
+      boundary.result({ staticPsi, residualPsi, targetPsi, flowGpm, pressureDropPsi: pressureDrop,
+        projectedFlowGpm: supplyEstimate.projectedFlow, remainingFlowGpm: remainingSupply });
       results.hidden = false;
       results.innerHTML = createCompactResultCard("Estimated Remaining Supply", [
-        ["Current Flow", `${formatWhole(flowGpm)} GPM`],
-        ["Target Residual", `${formatNumber(targetPsi, 0)} psi`],
-        ["Estimated Remaining Supply", `${formatWhole(remainingSupply)} GPM`]
+        ["Current Flow", boundary.display(flowGpm, "flow", `${formatWhole(flowGpm)} GPM`)],
+        ["Target Residual", boundary.display(targetPsi, "pressure", `${formatNumber(targetPsi, 0)} psi`)],
+        ["Estimated Remaining Supply", boundary.display(remainingSupply, "flow", `${formatWhole(remainingSupply)} GPM`)]
       ]);
 
       if (targetPsi === 0) {
@@ -1269,11 +1324,7 @@
       }
     };
 
-    [staticPressure, residualPressure, currentFlow, targetResidual, customTarget].forEach(input => {
-      input.addEventListener("input", update);
-      input.addEventListener("change", update);
-    });
-    update();
+    boundary.start(update);
   }
 
   function renderFrictionLossChart() {
@@ -1291,8 +1342,8 @@
               <label class="split-inline-toggle friction-loss-hose-toggle">
                 <input type="checkbox" value="${escapeHtml(hose.id)}"${defaultHoseIds.has(hose.id) ? " checked" : ""} />
                 <span>
-                  <strong>${escapeHtml(hose.chartName || hose.label)}</strong>
-                  <span class="helper">C ${escapeHtml(formatNumber(coefficient, coefficient < 1 ? 2 : 1))}</span>
+                  <strong data-chart-hose-label="${escapeHtml(hose.id)}">${escapeHtml(hose.chartName || hose.label)}</strong>
+                  <span class="helper" data-chart-coefficient="${escapeHtml(hose.id)}">C ${escapeHtml(formatNumber(coefficient, coefficient < 1 ? 2 : 1))}</span>
                 </span>
               </label>
             `;
@@ -1308,6 +1359,30 @@
     const button = document.getElementById("generateFrictionLossChartButton");
     const status = document.getElementById("frictionLossChartStatus");
 
+    const checkboxes = [...calculatorBody.querySelectorAll('.friction-loss-hose-toggle input')];
+    const selectedIds = () => checkboxes.filter(input => input.checked).map(input => input.value);
+    const boundary = window.ReverseFlowToolUnits.bind(calculatorId, calculatorBody, {}, hoseOptions, {
+      snapshot: () => ({ selectedIds: selectedIds() }),
+      restore: saved => checkboxes.forEach(input => { input.checked = saved.selectedIds.includes(input.value); })
+    });
+    const update = () => {
+      const preference = boundary.preference();
+      calculatorBody.querySelector('.field-calculator-note').textContent = boundary.metric()
+        ? "Select hose sizes to include. The chart covers 0–4000 L/min in 200 L/min increments. FL / 30 m."
+        : "Select hose sizes to include. The chart covers 0-1000 GPM in 50 GPM increments.";
+      calculatorBody.querySelectorAll('[data-chart-hose-label]').forEach(label => {
+        const hose = hoseOptions.find(hose => hose.id === label.dataset.chartHoseLabel);
+        label.textContent = boundary.metric() ? window.ReverseFlowUnits.factoryHoseLabel(hose, preference) : hose.chartName || hose.label;
+      });
+      calculatorBody.querySelectorAll('[data-chart-coefficient]').forEach(label => {
+        const hose = hoseOptions.find(hose => hose.id === label.dataset.chartCoefficient);
+        const coefficient = getHoseCoefficientValue(hose);
+        label.textContent = `C ${formatNumber(coefficient, coefficient < 1 ? 2 : 1)}`;
+      });
+      boundary.result(window.ReverseFlowToolUnits.chartData(getFrictionLossChartHoses(selectedIds(), preference), preference, H));
+    };
+    checkboxes.forEach(input => input.addEventListener("change", update));
+    boundary.start(update);
     button?.addEventListener("click", async () => {
       const selectedHoseIds = [...calculatorBody.querySelectorAll(".friction-loss-hose-toggle input:checked")]
         .map(input => input.value)
@@ -1328,7 +1403,7 @@
       status.textContent = "Generating Friction Loss Chart PNG...";
 
       try {
-        const result = await window.exportFrictionLossChart(selectedHoseIds);
+        const result = await window.exportFrictionLossChart(selectedHoseIds, boundary.preference());
         status.textContent = result?.shared
           ? "Share sheet opened."
           : "PNG generated. Sharing fallback was used or unavailable on this device.";

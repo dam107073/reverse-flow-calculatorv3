@@ -1,0 +1,14 @@
+[
+  "Flow\n161 GPM\nStream Velocity\n85.7 ft/sec",
+  "Flow\n336 GPM\nStream Velocity\n108.4 ft/sec",
+  "Flow\n210 GPM\nStream Velocity\n97.7 ft/sec",
+  "Nozzle Reaction\n99 lb\nNozzle Type\nSmoothbore\nTip Size\n1 1/8\"\nNozzle Pressure\n50 PSI",
+  "Nozzle Reaction\n95 lb\nNozzle Type\nSmoothbore\nTip Size\n0.900\"\nNozzle Pressure\n75 PSI",
+  "Nozzle Reaction\n66 lb\nNozzle Type\nAutomatic Fog\nFlow\n185 GPM\nNozzle Pressure\n50 PSI",
+  "Nozzle Reaction\n77 lb\nNozzle Type\nFixed Fog\nFlow\n200 GPM\nNozzle Pressure\n58 PSI\nNozzle Rating\n185 GPM @ 50 PSI",
+  "Water Velocity\n24.6 ft/sec",
+  "Water Velocity\n12.1 ft/sec",
+  "Water Velocity\n8.4 ft/sec",
+  "Water Velocity\n24.6 ft/sec",
+  "Water Velocity\n0.0 ft/sec"
+]
