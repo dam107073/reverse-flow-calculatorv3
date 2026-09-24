@@ -2,12 +2,12 @@
 // APP CONFIG
 // ========================================
 
-const APP_VERSION = "2.3";
+const APP_VERSION = "2.4";
 const APP_BUILD_NUMBERS = Object.freeze({
-  ios: "2",
-  android: "156"
+  ios: "1",
+  android: "157"
 });
-    const BUILD_DATE = "2026-08-26";
+    const BUILD_DATE = "2026-09-23";
 
     const REVERSE_FLOW_PRO_PRODUCT_ID =
 	  "reverse_flow_pro_lifetime";
