@@ -7,3 +7,4 @@ node_modules/
 android/app/src/main/res/xml/config *.xml
 ios/App/App/config *.xml
 outputs/community-supported-platform-pass4c-production-activation-report 2.md
+ios/App/App.xcodeproj/xcshareddata/xcodecloud/manifest.json
