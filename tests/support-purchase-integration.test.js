@@ -375,9 +375,9 @@ test("every iOS app extension version matches its containing app target", () => 
     new RegExp(`const APP_VERSION = "${release.marketingVersion.replace(".", "\\.")}"`)
   );
   assert.match(constantsSource, new RegExp(`ios:\\s*"${release.buildNumber}"`));
-  assert.match(constantsSource, /android:\s*"156"/);
-  assert.match(androidBuildSource, /versionCode 156/);
-  assert.match(androidBuildSource, /versionName "2\.3"/);
+  assert.match(constantsSource, /android:\s*"157"/);
+  assert.match(androidBuildSource, /versionCode 157/);
+  assert.match(androidBuildSource, /versionName "2\.4"/);
 });
 
 test("every iOS build configuration packages Production", () => {

@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A40DE123091B4C1E8B620001 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40DE123091B4C1E8B620002 /* SceneDelegate.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		3F5F9B342FD0547D007A4BF1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F5F9B332FD0547D007A4BF1 /* StoreKit.framework */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
@@ -17,6 +16,7 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
+		A40DE123091B4C1E8B620001 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40DE123091B4C1E8B620002 /* SceneDelegate.swift */; };
 		AA1000012E20000100A10001 /* TankTimeCalculation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000012E20000100A20001 /* TankTimeCalculation.swift */; };
 		AA1000022E20000100A10002 /* TankTimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000022E20000100A20002 /* TankTimeState.swift */; };
 		AA1000032E20000100A10003 /* TankTimeIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000032E20000100A20003 /* TankTimeIntents.swift */; };
@@ -64,7 +64,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		A40DE123091B4C1E8B620002 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		3F0E75532FF0578000AE0600 /* Accessibility.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accessibility.framework; path = System/Library/Frameworks/Accessibility.framework; sourceTree = SDKROOT; };
 		3F5F9B332FD0547D007A4BF1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
@@ -77,6 +76,7 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		A40DE123091B4C1E8B620002 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		AA2000012E20000100A20001 /* TankTimeCalculation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeCalculation.swift; sourceTree = "<group>"; };
 		AA2000022E20000100A20002 /* TankTimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeState.swift; sourceTree = "<group>"; };
 		AA2000032E20000100A20003 /* TankTimeIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TankTimeIntents.swift; sourceTree = "<group>"; };
@@ -493,7 +493,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -501,7 +501,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.3;
+				MARKETING_VERSION = 2.4;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile;
 				PRODUCT_NAME = "Reverse Flow: Fire Hydraulics";
@@ -517,7 +517,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -525,7 +525,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.3;
+				MARKETING_VERSION = 2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile;
 				PRODUCT_NAME = "Reverse Flow: Fire Hydraulics";
 				SUPPORTER_API_ENVIRONMENT = production;
@@ -540,7 +540,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TankTimeWidget/Info.plist;
@@ -550,7 +550,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.3;
+				MARKETING_VERSION = 2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile.tanktimewidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -565,7 +565,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TankTimeWidget/Info.plist;
@@ -575,7 +575,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.3;
+				MARKETING_VERSION = 2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile.tanktimewidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -640,7 +640,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -648,7 +648,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.3;
+				MARKETING_VERSION = 2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile;
 				PRODUCT_NAME = "Reverse Flow: Fire Hydraulics";
 				SUPPORTER_API_ENVIRONMENT = production;
@@ -663,7 +663,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K5JKR34DQ7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TankTimeWidget/Info.plist;
@@ -673,7 +673,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.3;
+				MARKETING_VERSION = 2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.reverseflow.mobile.tanktimewidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
